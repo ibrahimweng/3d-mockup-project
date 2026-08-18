@@ -266,9 +266,9 @@ export const appControlSectionInventory: readonly ToolcraftControlSectionInvento
       entity: "Device",
       entityId: "device",
       groupingReason:
-        "Which product is being mocked up is one decision with one control; the model choice is that entity's complete editable surface.",
+        "Which product is being mocked up and what colour it is are one decision about the same object; the finish is meaningless without the model it repaints.",
       id: "device",
-      targets: ["device.model"],
+      targets: ["device.model", "device.finish"],
       title: "Device",
     },
     {
@@ -369,6 +369,23 @@ export const appAcceptance: readonly ToolcraftComponentAcceptance[] = [
     target: "device.model",
     userAction:
       "Choose each Device option in turn and inspect the rendered canvas.",
+  },
+  {
+    automated: true,
+    automatedTestName: "finishes repaint only the materials each device names",
+    browser: true,
+    browserTestName:
+      "browser: each finish repaints the device body and leaves the display alone",
+    componentType: "select",
+    evidence: "rendered-pixels",
+    expectedObservable:
+      "Choosing each finish repaints the device's body — the phone's rails and back, the laptop's aluminium, the watch's case and band — while the display, its design, and the surface character stay as they were. Natural restores the model's authored colours.",
+    fixture: "each bundled device under the default studio",
+    id: "device.finish.colorway",
+    kind: "control",
+    optionCoverage: "each-visible-item",
+    target: "device.finish",
+    userAction: "Choose each Finish option and inspect the rendered device.",
   },
   {
     automated: true,

@@ -26,6 +26,41 @@ export const DEVICE_OPTIONS = [
 
 export type DeviceId = (typeof DEVICE_OPTIONS)[number]["value"];
 
+/**
+ * Colourways, shared across every device.
+ *
+ * The option list has to be the same for all of them because schema options are
+ * static, so each device maps these names onto its own materials instead. A
+ * device that has nothing sensible for a given finish simply omits it and stays
+ * as its author built it.
+ *
+ * Five options, so this is a Select: the segmented budget is four.
+ */
+export const FINISH_OPTIONS = [
+  { label: "Natural", value: "natural" },
+  { label: "Graphite", value: "graphite" },
+  { label: "Silver", value: "silver" },
+  { label: "Gold", value: "gold" },
+  { label: "Blue", value: "blue" },
+] as const;
+
+export type FinishId = (typeof FINISH_OPTIONS)[number]["value"];
+
+export const DEFAULT_FINISH: FinishId = "natural";
+
+/**
+ * One colourway on one device.
+ *
+ * `body` paints every material the device lists as its shell, so a device with
+ * a dozen materials carrying the same finish needs one colour rather than a
+ * dozen. `accents` covers the parts that are deliberately a different colour —
+ * a watch band against its case.
+ */
+export type DeviceFinish = {
+  accents?: Readonly<Record<string, string>>;
+  body: string;
+};
+
 export const DEFAULT_DEVICE: DeviceId = "iphone-17-pro-max";
 
 /**
@@ -67,6 +102,22 @@ export type DeviceDefinition = {
    * Names are exact but brittle across re-exports, so the builder falls back to
    * the strongest emissive material — a display is the surface that emits.
    */
+  /**
+   * The materials that make up this device's shell.
+   *
+   * Named once here rather than repeated in every colourway. A name that the
+   * model does not contain is simply ignored, so a family of near-identical
+   * models can share one list.
+   */
+  bodyMaterials?: readonly string[];
+  /**
+   * What each colourway does to this device.
+   *
+   * Only base colour is rewritten; metalness and roughness stay as authored, so
+   * a brushed enclosure stays brushed and a polished rail stays polished.
+   * Natural is always the model exactly as it shipped, so it needs no entry.
+   */
+  finishes?: Partial<Record<FinishId, DeviceFinish>>;
   screenMaterial: string;
   /**
    * Scene to load when the file's default scene is not this device.
@@ -85,9 +136,51 @@ export type DeviceDefinition = {
   yawDegrees?: number;
 };
 
+/**
+ * Every material carrying the orange finish across the phone family.
+ *
+ * Read out of both GLBs rather than eyeballed: any material whose base colour
+ * is red-dominant. Missing the small ones leaves an orange side button on an
+ * otherwise repainted phone.
+ */
+const PHONE_BODY_MATERIALS = [
+  "iAKEWdNafBldSCV",
+  "nwfiSfJrPZRLBAj",
+  "SLmJkLdkhbbuEfG",
+  "sJxAokqqlZYuwzy",
+  "SMUhrjUPCjJkPUK.001",
+  "ooxVuxObmmqIeuh",
+  "VXTclbUnoLmmPoD",
+  "YQFhPSFSryEqJMp",
+  "yPEFElLJTRhfWfw",
+  "PJgHvfOhNXkxvzq",
+  "awYxKfiOpRgQIxD",
+] as const;
+
+const PHONE_FINISHES: Partial<Record<FinishId, DeviceFinish>> = {
+  blue: { body: "#3b5f8a" },
+  gold: { body: "#d4b483" },
+  graphite: { body: "#3a3a3c" },
+  silver: { body: "#d6d6d8" },
+};
+
+const WATCH_BAND = (hex: string): Readonly<Record<string, string>> => ({
+  "Material.002": hex,
+  "Watch Crown Ring": hex,
+  "Watch Strap": hex,
+});
+
 export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
   "apple-watch-ultra": {
     excludedNodes: [],
+    // Case and band are separate materials, so each colourway sets both.
+    bodyMaterials: ["Watch Body", "Watch Crown"],
+    finishes: {
+      blue: { accents: WATCH_BAND("#2f4a6d"), body: "#7d8ea3" },
+      gold: { accents: WATCH_BAND("#e8d5b0"), body: "#cfae7b" },
+      graphite: { accents: WATCH_BAND("#2c2c2e"), body: "#4a4a4c" },
+      silver: { accents: WATCH_BAND("#e3e1dd"), body: "#d8d6d2" },
+    },
     label: "Apple Watch Ultra",
     modelFile: "apple-watch-ultra.glb",
     screenMaterial: "Material.004",
@@ -98,12 +191,22 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
     // above the top edge, and its bounds alone added 83mm of height. Hidden
     // rather than deleted, so the source file stays untouched.
     excludedNodes: ["lwfmQebmsqyrPXh"],
+    // Every material that carries this phone family's finish. The two phone
+    // models are near-identical, so both name the same union; a material the
+    // file does not contain is ignored.
+    bodyMaterials: PHONE_BODY_MATERIALS,
+    finishes: PHONE_FINISHES,
     label: "iPhone 17 Pro Max",
     modelFile: "iphone-17-pro-max.glb",
     screenMaterial: "BsXHDwLKqtDOfrW",
   },
   "iphone-orange": {
     excludedNodes: [],
+    // Every material that carries this phone family's finish. The two phone
+    // models are near-identical, so both name the same union; a material the
+    // file does not contain is ignored.
+    bodyMaterials: PHONE_BODY_MATERIALS,
+    finishes: PHONE_FINISHES,
     label: "iPhone 17 Pro Max (Orange)",
     modelFile: "iphone-5.glb",
     // The file is named for an iPhone 5 but holds the same phone geometry as
@@ -113,6 +216,14 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
   },
   macbook: {
     excludedNodes: [],
+    // The two aluminium materials: the lid shell and the deck around the keys.
+    bodyMaterials: ["CRQixVLpahJzhJc", "LpqXZqhaGCeSzdu"],
+    finishes: {
+      blue: { body: "#4a5c7a" },
+      gold: { body: "#cbb28f" },
+      graphite: { body: "#3f4145" },
+      silver: { body: "#cfd2d6" },
+    },
     label: "MacBook",
     modelFile: "macbook.glb",
     // 16:10. The open lid is modelled at its hinge angle, so the panel's local
@@ -128,6 +239,16 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
   },
   "studio-display": {
     excludedNodes: [],
+    // The enclosure is textured, so its base colour multiplies the texture
+    // rather than replacing it: the aluminium tints and keeps its brushed
+    // detail.
+    bodyMaterials: ["metal.010"],
+    finishes: {
+      blue: { body: "#8fa4bd" },
+      gold: { body: "#d9c3a1" },
+      graphite: { body: "#6f7175" },
+      silver: { body: "#e6e8ea" },
+    },
     label: "Studio Display",
     modelFile: "macstudio.glb",
     screenMaterial: "Screen",
@@ -137,6 +258,12 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
     yawDegrees: 180,
   },
 };
+
+export function readFinishId(value: unknown): FinishId {
+  return FINISH_OPTIONS.some((option) => option.value === value)
+    ? (value as FinishId)
+    : DEFAULT_FINISH;
+}
 
 export function readDeviceDefinition(value: unknown): DeviceDefinition {
   return (

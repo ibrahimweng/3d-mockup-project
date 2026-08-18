@@ -42,6 +42,13 @@ measuring bounds, the screen's aspect where a tilted panel cannot be measured,
 and a yaw for a model that faces away from the default camera. Every value was
 read out of the GLB rather than guessed.
 
+Each device also declares the materials that make up its shell, so one
+colourway is a single colour rather than a list: `Natural` leaves the model
+exactly as its author built it, and the rest repaint the shell while keeping the
+metalness and roughness that make an enclosure read as brushed or polished. A
+device with parts that are deliberately a different colour — a watch band
+against its case — declares those as accents.
+
 Adding a sixth device is a catalog entry, not a code change.
 
 ## How a render works
@@ -70,7 +77,7 @@ Adding a sixth device is a catalog entry, not a code change.
 
 | Section | What it does |
 | --- | --- |
-| Device | Which product the design is shown on |
+| Device | Which product the design is shown on, and its finish |
 | Screenshot | The design on the display, its position and stretch, and the runtime's rotate and flip actions |
 | Screen fit | Fit, fill or stretch, and a scale |
 | Studio | Which captured environment lights the device, and how strongly |

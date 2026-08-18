@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-import { readDeviceDefinition } from "../product-domain";
+import { readDeviceDefinition, readFinishId } from "../product-domain";
 import {
   buildDeviceScene,
   type DeviceScene,
@@ -18,6 +18,7 @@ export type RasterSettings = {
   device: string;
   environment: string;
   exposure: number;
+  finish: string;
   focalLength: number;
   lighting: LightingSettings;
   showBackground: boolean;
@@ -75,6 +76,7 @@ export class RasterRenderer {
       settings.backgroundColor,
       settings.device,
       settings.environment,
+      settings.finish,
       settings.lighting,
       settings.showBackground,
     ]);
@@ -86,6 +88,7 @@ export class RasterRenderer {
       backgroundColor: settings.backgroundColor,
       device: readDeviceDefinition(settings.device),
       environmentUrl: `${import.meta.env.BASE_URL}hdri/${settings.environment}.hdr`,
+      finish: readFinishId(settings.finish),
       lighting: settings.lighting,
       renderer: this.renderer,
       showGround: settings.showBackground,

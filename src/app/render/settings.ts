@@ -1,4 +1,4 @@
-import { DEFAULT_DEVICE } from "../product-domain";
+import { DEFAULT_DEVICE, DEFAULT_FINISH } from "../product-domain";
 import type { ScreenTransform } from "./device-scene";
 import type { RasterSettings } from "./raster-renderer";
 
@@ -72,6 +72,7 @@ export function readRasterSettings(
     device: str(values, "device.model", DEFAULT_DEVICE),
     environment: str(values, "studio.environment", "studio-soft"),
     exposure: 100,
+    finish: str(values, "device.finish", DEFAULT_FINISH),
     focalLength: num(values, "camera.focalLength", 85),
     lighting: {
       environmentIntensity: num(values, "studio.intensity", 100) / 100,

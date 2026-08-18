@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
-import type { DeviceDefinition } from "../product-domain";
+import type { DeviceDefinition, FinishId } from "../product-domain";
 
 /**
  * A device scene: a real GLB lit entirely by a prefiltered environment.
@@ -218,10 +218,49 @@ export type LightingSettings = {
   rimIntensity: number;
 };
 
+/**
+ * Repaint the materials a colourway names.
+ *
+ * Only base colour is rewritten. Metalness and roughness stay as the model's
+ * author set them, so a brushed enclosure stays brushed and a polished rail
+ * stays polished — the finish changes the colour, not the material.
+ */
+function applyFinish(
+  root: THREE.Object3D,
+  device: DeviceDefinition,
+  finish: FinishId,
+): void {
+  const colorway = device.finishes?.[finish];
+  if (!colorway) return;
+
+  const body = new Set(device.bodyMaterials ?? []);
+  const accents = colorway.accents ?? {};
+  const painted = new Set<THREE.Material>();
+
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    const material = object.material;
+    if (
+      Array.isArray(material) ||
+      !(material instanceof THREE.MeshStandardMaterial) ||
+      painted.has(material)
+    ) {
+      return;
+    }
+    // An accent wins over the shell, so a band keeps its own colour.
+    const hex = accents[material.name] ?? (body.has(material.name) ? colorway.body : null);
+    if (!hex) return;
+    material.color.set(hex);
+    material.needsUpdate = true;
+    painted.add(material);
+  });
+}
+
 export async function buildDeviceScene(options: {
   backgroundColor: string;
   device: DeviceDefinition;
   environmentUrl: string;
+  finish: FinishId;
   lighting: LightingSettings;
   renderer: THREE.WebGLRenderer;
   showGround: boolean;
@@ -262,6 +301,8 @@ export async function buildDeviceScene(options: {
     subject.rotation.y = THREE.MathUtils.degToRad(options.device.yawDegrees);
     subject.updateMatrixWorld(true);
   }
+
+  applyFinish(subject, options.device, options.finish);
 
   const excluded = new Set(options.device.excludedNodes);
   subject.traverse((object) => {

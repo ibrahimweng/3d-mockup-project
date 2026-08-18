@@ -3,8 +3,10 @@ import { defineToolcraft } from "@/toolcraft/runtime";
 import { appIdentity } from "./app-identity";
 import {
   DEFAULT_DEVICE,
+  DEFAULT_FINISH,
   DEVICE_OPTIONS,
   ENVIRONMENT_OPTIONS,
+  FINISH_OPTIONS,
   FIT_OPTIONS,
 } from "./product-domain";
 
@@ -33,6 +35,19 @@ export const appSchema = defineToolcraft({
                 "Switching device decodes a different GLB once and reframes the camera; frames themselves stay one constant-cost raster pass.",
               performanceRole: "responsiveness",
               target: "device.model",
+              type: "select",
+            },
+            finish: {
+              applicability: { mode: "always" },
+              defaultValue: DEFAULT_FINISH,
+              description:
+                "Repaints the device's own body materials. Natural is the model exactly as its author built it; the rest keep the same brushed or polished surface and change only its colour.",
+              label: "Finish",
+              options: FINISH_OPTIONS,
+              performanceReason:
+                "A finish rewrites base colours on the loaded model; it does not re-decode geometry or re-convolve the environment.",
+              performanceRole: "responsiveness",
+              target: "device.finish",
               type: "select",
             },
           },
