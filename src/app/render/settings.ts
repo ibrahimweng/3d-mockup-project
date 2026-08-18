@@ -17,6 +17,14 @@ function vec(
   };
 }
 
+function signedVec(
+  values: Record<string, unknown>,
+  key: string,
+): { x: number; y: number } {
+  const raw = vec(values, key);
+  return { x: (raw.x - 0.5) * 2, y: (raw.y - 0.5) * 2 };
+}
+
 function num(values: Record<string, unknown>, key: string, fallback: number) {
   const value = Number(values[key]);
   return Number.isFinite(value) ? value : fallback;
@@ -65,6 +73,15 @@ export function readRasterSettings(
     environment: str(values, "studio.environment", "studio-soft"),
     exposure: 100,
     focalLength: num(values, "camera.focalLength", 85),
+    lighting: {
+      environmentIntensity: num(values, "studio.intensity", 100) / 100,
+      fillIntensity: num(values, "light.fill", 30) / 100,
+      keyColor: str(values, "light.keyColor", "#FFFFFF"),
+      // The pad is 0..1 with 0.5 centred; the rig wants -1..1 with 0 straight on.
+      keyDirection: signedVec(values, "light.keyDirection"),
+      keyIntensity: num(values, "light.keyIntensity", 110) / 100,
+      rimIntensity: num(values, "light.rim", 0) / 100,
+    },
     showBackground: values["export.includeBackground"] !== false,
   };
 }

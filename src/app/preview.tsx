@@ -1,5 +1,6 @@
 import * as React from "react";
 import * as THREE from "three";
+import type { ToolcraftImageAsset } from "@/toolcraft/runtime";
 import {
   readToolcraftOrientationPose,
   useToolcraft,
@@ -32,7 +33,7 @@ export function MockupPreview(): React.ReactElement {
   const artworkAssets = React.useMemo(
     () =>
       state.mediaAssets.filter(
-        (asset) =>
+        (asset): asset is ToolcraftImageAsset =>
           asset.assetKind === "image" && asset.sourceTarget === "artwork.image",
       ),
     [state.mediaAssets],
@@ -76,6 +77,10 @@ export function MockupPreview(): React.ReactElement {
 
   const artworkAsset = artworkAssets.at(-1) ?? null;
   const artworkUrl = artworkAsset ? (urls.get(artworkAsset.id) ?? null) : null;
+  // Runtime owns rotate and flip through the actions under the uploader; the
+  // renderer reads that state rather than keeping its own copy.
+  const designTransform = artworkAsset?.transform;
+  const designTransformKey = JSON.stringify(designTransform ?? {});
 
   React.useEffect(() => {
     if (!artworkAsset || !artworkUrl) return undefined;
@@ -104,6 +109,7 @@ export function MockupPreview(): React.ReactElement {
         const texture = createScreenTexture(
           image,
           readDeviceDefinition(settings.device),
+          designTransform,
         );
 
         artworkRef.current?.dispose();
@@ -118,7 +124,10 @@ export function MockupPreview(): React.ReactElement {
     return () => {
       cancelled = true;
     };
-  }, [artworkUrl, sceneVersion, settings.device]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the transform is
+    // tracked by its serialized key so a new object identity alone cannot
+    // re-decode the source image.
+  }, [artworkUrl, designTransformKey, sceneVersion, settings.device]);
 
   React.useEffect(() => {
     rendererRef.current?.setPose(pose);

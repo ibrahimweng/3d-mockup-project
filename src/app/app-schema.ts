@@ -133,9 +133,110 @@ export const appSchema = defineToolcraft({
               target: "studio.environment",
               type: "select",
             },
+            intensity: {
+              applicability: { mode: "always" },
+              defaultValue: 100,
+              description:
+                "How strongly the captured studio itself lights the device. Lower it to let the placed lights below do more of the work.",
+              label: "Environment",
+              max: 300,
+              min: 0,
+              performanceReason:
+                "Environment intensity is one scene-level scalar; the convolved texture is reused.",
+              performanceRole: "responsiveness",
+              sliderValueKind: "continuous",
+              step: 5,
+              target: "studio.intensity",
+              type: "slider",
+              unit: "%",
+            },
           },
           id: "studio",
           title: "Studio",
+        },
+        {
+          controls: {
+            keyIntensity: {
+              applicability: { mode: "always" },
+              defaultValue: 110,
+              description:
+                "The one shadow-casting light. A second caster reads as two suns, which is what gives a render away.",
+              label: "Key",
+              max: 400,
+              min: 0,
+              performanceReason:
+                "Light intensity is a uniform; the shadow map is already allocated.",
+              performanceRole: "responsiveness",
+              sliderValueKind: "continuous",
+              step: 5,
+              target: "light.keyIntensity",
+              type: "slider",
+              unit: "%",
+            },
+            keyColor: {
+              applicability: { mode: "always" },
+              defaultValue: "#FFFFFF",
+              description:
+                "Warm the key towards tungsten or cool it towards daylight to sit the device in a room.",
+              label: "Key color",
+              performanceReason: "The key's colour is one uniform.",
+              performanceRole: "responsiveness",
+              target: "light.keyColor",
+              type: "color",
+            },
+            fill: {
+              applicability: { mode: "always" },
+              defaultValue: 30,
+              description:
+                "Bounce from below, lifting the shadow side. It casts nothing, because bounce has no edge.",
+              label: "Fill",
+              max: 200,
+              min: 0,
+              performanceReason: "Fill is a hemisphere light with no shadow map.",
+              performanceRole: "responsiveness",
+              sliderValueKind: "continuous",
+              step: 5,
+              target: "light.fill",
+              type: "slider",
+              unit: "%",
+            },
+            rim: {
+              applicability: { mode: "always" },
+              defaultValue: 0,
+              description:
+                "A hard edge from behind that separates the device from the backdrop.",
+              label: "Rim",
+              max: 400,
+              min: 0,
+              performanceReason: "Rim is a second directional light with no shadow map.",
+              performanceRole: "responsiveness",
+              sliderValueKind: "continuous",
+              step: 5,
+              target: "light.rim",
+              type: "slider",
+              unit: "%",
+            },
+          },
+          id: "lights",
+          title: "Lights",
+        },
+        {
+          controls: {
+            keyDirection: {
+              applicability: { mode: "always" },
+              defaultValue: { x: 0.5, y: 0.5 },
+              description:
+                "Where the key sits relative to the camera. Centre is straight on; move it off centre to rake the light across the device and lengthen the shadow.",
+              label: false,
+              performanceReason:
+                "Moving the key repositions one light and redraws a frame.",
+              performanceRole: "responsiveness",
+              target: "light.keyDirection",
+              type: "vector",
+            },
+          },
+          id: "key-light-direction",
+          title: "Key light direction",
         },
         {
           controls: {

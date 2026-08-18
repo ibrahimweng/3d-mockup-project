@@ -18,7 +18,7 @@
  */
 export const DEVICE_OPTIONS = [
   { label: "iPhone 17 Pro Max", value: "iphone-17-pro-max" },
-  { label: "iPhone 5", value: "iphone-5" },
+  { label: "iPhone 17 Pro Max (Orange)", value: "iphone-orange" },
   { label: "MacBook", value: "macbook" },
   { label: "Studio Display", value: "studio-display" },
   { label: "Apple Watch Ultra", value: "apple-watch-ultra" },
@@ -102,12 +102,13 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
     modelFile: "iphone-17-pro-max.glb",
     screenMaterial: "BsXHDwLKqtDOfrW",
   },
-  "iphone-5": {
+  "iphone-orange": {
     excludedNodes: [],
-    label: "iPhone 5",
+    label: "iPhone 17 Pro Max (Orange)",
     modelFile: "iphone-5.glb",
-    // Same base mesh family as the 17 Pro Max with the display material
-    // renamed; its own default scene is the phone.
+    // The file is named for an iPhone 5 but holds the same phone geometry as
+    // the 17 Pro Max in an orange finish, with the display material renamed.
+    // Labelled for what it renders rather than what the file is called.
     screenMaterial: "Screen.001",
   },
   macbook: {

@@ -189,10 +189,24 @@ function applyScreenTransform(
   texture.needsUpdate = true;
 }
 
+export type LightingSettings = {
+  /** How strongly the captured studio itself lights the device. */
+  environmentIntensity: number;
+  /** Bounce from below and behind, lifting the shadow side. */
+  fillIntensity: number;
+  keyColor: string;
+  keyIntensity: number;
+  /** Where the key sits, -1..1 per axis with 0 straight on. */
+  keyDirection: { x: number; y: number };
+  /** A hard edge light behind the device, separating it from the ground. */
+  rimIntensity: number;
+};
+
 export async function buildDeviceScene(options: {
   backgroundColor: string;
   device: DeviceDefinition;
   environmentUrl: string;
+  lighting: LightingSettings;
   renderer: THREE.WebGLRenderer;
   showGround: boolean;
 }): Promise<DeviceScene> {
@@ -215,6 +229,9 @@ export async function buildDeviceScene(options: {
   environmentMap.dispose();
   pmrem.dispose();
   scene.environment = environment;
+  // The captured studio is the base layer of the lighting model; everything
+  // below is placed on top of it rather than replacing it.
+  scene.environmentIntensity = options.lighting.environmentIntensity;
   disposables.push(environment);
 
   // Several of these files hold more than one device in sibling scenes, and the
@@ -277,13 +294,28 @@ export async function buildDeviceScene(options: {
     disposables.push(groundGeometry, groundMaterial);
   }
 
-  // One directional light, present only to cast the contact shadow — the
-  // environment already supplies all the illumination. Its intensity is low on
-  // purpose: raising it would double-light the device and flatten the
-  // reflections the HDRI is providing. Every extent is expressed in subject
-  // radii so the same setup works for a watch and for a laptop.
-  const key = new THREE.DirectionalLight(0xffffff, 1.1);
-  key.position.set(sphere.radius * 2, sphere.radius * 4, sphere.radius * 2.5);
+  // A placeable three-point rig on top of the captured studio. The key is the
+  // only shadow caster: a second shadow map would read as two suns, which is
+  // the giveaway of a rendered product shot rather than a photographed one.
+  // Every distance is expressed in subject radii, so one rig frames a watch and
+  // a laptop alike.
+  const keyDirection = new THREE.Vector3(
+    options.lighting.keyDirection.x,
+    // The pad reads in screen coordinates, where up is negative.
+    -options.lighting.keyDirection.y,
+    1,
+  );
+  if (keyDirection.lengthSq() < 1e-6) keyDirection.set(0, 0, 1);
+  keyDirection.normalize();
+
+  const key = new THREE.DirectionalLight(
+    new THREE.Color(options.lighting.keyColor),
+    options.lighting.keyIntensity,
+  );
+  key.position
+    .copy(keyDirection)
+    .multiplyScalar(sphere.radius * 4)
+    .add(new THREE.Vector3(0, sphere.radius * 2, 0));
   key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
   key.shadow.radius = 4;
@@ -296,6 +328,27 @@ export async function buildDeviceScene(options: {
   key.shadow.camera.near = sphere.radius * 0.2;
   key.shadow.camera.far = sphere.radius * 12;
   scene.add(key);
+
+  if (options.lighting.fillIntensity > 0) {
+    // Hemisphere rather than a second directional: fill is bounce, and bounce
+    // has no direction sharp enough to cast anything.
+    const fill = new THREE.HemisphereLight(
+      0xffffff,
+      new THREE.Color(options.backgroundColor),
+      options.lighting.fillIntensity,
+    );
+    scene.add(fill);
+  }
+
+  if (options.lighting.rimIntensity > 0) {
+    const rim = new THREE.DirectionalLight(0xffffff, options.lighting.rimIntensity);
+    rim.position.set(
+      -keyDirection.x * sphere.radius * 3,
+      sphere.radius * 1.5,
+      -sphere.radius * 3,
+    );
+    scene.add(rim);
+  }
 
   const screenMaterials = findScreenMaterials(
     subject,

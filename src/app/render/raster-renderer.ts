@@ -4,6 +4,7 @@ import { readDeviceDefinition } from "../product-domain";
 import {
   buildDeviceScene,
   type DeviceScene,
+  type LightingSettings,
   type ScreenTransform,
 } from "./device-scene";
 
@@ -18,6 +19,7 @@ export type RasterSettings = {
   environment: string;
   exposure: number;
   focalLength: number;
+  lighting: LightingSettings;
   showBackground: boolean;
 };
 
@@ -67,10 +69,13 @@ export class RasterRenderer {
     this.settings = settings;
     this.renderer.toneMappingExposure = settings.exposure / 100;
 
+    // The rig is rebuilt with the scene, so it belongs in the key that decides
+    // whether the scene is rebuilt at all.
     const key = JSON.stringify([
       settings.backgroundColor,
       settings.device,
       settings.environment,
+      settings.lighting,
       settings.showBackground,
     ]);
     if (key === this.lastKey && this.built) return;
@@ -81,6 +86,7 @@ export class RasterRenderer {
       backgroundColor: settings.backgroundColor,
       device: readDeviceDefinition(settings.device),
       environmentUrl: `${import.meta.env.BASE_URL}hdri/${settings.environment}.hdr`,
+      lighting: settings.lighting,
       renderer: this.renderer,
       showGround: settings.showBackground,
     })

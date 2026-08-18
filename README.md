@@ -29,7 +29,7 @@ framework preset, the `npm run build` command and the `dist` output directory.
 | Device | Model file | Notes |
 | --- | --- | --- |
 | iPhone 17 Pro Max | `iphone-17-pro-max.glb` | Default |
-| iPhone 5 | `iphone-5.glb` | Same phone geometry as the 17 Pro Max, in orange |
+| iPhone 17 Pro Max (Orange) | `iphone-5.glb` | Named for an iPhone 5, but holds the same phone in an orange finish |
 | MacBook | `macbook.glb` | Scene `Scene.002`; the file also holds an iPhone and an iMac |
 | Studio Display | `macstudio.glb` | Scene `Exp`; the default scene stacks two displays |
 | Apple Watch Ultra | `apple-watch-ultra.glb` | Nearly square screen, so tall screenshots crop hard |
@@ -50,15 +50,19 @@ Adding a sixth device is a catalog entry, not a code change.
    environment is convolved through three.js's `PMREMGenerator` into mip levels
    representing increasing roughness — this is the entire lighting model, and
    there are no separate lights to place.
-2. The uploaded screenshot is decoded into a texture and bound to the display
-   material's *emissive* channel, so it reads at full brightness regardless of
-   how the environment happens to be lighting the rest of the device. Fit mode,
-   scale, position and stretch rewrite that texture's repeat and offset; none of
-   them rebuild the scene.
-3. Every frame is a single raster pass. There is no accumulator and nothing to
+2. The uploaded design is decoded into a texture and bound to every display
+   material on the device, on the *emissive* channel, so it reads at full
+   brightness regardless of how the environment happens to be lighting the rest
+   of the device. Rotate and flip are baked into that bitmap, along with any
+   correction the model's own screen UVs need. Fit mode, scale, position and
+   stretch then rewrite the texture's repeat and offset; none of them rebuild
+   the scene.
+3. A three-point rig is placed on top of the captured environment. The key is
+   the only shadow caster, because a second caster reads as two suns.
+4. Every frame is a single raster pass. There is no accumulator and nothing to
    converge, so orbiting the camera costs one draw call and an idle scene does
    no work at all.
-4. Export builds a second renderer at the artifact's own resolution and draws
+5. Export builds a second renderer at the artifact's own resolution and draws
    one frame. Preview and export read the same settings through the same scene
    builder, so the exported frame is the frame the preview showed.
 
@@ -66,10 +70,12 @@ Adding a sixth device is a catalog entry, not a code change.
 
 | Section | What it does |
 | --- | --- |
-| Device | Which product the screenshot is shown on |
-| Screenshot | The image on the display, plus its position and stretch |
+| Device | Which product the design is shown on |
+| Screenshot | The design on the display, its position and stretch, and the runtime's rotate and flip actions |
 | Screen fit | Fit, fill or stretch, and a scale |
-| Studio | Which captured environment lights and is reflected by the device |
+| Studio | Which captured environment lights the device, and how strongly |
+| Lights | A placed three-point rig on top of the environment: key intensity and colour, fill, rim |
+| Key light direction | Where the key sits, which rakes the light and swings the shadow |
 | Camera | Focal length as a full-frame equivalent; drag the device itself to rotate |
 | Background | The ground plane behind the device, and its colour |
 | Image Export | PNG or JPG, at a 2K, 4K or 8K long edge |

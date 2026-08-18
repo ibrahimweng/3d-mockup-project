@@ -88,6 +88,8 @@ describe("appSchema", () => {
       "artwork",
       "screen-fit",
       "studio",
+      "lights",
+      "key-light-direction",
       "camera",
       "image-export",
     ]);

@@ -1,4 +1,7 @@
-import type { ToolcraftProductExportRenderer } from "@/toolcraft/runtime";
+import type {
+  ToolcraftImageAsset,
+  ToolcraftProductExportRenderer,
+} from "@/toolcraft/runtime";
 import { readToolcraftOrientationPose } from "@/toolcraft/runtime/react";
 import { getExportArtworkImage } from "./artwork-store";
 import { readDeviceDefinition } from "./product-domain";
@@ -36,7 +39,7 @@ export const mockupExportRenderer: ToolcraftProductExportRenderer = {
 
       const artworkAsset = state.mediaAssets
         .filter(
-          (asset) =>
+          (asset): asset is ToolcraftImageAsset =>
             asset.assetKind === "image" &&
             asset.sourceTarget === "artwork.image",
         )
@@ -48,6 +51,7 @@ export const mockupExportRenderer: ToolcraftProductExportRenderer = {
           const texture = createScreenTexture(
             image,
             readDeviceDefinition(settings.device),
+            artworkAsset.transform,
           );
           renderer.setArtwork(texture, readScreenTransform(values));
         }
