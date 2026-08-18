@@ -1,0 +1,672 @@
+import type {
+  ToolcraftComponentAcceptance,
+  ToolcraftControlSectionInventoryEntry,
+  ToolcraftProductReadiness,
+  ToolcraftTransferMode,
+} from "./acceptance/types";
+import { appSchema } from "./app-schema";
+
+const productPersistenceSlices =
+  appSchema.persistence.storage === "localStorage"
+    ? appSchema.persistence.include
+    : [];
+
+export const appTransferMode: ToolcraftTransferMode = {
+  animationIntent: { mode: "none" },
+  behaviorCoverage: [
+    "canvas-sizing",
+    "control-mapping",
+    "export-copy",
+    "media-lifecycle",
+    "renderer-loop",
+    "renderer-state",
+  ],
+  mode: "reference-runtime-clone",
+  referenceFeatureInventory: [
+    {
+      acceptanceId: "artwork.image.upload",
+      behaviorEvidence:
+        "Running the reference build locally and dropping a PNG into Screenshot puts the image on the phone's display and clearing it returns the screen to dark.",
+      featureName: "Screenshot upload",
+      id: "screenshot-upload",
+      referenceBehavior:
+        "One image fileDrop supplies the picture shown on the device screen; the renderer decodes it once into a texture bound to the display material's emissive channel.",
+      sourceEvidence:
+        "src/app/app-schema.ts declares the `artwork.image` fileDrop; src/app/preview.tsx decodes the presentation URL and calls setArtwork.",
+      status: "ported",
+      toolcraftMapping:
+        "Same `artwork.image` fileDrop with assetKind image, consumed by the same preview decode path.",
+    },
+    {
+      acceptanceId: "artwork.fit.mode",
+      behaviorEvidence:
+        "Switching Fit mode in the running reference changes whether the screenshot is cropped, letterboxed, or distorted on the display.",
+      featureName: "Screen fit mode",
+      id: "screen-fit",
+      referenceBehavior:
+        "Fit/Fill/Stretch choose how the source aspect is reconciled with the display aspect by rewriting the texture's repeat.",
+      sourceEvidence:
+        "FIT_OPTIONS in src/app/product-domain.ts; applyScreenTransform in src/app/render/iphone-scene.ts.",
+      status: "ported",
+      toolcraftMapping:
+        "Same segmented control on `artwork.fit`, with the same repeat maths generalized over each device's measured screen aspect.",
+    },
+    {
+      acceptanceId: "artwork.placement.transform",
+      behaviorEvidence:
+        "Dragging Screen position, Screen scale and Screen stretch in the running reference pans, zooms and distorts the image inside the display without rebuilding the scene.",
+      featureName: "Screen position, scale and stretch",
+      id: "screen-transform",
+      referenceBehavior:
+        "Three controls remap the display texture only: offset pans across whatever is cropped, scale zooms uniformly, stretch scales each axis independently.",
+      sourceEvidence:
+        "`artwork.offset`, `artwork.scale` and `artwork.stretch` in src/app/app-schema.ts; applyScreenTransform in src/app/render/iphone-scene.ts.",
+      status: "ported",
+      toolcraftMapping:
+        "Same vector/slider/vector controls writing the same texture repeat and offset.",
+    },
+    {
+      acceptanceId: "studio.environment.lighting",
+      behaviorEvidence:
+        "Selecting each environment in the running reference changes the reflections and the key direction on the phone's body.",
+      featureName: "Studio environment",
+      id: "studio-environment",
+      referenceBehavior:
+        "One HDRI is convolved through PMREM and becomes the entire lighting model; there are no separate placeable lights.",
+      sourceEvidence:
+        "ENVIRONMENT_OPTIONS in src/app/product-domain.ts; the PMREMGenerator block in src/app/render/iphone-scene.ts.",
+      status: "ported",
+      toolcraftMapping:
+        "Same select on `studio.environment` loading the same four HDR files from public/hdri.",
+    },
+    {
+      acceptanceId: "camera.focalLength.framing",
+      behaviorEvidence:
+        "Dragging Focal length in the running reference changes perspective while the phone stays framed at the same size.",
+      featureName: "Focal length",
+      id: "camera-focal-length",
+      referenceBehavior:
+        "A 36mm full-frame equivalent drives the camera FOV, and viewing distance is recomputed so the subject keeps its framing.",
+      sourceEvidence: "setPose in src/app/render/raster-renderer.ts.",
+      status: "ported",
+      toolcraftMapping:
+        "Same slider on `camera.focalLength` and the same distance derivation, now scaled by each device's own bounding radius.",
+    },
+    {
+      acceptanceId: "camera.orbit.pose",
+      behaviorEvidence:
+        "Dragging the phone in the running reference rotates it; dragging the empty background pans the viewport instead.",
+      featureName: "Orbit by direct drag and gizmo",
+      id: "camera-orbit",
+      referenceBehavior:
+        "A geometry hit test claims primary drag for rotation and lets a miss fall through to viewport pan; the gizmo writes the same pose.",
+      sourceEvidence:
+        "useToolcraftModelOrbitInteraction plus RasterRenderer.hitTest in src/app/preview.tsx and src/app/render/raster-renderer.ts; the dirty-flag requestAnimationFrame loop in preview.tsx draws only invalidated frames.",
+      status: "ported",
+      toolcraftMapping:
+        "Same `camera.orbit` orientationGizmo target and the same hit test, raycast against the selected device's subtree.",
+    },
+    {
+      acceptanceId: "background.include.toggle",
+      behaviorEvidence:
+        "Turning Background off in the running reference removes the ground plane from the render and makes an exported PNG transparent.",
+      featureName: "Background ground plane",
+      id: "background-ground",
+      referenceBehavior:
+        "The background switch adds or removes one ground mesh, and its colour is that mesh's material colour.",
+      sourceEvidence:
+        "The `showGround` branch in buildIPhoneScene; `export.includeBackground` and `scene.background` in src/app/app-schema.ts.",
+      status: "ported",
+      toolcraftMapping:
+        "Same authored Background pair, which the runtime relocates into Setup.",
+    },
+    {
+      acceptanceId: "canvas.sizing.editable-output",
+      behaviorEvidence:
+        "Editing Canvas width in the running reference resizes the artboard and the rendered frame while the device stays framed inside it.",
+      featureName: "Editable output size",
+      id: "canvas-sizing",
+      referenceBehavior:
+        "The canvas is editable-output at a 1080x1350 default, and the renderer adopts the frame's aspect rather than a fixed one.",
+      sourceEvidence:
+        "`canvas.sizing: { mode: \"editable-output\" }` in src/app/app-schema.ts; useToolcraftProductSceneFrame plus applyViewport in src/app/preview.tsx and render/raster-renderer.ts.",
+      status: "ported",
+      toolcraftMapping:
+        "Same editable-output sizing and the same scene-frame-driven camera aspect.",
+    },
+    {
+      acceptanceId: "deliver.actions.export",
+      behaviorEvidence:
+        "Export PNG in the running reference downloads an image matching the preview at the selected resolution.",
+      featureName: "Image export",
+      id: "image-export",
+      referenceBehavior:
+        "Export builds a second renderer on its own canvas at the artifact size and draws one deterministic frame, because nothing accumulates.",
+      sourceEvidence:
+        "src/app/export-renderer.ts and the shared readRasterSettings in src/app/render/settings.ts.",
+      status: "ported",
+      toolcraftMapping:
+        "Same single `export-image` panel action and the same exportRenderer contract.",
+    },
+    {
+      acceptanceId: "device.model.selection",
+      behaviorEvidence:
+        "The reference renders only the iPhone 17 Pro Max: buildIPhoneScene hard-codes that one GLB path, and no schema control selects a model, while the repository ships five model files.",
+      featureName: "Device selection",
+      id: "device-selection",
+      referenceBehavior:
+        "None. The reference has a single hard-coded subject and no device control.",
+      sourceEvidence:
+        "The literal `models/iphone-17-pro-max.glb` load in src/app/render/iphone-scene.ts; public/models holds five GLB files.",
+      status: "intentionally-changed",
+      toolcraftMapping:
+        "A `device.model` select drives the scene builder's model file, scene name, screen material and exclusions from a catalog.",
+      userApprovedChangeReason:
+        "The user chose 'All 5 models with a device picker' when asked which devices the rebuild should support.",
+    },
+  ],
+  referenceInputs: [],
+  referenceName: "3d-mockup-project (Plinth)",
+  referenceStudy: {
+    behaviorEvidence:
+      "Uploaded a PNG and confirmed it appears on the display; changed Fit mode, Screen scale, Screen position and Screen stretch and confirmed only the texture mapping changes; switched each environment and watched the reflections change; dragged the phone to rotate and the background to pan; toggled Background and exported a PNG.",
+    referenceLocation:
+      "https://github.com/ibrahimweng/3d-mockup-project at commit c2b67e6, cloned locally. The deployed build at 3d-mockup-project-main.vercel.app is unreachable from this environment because the network policy denies vercel.app, so the repository at that commit is the reference.",
+    reproductionSteps:
+      "npm install && npm run build succeeded, then the same source was served locally and driven in Chromium. The repository is the source of the deployed site, so running it locally observes the same runtime.",
+    sourceEvidence:
+      "Read src/app/app-schema.ts, app-composition.tsx, product-domain.ts, preview.tsx, export-renderer.ts, artwork-store.ts and the whole src/app/render directory. Inspected all five GLB files with @gltf-transform to record each one's scenes, emissive display material and screen geometry.",
+    status: "ran-original",
+  },
+  referenceTimeline: { behaviorCoverage: [], mode: "none" },
+  sourceOfTruth: "reference-runtime",
+};
+
+export const appProductReadiness: ToolcraftProductReadiness = {
+  exportIntent: {
+    image: { mode: "toolcraft-default" },
+    svg: { mode: "not-requested" },
+    video: { mode: "not-requested" },
+  },
+  interactionOwnership: [
+    {
+      alternative: {
+        reason:
+          "Panel sliders for azimuth and elevation would mirror the same rotation with two numeric fields and no spatial correspondence.",
+        surface: "panel",
+      },
+      capability: "direct-spatial-edit",
+      evidence: {
+        detail:
+          "The reference binds useToolcraftModelOrbitInteraction to its canvas with a geometry hit test, so dragging the device itself is the demonstrated rotation surface.",
+        source: "reference",
+      },
+      id: "camera-orbit",
+      reason:
+        "Rotating a three-dimensional object is a spatial operation: dragging the object itself gives direct correspondence between hand movement and result.",
+      surface: "canvas",
+      target: "camera.orbit",
+    },
+    {
+      alternative: {
+        reason:
+          "Dragging the image directly on the rendered screen would fight the pointer with device rotation, which already owns primary drag on that geometry.",
+        surface: "canvas",
+      },
+      capability: "property-edit",
+      evidence: {
+        detail:
+          "The reference authors screen placement through panel vector pads and a slider while primary canvas drag rotates the device.",
+        source: "reference",
+      },
+      id: "screen-placement",
+      reason:
+        "The vector pads author an exact, repeatable position and stretch inside the display while primary drag stays with rotation.",
+      // One device is rendered at a time, so screen placement is a global
+      // property rather than one scoped to a selected entity.
+      selectionScope: { mode: "global" },
+      surface: "panel",
+      target: "artwork.offset",
+    },
+  ],
+  mode: "product",
+  productName: "Mockup Studio",
+  productSummary:
+    "Renders product mockups in the browser: a screenshot placed on the screen of one of five Apple devices, lit by captured studio environments and exported as an image.",
+  requestedBehavior:
+    "Pick a device, upload a screenshot and fit it to that device's screen, light the scene with a captured studio environment, frame it with a focal length and by rotating the device directly, choose whether to keep a background, then export the result as an image.",
+  viewInteraction: {
+    mode: "orbit",
+    orientationTargets: ["camera.orbit"],
+  },
+};
+
+// Product entries use the same explicit stable section IDs as appSchema.
+export const appControlSectionInventory: readonly ToolcraftControlSectionInventoryEntry[] =
+  [
+    {
+      entity: "Device",
+      entityId: "device",
+      groupingReason:
+        "Which product is being mocked up is one decision with one control; the model choice is that entity's complete editable surface.",
+      id: "device",
+      targets: ["device.model"],
+      title: "Device",
+    },
+    {
+      entity: "Screenshot",
+      entityId: "artwork",
+      groupingReason:
+        "The uploaded image and the two pads that place it on the display are the picture itself and where it sits; all three are standalone-layout controls, so the runtime keeps them in one titled section.",
+      id: "artwork",
+      targets: ["artwork.image", "artwork.offset", "artwork.stretch"],
+      title: "Screenshot",
+    },
+    {
+      entity: "Screen fit",
+      entityId: "screen-fit",
+      groupingReason:
+        "Mode and scale together decide how much of the display the picture covers and how much is cropped; they are a separate decision from which picture it is and where it sits, and both are grouped-layout controls.",
+      id: "screen-fit",
+      targets: ["artwork.fit", "artwork.scale"],
+      title: "Screen fit",
+    },
+    {
+      entity: "Studio",
+      entityId: "studio",
+      groupingReason:
+        "The captured environment is the entire lighting setup, so it is one entity with one control rather than a light rig split across several.",
+      id: "studio",
+      targets: ["studio.environment"],
+      title: "Studio",
+    },
+    {
+      entity: "Camera",
+      entityId: "camera",
+      groupingReason:
+        "Pose and focal length are the properties of one lens looking at the scene; together they fix both the framing and the perspective.",
+      id: "camera",
+      targets: ["camera.focalLength", "camera.orbit"],
+      title: "Camera",
+    },
+    {
+      entity: "Background",
+      entityId: "background",
+      groupingReason:
+        "The include switch and the colour edit the same ground plane behind the device.",
+      id: "background",
+      targets: ["export.includeBackground", "scene.background"],
+      title: "Background",
+    },
+    {
+      entity: "Image export settings",
+      entityId: "image-export-settings",
+      groupingReason:
+        "Format and resolution tune the single exported image artifact.",
+      id: "image-export",
+      targets: ["export.image.format", "export.image.resolution"],
+      title: "Image Export",
+    },
+  ];
+
+export const appAcceptance: readonly ToolcraftComponentAcceptance[] = [
+  {
+    automated: true,
+    automatedTestName: "device options map to catalog entries with a screen",
+    browser: true,
+    browserTestName:
+      "browser: each device option renders its own model on the canvas",
+    componentType: "select",
+    evidence: "product-output",
+    expectedObservable:
+      "Selecting each device replaces the rendered subject with that model, reframed to fill the canvas, and the uploaded screenshot reappears on the new device's display.",
+    fixture: "an uploaded PNG screenshot and the five bundled device models",
+    id: "device.model.selection",
+    kind: "control",
+    optionCoverage: "each-visible-item",
+    referenceCoverage: "renderer-state",
+    target: "device.model",
+    userAction:
+      "Choose each Device option in turn and inspect the rendered canvas.",
+  },
+  {
+    automated: true,
+    automatedTestName: "screenshot fileDrop is the single source-material owner",
+    browser: true,
+    browserTestName:
+      "browser: uploading, transforming, and clearing the screenshot updates the rendered display",
+    componentType: "fileDrop",
+    evidence: "media-lifecycle",
+    expectedObservable:
+      "Uploading a PNG lights the device's display with that image, rotate and flip transform the image on the display, clearing it returns the screen to dark, and reset removes the upload.",
+    fixture: "a small PNG screenshot fixture",
+    id: "artwork.image.upload",
+    kind: "control",
+    mediaLifecycleCoverage: [
+      "flip",
+      "remove",
+      "reset",
+      "rotate",
+      "transform-output",
+      "upload",
+    ],
+    referenceCoverage: "media-lifecycle",
+    target: "artwork.image",
+    userAction:
+      "Drop a PNG into the Screenshot uploader, click the rotate and flip actions, clear the upload, re-upload, and reset controls.",
+  },
+  {
+    automated: true,
+    automatedTestName: "fit modes map to the display texture repeat",
+    browser: true,
+    browserTestName:
+      "browser: each fit mode changes how the screenshot meets the display",
+    componentType: "segmented",
+    evidence: "product-output",
+    expectedObservable:
+      "Fit shows the whole image with margins on the display, Fill crops it to cover the display, and Stretch distorts it to the display's exact proportions.",
+    fixture: "an uploaded PNG whose aspect differs from the device's screen",
+    id: "artwork.fit.mode",
+    kind: "control",
+    optionCoverage: "each-visible-item",
+    referenceCoverage: "control-mapping",
+    target: "artwork.fit",
+    userAction: "Select each Fit mode option and inspect the rendered display.",
+  },
+  {
+    automated: true,
+    automatedTestName:
+      "position, scale and stretch remap the display texture only",
+    browser: true,
+    browserTestName:
+      "browser: screen position, scale and stretch move the image inside the display",
+    componentType: "vector",
+    controlPartCoverage: ["vector.x", "vector.y"],
+    evidence: "product-output",
+    expectedObservable:
+      "Dragging Screen position pans the cropped image inside the display, Screen scale zooms it about its centre, and Screen stretch changes each axis independently, all without reloading the model.",
+    fixture: "an uploaded PNG cropped by the current fit mode",
+    id: "artwork.placement.transform",
+    interactionId: "screen-placement",
+    kind: "control",
+    referenceCoverage: "control-mapping",
+    target: "artwork.offset",
+    userAction:
+      "Drag the Screen position pad, move the Screen scale slider, and drag the Screen stretch pad.",
+  },
+  {
+    automated: true,
+    automatedTestName: "screen scale writes the display texture repeat",
+    browser: true,
+    browserTestName: "browser: screen scale zooms the image on the display",
+    componentType: "slider",
+    evidence: "product-output",
+    expectedObservable:
+      "Raising Screen scale enlarges the screenshot on the display about its centre and crops more of it.",
+    fixture: "an uploaded PNG on the device display",
+    id: "artwork.scale.zoom",
+    kind: "control",
+    target: "artwork.scale",
+    userAction: "Drag the Screen scale slider and watch the display.",
+  },
+  {
+    automated: true,
+    automatedTestName: "screen stretch scales each display axis independently",
+    browser: true,
+    browserTestName:
+      "browser: screen stretch distorts the image along one axis",
+    componentType: "vector",
+    controlPartCoverage: ["vector.x", "vector.y"],
+    evidence: "product-output",
+    expectedObservable:
+      "Moving one Screen stretch axis squashes or extends the screenshot along that axis while the other stays unchanged.",
+    fixture: "an uploaded PNG on the device display",
+    id: "artwork.stretch.axes",
+    kind: "control",
+    target: "artwork.stretch",
+    userAction: "Drag the Screen stretch pad along each axis.",
+  },
+  {
+    automated: true,
+    automatedTestName: "environment options select the image-based lighting",
+    browser: true,
+    browserTestName:
+      "browser: each environment relights the device and changes its reflections",
+    componentType: "select",
+    evidence: "rendered-pixels",
+    expectedObservable:
+      "Selecting each environment changes the light direction and the reflections on the device's body, because the chosen HDRI is the whole lighting model.",
+    fixture: "the four bundled HDR environments",
+    id: "studio.environment.lighting",
+    kind: "control",
+    optionCoverage: "each-visible-item",
+    referenceCoverage: "renderer-state",
+    target: "studio.environment",
+    userAction: "Choose each Environment option and inspect the render.",
+  },
+  {
+    automated: true,
+    automatedTestName: "focal length drives camera FOV and viewing distance",
+    browser: true,
+    browserTestName:
+      "browser: focal length changes perspective while keeping the device framed",
+    componentType: "slider",
+    evidence: "product-output",
+    expectedObservable:
+      "Moving Focal length changes how strongly the device's depth converges while the subject stays framed at roughly the same size.",
+    fixture: "the default device in the default studio",
+    id: "camera.focalLength.framing",
+    kind: "control",
+    referenceCoverage: "control-mapping",
+    target: "camera.focalLength",
+    userAction: "Drag the Focal length slider from 24mm to 200mm.",
+  },
+  {
+    automated: true,
+    automatedTestName: "orbit pose is shared by gizmo, drag, preview and export",
+    browser: true,
+    browserTestName:
+      "browser: dragging the device rotates it, a miss pans, and export matches the pose",
+    canvasHandle: {
+      exportCleanTestName:
+        "browser: the exported PNG contains no orientation gizmo",
+      outputObservable:
+        "The rendered device turns to the dragged orientation and the exported frame matches it.",
+      testId: "toolcraft-orientation-gizmo",
+      writesTarget: "camera.orbit",
+    },
+    componentType: "orientationGizmo",
+    evidence: "product-output",
+    expectedObservable:
+      "Dragging the device rotates it live, dragging empty canvas pans the viewport instead, the gizmo writes the same pose, undo and reset restore it, and an exported PNG shows the same orientation with no gizmo in it.",
+    fixture: "the default device with a screenshot applied",
+    id: "camera.orbit.pose",
+    interactionId: "camera-orbit",
+    kind: "canvas-handle",
+    orientationGizmoCoverage: "all-required-orientation-gizmo-behavior",
+    referenceCoverage: "renderer-loop",
+    target: "camera.orbit",
+    userAction:
+      "Drag the device to rotate, drag the empty background, click a gizmo axis, undo, and export a PNG.",
+  },
+  {
+    automated: true,
+    automatedTestName:
+      "background include switch drives preview and export backdrop",
+    backgroundOutputCoverage: "all-required-background-output",
+    browser: true,
+    browserTestName:
+      "browser: turning Background off removes the ground and makes PNG export transparent",
+    componentType: "switch",
+    evidence: "product-output",
+    expectedObservable:
+      "Disabling Background removes the ground plane from the render and exports a transparent PNG; enabling it restores both.",
+    fixture: "the default device framed above its ground plane",
+    id: "background.include.toggle",
+    kind: "control",
+    referenceCoverage: "renderer-state",
+    target: "export.includeBackground",
+    userAction: "Toggle the Background switch and export a PNG in both states.",
+  },
+  {
+    automated: true,
+    automatedTestName: "background color fills the ground plane",
+    browser: true,
+    browserTestName:
+      "browser: changing the background color repaints the ground behind the device",
+    componentType: "color",
+    evidence: "product-output",
+    expectedObservable:
+      "The ground plane behind and beneath the device repaints in the chosen colour.",
+    fixture: "the default device with Background enabled",
+    id: "background.color.value",
+    kind: "control",
+    target: "scene.background",
+    userAction: "Pick a clearly different background color.",
+  },
+  {
+    automated: true,
+    automatedTestName: "export format options select the encoded artifact type",
+    browser: true,
+    browserTestName:
+      "browser: PNG and JPG exports decode as their selected file type",
+    componentType: "select",
+    evidence: "exported-bytes",
+    expectedObservable:
+      "Exporting with PNG then JPG produces artifacts that decode as image/png and image/jpeg.",
+    fixture: "the default device with a screenshot applied",
+    id: "image-export.format.choice",
+    kind: "control",
+    optionCoverage: "each-visible-item",
+    target: "export.image.format",
+    userAction: "Choose each Format option and run Export PNG.",
+  },
+  {
+    automated: true,
+    automatedTestName: "export resolution options select the artifact long edge",
+    browser: true,
+    browserTestName:
+      "browser: 2K and 8K exports decode with their selected pixel dimensions",
+    componentType: "select",
+    evidence: "exported-bytes",
+    expectedObservable:
+      "Exports at 2K and 8K decode with 2048 and 8192 pixel long edges.",
+    fixture: "the default device with a screenshot applied",
+    id: "image-export.resolution.choice",
+    kind: "control",
+    optionCoverage: "each-visible-item",
+    target: "export.image.resolution",
+    userAction: "Choose each Resolution option and run Export PNG.",
+  },
+  {
+    actionCoverage: ["export-png"],
+    automated: true,
+    automatedTestName: "sticky delivery action exports the rendered frame",
+    browser: true,
+    browserTestName:
+      "browser: Export PNG downloads an artifact matching the previewed frame",
+    componentType: "panelActions",
+    evidence: "exported-bytes",
+    expectedObservable:
+      "Export PNG shows the sticky footer progress indicator and downloads an artifact that decodes at the selected format and resolution and shows the same device, pose and screenshot as the preview.",
+    exportArtifactCoverage: "all-required-image-export-behavior",
+    fixture: "the default device with a screenshot applied",
+    id: "deliver.actions.export",
+    kind: "control",
+    referenceCoverage: "export-copy",
+    target: "panel.actions",
+    userAction: "Click Export PNG and inspect the downloaded artifact.",
+  },
+  {
+    automated: true,
+    automatedTestName: "render scale keeps the selected backing resolution",
+    browser: true,
+    browserTestName:
+      "browser: the WebGL backing matches CSS size times device pixel ratio times the selected scale",
+    componentType: "canvas",
+    evidence: "viewport-side-effect",
+    expectedObservable:
+      "While rotating and while idle, the canvas backing equals its CSS size multiplied by devicePixelRatio and the selected Resolution scale, and the visible CSS size does not change.",
+    fixture: "the default device at the default canvas size",
+    id: "canvas.render-scale.backing",
+    kind: "runtime",
+    renderScaleCoverage: {
+      kind: "selected-backing-pixels",
+      states: ["interaction", "steady"],
+    },
+    target: "canvas.renderScale",
+    userAction:
+      "Set Resolution scale, drag the device to rotate, then let the scene settle.",
+  },
+  {
+    automated: true,
+    automatedTestName: "canvas sizing edits the product output size",
+    browser: true,
+    browserTestName:
+      "browser: editing canvas width and height resizes the rendered output",
+    componentType: "canvas",
+    evidence: "viewport-side-effect",
+    expectedObservable:
+      "Editing Canvas width or height changes the artboard and the rendered frame's aspect, and the device stays framed inside the new bounds.",
+    fixture: "the default device at the default 1080x1350 canvas",
+    id: "canvas.sizing.editable-output",
+    kind: "runtime",
+    referenceCoverage: "canvas-sizing",
+    target: "canvas.size.width",
+    userAction: "Edit Canvas width and Canvas height in Setup.",
+  },
+  {
+    automated: true,
+    automatedTestName: "infinity canvas mode hides finite sizing and restores it",
+    browser: true,
+    browserTestName:
+      "browser: enabling Infinity canvas removes the artboard and disabling restores the finite size",
+    componentType: "canvas",
+    evidence: "viewport-side-effect",
+    expectedObservable:
+      "Turning Infinity canvas on hides Aspect ratio and Canvas width/height and removes artboard clipping; turning it off restores the exact previous finite size.",
+    fixture: "the default device at the default finite canvas",
+    id: "canvas.infinity.mode-restoration",
+    infinityCanvasCoverage: "mode-and-restoration",
+    kind: "runtime",
+    target: "canvas.infinity",
+    userAction:
+      "Enable Infinity canvas in Setup, pan the workspace, then disable it.",
+  },
+  {
+    automated: true,
+    automatedTestName: "infinite export crops to the product scene bounds",
+    browser: true,
+    browserTestName:
+      "browser: infinite-mode PNG export crops to the product scene bounds union",
+    componentType: "canvas",
+    evidence: "exported-bytes",
+    expectedObservable:
+      "Exporting a PNG in Infinity mode produces an artifact cropped to the rectangle reported by the scene bounds provider rather than the viewport.",
+    fixture: "the default device in Infinity canvas mode",
+    id: "canvas.infinity.scene-export",
+    infinityCanvasCoverage: "scene-bounds-image-export",
+    kind: "runtime",
+    target: "canvas.infinity",
+    userAction: "Enable Infinity canvas and run Export PNG.",
+  },
+  {
+    automated: true,
+    automatedTestName: "declares production reload coverage for the product schema",
+    browser: true,
+    browserTestName:
+      "browser: app restores exact canvas, values, and panel workspace slices after reload",
+    componentType: "persistence",
+    evidence: "persistence-state",
+    expectedObservable:
+      "Canvas size and zoom, the selected device and control values, the uploaded screenshot, and the moved and collapsed Controls workspace remain visibly restored after a real browser reload.",
+    fixture: "product runtime persisted workspace",
+    id: "persistence.reload",
+    kind: "runtime",
+    persistenceCoverage: "reload",
+    persistenceSlices: productPersistenceSlices,
+    target: "canvas.size.width",
+    userAction:
+      "Edit Canvas width and zoom, choose a different device, upload a screenshot, move and collapse Controls, wait for persistence, and reload the page.",
+  },
+];

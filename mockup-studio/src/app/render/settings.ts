@@ -1,0 +1,70 @@
+import { DEFAULT_DEVICE } from "../product-domain";
+import type { ScreenTransform } from "./device-scene";
+import type { RasterSettings } from "./raster-renderer";
+
+function vec(
+  values: Record<string, unknown>,
+  key: string,
+): { x: number; y: number } {
+  const value = values[key];
+  const raw =
+    typeof value === "object" && value !== null
+      ? (value as { x?: number; y?: number })
+      : {};
+  return {
+    x: Number.isFinite(raw.x) ? Number(raw.x) : 0.5,
+    y: Number.isFinite(raw.y) ? Number(raw.y) : 0.5,
+  };
+}
+
+function num(values: Record<string, unknown>, key: string, fallback: number) {
+  const value = Number(values[key]);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function str(values: Record<string, unknown>, key: string, fallback: string) {
+  const value = values[key];
+  return typeof value === "string" && value ? value : fallback;
+}
+
+/**
+ * Read the screen-fit controls.
+ *
+ * Separate from `readRasterSettings` on purpose: these change only the display
+ * texture's mapping, so they must not appear in the key that decides whether
+ * the model and environment are rebuilt.
+ */
+export function readScreenTransform(
+  values: Record<string, unknown>,
+): ScreenTransform {
+  const fit = values["artwork.fit"];
+  return {
+    fit: fit === "fit" || fit === "stretch" ? fit : "fill",
+    offset: vec(values, "artwork.offset"),
+    scale: num(values, "artwork.scale", 100),
+    stretch: vec(values, "artwork.stretch"),
+  };
+}
+
+/**
+ * Read runtime state into renderer settings.
+ *
+ * One place, so preview and export cannot drift: both call this, which is what
+ * makes the exported frame provably the same image the preview showed.
+ *
+ * Exposure is fixed rather than exposed as a control. The environment is the
+ * lighting model now, and a separate brightness slider invites correcting a
+ * badly-chosen HDRI instead of choosing a better one.
+ */
+export function readRasterSettings(
+  values: Record<string, unknown>,
+): RasterSettings {
+  return {
+    backgroundColor: str(values, "scene.background", "#0d0d10"),
+    device: str(values, "device.model", DEFAULT_DEVICE),
+    environment: str(values, "studio.environment", "studio-soft"),
+    exposure: 100,
+    focalLength: num(values, "camera.focalLength", 85),
+    showBackground: values["export.includeBackground"] !== false,
+  };
+}
