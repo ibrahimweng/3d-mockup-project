@@ -353,7 +353,10 @@ export function getControlsPanelSectionGroups({
     controlsById: visibleControls,
     layoutGroups: section.layoutGroups,
   });
-  const renderedGroups = getControlRenderGroups(renderableEntries).map(
+  const renderedGroups = getControlRenderGroups(
+    renderableEntries,
+    sectionHasOnlyColorFields,
+  ).map(
     (group) => {
       const ids = getControlRenderGroupIds(group);
       const groupEntries =

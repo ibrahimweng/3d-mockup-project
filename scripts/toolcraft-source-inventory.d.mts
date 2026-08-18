@@ -32,6 +32,11 @@ export type ToolcraftSourceInventoryOptions = {
 
 export const toolcraftSourceExtensions: ReadonlySet<string>;
 
+export function resolveToolcraftRootResourcePath(
+  resourcePath: string,
+  rootDir: string,
+): string;
+
 export function classifyToolcraftSourcePath(
   repoPath: string,
   options?: Omit<ToolcraftSourceInventoryOptions, "rootDir" | "sourceRoots">,

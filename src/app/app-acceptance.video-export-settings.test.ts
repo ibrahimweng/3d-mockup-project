@@ -83,6 +83,7 @@ describe("Toolcraft video export settings acceptance contract", () => {
         evidence: "The user explicitly removed image delivery.",
         mode: "user-removed",
       },
+      svg: { mode: "not-requested" },
       video: {
         evidence: "The user explicitly requested video delivery.",
         mode: "user-requested",
@@ -314,6 +315,7 @@ describe("Toolcraft video export settings acceptance contract", () => {
             evidence: "The user explicitly removed image delivery.",
             mode: "user-removed",
           },
+          svg: { mode: "not-requested" },
           video: {
             evidence: "The user explicitly requested video delivery.",
             mode: "user-requested",

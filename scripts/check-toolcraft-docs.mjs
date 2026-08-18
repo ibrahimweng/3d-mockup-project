@@ -63,6 +63,7 @@ const requiredWorkflowTerms = [
   "Open exactly one listed document per terminal or tool read",
   "coherent user-visible delivery batch",
   "npm run verify:delivery",
+  "npm run test:feature",
 ];
 
 const repoScope = "@repo";

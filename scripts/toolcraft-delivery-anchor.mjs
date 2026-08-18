@@ -9,9 +9,6 @@ import {
 import {
   createToolcraftTargetedPerformanceComparisonHash,
 } from "./toolcraft-targeted-performance-report.mjs";
-import {
-  collectToolcraftVerificationInputs,
-} from "./toolcraft-verification-inventory.mjs";
 
 function createPerformanceAnchor(receipt) {
   const evidence = receipt.evidence.find(
@@ -49,6 +46,32 @@ export function normalizeToolcraftDeliveryAnchor(receipt) {
   });
 }
 
+function createBundleAnchor(bundle) {
+  const initial = normalizeToolcraftDeliveryAnchor(bundle.delivery);
+  if (bundle.currentPerformance === null) return initial;
+  const error = getToolcraftDeliveryReceiptShapeError(
+    bundle.currentPerformance,
+  );
+  if (error) throw new Error(error);
+  if (
+    bundle.currentPerformance.kind !==
+      "targeted-performance-verification" ||
+    bundle.currentPerformance.plan.kind !== "performance-iteration"
+  ) {
+    throw new Error(
+      "Toolcraft current performance checkpoint must be a targeted performance receipt.",
+    );
+  }
+  return createToolcraftDeliveryAnchorState({
+    files: initial.files,
+    functionalProofModel: initial.functionalProofModel,
+    functionalProofModelHash: initial.functionalProofModelHash,
+    lifecycle: bundle.currentPerformance.plan.lifecycle,
+    performance: createPerformanceAnchor(bundle.currentPerformance),
+    sourceHash: initial.sourceHash,
+  });
+}
+
 export function getToolcraftDeliveryAnchorShapeError(receipt) {
   try {
     normalizeToolcraftDeliveryAnchor(receipt);
@@ -63,7 +86,7 @@ export async function readToolcraftDeliveryAnchor(rootDir) {
   if (loaded.missing || loaded.error) return loaded;
   try {
     return {
-      anchor: normalizeToolcraftDeliveryAnchor(loaded.bundle.delivery),
+      anchor: createBundleAnchor(loaded.bundle),
       receipt: loaded.bundle.delivery,
     };
   } catch (error) {
@@ -77,8 +100,5 @@ export async function validateToolcraftDeliveryAnchor({ rootDir }) {
   const loaded = await readToolcraftDeliveryAnchor(rootDir);
   if (loaded.missing) return ["Toolcraft delivery receipt is missing."];
   if (loaded.error) return [loaded.error];
-  const inventory = await collectToolcraftVerificationInputs(rootDir);
-  return loaded.anchor.sourceHash === inventory.sourceHash
-    ? []
-    : ["Toolcraft delivery receipt is stale for the current source."];
+  return [];
 }

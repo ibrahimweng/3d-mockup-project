@@ -5,34 +5,16 @@ import test from "node:test";
 
 import { getToolcraftCheckpointBundlePath } from "./toolcraft-checkpoint-paths.mjs";
 import { commitToolcraftDeliveryCheckpoint } from "./toolcraft-checkpoint-transaction.mjs";
-import {
-  EMPTY_TOOLCRAFT_DELIVERY_LIFECYCLE_STATE,
-} from "./toolcraft-delivery-lifecycle-state.mjs";
 import { createToolcraftDeliveryReceipt } from "./toolcraft-delivery-receipt.mjs";
 import {
-  createFunctionalProofModelFixture,
+  createPlanReceiptFixture,
 } from "./toolcraft-delivery-receipt-test-helpers.mjs";
-import {
-  createToolcraftFunctionalProofModelHash,
-} from "./toolcraft-functional-proof-model.mjs";
 import {
   createCheckpointFixture,
 } from "./toolcraft-checkpoint-transaction-test-helpers.mjs";
 import {
-  collectToolcraftVerificationInputs,
-  createToolcraftVerificationSourceHash,
-} from "./toolcraft-verification-inventory.mjs";
-import {
   createReceiptFixture,
 } from "./toolcraft-verification-receipt-test-helpers.mjs";
-
-function deepFreeze(value) {
-  if (value && typeof value === "object" && !Object.isFrozen(value)) {
-    Object.values(value).forEach(deepFreeze);
-    Object.freeze(value);
-  }
-  return value;
-}
 
 test("commit module exports only the delivery-specific checkpoint writer", async () => {
   const transactionModule = await import("./toolcraft-checkpoint-transaction.mjs");
@@ -79,7 +61,7 @@ test("malformed delivery input cannot mutate checkpoint authority", async (t) =>
       deliveryReceipt: {},
       projectDir: rootDir,
     }),
-    /protected plan execution authority/iu,
+    /malformed|unsupported/iu,
   );
   await assert.rejects(
     commitToolcraftDeliveryCheckpoint({
@@ -102,10 +84,10 @@ test("unsupported delivery versions cannot cross execution authority", async (t)
 
   await assert.rejects(
     commitToolcraftDeliveryCheckpoint({
-      deliveryReceipt: { version: 5 },
+      deliveryReceipt: { version: 7 },
       projectDir: rootDir,
     }),
-    /protected plan execution authority/iu,
+    /malformed|unsupported/iu,
   );
   await assert.rejects(
     fs.access(getToolcraftCheckpointBundlePath(rootDir)),
@@ -113,53 +95,16 @@ test("unsupported delivery versions cannot cross execution authority", async (t)
   );
 });
 
-test("caller-authored current v7 receipt cannot be promoted without plan execution authority", async (t) => {
+test("caller-authored current v8 receipt cannot be promoted without plan execution authority", async (t) => {
   const rootDir = await createReceiptFixture();
   t.after(() => fs.rm(rootDir, { force: true, recursive: true }));
-  const finalInventory = await collectToolcraftVerificationInputs(rootDir);
-  const comparisonEntries = finalInventory.entries.map((entry, index) =>
-    index === 0 ? { ...entry, sha256: "0".repeat(64) } : entry
-  );
-  const comparisonInventory = {
-    entries: comparisonEntries,
-    sourceHash: createToolcraftVerificationSourceHash(comparisonEntries),
-  };
-  const previousFunctionalProofModel = createFunctionalProofModelFixture({
-    contractHash: "b".repeat(64),
-  });
-  const functionalProofModel = createFunctionalProofModelFixture({
-    contractHash: "c".repeat(64),
-  });
-  const plan = deepFreeze({
-    basis: {
-      changedFiles: [comparisonEntries[0].path],
-      comparisonFunctionalProofModelHash:
-        createToolcraftFunctionalProofModelHash(
-          previousFunctionalProofModel,
-        ),
-      comparisonInventory,
-      kind: "changed",
-    },
-    functionalProofModelHash:
-      createToolcraftFunctionalProofModelHash(functionalProofModel),
-    kind: "functional",
-    lifecycle: EMPTY_TOOLCRAFT_DELIVERY_LIFECYCLE_STATE,
-    manifestHash: "a".repeat(64),
-    sourceHash: finalInventory.sourceHash,
-    steps: [{ kind: "docs" }],
-  });
-  const receipt = createToolcraftDeliveryReceipt({
-    functionalProofModel,
-    plan,
-    result: {
-      evidence: [{ kind: "docs" }],
-      finalInventory,
-    },
-  });
+  const fixture = createPlanReceiptFixture("functional-initial");
+  const receipt = createToolcraftDeliveryReceipt(fixture);
 
   await assert.rejects(
     commitToolcraftDeliveryCheckpoint({
       deliveryReceipt: receipt,
+      finalInventory: fixture.result.finalInventory,
       projectDir: rootDir,
     }),
     /protected plan execution authority/iu,

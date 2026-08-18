@@ -4,7 +4,10 @@ import {
   appProductReadiness,
   appTransferMode,
 } from "./app-acceptance";
-import { schemaHasVideoExportPanelAction } from "./acceptance/output-export";
+import {
+  schemaHasSvgExportPanelAction,
+  schemaHasVideoExportPanelAction,
+} from "./acceptance/output-export";
 import { isNeutralTemplateProject } from "./app-acceptance.product-readiness-test-utils";
 import { schemaHasProductSurface } from "./app-acceptance.schema-test-utils";
 import { appSchema } from "./app-schema";
@@ -18,7 +21,16 @@ describe("Toolcraft product readiness", () => {
     expect(appTransferMode).toEqual({
       animationIntent: { mode: "none" },
       mode: "new-toolcraft-app",
+      referenceInputs: [],
     });
+  });
+
+  it("makes the no-reference decision explicit", () => {
+    if (appProductReadiness.mode !== "starter") {
+      return;
+    }
+
+    expect(appTransferMode.referenceInputs).toEqual([]);
   });
 
   it("allows neutral readiness only for the source starter/template folder", () => {
@@ -31,6 +43,11 @@ describe("Toolcraft product readiness", () => {
       }
       expect(appProductReadiness.exportIntent.video.mode).toBe(
         schemaHasVideoExportPanelAction(appSchema)
+          ? "user-requested"
+          : "not-requested",
+      );
+      expect(appProductReadiness.exportIntent.svg.mode).toBe(
+        schemaHasSvgExportPanelAction(appSchema)
           ? "user-requested"
           : "not-requested",
       );

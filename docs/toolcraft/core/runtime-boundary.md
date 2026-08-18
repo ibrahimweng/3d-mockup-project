@@ -25,6 +25,7 @@ Use only these app-specific extension points. Shared runtime changes happen upst
 - typed `modelPresentation`, with `{ mode: "runtime" }` as the default standard preview/export owner or `{ mode: "custom", consumers }` for declared model targets with checked consumers;
 - `controlRenderers` only for true custom controls that pass the built-in fit check;
 - one `exportRenderer` that draws a deterministic product frame for runtime-owned image/video export;
+- one `svgExportRenderer` that appends namespace-aware editable vector content for runtime-owned SVG export;
 - one `sceneBoundsProvider` that returns exact-state product world-space rectangles for infinite preview and runtime-owned export;
 - `onPanelAction` for non-export sticky product actions;
 - optional `rendererPipelineRegistration` for one compiled executable custom-renderer pipeline shared by product work, runtime evidence, and performance assessment;
@@ -37,7 +38,7 @@ Use only these app-specific extension points. Shared runtime changes happen upst
 - Do not import anything below `src/toolcraft/ui/components/controls/**` (or the equivalent workspace package path), even when the private symbol name is not a public control. Private popovers, parsers, inputs, and state helpers are implementation details.
 - Do not substitute native or primitive `input` types `color`, `range`, `file`, `checkbox`, or `radio`, or native `select`/`textarea`, for schema controls. Generic text inputs and product-specific primitives remain available inside a justified custom interaction.
 - Do not recreate controls, panels, toolbar, timeline, layers, canvas shell, drag handles, section headers, section reset, history, or runtime surfaces by hand.
-- Do not create product-owned export canvases, encoders, object-URL downloads, or direct Mediabunny integrations; runtime owns typed image/video actions end to end.
+- Do not create product-owned export canvases/documents, SVG serializers, encoders, file pickers, object-URL downloads, or direct Mediabunny integrations; runtime owns typed image/SVG/video actions end to end.
 - If a shared behavior is wrong, fix the shared runtime/template source and regenerate or sync the copied Toolcraft source instead of patching one exported app.
 
 ## Canvas Boundary

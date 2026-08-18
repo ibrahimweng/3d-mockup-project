@@ -23,6 +23,7 @@ test("keeps artifact encoding and download mechanics runtime-owned", async (cont
         canvas.toBlob(() => undefined);
         canvas.toDataURL();
         URL.createObjectURL(new Blob());
+        showSaveFilePicker();
         void createAliasBackend;
         void exportToolcraftImageArtifact;
         void downloadToolcraftArtifact;
@@ -41,6 +42,7 @@ test("keeps artifact encoding and download mechanics runtime-owned", async (cont
       import type {
         ToolcraftExportFrame,
         ToolcraftProductExportRenderer,
+        ToolcraftProductSvgExportRenderer,
       } from "@/toolcraft/runtime";
       export const renderFrame = ({ context }) => context.fillRect(0, 0, 1, 1);
       void Runtime;
@@ -49,6 +51,8 @@ test("keeps artifact encoding and download mechanics runtime-owned", async (cont
       void validateToolcraftArtifactSize;
       void (null as unknown as ToolcraftExportFrame);
       void (null as unknown as ToolcraftProductExportRenderer);
+      void (null as unknown as ToolcraftProductSvgExportRenderer);
+      void new XMLSerializer();
     `,
     "src/features/shadowed-globals.ts": `
       export function localNames(MediaRecorder, VideoEncoder, URL) {
@@ -61,7 +65,7 @@ test("keeps artifact encoding and download mechanics runtime-owned", async (cont
 
   const result = await evaluateToolcraftProductBoundary({ rootDir });
 
-  assert.equal(result.violations.length, 10);
+  assert.equal(result.violations.length, 11);
   assert.equal(
     result.violations.every(
       (violation) => violation.kind === "runtime-export-ownership",

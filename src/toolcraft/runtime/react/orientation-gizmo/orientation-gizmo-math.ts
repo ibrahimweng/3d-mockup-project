@@ -10,13 +10,17 @@ import {
   scaleOrientationVector,
   type ToolcraftOrientationVector,
 } from "./orientation-quaternion";
+import {
+  readToolcraftOrientationPose,
+  type ToolcraftOrientationPose,
+} from "../../state/orientation-pose";
 
 export { ToolcraftOrientationQuaternion } from "./orientation-quaternion";
-
-export type ToolcraftOrientationPose = Readonly<{
-  position: readonly [number, number, number];
-  up: readonly [number, number, number];
-}>;
+export {
+  DEFAULT_TOOLCRAFT_ORIENTATION_POSE,
+  readToolcraftOrientationPose,
+  type ToolcraftOrientationPose,
+} from "../../state/orientation-pose";
 
 export type ToolcraftOrientationAxis = "+x" | "-x" | "+y" | "-y" | "+z" | "-z";
 
@@ -26,11 +30,6 @@ export type ToolcraftOrientationAxisProjection = {
   isFrontFacing: boolean;
   x: number;
   y: number;
-};
-
-export const DEFAULT_TOOLCRAFT_ORIENTATION_POSE: ToolcraftOrientationPose = {
-  position: [0, 0, 5],
-  up: [0, 1, 0],
 };
 
 export const TOOLCRAFT_ORIENTATION_AXES: readonly ToolcraftOrientationAxis[] = [
@@ -46,7 +45,6 @@ export const TOOLCRAFT_TURNTABLE_RADIANS_PER_PIXEL = Math.PI / 450;
 export const TOOLCRAFT_ORIENTATION_SMOOTH_VIEW_MS = 200;
 
 const worldUp: ToolcraftOrientationVector = [0, 1, 0];
-const minimumLengthSquared = 1e-12;
 
 const axisVectors: Record<
   ToolcraftOrientationAxis,
@@ -59,64 +57,6 @@ const axisVectors: Record<
   "+z": [0, 0, 1],
   "-z": [0, 0, -1],
 };
-
-function clonePose(pose: ToolcraftOrientationPose): ToolcraftOrientationPose {
-  return {
-    position: [...pose.position],
-    up: [...pose.up],
-  };
-}
-
-function readFiniteTuple(value: unknown): [number, number, number] | null {
-  if (
-    !Array.isArray(value) ||
-    value.length !== 3 ||
-    !value.every((entry) => typeof entry === "number" && Number.isFinite(entry))
-  ) {
-    return null;
-  }
-
-  return [value[0], value[1], value[2]];
-}
-
-function isUsablePose(pose: ToolcraftOrientationPose): boolean {
-  const positionLength = getOrientationVectorLength(pose.position);
-  const upLength = getOrientationVectorLength(pose.up);
-  const crossLength = getOrientationVectorLength(
-    crossOrientationVectors(pose.up, pose.position),
-  );
-
-  return (
-    positionLength * positionLength > minimumLengthSquared &&
-    upLength * upLength > minimumLengthSquared &&
-    crossLength * crossLength > minimumLengthSquared
-  );
-}
-
-export function readToolcraftOrientationPose(
-  value: unknown,
-  fallback: ToolcraftOrientationPose = DEFAULT_TOOLCRAFT_ORIENTATION_POSE,
-): ToolcraftOrientationPose {
-  const safeFallback = isUsablePose(fallback)
-    ? fallback
-    : DEFAULT_TOOLCRAFT_ORIENTATION_POSE;
-
-  if (!value || typeof value !== "object") {
-    return clonePose(safeFallback);
-  }
-
-  const record = value as Record<string, unknown>;
-  const position = readFiniteTuple(record.position);
-  const up = readFiniteTuple(record.up);
-
-  if (!position || !up) {
-    return clonePose(safeFallback);
-  }
-
-  const pose = { position, up };
-
-  return isUsablePose(pose) ? clonePose(pose) : clonePose(safeFallback);
-}
 
 export function getToolcraftOrientationRadius(
   pose: ToolcraftOrientationPose,

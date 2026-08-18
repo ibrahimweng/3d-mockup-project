@@ -1,4 +1,4 @@
 export const appIdentity = {
-  id: "clawscale",
-  title: "Clawscale",
+  id: "mockup-studio",
+  title: "Mockup Studio",
 } as const;

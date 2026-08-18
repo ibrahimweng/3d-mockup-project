@@ -11,7 +11,7 @@ import type {
   ToolcraftFunctionalProofModel,
 } from "./toolcraft-functional-proof-model.mjs";
 
-export const TOOLCRAFT_DELIVERY_RECEIPT_VERSION: 7;
+export const TOOLCRAFT_DELIVERY_RECEIPT_VERSION: 8;
 
 export type ToolcraftResolvedTestEvidence = Readonly<{
   fullTitle: string;
@@ -19,7 +19,6 @@ export type ToolcraftResolvedTestEvidence = Readonly<{
 }>;
 
 export type ToolcraftDeliveryStepEvidence =
-  | Readonly<{ kind: "dependencies"; packageManager: "npm" | "pnpm" | "yarn" | "bun" }>
   | Readonly<{ kind: "docs" }>
   | Readonly<{ kind: "code-health" }>
   | Readonly<{ kind: "product-tests"; files: readonly string[] }>
@@ -49,12 +48,12 @@ export type ToolcraftDeliveryReceipt = Readonly<{
   files: readonly ToolcraftVerificationInventoryEntry[];
   functionalProofModel: ToolcraftFunctionalProofModel;
   functionalProofModelHash: string;
-  kind: "delivery-verification";
+  kind: "delivery-verification" | "targeted-performance-verification";
   manifestHash: string;
   mode?: never;
   plan: ToolcraftDeliveryPlan;
   planHash: string;
-  planVersion: 4;
+  planVersion: 6;
   runner: "protected-delivery";
   sourceHash: string;
   status: "passed";
@@ -78,6 +77,5 @@ export function readToolcraftDeliveryReceipt(rootDir: string): Promise<{
 }>;
 
 export function validateToolcraftDeliveryReceipt(options: {
-  collectInventory?: (rootDir: string) => Promise<ToolcraftVerificationInventory>;
   rootDir: string;
 }): Promise<string[]>;

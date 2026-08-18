@@ -1,5 +1,9 @@
 import { commitToolcraftStatePatch } from "./history-patches";
 import {
+  getToolcraftValueControls,
+  normalizeToolcraftControlValue,
+} from "./control-value-normalization";
+import {
   clampToolcraftTimelineDurationSeconds,
   clampToolcraftTimelineTime,
   getToolcraftTimelineKeyframeId,
@@ -64,6 +68,22 @@ function createTimelineControlKeyframe({
     value,
     valueLabel,
   };
+}
+
+function normalizeTimelineControlValue(
+  state: ToolcraftState,
+  controlId: string,
+  value: unknown,
+): { accepted: true; value: unknown } | { accepted: false } {
+  const control = getToolcraftValueControls(state.schema).get(controlId);
+  if (!control) {
+    return { accepted: true, value };
+  }
+
+  const normalized = normalizeToolcraftControlValue(control, value);
+  return normalized.accepted
+    ? { accepted: true, value: normalized.value }
+    : { accepted: false };
 }
 
 function upsertTimelineControlKeyframeGroup({
@@ -289,12 +309,21 @@ export function reduceToolcraftTimelineCommand(
         });
       }
 
+      const normalized = normalizeTimelineControlValue(
+        state,
+        command.controlId,
+        command.value,
+      );
+      if (!normalized.accepted) {
+        return state;
+      }
+
       const keyframe = createTimelineControlKeyframe({
         controlId: command.controlId,
         controlLabel: command.controlLabel,
         state,
         timeSeconds: command.timeSeconds,
-        value: command.value,
+        value: normalized.value,
         valueLabel: command.valueLabel,
       });
       const timeline = {
@@ -317,12 +346,21 @@ export function reduceToolcraftTimelineCommand(
     }
 
     case "timeline.upsertControlKeyframe": {
+      const normalized = normalizeTimelineControlValue(
+        state,
+        command.controlId,
+        command.value,
+      );
+      if (!normalized.accepted) {
+        return state;
+      }
+
       const keyframe = createTimelineControlKeyframe({
         controlId: command.controlId,
         controlLabel: command.controlLabel,
         state,
         timeSeconds: command.timeSeconds,
-        value: command.value,
+        value: normalized.value,
         valueLabel: command.valueLabel,
       });
       const timeline = {

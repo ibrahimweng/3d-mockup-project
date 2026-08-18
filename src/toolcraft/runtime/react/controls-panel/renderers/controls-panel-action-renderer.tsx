@@ -11,6 +11,7 @@ import type {
   ToolcraftActionSchema,
   ToolcraftControlSchema,
 } from "../../../schema/types";
+import { isToolcraftArtifactExportAction } from "../../../schema/artifact-export-actions";
 
 export type ActionControlRunAction = (
   action: ToolcraftActionSchema,
@@ -57,7 +58,7 @@ function getActionLabel(action: ToolcraftActionSchema): string {
 }
 
 function isExportPanelAction(action: ToolcraftActionSchema): boolean {
-  if (action.role === "export-image" || action.role === "export-video") {
+  if (isToolcraftArtifactExportAction(action)) {
     return true;
   }
 

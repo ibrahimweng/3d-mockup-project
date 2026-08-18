@@ -7,7 +7,6 @@ import {
 } from "./toolcraft-delivery-receipt.mjs";
 import { createToolcraftDeliveryPlanHash } from "./toolcraft-delivery-plan.mjs";
 import {
-  createInventory,
   createPlanReceiptFixture,
 } from "./toolcraft-delivery-receipt-test-helpers.mjs";
 
@@ -22,74 +21,6 @@ function deepFreeze(value) {
   }
   return value;
 }
-
-function createMultiPathReceipt() {
-  const fixture = createPlanReceiptFixture();
-  const comparisonInventory = createInventory({
-    "src/app/app-composition.tsx": "1".repeat(64),
-    "src/app/app-schema.ts": "2".repeat(64),
-  });
-  const finalInventory = createInventory({
-    "src/app/app-composition.tsx": "3".repeat(64),
-    "src/app/app-schema.ts": "4".repeat(64),
-  });
-  const plan = deepFreeze({
-    ...fixture.plan,
-    basis: {
-      changedFiles: finalInventory.entries.map(({ path }) => path),
-      comparisonFunctionalProofModelHash:
-        fixture.plan.basis.comparisonFunctionalProofModelHash,
-      comparisonInventory,
-      kind: "changed",
-    },
-    sourceHash: finalInventory.sourceHash,
-  });
-  return createToolcraftDeliveryReceipt({
-    functionalProofModel: fixture.functionalProofModel,
-    plan,
-    result: { ...fixture.result, finalInventory },
-  });
-}
-
-function replaceChangedFiles(receipt, changedFiles) {
-  const plan = deepFreeze({
-    ...receipt.plan,
-    basis: { ...receipt.plan.basis, changedFiles },
-  });
-  return {
-    ...receipt,
-    plan,
-    planHash: createToolcraftDeliveryPlanHash(plan),
-  };
-}
-
-test("rejects rehashed plans whose changed paths do not match inventory", () => {
-  const receipt = createMultiPathReceipt();
-  const actual = receipt.plan.basis.changedFiles;
-  for (const changedFiles of [
-    ["src/app/unrelated.ts"],
-    actual.slice(1),
-    [...actual, "src/app/unrelated.ts"],
-  ]) {
-    assert.match(
-      errorFor(replaceChangedFiles(receipt, changedFiles)),
-      /changed.*(?:inventory|exact|provenance)/iu,
-    );
-  }
-});
-
-test("rejects reordered and noncanonical changed paths before hashing", () => {
-  const receipt = createMultiPathReceipt();
-  for (const changedFiles of [
-    [...receipt.plan.basis.changedFiles].reverse(),
-    ["../outside.ts"],
-  ]) {
-    assert.throws(
-      () => replaceChangedFiles(receipt, changedFiles),
-      /changed.*provenance/iu,
-    );
-  }
-});
 
 test("rejects altered plan hash, manifest, source, and final inventory", () => {
   const fixture = createPlanReceiptFixture();
@@ -194,14 +125,14 @@ test("receipt and model validation reject non-canonical JavaScript structures", 
   const nonEnumerableModel = { ...receipt.functionalProofModel };
   Object.defineProperty(nonEnumerableModel, "hidden", { value: true });
   const sparseAcceptance = Array(1);
-  const augmentedOwners = [...receipt.functionalProofModel.owners];
-  augmentedOwners.extra = true;
+  const augmentedAcceptance = [...receipt.functionalProofModel.acceptance];
+  augmentedAcceptance.extra = true;
   const models = [
     symbolModel,
     nonPlainModel,
     nonEnumerableModel,
     { ...receipt.functionalProofModel, acceptance: sparseAcceptance },
-    { ...receipt.functionalProofModel, owners: augmentedOwners },
+    { ...receipt.functionalProofModel, acceptance: augmentedAcceptance },
   ].map(deepFreeze);
 
   for (const functionalProofModel of models) {

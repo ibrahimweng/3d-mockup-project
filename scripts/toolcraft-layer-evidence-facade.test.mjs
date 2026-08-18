@@ -26,7 +26,11 @@ async function loadLayerEvidenceFacade(context) {
       '"./transition.mjs"',
     )
     .replaceAll('"./browser-runtime-evidence"', '"./evidence.mjs"')
-    .replaceAll('"./browser-proof-session"', '"./proof-session.mjs"');
+    .replaceAll('"./browser-proof-session"', '"./proof-session.mjs"')
+    .replaceAll(
+      '"./browser-selection-scope-evidence"',
+      '"./selection-scope.mjs"',
+    );
   const { outputText } = ts.transpileModule(source, {
     compilerOptions: {
       module: ts.ModuleKind.ESNext,
@@ -88,6 +92,24 @@ async function loadLayerEvidenceFacade(context) {
         }
       `,
     ),
+    fs.writeFile(
+      path.join(outputDir, "selection-scope.mjs"),
+      `
+        export async function expectToolcraftSelectionScopedControl(options) {
+          globalThis.__toolcraftLayerSelectionScopeCalls.push(options);
+          globalThis.__toolcraftLayerEvidenceAttachments.push({
+            evidenceType: "product-observable-change",
+            requirementId: options.requirementId,
+            target: options.propertyTarget,
+          });
+          globalThis.__toolcraftLayerEvidenceAttachments.push({
+            evidenceType: "selection-scoped-control",
+            requirementId: options.requirementId,
+            target: options.propertyTarget,
+          });
+        }
+      `,
+    ),
   ]);
 
   return import(`${pathToFileURL(outputPath).href}?test=${Date.now()}`);
@@ -100,6 +122,7 @@ function setTransition(before, after) {
 test("layer recipes attach exact-target base and specialized evidence", async (context) => {
   const facade = await loadLayerEvidenceFacade(context);
   globalThis.__toolcraftLayerEvidenceAttachments = [];
+  globalThis.__toolcraftLayerSelectionScopeCalls = [];
   globalThis.__toolcraftLayerEvidenceTransitionCalls = 0;
   const action = { target: "layers.semantic-target" };
   const observation = {};
@@ -168,24 +191,11 @@ test("layer recipes attach exact-target base and specialized evidence", async (c
     options,
   );
 
-  setTransition(
-    {
-      controlValue: 0,
-      outputSignature: "before",
-      selectedLayerId: "layer-a",
-    },
-    {
-      controlValue: 1,
-      outputSignature: "after",
-      selectedLayerId: "layer-a",
-    },
-  );
-  await facade.expectToolcraftSelectedLayerControl(
-    observation,
-    action,
-    globalThis.__toolcraftLayerEvidenceTransition.after,
-    options,
-  );
+  const selectedLayerOptions = {
+    propertyTarget: action.target,
+    requirementId: options.requirementId,
+  };
+  await facade.expectToolcraftSelectedLayerControl(selectedLayerOptions);
 
   setTransition(
     { layerIds: ["layer-a"], outputSignature: "before" },
@@ -211,8 +221,6 @@ test("layer recipes attach exact-target base and specialized evidence", async (c
       ["product-observable-change", "layer-visibility"],
       ["product-observable-change", "layer-reorder"],
       ["product-observable-change", "layer-grouping"],
-      ["media-lifecycle", "layer-selected-layer-controls"],
-      ["media-lifecycle", "layer-media-lifecycle"],
     ].flatMap(([baseEvidenceType, specializedEvidenceType]) => [
       {
         evidenceType: baseEvidenceType,
@@ -225,12 +233,40 @@ test("layer recipes attach exact-target base and specialized evidence", async (c
         target: action.target,
       },
     ]),
+    {
+      evidenceType: "product-observable-change",
+      requirementId: options.requirementId,
+      target: action.target,
+    },
+    {
+      evidenceType: "selection-scoped-control",
+      requirementId: options.requirementId,
+      target: action.target,
+    },
+    {
+      evidenceType: "layer-selected-layer-controls",
+      requirementId: options.requirementId,
+      target: action.target,
+    },
+    {
+      evidenceType: "media-lifecycle",
+      requirementId: options.requirementId,
+      target: action.target,
+    },
+    {
+      evidenceType: "layer-media-lifecycle",
+      requirementId: options.requirementId,
+      target: action.target,
+    },
   ];
   assert.deepEqual(
     globalThis.__toolcraftLayerEvidenceAttachments,
     expectedEvidence,
   );
-  assert.equal(globalThis.__toolcraftLayerEvidenceTransitionCalls, 6);
+  assert.equal(globalThis.__toolcraftLayerEvidenceTransitionCalls, 5);
+  assert.deepEqual(globalThis.__toolcraftLayerSelectionScopeCalls, [
+    selectedLayerOptions,
+  ]);
 });
 
 test("layer recipes fail before assertions or evidence when action has no target", async (context) => {

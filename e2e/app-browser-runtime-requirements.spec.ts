@@ -198,6 +198,56 @@ test("typed background coverage derives dedicated semantic evidence", () => {
   );
 });
 
+test("typed SVG coverage derives only protected SVG artifact evidence", () => {
+  const requirements = deriveToolcraftBrowserRuntimeRequirements([
+    {
+      browser: true,
+      browserTestName: "browser: SVG export",
+      evidence: "exported-bytes",
+      exportArtifactCoverage: "all-required-svg-export-behavior",
+      id: "actions.svg",
+      target: "actions.output",
+    },
+  ]);
+
+  expect(requirements).toEqual([
+    {
+      evidenceType: "svg-export-artifact",
+      requirementId: "actions.svg",
+      target: "actions.output",
+      testName: "browser: SVG export",
+    },
+  ]);
+});
+
+test("selected-entity coverage adds protected selection isolation evidence", () => {
+  const requirements = deriveToolcraftBrowserRuntimeRequirements([
+    {
+      browser: true,
+      browserTestName: "browser: selected shape fill",
+      evidence: "product-output",
+      id: "shape.selected-fill",
+      selectionScopeCoverage: "two-entity-isolation",
+      target: "selectedShape.fill",
+    },
+  ]);
+
+  expect(requirements).toEqual([
+    {
+      evidenceType: "product-observable-change",
+      requirementId: "shape.selected-fill",
+      target: "selectedShape.fill",
+      testName: "browser: selected shape fill",
+    },
+    {
+      evidenceType: "selection-scoped-control",
+      requirementId: "shape.selected-fill",
+      target: "selectedShape.fill",
+      testName: "browser: selected shape fill",
+    },
+  ]);
+});
+
 test("typed Infinity canvas coverage derives dedicated semantic evidence", () => {
   const requirements = deriveToolcraftBrowserRuntimeRequirements([
     {
@@ -216,6 +266,14 @@ test("typed Infinity canvas coverage derives dedicated semantic evidence", () =>
       infinityCanvasCoverage: "scene-bounds-image-export",
       target: "actions.output",
     },
+    {
+      browser: true,
+      browserTestName: "browser: Infinity canvas SVG export",
+      evidence: "exported-bytes",
+      id: "canvas.infinity.svgExport",
+      infinityCanvasCoverage: "scene-bounds-svg-export",
+      target: "actions.output",
+    },
   ]);
 
   expect(
@@ -232,6 +290,10 @@ test("typed Infinity canvas coverage derives dedicated semantic evidence", () =>
       {
         evidenceType: "infinity-scene-bounds-image-export",
         requirementId: "canvas.infinity.imageExport",
+      },
+      {
+        evidenceType: "infinity-scene-bounds-svg-export",
+        requirementId: "canvas.infinity.svgExport",
       },
     ]),
   );

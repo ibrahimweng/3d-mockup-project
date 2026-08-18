@@ -35,7 +35,6 @@ const expectedVerificationReceiptExports = [
   "assertToolcraftVerificationInputsUnchanged",
   "collectToolcraftVerificationInputs",
   "readToolcraftDurablePerformanceBaseline",
-  "validateToolcraftCurrentPerformanceImpactInventory",
   "validateToolcraftPerformanceReceipt",
   "validateToolcraftVerificationReceipt",
 ];

@@ -168,7 +168,6 @@ export function getCurveIntentError(
 
 export function getToggleControlLabelError(
   control: ToolcraftControlSchema,
-  sectionTitle?: string,
 ): string | undefined {
   if (control.type !== "switch" && control.type !== "checkbox") {
     return undefined;
@@ -178,15 +177,6 @@ export function getToggleControlLabelError(
 
   if (/^(enable|disable)\b/i.test(label)) {
     return `toggle labels must name the setting context only; use "CRT", "Background", "Glow", or "Loop" instead of "${label}".`;
-  }
-
-  if (
-    label &&
-    sectionTitle &&
-    normalizeToolcraftSemanticText(label) ===
-      normalizeToolcraftSemanticText(sectionTitle)
-  ) {
-    return `toggle label "${label}" duplicates section title "${sectionTitle}". Use a shorter contextual label such as "Include" or rename the toggle to a more specific setting.`;
   }
 
   return undefined;

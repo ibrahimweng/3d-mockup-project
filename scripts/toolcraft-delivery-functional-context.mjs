@@ -4,16 +4,10 @@ import {
 import {
   createToolcraftFunctionalProofModel,
 } from "./toolcraft-functional-proof-model.mjs";
-import {
-  createToolcraftProductVerificationContext,
-  readToolcraftVerificationImpactInventory,
-} from "./toolcraft-verification-impact.mjs";
 
 const defaultDependencies = Object.freeze({
   collectCatalog: collectToolcraftDeliveryCatalog,
   createFunctionalProofModel: createToolcraftFunctionalProofModel,
-  createVerificationContext: createToolcraftProductVerificationContext,
-  readImpactInventory: readToolcraftVerificationImpactInventory,
 });
 
 export async function collectToolcraftDeliveryFunctionalContextCore({
@@ -21,31 +15,9 @@ export async function collectToolcraftDeliveryFunctionalContextCore({
   projectDir,
 }) {
   const catalog = await dependencies.collectCatalog(projectDir);
-  const {
-    frameworkOwnedPaths,
-    graph,
-    inputRoles,
-    sourceInventory,
-  } = await dependencies.createVerificationContext(projectDir);
-  const { inventory: verificationImpactInventory } =
-    await dependencies.readImpactInventory(projectDir, {
-      catalog,
-      inputRoles,
-    });
   const currentFunctionalProofModel =
-    dependencies.createFunctionalProofModel({
-      catalog,
-      inventory: verificationImpactInventory,
-    });
-  return Object.freeze({
-    catalog,
-    currentFunctionalProofModel,
-    frameworkOwnedPaths,
-    graph,
-    inputRoles,
-    sourceInventory,
-    verificationImpactInventory,
-  });
+    dependencies.createFunctionalProofModel({ catalog });
+  return Object.freeze({ catalog, currentFunctionalProofModel });
 }
 
 export function collectToolcraftDeliveryFunctionalContext(projectDir) {

@@ -86,32 +86,44 @@ function parseCanvasAspectRatioString(
   };
 }
 
+export function decodeToolcraftCanvasAspectRatioValue(
+  value: unknown,
+): ToolcraftCanvasAspectRatioValue | null {
+  if (typeof value === "string") {
+    return parseCanvasAspectRatioString(value);
+  }
+
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const width = asToolcraftCanvasSizeDimension(value.width);
+  const height = asToolcraftCanvasSizeDimension(value.height);
+
+  if (width === null || height === null) {
+    return null;
+  }
+
+  const rawValue =
+    typeof value.value === "string" ? value.value : `${width}:${height}`;
+  const mode = value.mode === "preset" ? "preset" : "custom";
+
+  return {
+    height,
+    mode,
+    value: mode === "preset" ? rawValue : `${width}:${height}`,
+    width,
+  };
+}
+
 export function normalizeToolcraftCanvasAspectRatioValue(
   value: unknown,
   fallbackSize: ToolcraftState["canvas"]["size"],
 ): ToolcraftCanvasAspectRatioValue {
-  if (typeof value === "string") {
-    return parseCanvasAspectRatioString(value) ?? getToolcraftCanvasAspectRatioFromSize(fallbackSize);
-  }
-
-  if (isRecord(value)) {
-    const width = asToolcraftCanvasSizeDimension(value.width);
-    const height = asToolcraftCanvasSizeDimension(value.height);
-
-    if (width !== null && height !== null) {
-      const rawValue = typeof value.value === "string" ? value.value : `${width}:${height}`;
-      const mode = value.mode === "preset" ? "preset" : "custom";
-
-      return {
-        height,
-        mode,
-        value: mode === "preset" ? rawValue : `${width}:${height}`,
-        width,
-      };
-    }
-  }
-
-  return getToolcraftCanvasAspectRatioFromSize(fallbackSize);
+  return (
+    decodeToolcraftCanvasAspectRatioValue(value) ??
+    getToolcraftCanvasAspectRatioFromSize(fallbackSize)
+  );
 }
 
 export function toolcraftCanvasAspectRatioValuesEqual(

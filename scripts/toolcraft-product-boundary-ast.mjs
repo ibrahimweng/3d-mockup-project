@@ -59,7 +59,7 @@ function getImportViolationKind(moduleKind, importedName) {
 function getViolationMessage(kind, subject, moduleSpecifier) {
   switch (kind) {
     case "runtime-export-ownership":
-      return `Product source must not own artifact encoding, recording, or download mechanics${subject} from ${moduleSpecifier}. Declare exportRenderer and let runtime export actions encode and download the artifact.`;
+      return `Product source must not own artifact encoding, recording, or download mechanics${subject} from ${moduleSpecifier}. Declare exportRenderer for image/video or svgExportRenderer for SVG and let runtime export actions create and download the artifact.`;
     case "runtime-surface":
       return `Product source must not import or re-export host-owned runtime surface${subject} from ${moduleSpecifier}. Use ToolcraftAppComposition, schema, canvasContent, controlRenderers, onPanelAction, and runtime commands.`;
     case "runtime-model-presentation-ownership":

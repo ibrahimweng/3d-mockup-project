@@ -3,13 +3,16 @@ import fs from "node:fs/promises";
 import test from "node:test";
 
 import {
+  createToolcraftCheckpointBundle,
+  writeToolcraftCheckpointBundle,
+} from "./toolcraft-checkpoint-bundle.mjs";
+import {
   getToolcraftDeliveryAnchorShapeError,
   normalizeToolcraftDeliveryAnchor,
   readToolcraftDeliveryAnchor,
 } from "./toolcraft-delivery-anchor.mjs";
 import {
   createPlanReceiptFixture,
-  writeDeliveryReceiptFixture,
 } from "./toolcraft-delivery-receipt-test-helpers.mjs";
 import {
   createToolcraftDeliveryReceipt,
@@ -21,74 +24,41 @@ import {
   createReceiptFixture,
 } from "./toolcraft-verification-receipt-test-helpers.mjs";
 
-const forbiddenAnchorKeys = [
-  "baselineEvidenceHash",
-  "baselineSourceHash",
-  "mode",
-  "version",
-];
-
-function assertClosedAnchor(anchor) {
-  assert.equal(Object.isFrozen(anchor), true);
-  for (const key of forbiddenAnchorKeys) {
-    assert.equal(Object.hasOwn(anchor, key), false);
-  }
-  assert.deepEqual(Object.keys(anchor).sort(), [
-    "files",
-    "functionalProofModel",
-    "functionalProofModelHash",
-    "lifecycle",
-    "performance",
-    "sourceHash",
-  ]);
-}
-
-test("normalizes current receipt inventory and lifecycle", () => {
+test("initial receipt is the durable product proof anchor", () => {
   const receipt = createToolcraftDeliveryReceipt(
-    createPlanReceiptFixture("functional-changed"),
+    createPlanReceiptFixture("functional-initial"),
   );
-
   const anchor = normalizeToolcraftDeliveryAnchor(receipt);
 
-  assertClosedAnchor(anchor);
+  assert.equal(Object.isFrozen(anchor), true);
   assert.deepEqual(anchor.files, receipt.files);
   assert.equal(anchor.functionalProofModel, receipt.functionalProofModel);
-  assert.equal(
-    anchor.functionalProofModelHash,
-    receipt.functionalProofModelHash,
-  );
   assert.deepEqual(anchor.lifecycle, receipt.plan.lifecycle);
   assert.deepEqual(anchor.performance, { kind: "none" });
   assert.equal(anchor.sourceHash, receipt.sourceHash);
 });
 
-test("derives a current performance comparison hash from the report alone", () => {
+test("targeted performance receipt carries exact comparison evidence", () => {
   const receipt = createToolcraftDeliveryReceipt(
     createPlanReceiptFixture("performance-iteration"),
   );
-  const performanceEvidence = receipt.evidence.find(
+  const evidence = receipt.evidence.find(
     ({ kind }) => kind === "browser-performance",
   );
-
   const anchor = normalizeToolcraftDeliveryAnchor(receipt);
 
-  assertClosedAnchor(anchor);
   assert.deepEqual(anchor.performance, {
-    kind: "performance-iteration-report",
-    report: performanceEvidence.report,
     comparisonHash: createToolcraftTargetedPerformanceComparisonHash(
-      performanceEvidence.report,
+      evidence.report,
     ),
+    kind: "performance-iteration-report",
+    report: evidence.report,
     requestAuthorityHash: receipt.plan.requestAuthorityHash,
   });
-  assert.notEqual(
-    anchor.performance.comparisonHash,
-    performanceEvidence.evidenceHash,
-  );
 });
 
-test("rejects obsolete delivery receipt versions 2 through 6", () => {
-  for (const version of [2, 3, 4, 5, 6]) {
+test("rejects obsolete delivery receipt and plan versions", () => {
+  for (const version of [2, 3, 4, 5, 6, 7]) {
     assert.throws(
       () => normalizeToolcraftDeliveryAnchor({ version }),
       /unsupported version/iu,
@@ -98,34 +68,53 @@ test("rejects obsolete delivery receipt versions 2 through 6", () => {
       /unsupported version/iu,
     );
   }
-});
-
-test("rejects a current receipt with an obsolete plan version", () => {
   const receipt = createToolcraftDeliveryReceipt(
-    createPlanReceiptFixture("functional-changed"),
+    createPlanReceiptFixture("functional-initial"),
   );
-
   assert.throws(
-    () =>
-      normalizeToolcraftDeliveryAnchor({
-        ...receipt,
-        planVersion: 2,
-      }),
+    () => normalizeToolcraftDeliveryAnchor({ ...receipt, planVersion: 5 }),
     /unsupported|malformed/iu,
   );
 });
 
-test("reads a current receipt through the canonical checkpoint bundle", async (t) => {
+test("bundle anchor preserves initial proof and overlays targeted lifecycle", async (t) => {
   const rootDir = await createReceiptFixture();
   t.after(() => fs.rm(rootDir, { force: true, recursive: true }));
-  const receipt = createToolcraftDeliveryReceipt(
+  const initial = createToolcraftDeliveryReceipt(
+    createPlanReceiptFixture("functional-initial"),
+  );
+  const targeted = createToolcraftDeliveryReceipt(
     createPlanReceiptFixture("performance-iteration"),
   );
-  await writeDeliveryReceiptFixture(rootDir, receipt);
-
-  const anchor = normalizeToolcraftDeliveryAnchor(receipt);
-  assert.deepEqual(await readToolcraftDeliveryAnchor(rootDir), {
-    anchor,
-    receipt,
+  await writeToolcraftCheckpointBundle({
+    bundle: createToolcraftCheckpointBundle({
+      currentPerformance: targeted,
+      delivery: initial,
+    }),
+    rootDir,
   });
+
+  const loaded = await readToolcraftDeliveryAnchor(rootDir);
+  assert.deepEqual(loaded.receipt, initial);
+  assert.equal(loaded.anchor.sourceHash, initial.sourceHash);
+  assert.deepEqual(loaded.anchor.lifecycle, targeted.plan.lifecycle);
+  assert.equal(loaded.anchor.performance.kind, "performance-iteration-report");
+});
+
+test("bundle anchor fails closed on malformed current performance state", async (t) => {
+  const rootDir = await createReceiptFixture();
+  t.after(() => fs.rm(rootDir, { force: true, recursive: true }));
+  const initial = createToolcraftDeliveryReceipt(
+    createPlanReceiptFixture("functional-initial"),
+  );
+  await writeToolcraftCheckpointBundle({
+    bundle: createToolcraftCheckpointBundle({
+      currentPerformance: { kind: "candidate" },
+      delivery: initial,
+    }),
+    rootDir,
+  });
+
+  const loaded = await readToolcraftDeliveryAnchor(rootDir);
+  assert.match(loaded.error, /malformed|unsupported/iu);
 });

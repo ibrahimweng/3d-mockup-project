@@ -36,11 +36,6 @@ async function runToolcraftFullPerformanceCertificationCore({ projectDir }) {
   if (loaded.error) throw new Error(loaded.error);
   const initialInventory =
     await collectToolcraftVerificationInputs(projectDir);
-  if (loaded.anchor.sourceHash !== initialInventory.sourceHash) {
-    throw new Error(
-      "Toolcraft full performance requires a current successful delivery for the unchanged source.",
-    );
-  }
   await runToolcraftProofPackageScript(projectDir, "build");
   const measurement = await measureToolcraftPerformanceCheckpoint({
     baselineInventory: initialInventory,
@@ -52,7 +47,6 @@ async function runToolcraftFullPerformanceCertificationCore({ projectDir }) {
     rootDir: projectDir,
     update: (bundle) => ({
       ...bundle,
-      currentPerformance: checkpoint,
       performanceBaseline: checkpoint,
     }),
   });

@@ -1,7 +1,8 @@
 import type {
   ResolvedToolcraftAppSchema,
-  ToolcraftActionSchema,
+  ToolcraftArtifactExportActionRole,
 } from "@/toolcraft/runtime";
+import { isToolcraftArtifactExportAction } from "@/toolcraft/runtime";
 
 import { getControlActions } from "./actions";
 import type {
@@ -11,9 +12,10 @@ import type {
 
 const requiredCoverageByRole = {
   "export-image": "all-required-image-export-behavior",
+  "export-svg": "all-required-svg-export-behavior",
   "export-video": "all-required-video-export-behavior",
 } as const satisfies Record<
-  "export-image" | "export-video",
+  ToolcraftArtifactExportActionRole,
   ToolcraftExportArtifactCoverage
 >;
 
@@ -26,30 +28,36 @@ function getCoverageValues(
     : entry.exportArtifactCoverage;
 }
 
-function isMediaExportAction(
-  action: ToolcraftActionSchema | string,
-): action is ToolcraftActionSchema & {
-  role: "export-image" | "export-video";
-} {
-  return (
-    typeof action !== "string" &&
-    (action.role === "export-image" || action.role === "export-video")
-  );
-}
-
-function collectMediaExportActions(schema: ResolvedToolcraftAppSchema) {
+function collectArtifactExportActions(schema: ResolvedToolcraftAppSchema) {
   return (schema.panels.controls?.sections ?? []).flatMap((section) =>
     Object.values(section.controls).flatMap((control) =>
       control.type !== "panelActions" || !control.target
         ? []
         : getControlActions(control)
-            .filter(isMediaExportAction)
+            .filter(isToolcraftArtifactExportAction)
             .map((action) => ({
               requiredCoverage: requiredCoverageByRole[action.role],
               role: action.role,
               target: control.target,
               value: action.value,
             })),
+    ),
+  );
+}
+
+function getMisplacedArtifactExportActionErrors(
+  schema: ResolvedToolcraftAppSchema,
+): string[] {
+  return (schema.panels.controls?.sections ?? []).flatMap((section) =>
+    Object.values(section.controls).flatMap((control) =>
+      control.type === "panelActions"
+        ? []
+        : getControlActions(control)
+            .filter(isToolcraftArtifactExportAction)
+            .map(
+              (action) =>
+                `Typed ${action.role} action "${action.value}" must be declared in sticky panelActions.`,
+            ),
     ),
   );
 }
@@ -61,8 +69,8 @@ export function getToolcraftExportArtifactCoverageErrors({
   acceptance: readonly ToolcraftComponentAcceptance[];
   schema: ResolvedToolcraftAppSchema;
 }>): string[] {
-  const errors: string[] = [];
-  const exportActions = collectMediaExportActions(schema);
+  const errors = getMisplacedArtifactExportActionErrors(schema);
+  const exportActions = collectArtifactExportActions(schema);
 
   for (const entry of acceptance) {
     const coverage = getCoverageValues(entry);

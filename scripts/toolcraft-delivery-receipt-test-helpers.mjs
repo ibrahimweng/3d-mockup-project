@@ -58,20 +58,11 @@ export function createFunctionalProofModelFixture({
       performance: [],
       version: 2,
     },
-    inventory: {
-      owners: [{
-        acceptanceIds: [acceptanceId],
-        kind: "functional",
-        path: "src/app/app-schema.ts",
-      }],
-      version: 3,
-    },
   });
 }
 
-export function createPlanReceiptFixture(fixture = "functional-changed") {
-  if (!["functional-changed", "functional-initial",
-    "performance-iteration"].includes(fixture))
+export function createPlanReceiptFixture(fixture = "functional-initial") {
+  if (!["functional-initial", "performance-iteration"].includes(fixture))
     throw new Error(`Unknown delivery fixture: ${fixture}`);
   const comparisonInventory = createInventory({
     "src/app/app-schema.ts": hash("1"),
@@ -84,10 +75,9 @@ export function createPlanReceiptFixture(fixture = "functional-changed") {
     createToolcraftFunctionalProofModelHash(functionalProofModel);
   const common = {
     basis: {
-      changedFiles: ["src/app/app-schema.ts"],
-      comparisonFunctionalProofModelHash: functionalProofModelHash,
-      comparisonInventory,
-      kind: "changed",
+      initialFunctionalProofModelHash: functionalProofModelHash,
+      initialSourceHash: comparisonInventory.sourceHash,
+      kind: "performance-request",
     },
     functionalProofModelHash,
     lifecycle: EMPTY_TOOLCRAFT_DELIVERY_LIFECYCLE_STATE,
@@ -106,6 +96,7 @@ export function createPlanReceiptFixture(fixture = "functional-changed") {
         { kind: "docs" },
         { kind: "code-health" },
         {
+          acceptanceIds: null,
           files: ["src/app/app-schema.test.ts"],
           kind: "product-tests",
         },
@@ -137,20 +128,6 @@ export function createPlanReceiptFixture(fixture = "functional-changed") {
       },
     };
   }
-  if (fixture === "functional-changed") {
-    return {
-      functionalProofModel,
-      plan: deepFreeze({
-        kind: "functional",
-        ...common,
-        steps: [{ kind: "docs" }],
-      }),
-      result: {
-        evidence: [{ kind: "docs" }],
-        finalInventory,
-      },
-    };
-  }
   const requestAuthorityHash = hash("d");
   const targetedPerformanceReport = createToolcraftTargetedPerformanceReport({
     fixtureResolutionMode: "strict-development",
@@ -167,13 +144,7 @@ export function createPlanReceiptFixture(fixture = "functional-changed") {
     fullTitle: `app-controls.spec.ts › ${performanceTestName}`,
     leafTitle: performanceTestName,
   }];
-  const functionalSteps = [
-    { kind: "build" },
-    {
-      kind: "browser-functional",
-      testNames: ["browser: focused acceptance"],
-    },
-  ];
+  const functionalSteps = [{ kind: "build" }];
   const plan = deepFreeze({
     ...common,
     kind: "performance-iteration",

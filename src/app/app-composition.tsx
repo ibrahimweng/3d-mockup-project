@@ -1,17 +1,17 @@
 import type { ToolcraftAppComposition } from "@/toolcraft/runtime/react";
 
 import { appSchema } from "./app-schema";
-import { plinthExportRenderer } from "./export-renderer";
-import { PlinthPreview } from "./preview";
+import { mockupExportRenderer } from "./export-renderer";
+import { MockupPreview } from "./preview";
 import { rendererPipeline } from "./render/pipeline";
 
 /** Output size when the workspace is unbounded, matching the finite default. */
 const INFINITE_SCENE = { height: 1350, width: 1080 };
 
 export const appComposition: ToolcraftAppComposition = {
-  canvasContent: <PlinthPreview />,
-  exportRenderer: plinthExportRenderer,
-  // The product renderer draws the phone itself; the runtime's generic image
+  canvasContent: <MockupPreview />,
+  exportRenderer: mockupExportRenderer,
+  // The product renderer draws the device itself; the runtime's generic image
   // preview would otherwise show the raw screenshot on top of the render.
   renderDefaultCanvasMedia: false,
   rendererPipelineRegistration: rendererPipeline,

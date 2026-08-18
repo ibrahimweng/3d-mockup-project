@@ -1,10 +1,11 @@
 import * as THREE from "three";
 
+import { readDeviceDefinition } from "../product-domain";
 import {
-  buildIPhoneScene,
-  type IPhoneScene,
+  buildDeviceScene,
+  type DeviceScene,
   type ScreenTransform,
-} from "./iphone-scene";
+} from "./device-scene";
 
 type Pose = Readonly<{
   position: readonly [number, number, number];
@@ -13,6 +14,7 @@ type Pose = Readonly<{
 
 export type RasterSettings = {
   backgroundColor: string;
+  device: string;
   environment: string;
   exposure: number;
   focalLength: number;
@@ -20,15 +22,14 @@ export type RasterSettings = {
 };
 
 /**
- * Real-time renderer for the iPhone scene.
+ * Real-time renderer for the device scene.
  *
- * Deliberately much smaller than the path-traced renderer it replaces: there is
- * no accumulator, no sample budget, no convergence and no settle window. A frame
- * is one `render()` call, so the only question is whether anything changed since
- * the last one.
+ * There is no accumulator, no sample budget, no convergence and no settle
+ * window. A frame is one `render()` call, so the only question is whether
+ * anything changed since the last one.
  */
 export class RasterRenderer {
-  private built: IPhoneScene | null = null;
+  private built: DeviceScene | null = null;
   private disposed = false;
   private loading: Promise<void> | null = null;
   private lastKey = "";
@@ -50,7 +51,7 @@ export class RasterRenderer {
     });
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.shadowMap.enabled = true;
-    // Soft percentage-closer filtering. The shadow exists to ground the phone,
+    // Soft percentage-closer filtering. The shadow exists to ground the device,
     // and a hard-edged one reads as a cutout pasted onto the backdrop.
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   }
@@ -68,6 +69,7 @@ export class RasterRenderer {
 
     const key = JSON.stringify([
       settings.backgroundColor,
+      settings.device,
       settings.environment,
       settings.showBackground,
     ]);
@@ -75,8 +77,9 @@ export class RasterRenderer {
     if (this.loading) return;
 
     this.lastKey = key;
-    this.loading = buildIPhoneScene({
+    this.loading = buildDeviceScene({
       backgroundColor: settings.backgroundColor,
+      device: readDeviceDefinition(settings.device),
       environmentUrl: `${import.meta.env.BASE_URL}hdri/${settings.environment}.hdr`,
       renderer: this.renderer,
       showGround: settings.showBackground,
@@ -107,8 +110,8 @@ export class RasterRenderer {
 
   /**
    * Point the camera. Direction comes from the pose; distance is derived from
-   * the subject and the current field of view so the phone stays framed at any
-   * focal length.
+   * the subject and the current field of view so the device stays framed at any
+   * focal length — and at any size, from a watch to a laptop.
    */
   setPose(pose: Pose): void {
     const built = this.built;
@@ -155,7 +158,7 @@ export class RasterRenderer {
     this.built.camera.updateProjectionMatrix();
   }
 
-  /** Is the phone under this client point? Misses fall through to viewport pan. */
+  /** Is the device under this client point? Misses fall through to viewport pan. */
   hitTest(clientX: number, clientY: number): boolean {
     if (this.disposed || !this.built) return false;
     const rect = this.renderer.domElement.getBoundingClientRect();
@@ -167,13 +170,9 @@ export class RasterRenderer {
     );
     this.raycaster.setFromCamera(this.pointer, this.built.camera);
 
-    // Only the phone counts. The ground fills the frame, so including it would
+    // Only the device counts. The ground fills the frame, so including it would
     // make every drag a rotation and leave no way to pan.
-    const phone = this.built.scene.children.find(
-      (child) => child.type === "Group" || child.type === "Object3D",
-    );
-    if (!phone) return false;
-    return this.raycaster.intersectObject(phone, true).length > 0;
+    return this.raycaster.intersectObject(this.built.subject, true).length > 0;
   }
 
   render(): void {

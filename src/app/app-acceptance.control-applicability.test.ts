@@ -11,6 +11,7 @@ import { collectToolcraftVisibleAcceptanceControls } from "./acceptance/validate
 const productReadiness: ToolcraftProductReadiness = {
   exportIntent: {
     image: { mode: "toolcraft-default" },
+    svg: { mode: "not-requested" },
     video: { mode: "not-requested" },
   },
   interactionOwnership: [],

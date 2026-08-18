@@ -115,11 +115,18 @@ export function CanvasShell({
     uploadPresentation.feedback ??
     (uploadPresentation.directOperation ? (directCanvasPresentation?.feedback ?? null) : null);
   const uploadEnabled = canvasSchema.upload;
-  const { handlePointerDown, handlePointerMove, handlePointerUp, viewportRef } =
-    useCanvasViewportInteractions({
-      draggable: canvasSchema.draggable,
-      store,
-    });
+  const {
+    handlePointerDown,
+    handlePointerDownCapture,
+    handlePointerMove,
+    handlePointerMoveCapture,
+    handlePointerUp,
+    handlePointerUpCapture,
+    viewportRef,
+  } = useCanvasViewportInteractions({
+    draggable: canvasSchema.draggable,
+    store,
+  });
   const handleDrop = useCanvasDropImport({
     coordinator: sourceAssetCoordinator,
     onPresentationChange: setUploadPresentation,
@@ -162,9 +169,13 @@ export function CanvasShell({
       onDragOver={beginDragOver}
       onDrop={handleDrop}
       onPointerCancel={handlePointerUp}
+      onPointerCancelCapture={handlePointerUpCapture}
       onPointerDown={handlePointerDown}
+      onPointerDownCapture={handlePointerDownCapture}
       onPointerMove={handlePointerMove}
+      onPointerMoveCapture={handlePointerMoveCapture}
       onPointerUp={handlePointerUp}
+      onPointerUpCapture={handlePointerUpCapture}
       ref={viewportRef}
       role="application"
       style={

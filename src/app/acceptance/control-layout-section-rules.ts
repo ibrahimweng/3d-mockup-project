@@ -2,8 +2,10 @@ import {
   getToolcraftColorBankDescriptionError,
   getToolcraftColorBankLabelErrors,
 } from "./color-bank-labels";
+import { getToolcraftColorRowGroupingErrors } from "./color-row-grouping";
 import {
   getToolcraftControlDescriptionError,
+  getToolcraftDuplicateSectionTitleLabelError,
   getToolcraftGenericControlLabelError,
 } from "./control-labels";
 import type { ToolcraftControlLayoutFacts } from "./control-layout-model";
@@ -61,6 +63,10 @@ export function getToolcraftControlLayoutSectionInvariantErrors(
       );
     }
     errors.push(
+      ...getToolcraftColorRowGroupingErrors({
+        controls,
+        sectionLabel,
+      }),
       ...getToolcraftColorBankLabelErrors({
         controls,
         sectionLabel,
@@ -69,6 +75,18 @@ export function getToolcraftControlLayoutSectionInvariantErrors(
     );
 
     for (const [controlId, control] of controls) {
+      const duplicateSectionTitleLabelError =
+        getToolcraftDuplicateSectionTitleLabelError({
+          control,
+          controlId,
+          sectionLabel,
+          sectionTitle,
+        });
+
+      if (duplicateSectionTitleLabelError) {
+        errors.push(duplicateSectionTitleLabelError);
+      }
+
       const genericLabelError = getToolcraftGenericControlLabelError({
         control,
         controlId,

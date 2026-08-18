@@ -6,6 +6,7 @@ import type {
 import { getControlLabelText } from "./controls";
 import {
   schemaHasPngExportPanelAction,
+  schemaHasSvgExportPanelAction,
   schemaHasVideoExportPanelAction,
 } from "./output-export-actions";
 import { normalizeToolcraftSemanticText } from "./semantic";
@@ -19,6 +20,7 @@ export type ToolcraftOutputExportFacts = {
   backgroundSection: ToolcraftControlsSection | undefined;
   finalExportSettingsIndex: number;
   hasImageExportAction: boolean;
+  hasSvgExportAction: boolean;
   hasVideoExportAction: boolean;
   imageExportSection: ToolcraftControlsSection | undefined;
   imageExportSectionIndex: number;
@@ -148,6 +150,7 @@ export function buildToolcraftOutputExportFacts({
     "Video Export",
   );
   const hasImageExportAction = schemaHasPngExportPanelAction(schema);
+  const hasSvgExportAction = schemaHasSvgExportPanelAction(schema);
   const hasVideoExportAction = schemaHasVideoExportPanelAction(schema);
 
   return {
@@ -159,6 +162,7 @@ export function buildToolcraftOutputExportFacts({
         ? imageExportSectionIndex
         : -1,
     hasImageExportAction,
+    hasSvgExportAction,
     hasVideoExportAction,
     imageExportSection,
     imageExportSectionIndex,

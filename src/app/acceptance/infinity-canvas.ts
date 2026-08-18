@@ -2,6 +2,7 @@ import type { ResolvedToolcraftAppSchema } from "@/toolcraft/runtime";
 
 import {
   schemaHasPngExportPanelAction,
+  schemaHasSvgExportPanelAction,
   schemaHasVideoExportPanelAction,
 } from "./output-export-actions";
 import type {
@@ -63,6 +64,15 @@ export function getToolcraftInfinityCanvasCoverageErrors({
       evidence: "exported-bytes",
       message:
         'Export PNG with editable-output canvas requires a runtime acceptance entry with infinityCanvasCoverage "scene-bounds-image-export" proving infinite export crops to the union of visible scene elements through ToolcraftAppComposition.sceneBoundsProvider.',
+    });
+  }
+
+  if (schemaHasSvgExportPanelAction(schema)) {
+    requiredProofs.push({
+      coverage: "scene-bounds-svg-export",
+      evidence: "exported-bytes",
+      message:
+        'Export SVG with editable-output canvas requires a runtime acceptance entry with infinityCanvasCoverage "scene-bounds-svg-export" proving infinite export uses the exact visible scene union through ToolcraftAppComposition.sceneBoundsProvider.',
     });
   }
 

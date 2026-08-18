@@ -86,23 +86,6 @@ export async function createReceiptFixture() {
     'export const schema = { mode: "initial" };\n',
   );
   await fs.writeFile(
-    path.join(rootDir, "src", "app", "app-verification-impact.json"),
-    `${JSON.stringify(
-      {
-        owners: [
-          {
-            acceptanceIds: ["persistence.reload"],
-            kind: "functional",
-            path: "src/app/app-schema.ts",
-          },
-        ],
-        version: 2,
-      },
-      null,
-      2,
-    )}\n`,
-  );
-  await fs.writeFile(
     path.join(rootDir, "e2e", "app-performance.spec.ts"),
     'export const scenario = "heavy";\n',
   );
@@ -190,14 +173,6 @@ export async function writePassedCheckpointFixture(
       performance: [],
       version: 2,
     },
-    inventory: {
-      owners: [{
-        acceptanceIds: ["persistence.reload"],
-        kind: "functional",
-        path: "src/app/app-schema.ts",
-      }],
-      version: 3,
-    },
   });
   const plan = deepFreeze({
     basis: { kind: "initial" },
@@ -210,7 +185,11 @@ export async function writePassedCheckpointFixture(
     steps: [
       { kind: "docs" },
       { kind: "code-health" },
-      { files: ["src/app/app-schema.test.ts"], kind: "product-tests" },
+      {
+        acceptanceIds: null,
+        files: ["src/app/app-schema.test.ts"],
+        kind: "product-tests",
+      },
       { kind: "build" },
       {
         kind: "browser-functional",

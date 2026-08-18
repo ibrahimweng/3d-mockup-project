@@ -277,6 +277,7 @@ export type ToolcraftActionRole =
   | "copy-output"
   | "download-output"
   | "export-image"
+  | "export-svg"
   | "export-video";
 
 export type ToolcraftActionSchema = {

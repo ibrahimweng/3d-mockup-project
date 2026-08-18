@@ -11,6 +11,10 @@ import {
   type ToolcraftBrowserAction,
   type ToolcraftBrowserObservation,
 } from "./browser-proof-session";
+import {
+  expectToolcraftSelectionScopedControl,
+  type ToolcraftSelectionScopedControlOptions,
+} from "./browser-selection-scope-evidence";
 
 export type ToolcraftLayerCollectionObservation = {
   layerIds: readonly string[];
@@ -21,12 +25,6 @@ export type ToolcraftLayerGroupingObservation =
   ToolcraftLayerCollectionObservation & {
     groupSignature: string;
   };
-
-export type ToolcraftLayerSelectedControlObservation = {
-  controlValue: unknown;
-  outputSignature: string;
-  selectedLayerId: string;
-};
 
 export type ToolcraftLayerSelectionObservation = {
   selectedLayerId: string;
@@ -223,37 +221,18 @@ export async function expectToolcraftLayerGrouping(
   return after;
 }
 
+export type ToolcraftSelectedLayerControlOptions =
+  ToolcraftSelectionScopedControlOptions;
+
 export async function expectToolcraftSelectedLayerControl(
-  observeControl: ToolcraftBrowserObservation<ToolcraftLayerSelectedControlObservation>,
-  action: ToolcraftBrowserAction,
-  expected: ToolcraftLayerSelectedControlObservation,
-  options: ToolcraftSemanticEvidenceOptions,
-): Promise<ToolcraftLayerSelectedControlObservation> {
-  const target = requireLayerActionTarget(action, options.requirementId);
-  validateIdentifier(expected.selectedLayerId, "Selected-layer control requires a layer id.");
-  validateIdentifier(
-    expected.outputSignature,
-    "Selected-layer control requires product-output semantics.",
-  );
-  const { after, before } = await expectToolcraftExpectedOutcomeAfterAction(
-    observeControl,
-    action,
-    expected,
-    createToolcraftSemanticTransitionOptions(
-      `Selected-layer control "${options.requirementId}" should edit the selected layer output.`,
-      options,
-    ),
-  );
-  expect(before.selectedLayerId).toBe(after.selectedLayerId);
-  expect(before.controlValue).not.toEqual(after.controlValue);
-  expect(before.outputSignature).not.toBe(after.outputSignature);
-  await attachLayerEvidence(
-    "media-lifecycle",
-    "layer-selected-layer-controls",
-    options.requirementId,
-    target,
-  );
-  return after;
+  options: ToolcraftSelectedLayerControlOptions,
+): Promise<void> {
+  await expectToolcraftSelectionScopedControl(options);
+  await attachToolcraftBrowserRuntimeEvidence({
+    evidenceType: "layer-selected-layer-controls",
+    requirementId: options.requirementId,
+    target: options.propertyTarget,
+  });
 }
 
 export async function expectToolcraftLayerMediaLifecycle(

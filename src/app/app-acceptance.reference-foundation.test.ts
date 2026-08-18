@@ -27,6 +27,7 @@ describe("starter acceptance reference-runtime foundation", () => {
             "renderer-loop",
           ],
           mode: "reference-runtime-clone",
+          referenceInputs: [],
           referenceName: "legacy badge wall",
           sourceOfTruth: "reference-runtime",
         } as never,
@@ -57,6 +58,7 @@ describe("starter acceptance reference-runtime foundation", () => {
         transferMode: {
           behaviorCoverage: ["canvas-sizing", "control-mapping", "renderer-state"],
           mode: "reference-runtime-clone",
+          referenceInputs: [],
           referenceName: "legacy badge wall",
           referenceTimeline: { behaviorCoverage: [], mode: "none" },
           sourceOfTruth: "reference-runtime",
@@ -86,6 +88,7 @@ describe("starter acceptance reference-runtime foundation", () => {
         transferMode: {
           behaviorCoverage: ["canvas-sizing", "control-mapping", "renderer-state"],
           mode: "reference-runtime-clone",
+          referenceInputs: [],
           referenceFeatureInventory: makeReferenceFeatureInventory(),
           referenceName: "legacy badge wall",
           referenceTimeline: { behaviorCoverage: [], mode: "none" },
@@ -110,6 +113,7 @@ describe("starter acceptance reference-runtime foundation", () => {
         transferMode: {
           behaviorCoverage: ["canvas-sizing", "control-mapping", "renderer-state"],
           mode: "reference-runtime-clone",
+          referenceInputs: [],
           referenceFeatureInventory: makeReferenceFeatureInventory(),
           referenceName: "legacy badge wall",
           referenceStudy: {
@@ -141,6 +145,7 @@ describe("starter acceptance reference-runtime foundation", () => {
         transferMode: {
           behaviorCoverage: ["canvas-sizing", "control-mapping", "renderer-state"],
           mode: "reference-runtime-clone",
+          referenceInputs: [],
           referenceFeatureInventory: [
             {
               acceptanceId: "appearance.opacity",
@@ -180,6 +185,7 @@ describe("starter acceptance reference-runtime foundation", () => {
         transferMode: {
           behaviorCoverage: ["canvas-sizing", "control-mapping", "renderer-state"],
           mode: "reference-runtime-clone",
+          referenceInputs: [],
           referenceFeatureInventory: [
             { ...makeReferenceFeatureInventory()[0], behaviorEvidence: "" },
             ...makeReferenceFeatureInventory().slice(1),
@@ -208,6 +214,7 @@ describe("starter acceptance reference-runtime foundation", () => {
         transferMode: {
           behaviorCoverage: ["canvas-sizing", "control-mapping", "renderer-state"],
           mode: "reference-runtime-clone",
+          referenceInputs: [],
           referenceFeatureInventory: [
             {
               ...makeReferenceFeatureInventory()[0],
@@ -292,6 +299,7 @@ describe("starter acceptance reference-runtime foundation", () => {
         transferMode: {
           behaviorCoverage: ["canvas-sizing", "control-mapping", "renderer-state"],
           mode: "reference-runtime-clone",
+          referenceInputs: [],
           referenceName: "legacy iframe shell",
           referenceTimeline: { behaviorCoverage: [], mode: "none" },
           sourceOfTruth: "reference-runtime",

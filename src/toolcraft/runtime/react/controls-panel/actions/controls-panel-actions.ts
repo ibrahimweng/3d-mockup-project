@@ -10,6 +10,7 @@ import type {
   ToolcraftActionCommand,
   ToolcraftActionSchema,
 } from "../../../schema/types";
+import { isToolcraftArtifactExportAction } from "../../../schema/artifact-export-actions";
 import type {
   ToolcraftCommand,
   ToolcraftState,
@@ -204,8 +205,7 @@ export function useControlsPanelActions({
         setPanelActionFeedback(feedback);
       }
     };
-    const runtimeOwnsExport =
-      action.role === "export-image" || action.role === "export-video";
+    const runtimeOwnsExport = isToolcraftArtifactExportAction(action);
     const command = runtimeOwnsExport
       ? null
       : action.command ?? (onPanelAction ? null : getActionCommand(action));

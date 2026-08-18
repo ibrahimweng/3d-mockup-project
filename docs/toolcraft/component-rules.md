@@ -4,7 +4,7 @@
 
 ## Control Decision Catalog
 
-Use `core/control-selection.md` for the built-in fit check, exact control owners, compound-control ownership, actions, collection actions, vector ownership, and the custom control gate.
+Use `core/control-selection.md` for the built-in fit check, exact control owners, compound-control ownership, actions, collection actions, vector ownership, and the custom control gate. Built-in controls own canonical runtime values, not callback payloads: product code reads the documented model without per-renderer parsing. Plain `color` is expanded uppercase hex; invalid live values are atomic no-ops and invalid restored/imported values use the canonical default.
 
 ## Dividers
 
@@ -88,7 +88,7 @@ Use `core/layout.md` for section grouping, dependency cohesion, headers, reset, 
 
 ## Colors
 
-Use `core/layout.md` for semantic color grouping, color labels, row fit, and color/opacity layout. Use `core/setup-export.md` for the authored background source pair, its runtime Setup placement, and export background behavior. For repeated built-in controls, use `sourceCollection` for a source-owned array and `collectionActions` for a user-growable array; both support `checkbox`, `color`, `colorOpacity`, `fontPicker`, `rangeInput`, `rangeSlider`, `segmented`, `select`, `slider`, `switch`, `text`, and `vector` items, while unknown item types fail schema validation. Use scalar `itemControl` for one homogeneous repeated value. A `collectionActions` control may instead use `itemControls` only when two or more built-in fields form one logical target-array record that is added or removed atomically. Runtime places a line only between adjacent compound records and leaves standalone color grids unchanged. A multiple file-kind `fileDrop` with `variant: "collection-actions"` may declare `itemControls` to render built-in settings directly below each attached file and persist per-file values keyed by `mediaId`; its upload row and settings are one logical group under the same divider rule.
+Use `core/layout.md` for semantic color grouping, color labels, row fit, and color/opacity layout. A color-only section is one implicit bank. In a mixed section with multiple plain `color` controls, every plain color declares `semanticGroup`; matching type or adjacency alone never authorizes a shared row, and runtime pairs only adjacent colors in the same group. Use `core/setup-export.md` for the authored background source pair, its runtime Setup placement, and export background behavior. For repeated built-in controls, use `sourceCollection` for a source-owned array and `collectionActions` for a user-growable array; both support `checkbox`, `color`, `colorOpacity`, `fontPicker`, `rangeInput`, `rangeSlider`, `segmented`, `select`, `slider`, `switch`, `text`, and `vector` items, while unknown item types fail schema validation. Use scalar `itemControl` for one homogeneous repeated value. A `collectionActions` control may instead use `itemControls` only when two or more built-in fields form one logical target-array record that is added or removed atomically. Runtime places a line only between adjacent compound records and leaves standalone color grids unchanged. A multiple file-kind `fileDrop` with `variant: "collection-actions"` may declare `itemControls` to render built-in settings directly below each attached file and persist per-file values keyed by `mediaId`; its upload row and settings are one logical group under the same divider rule.
 
 ## File Upload
 

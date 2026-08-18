@@ -10,16 +10,18 @@ import {
 } from "@/toolcraft/runtime/react";
 
 import { forgetArtworkUrl, publishArtworkUrl } from "./artwork-store";
+import { readDeviceDefinition } from "./product-domain";
 import { RasterRenderer } from "./render/raster-renderer";
+import { createScreenTexture } from "./render/screen-texture";
 import { readRasterSettings, readScreenTransform } from "./render/settings";
 import styles from "./preview.module.css";
 
-export function PlinthPreview(): React.ReactElement {
+export function MockupPreview(): React.ReactElement {
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
   const rendererRef = React.useRef<RasterRenderer | null>(null);
   const artworkRef = React.useRef<THREE.Texture | null>(null);
   // A frame is only drawn when something has invalidated it. Redrawing a static
-  // scene every tick is what held the GPU at load in the previous renderer.
+  // scene every tick would hold the GPU at load for no visible change.
   const dirtyRef = React.useRef(true);
   const [sceneVersion, setSceneVersion] = React.useState(0);
 
@@ -60,7 +62,8 @@ export function PlinthPreview(): React.ReactElement {
   }, []);
 
   // Model and environment load asynchronously, so the scene announces itself
-  // when ready rather than the first frame racing an empty scene.
+  // when ready rather than the first frame racing an empty scene. Switching
+  // device runs through the same path.
   React.useEffect(() => {
     const renderer = rendererRef.current;
     if (!renderer) return;
@@ -98,12 +101,10 @@ export function PlinthPreview(): React.ReactElement {
       .decode()
       .then(() => {
         if (cancelled) return;
-        const texture = new THREE.Texture(image);
-        texture.colorSpace = THREE.SRGBColorSpace;
-        // The model's own UVs expect a top-down texture, matching how its stock
-        // wallpaper was authored.
-        texture.flipY = false;
-        texture.needsUpdate = true;
+        const texture = createScreenTexture(
+          image,
+          readDeviceDefinition(settings.device),
+        );
 
         artworkRef.current?.dispose();
         artworkRef.current = texture;
@@ -117,7 +118,7 @@ export function PlinthPreview(): React.ReactElement {
     return () => {
       cancelled = true;
     };
-  }, [artworkUrl, sceneVersion]);
+  }, [artworkUrl, sceneVersion, settings.device]);
 
   React.useEffect(() => {
     rendererRef.current?.setPose(pose);
@@ -145,7 +146,7 @@ export function PlinthPreview(): React.ReactElement {
     dirtyRef.current = true;
   }, [height, pose, renderScale, sceneVersion, width]);
 
-  // Dragging the phone rotates it; a drag that misses falls through to the
+  // Dragging the device rotates it; a drag that misses falls through to the
   // runtime and pans the viewport. Two-finger pan and pinch zoom are already
   // native to CanvasShell.
   const hitTest = React.useCallback(

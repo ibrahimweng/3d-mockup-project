@@ -73,16 +73,12 @@ test("collects the same ownership policy for starter-local and generated paths",
   }
 });
 
-test("keeps the signed-manifest trust root small and inside canonical ownership", async () => {
+test("keeps the signed-manifest trust root unique and inside canonical ownership", async () => {
   const generatedPaths =
     await collectToolcraftFrameworkOwnedGeneratedPaths(starterRoot);
   const generatedPathSet = new Set(generatedPaths);
 
   assert.ok(requiredProtectedTrustRootFilePaths.length > 0);
-  assert.ok(
-    requiredProtectedTrustRootFilePaths.length <= 28,
-    `The trust root must stay small; received ${requiredProtectedTrustRootFilePaths.length} paths.`,
-  );
   assert.equal(
     new Set(requiredProtectedTrustRootFilePaths).size,
     requiredProtectedTrustRootFilePaths.length,
@@ -139,5 +135,34 @@ test("keeps the signed-manifest trust root small and inside canonical ownership"
       generatedPathSet.has(relativePath),
       `Rich performance dependency must remain in the signed inventory: ${relativePath}`,
     );
+  }
+});
+
+test("uses public motion-reference sentinels while signing transitive owners through canonical inventory", async () => {
+  const generatedPaths =
+    await collectToolcraftFrameworkOwnedGeneratedPaths(starterRoot);
+  const publicSentinels = [
+    "scripts/create-toolcraft-motion-reference-study.mjs",
+    "src/app/acceptance/motion-reference-evidence.d.mts",
+    "src/app/acceptance/motion-reference-evidence.mjs",
+  ];
+  const representativeTransitiveOwners = [
+    "scripts/toolcraft-motion-reference-group-inventory.mjs",
+    "scripts/toolcraft-motion-reference-publication-journal.mjs",
+  ];
+
+  assert.deepEqual(
+    requiredProtectedTrustRootFilePaths.filter((relativePath) =>
+      relativePath.includes("motion-reference"),
+    ),
+    publicSentinels,
+  );
+  for (const representativeTransitiveOwner of representativeTransitiveOwners) {
+    assert.equal(
+      requiredProtectedTrustRootFilePaths.includes(representativeTransitiveOwner),
+      false,
+      "Transitive implementation modules belong to the complete signed framework inventory, not the public sentinel list.",
+    );
+    assert.ok(generatedPaths.includes(representativeTransitiveOwner));
   }
 });

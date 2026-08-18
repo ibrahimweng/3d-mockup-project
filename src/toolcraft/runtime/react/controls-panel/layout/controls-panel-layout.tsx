@@ -95,6 +95,7 @@ export function getControlsRecord(
 
 export function getControlRenderGroups(
   entries: readonly ControlEntry[],
+  sectionHasOnlyColorFields: boolean,
 ): ControlRenderGroup[] {
   const groups: ControlRenderGroup[] = [];
   let index = 0;
@@ -107,7 +108,12 @@ export function getControlRenderGroups(
       continue;
     }
 
-    if (entry[1].type !== "color") {
+    const colorBankKey = getPlainColorBankKey(
+      entry[1],
+      sectionHasOnlyColorFields,
+    );
+
+    if (!colorBankKey) {
       groups.push({ entry, kind: "control" });
       index += 1;
       continue;
@@ -115,7 +121,13 @@ export function getControlRenderGroups(
 
     const colorEntries: ControlEntry[] = [];
 
-    while (entries[index]?.[1].type === "color") {
+    while (
+      entries[index] &&
+      getPlainColorBankKey(
+        entries[index][1],
+        sectionHasOnlyColorFields,
+      ) === colorBankKey
+    ) {
       const colorEntry = entries[index];
 
       if (colorEntry) {
@@ -142,6 +154,23 @@ export function getControlRenderGroups(
   }
 
   return groups;
+}
+
+function getPlainColorBankKey(
+  control: ToolcraftControlSchema,
+  sectionHasOnlyColorFields: boolean,
+): string | null {
+  if (control.type !== "color") {
+    return null;
+  }
+
+  if (sectionHasOnlyColorFields) {
+    return "color-only-section";
+  }
+
+  const semanticGroup = control.semanticGroup?.trim();
+
+  return semanticGroup ? `semantic:${semanticGroup}` : null;
 }
 
 export function getControlRenderGroupIds(

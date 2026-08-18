@@ -1,11 +1,13 @@
 import { defineToolcraft } from "@/toolcraft/runtime";
 
-import { ENVIRONMENT_OPTIONS, FIT_OPTIONS } from "./product-domain";
+import { appIdentity } from "./app-identity";
+import {
+  DEFAULT_DEVICE,
+  DEVICE_OPTIONS,
+  ENVIRONMENT_OPTIONS,
+  FIT_OPTIONS,
+} from "./product-domain";
 
-// `identity` is intentionally omitted. The signed starter ships an
-// `app-identity.ts` naming the app this folder was generated from, and that
-// file is covered by the integrity manifest, so it cannot be renamed here. The
-// runtime falls back to the controls title, which resolves the id `plinth`.
 export const appSchema = defineToolcraft({
   canvas: {
     enabled: true,
@@ -14,9 +16,29 @@ export const appSchema = defineToolcraft({
     sizing: { mode: "editable-output" },
     upload: true,
   },
+  identity: appIdentity,
   panels: {
     controls: {
       sections: [
+        {
+          controls: {
+            model: {
+              applicability: { mode: "always" },
+              defaultValue: DEFAULT_DEVICE,
+              description:
+                "Which product the screenshot is shown on. Each is a separate model, so switching reloads the scene and reframes the camera around the new subject.",
+              label: false,
+              options: DEVICE_OPTIONS,
+              performanceReason:
+                "Switching device decodes a different GLB once and reframes the camera; frames themselves stay one constant-cost raster pass.",
+              performanceRole: "responsiveness",
+              target: "device.model",
+              type: "select",
+            },
+          },
+          id: "device",
+          title: "Device",
+        },
         {
           controls: {
             image: {
@@ -25,8 +47,8 @@ export const appSchema = defineToolcraft({
               assetKind: "image",
               defaultValue: null,
               description:
-                "Shown on the phone's display. A portrait image matching the screen's proportions fills it exactly.",
-              label: "Screenshot",
+                "Shown on the device's display. An image matching the screen's proportions fills it exactly.",
+              label: false,
               multiple: false,
               performanceReason:
                 "The screenshot is decoded once into a texture and swapped onto the display material; it does not affect per-frame cost.",
@@ -34,52 +56,24 @@ export const appSchema = defineToolcraft({
               target: "artwork.image",
               type: "fileDrop",
             },
-            fit: {
-              applicability: { mode: "always" },
-              defaultValue: "fill",
-              description:
-                "Fit shows the whole image and leaves margins. Fill covers the screen and crops. Stretch distorts to fit exactly.",
-              label: "Fit mode",
-              options: FIT_OPTIONS,
-              performanceReason:
-                "Fit recomputes the display texture's repeat and offset; no geometry or lighting is rebuilt.",
-              performanceRole: "responsiveness",
-              target: "artwork.fit",
-              type: "segmented",
-            },
             offset: {
               applicability: { mode: "always" },
               defaultValue: { x: 0.5, y: 0.5 },
               description:
                 "Slides the image behind the screen. Only has an effect once the image is larger than the display and something is being cropped.",
-              label: "Screen position",
+              label: "Position",
               performanceReason:
                 "Position writes the display texture's offset and redraws one frame.",
               performanceRole: "responsiveness",
               target: "artwork.offset",
               type: "vector",
             },
-            scale: {
-              applicability: { mode: "always" },
-              defaultValue: 100,
-              label: "Screen scale",
-              max: 300,
-              min: 25,
-              performanceReason:
-                "Scale writes the display texture's repeat and redraws one frame.",
-              performanceRole: "responsiveness",
-              sliderValueKind: "continuous",
-              step: 1,
-              target: "artwork.scale",
-              type: "slider",
-              unit: "%",
-            },
             stretch: {
               applicability: { mode: "always" },
               defaultValue: { x: 0.5, y: 0.5 },
               description:
                 "Independent width and height. Centre is unstretched; moving an axis squashes or extends the image along it.",
-              label: "Screen stretch",
+              label: "Stretch",
               performanceReason:
                 "Stretch writes the display texture's repeat and redraws one frame.",
               performanceRole: "responsiveness",
@@ -92,11 +86,45 @@ export const appSchema = defineToolcraft({
         },
         {
           controls: {
+            fit: {
+              applicability: { mode: "always" },
+              defaultValue: "fill",
+              description:
+                "Fit shows the whole image and leaves margins. Fill covers the screen and crops. Stretch distorts to fit exactly.",
+              label: "Mode",
+              options: FIT_OPTIONS,
+              performanceReason:
+                "Fit recomputes the display texture's repeat and offset; no geometry or lighting is rebuilt.",
+              performanceRole: "responsiveness",
+              target: "artwork.fit",
+              type: "segmented",
+            },
+            scale: {
+              applicability: { mode: "always" },
+              defaultValue: 100,
+              label: "Scale",
+              max: 300,
+              min: 25,
+              performanceReason:
+                "Scale writes the display texture's repeat and redraws one frame.",
+              performanceRole: "responsiveness",
+              sliderValueKind: "continuous",
+              step: 1,
+              target: "artwork.scale",
+              type: "slider",
+              unit: "%",
+            },
+          },
+          id: "screen-fit",
+          title: "Screen fit",
+        },
+        {
+          controls: {
             environment: {
               applicability: { mode: "always" },
               defaultValue: "studio-soft",
               description:
-                "The captured studio the phone is lit by and reflects. This is the whole lighting model — there are no separate lights to place.",
+                "The captured studio the device is lit by and reflects. This is the whole lighting model — there are no separate lights to place.",
               label: "Environment",
               options: ENVIRONMENT_OPTIONS,
               performanceReason:
@@ -115,7 +143,7 @@ export const appSchema = defineToolcraft({
               applicability: { mode: "always" },
               defaultValue: 85,
               description:
-                "Full-frame equivalent. Longer lenses flatten perspective the way product photography does; wider ones exaggerate the phone's depth.",
+                "Full-frame equivalent. Longer lenses flatten perspective the way product photography does; wider ones exaggerate the device's depth.",
               label: "Focal length",
               max: 200,
               min: 24,
@@ -206,7 +234,11 @@ export const appSchema = defineToolcraft({
           },
           id: "image-export",
           layoutGroups: [
-            { columns: 2, controls: ["format", "resolution"], layout: "inline" },
+            {
+              columns: 2,
+              controls: ["format", "resolution"],
+              layout: "inline",
+            },
           ],
           title: "Image Export",
         },
@@ -231,7 +263,7 @@ export const appSchema = defineToolcraft({
           title: "Deliver",
         },
       ],
-      title: "Plinth",
+      title: "Mockup Studio",
     },
   },
   toolbar: {

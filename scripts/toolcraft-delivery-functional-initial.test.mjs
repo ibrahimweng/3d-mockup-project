@@ -35,14 +35,6 @@ const catalog = Object.freeze({
 
 const functionalProofModel = createToolcraftFunctionalProofModel({
   catalog,
-  inventory: {
-    owners: [{
-      acceptanceIds: ["output.updates"],
-      kind: "functional",
-      path: "src/app/schema.test.ts",
-    }],
-    version: 3,
-  },
 });
 
 function inventory(contents = "1") {
@@ -65,23 +57,14 @@ function initialInputs(currentInventory) {
     ]),
     authority: null,
     catalog,
-    changeSet: Object.freeze({
-      dependencyChanged: false,
-      docsChanged: false,
-      frameworkChanged: false,
-      impact: null,
-      platformChanged: false,
-      productInputsChanged: false,
-    }),
-    comparisonInventory: null,
     currentFunctionalProofModel: functionalProofModel,
     currentInventory,
+    initialProof: null,
     integrity: Object.freeze({
       manifestHash: hash("a"),
       sourceHash: currentInventory.sourceHash,
     }),
     packageManager: "pnpm",
-    previousFunctionalProofModel: null,
     previousLifecycle: EMPTY_TOOLCRAFT_DELIVERY_LIFECYCLE_STATE,
     previousPerformance: Object.freeze({ kind: "none" }),
   });
@@ -114,7 +97,7 @@ function dependencies({
   return Object.freeze({
     collectInventory: async () => currentInventory,
     collectFunctionalContext: async () =>
-      Object.freeze({ currentFunctionalProofModel: functionalProofModel }),
+      Object.freeze({ catalog, currentFunctionalProofModel: functionalProofModel }),
     commit: async (value) => onCommit(value),
     createPlan: createToolcraftDeliveryPlan,
     createReceipt: createToolcraftDeliveryReceipt,
@@ -125,6 +108,7 @@ function dependencies({
     getEscalationRecommendation: () => null,
     loadPlanningInputs: async () => initialInputs(currentInventory),
     readDeliveryAnchor: async () => ({ missing: true }),
+    readPerformanceAuthority: async () => null,
   });
 }
 
@@ -144,7 +128,7 @@ test("first delivery creates one complete functional receipt", async () => {
     projectDir: "/tmp/toolcraft-functional-initial",
   });
 
-  assert.equal(receipt.version, 7);
+  assert.equal(receipt.version, 8);
   assert.equal(receipt.plan.kind, "functional");
   assert.deepEqual(receipt.plan.basis, { kind: "initial" });
   assert.deepEqual(

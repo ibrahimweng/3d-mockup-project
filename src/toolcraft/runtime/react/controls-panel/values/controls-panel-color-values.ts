@@ -24,15 +24,7 @@ export const defaultChannelMixerValues = {
 } satisfies ChannelMixerValues;
 
 export function asColorValue(value: unknown): { hex: string } {
-  if (typeof value === "string") {
-    return { hex: value };
-  }
-
-  if (isRecord(value)) {
-    return { hex: asString(value.hex, "#C1FF00") };
-  }
-
-  return { hex: "#C1FF00" };
+  return { hex: asString(value, "#C1FF00") };
 }
 
 export function asColorOpacityValue(value: unknown): ColorOpacityValue {

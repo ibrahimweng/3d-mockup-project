@@ -11,7 +11,7 @@ The starter app itself is intentionally neutral. It should show the Toolcraft ca
 `workflow.md` routes agents to these focused modules by Plan, Implementation, and Verification phase. Read each selected route sequentially within the current phase, skip repeated modules already read in that phase, and never rely on truncated terminal output.
 
 - `core/runtime-boundary.md` — Toolcraft shell, allowed extension points, canvas boundary, and generated-app source boundary.
-- `core/setup-export.md` — required Setup, canvas sizing, render scale, Timeline switch, Background, Image Export, Video Export, and sticky export actions.
+- `core/setup-export.md` — required Setup, canvas sizing, render scale, Timeline switch, Background, Image/SVG/Video Export, and sticky export actions.
 - `core/control-selection.md` — built-in control fit, exact owners, compound controls, actions, collection actions, vector ownership, and custom control gate.
 - `core/layout.md` — sections, dependency cohesion, headers, reset, spacing, dividers, labels, inline rows, actions layout, colors, select, and segmented fit.
 - `core/media-upload.md` — file/image upload, multi-upload, sorting, transform actions, canvas source images, default assets, and source material behavior.
@@ -32,14 +32,14 @@ The broad docs below remain supplementary topic references. They do not replace 
 9. `agent-worklog.md` — implementation decision trail, evidence, verification, and risks.
 10. `custom-controls.md` — how to register custom controls without editing `src/toolcraft`.
 
-`agent-worklog.md` starts as a neutral starter template. Once the folder becomes a product, change it to `Mode: product`, add one `Decision Trail` entry per coherent user-visible delivery batch, and record concrete renderer, timeline, layers, controls, export, and performance decisions. Each batch keeps human intent: request, user-visible result, source/reference checked, contract rules applied, rejected alternatives, state/output mapping, known risks, and domain-shaped performance authority when applicable. Protected receipts own changed files, the plan, executed checks, reports, measurements, and pass/fail evidence. The delivery gate fails if this worklog is missing, stale, or lacks required decision-trail intent.
+`agent-worklog.md` starts as a neutral starter template. Once the folder becomes a product, change it to `Mode: product`, add one `Decision Trail` entry per coherent user request, and record concrete renderer, timeline, layers, controls, export, and performance decisions. Each entry keeps human intent: request, user-visible result, source/reference checked, contract rules applied, rejected alternatives, state/output mapping, known risks, and domain-shaped performance authority when applicable. The first delivery receipt owns its complete plan and evidence; later entries record the focused checks actually run.
 
-Use focused tests while a coherent user-visible delivery batch is changing. Steering and fixes inside the same request stay in that batch; protected delivery runs once after it stabilizes.
+Use focused tests while implementation is changing. Protected functional delivery runs once for the first product version; steering and later fixes do not create another aggregate gate.
 
 ## Automatic Delivery Lifecycle
 
 - **First product delivery:** bare `npm run verify:delivery` proves complete product contracts, performs one production build, runs full functional acceptance, and runs no measured performance. It preserves any independent performance baseline.
-- **Later functional delivery:** the same bare command compares with the immediately previous successful delivery and derives exact ownership-required proof.
+- **Later ordinary edits:** run only directly relevant feature tests and browser checks. A repeated bare command is a protected no-op that preserves the initial receipt.
 - **Localized or clarified targeted work:** classifier output establishes complaint authority only and never path localization. Only a localized complaint or a post-clarification targeted choice records an exact request quote and canonical affected path IDs in the worklog, then one bare delivery runs one targeted iteration and returns the verified app for evaluation. Unresolved localization creates neither performance-iteration intent nor canonical path authority regardless of classifier result.
 - **Adaptive complaint route:** a localized complaint lets the agent choose affected paths without a question; an ambiguous complaint gets one visible-operation choice between targeted diagnosis and a complete performance review; a broad problem may receive the same recommendation, while only an explicit request or accepted offer authorizes the full review.
 - **Full audit:** only an explicit operator request or accepted offer authorizes `npm run verify:perf`, which performs one fresh build and the complete maximum-fixture performance matrix.
@@ -48,9 +48,9 @@ Use the current AI agent's controlled browser for targeted diagnosis and visual 
 
 Performance workload limits come from reachable schema and enforced runtime/input boundaries. Targeted development and performance iterations use compiled development fixtures; operator full certification proves the applicable maximum without reducing selected quality or silently narrowing the product range.
 
-The app is not delivered until `npm run verify:delivery` records a protected delivery receipt. Functional delivery creates no measured performance claim; later deliveries use impact-derived current-source coverage. Filename, diagnostic classification, and touched subsystem never force the full audit. Protected receipts own the plan, executed checks, reports, measurements, and pass/fail evidence.
+The first product version is not delivered until `npm run verify:delivery` records its protected initial receipt. Later edits complete through directly relevant focused checks and do not mint another functional receipt. Filename, diagnostic classification, and touched subsystem never force the full audit. Protected receipts own initial and performance plans, reports, measurements, and pass/fail evidence.
 
-Fresh folders or dependency changes need `npm install` before verification. Final delivery still starts the local app after the gate:
+Fresh folders or dependency changes need `npm install` before verification. First delivery starts the local app after the gate:
 
 ```bash
 npm run verify:delivery

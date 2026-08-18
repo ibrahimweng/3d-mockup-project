@@ -18,13 +18,12 @@ function getControlComponentPolicyErrors({
   control,
   controlId,
   label,
-  sectionTitle,
 }: Pick<
   ToolcraftControlRuleContext,
-  "control" | "controlId" | "label" | "sectionTitle"
+  "control" | "controlId" | "label"
 >): string[] {
   const errors: string[] = [];
-  const toggleLabelError = getToggleControlLabelError(control, sectionTitle);
+  const toggleLabelError = getToggleControlLabelError(control);
   const singleActionsLabelError = getSingleActionsControlLabelError(control);
   const codeTextareaError = getCodeTextareaControlError({
     control,

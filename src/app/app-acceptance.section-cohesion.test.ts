@@ -162,6 +162,7 @@ describe("starter acceptance section cohesion contract", () => {
           reason: "The flow speed is a decorative self-running effect and does not expose product time transport.",
         },
         mode: "new-toolcraft-app",
+        referenceInputs: [],
       },
     });
 
@@ -247,6 +248,7 @@ describe("starter acceptance section cohesion contract", () => {
             reason: "The flow speed is a decorative self-running effect and does not expose product time transport.",
           },
           mode: "new-toolcraft-app",
+          referenceInputs: [],
         },
       }),
     ).toEqual([]);

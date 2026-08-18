@@ -21,7 +21,7 @@ type ToolcraftArtifactSceneFrameBaseRequest = Readonly<{
   visibility: ToolcraftRuntimeSceneVisibility;
 }>;
 
-export type ToolcraftImageArtifactSceneFrameRequest =
+export type ToolcraftStillArtifactSceneFrameRequest =
   ToolcraftArtifactSceneFrameBaseRequest &
     Readonly<{ state: ToolcraftState }>;
 
@@ -68,8 +68,8 @@ function isFiniteCanvas(state: ToolcraftState): boolean {
   return getToolcraftCanvasFrame(state.canvas).kind === "finite";
 }
 
-export function resolveToolcraftImageArtifactFrame(
-  request: ToolcraftImageArtifactSceneFrameRequest,
+export function resolveToolcraftStillArtifactFrame(
+  request: ToolcraftStillArtifactSceneFrameRequest,
 ): ToolcraftExportFrame {
   if (isFiniteCanvas(request.state)) {
     return requireFrame(resolveToolcraftExportFrame(request.state, null));

@@ -24,7 +24,6 @@ import {
   readProofInvocations,
   runProtectedRunner,
   runnerPath,
-  writePassedCheckpointFixture,
 } from "./run-browser-performance-test-helpers.mjs";
 import { getToolcraftCheckpointBundlePath } from "./toolcraft-checkpoint-paths.mjs";
 import { validateToolcraftPerformanceReceipt } from "./toolcraft-verification-receipt.mjs";
@@ -60,9 +59,9 @@ test("full certification runs only build plus the complete performance matrix an
   );
   assert.deepEqual(updated.delivery, existing.delivery);
   assert.deepEqual(readCheckpointBundle(rootDir), updated);
-  assert.equal(updated.currentPerformance.sourceHash, existing.delivery.sourceHash);
-  assert.deepEqual(updated.currentPerformance, updated.performanceBaseline);
-  assert.deepEqual(Object.keys(updated.currentPerformance).sort(), [
+  assert.equal(updated.currentPerformance, null);
+  assert.equal(updated.performanceBaseline.sourceHash, existing.delivery.sourceHash);
+  assert.deepEqual(Object.keys(updated.performanceBaseline).sort(), [
     "completedAt",
     "files",
     "kind",
@@ -205,7 +204,7 @@ test("operator full certification creates and refreshes the independent checkpoi
   runProtectedRunner(rootDir);
   const firstBundle = readCheckpointBundle(rootDir);
   const firstBaseline = firstBundle.performanceBaseline;
-  assert.deepEqual(firstBundle.currentPerformance, firstBaseline);
+  assert.equal(firstBundle.currentPerformance, null);
   assert.match(firstBaseline.performanceEvidence.reportHash, /^[a-f0-9]{64}$/u);
   assert.equal(firstBaseline.performanceEvidence.profileCatalogVersion, 1);
   assert.equal(firstBaseline.performanceEvidence.measurements.length, 3);
@@ -217,18 +216,11 @@ test("operator full certification creates and refreshes the independent checkpoi
   );
 
   writeFileSync(path.join(rootDir, "src", "app.ts"), "export const value = 2;\n");
-  const staleResult = invokeRunner(rootDir, "run-browser-performance.mjs");
-  assert.notEqual(staleResult.status, 0);
-  assert.match(
-    `${staleResult.stdout}\n${staleResult.stderr}`,
-    /requires a current successful delivery for the unchanged source/iu,
-  );
-  await writePassedCheckpointFixture(rootDir, { writeBaseline: false });
   runProtectedRunner(rootDir);
   const secondBundle = readCheckpointBundle(rootDir);
   const secondBaseline = secondBundle.performanceBaseline;
   assert.notEqual(secondBaseline.sourceHash, firstBaseline.sourceHash);
-  assert.deepEqual(secondBundle.currentPerformance, secondBaseline);
+  assert.equal(secondBundle.currentPerformance, null);
   assert.equal(secondBaseline.kind, "performance-checkpoint");
   assert.deepEqual(await validateToolcraftPerformanceReceipt({ rootDir }), []);
 });

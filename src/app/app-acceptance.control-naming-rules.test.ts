@@ -128,8 +128,84 @@ describe("starter acceptance control naming rules", () => {
     ).toEqual(
       expect.arrayContaining([
         expect.stringContaining(
-          'export.includeBackground) toggle label "Background" duplicates section title "Background". Use a shorter contextual label such as "Include" or rename the toggle to a more specific setting.',
+          'Background / includeBackground visible label "Background" duplicates section title "Background". Set label: false when the section supplies the complete visible context, or use a more specific label for a distinct setting.',
         ),
+      ]),
+    );
+  });
+
+  it("rejects visible select labels that duplicate their section title", () => {
+    const schemaWithDuplicateSelectLabel = defineContractSchemaFixture({
+      canvas: { enabled: true },
+      panels: {
+        controls: {
+          sections: [
+            {
+              controls: {
+                spectrum: {
+                  defaultValue: "custom",
+                  label: "Spectrum",
+                  options: [{ label: "Custom", value: "custom" }],
+                  target: "dispersion.spectrum",
+                  type: "select",
+                },
+              },
+              title: "Spectrum",
+            },
+          ],
+          title: "Controls",
+        },
+      },
+    });
+
+    expect(
+      validateContractAcceptance({
+        schema: schemaWithDuplicateSelectLabel,
+        acceptance: [
+          makeControlAcceptance("dispersion.spectrum", "select"),
+        ],
+      }),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining(
+          'Spectrum / spectrum visible label "Spectrum" duplicates section title "Spectrum". Set label: false when the section supplies the complete visible context, or use a more specific label for a distinct setting.',
+        ),
+      ]),
+    );
+  });
+
+  it("allows tabs accessibility names that match their section title", () => {
+    const schemaWithMatchingTabsName = defineContractSchemaFixture({
+      canvas: { enabled: true },
+      panels: {
+        controls: {
+          sections: [
+            {
+              controls: {
+                spectrum: {
+                  defaultValue: "custom",
+                  label: "Spectrum",
+                  options: [{ label: "Custom", value: "custom" }],
+                  target: "dispersion.spectrum",
+                  type: "tabs",
+                },
+              },
+              title: "Spectrum",
+            },
+          ],
+          title: "Controls",
+        },
+      },
+    });
+
+    const errors = validateContractAcceptance({
+      schema: schemaWithMatchingTabsName,
+      acceptance: [makeControlAcceptance("dispersion.spectrum", "tabs")],
+    });
+
+    expect(errors).not.toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("duplicates section title"),
       ]),
     );
   });

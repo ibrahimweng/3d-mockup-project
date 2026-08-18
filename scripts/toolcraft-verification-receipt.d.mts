@@ -1,5 +1,4 @@
 import type { ToolcraftPerformanceReportEvidence } from "./toolcraft-performance-report.mjs";
-import type { ToolcraftDeliveryCatalog } from "./toolcraft-verification-impact.mjs";
 
 export const TOOLCRAFT_PERFORMANCE_RECEIPT_VERSION: 5;
 
@@ -33,12 +32,6 @@ export function collectToolcraftVerificationInputs(rootDir: string): Promise<{
   entries: readonly ToolcraftVerificationFileEntry[];
   sourceHash: string;
 }>;
-
-export function validateToolcraftCurrentPerformanceImpactInventory(options: {
-  catalog?: ToolcraftDeliveryCatalog;
-  knownPassIds?: readonly string[];
-  rootDir: string;
-}): Promise<unknown>;
 
 export function readToolcraftDurablePerformanceBaseline(
   rootDir: string,

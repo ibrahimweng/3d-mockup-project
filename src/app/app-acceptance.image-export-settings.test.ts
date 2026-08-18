@@ -11,11 +11,13 @@ import { makeControlAcceptance } from "./app-acceptance.test-utils";
 
 const imageOnlyProductReadiness = makeExportSettingsProductReadiness({
   image: { mode: "toolcraft-default" },
+  svg: { mode: "not-requested" },
   video: { mode: "not-requested" },
 });
 
 const imageAndVideoProductReadiness = makeExportSettingsProductReadiness({
   image: { mode: "toolcraft-default" },
+  svg: { mode: "not-requested" },
   video: {
     evidence: "The user explicitly requested video delivery.",
     mode: "user-requested",

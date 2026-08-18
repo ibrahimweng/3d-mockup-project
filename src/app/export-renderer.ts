@@ -1,9 +1,9 @@
 import type { ToolcraftProductExportRenderer } from "@/toolcraft/runtime";
 import { readToolcraftOrientationPose } from "@/toolcraft/runtime/react";
-import * as THREE from "three";
-
 import { getExportArtworkImage } from "./artwork-store";
+import { readDeviceDefinition } from "./product-domain";
 import { RasterRenderer } from "./render/raster-renderer";
+import { createScreenTexture } from "./render/screen-texture";
 import { readRasterSettings, readScreenTransform } from "./render/settings";
 
 /**
@@ -14,8 +14,8 @@ import { readRasterSettings, readScreenTransform } from "./render/settings";
  * rather than the artifact's. Because nothing accumulates, one draw at the
  * requested size is the finished image — the same frame the preview shows.
  */
-export const plinthExportRenderer: ToolcraftProductExportRenderer = {
-  baseFileName: "plinth",
+export const mockupExportRenderer: ToolcraftProductExportRenderer = {
+  baseFileName: "mockup",
   renderFrame: async ({ context, frame, state }) => {
     const values = state.values as Record<string, unknown>;
     const settings = readRasterSettings(values);
@@ -45,10 +45,10 @@ export const plinthExportRenderer: ToolcraftProductExportRenderer = {
       if (artworkAsset) {
         const image = await getExportArtworkImage(artworkAsset.id);
         if (image) {
-          const texture = new THREE.Texture(image);
-          texture.colorSpace = THREE.SRGBColorSpace;
-          texture.flipY = false;
-          texture.needsUpdate = true;
+          const texture = createScreenTexture(
+            image,
+            readDeviceDefinition(settings.device),
+          );
           renderer.setArtwork(texture, readScreenTransform(values));
         }
       }

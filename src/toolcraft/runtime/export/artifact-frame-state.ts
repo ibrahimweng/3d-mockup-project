@@ -9,6 +9,22 @@ export type ToolcraftVideoArtifactFramePlanEntry = Readonly<{
   state: ToolcraftArtifactFrameState;
 }>;
 
+export function getToolcraftArtifactTimelineProgress(
+  state: ToolcraftState,
+): number {
+  if (state.timeline.durationSeconds <= 0) {
+    return 0;
+  }
+
+  return Math.max(
+    0,
+    Math.min(
+      1,
+      state.timeline.currentTimeSeconds / state.timeline.durationSeconds,
+    ),
+  );
+}
+
 export function createToolcraftArtifactFrameState(
   baseState: ToolcraftState,
   timeSeconds: number,

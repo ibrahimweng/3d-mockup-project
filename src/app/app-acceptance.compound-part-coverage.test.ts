@@ -265,7 +265,7 @@ describe("starter acceptance compound control part coverage contract", () => {
                       { color: "#FFE97A", opacity: 100, position: "100%" },
                     ],
                   },
-                  label: "Gradient",
+                  label: false,
                   orderRole: "color",
                   target: "mesh.gradient",
                   type: "gradient",

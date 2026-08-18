@@ -16,10 +16,20 @@ function inventoriesEqual(left, right) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-function getPreviousAnchor(previousDeliveryReceipt) {
+function getPreviousAnchor(
+  previousDeliveryReceipt,
+  previousPerformanceReceipt,
+) {
   return previousDeliveryReceipt === undefined
     ? null
-    : normalizeToolcraftDeliveryAnchor(previousDeliveryReceipt);
+    : {
+        ...normalizeToolcraftDeliveryAnchor(previousDeliveryReceipt),
+        lifecycle:
+          previousPerformanceReceipt?.plan?.kind ===
+          "performance-iteration"
+            ? previousPerformanceReceipt.plan.lifecycle
+            : previousDeliveryReceipt.plan.lifecycle,
+      };
 }
 
 function assertDeliveryBasisAnchor({ previousAnchor, receipt }) {
@@ -32,16 +42,15 @@ function assertDeliveryBasisAnchor({ previousAnchor, receipt }) {
     }
     return;
   }
-  const comparison = basis.comparisonInventory;
   if (
     !previousAnchor ||
-    basis.comparisonFunctionalProofModelHash !==
+    basis.kind !== "performance-request" ||
+    basis.initialFunctionalProofModelHash !==
       previousAnchor.functionalProofModelHash ||
-    comparison.sourceHash !== previousAnchor.sourceHash ||
-    !inventoriesEqual(comparison.entries, previousAnchor.files)
+    basis.initialSourceHash !== previousAnchor.sourceHash
   ) {
     throw new Error(
-      "Toolcraft changed delivery basis must match the immediately previous successful delivery inventory and functional proof model.",
+      "Toolcraft performance request basis must match the initial successful delivery identity.",
     );
   }
 }
@@ -90,10 +99,14 @@ export async function assertDeliveryCheckpointState({
   deliveryReceipt,
   finalInventory,
   previousDeliveryReceipt,
+  previousPerformanceReceipt,
 }) {
   const receiptError = getToolcraftDeliveryReceiptShapeError(deliveryReceipt);
   if (receiptError) throw new Error(receiptError);
-  const previousAnchor = getPreviousAnchor(previousDeliveryReceipt);
+  const previousAnchor = getPreviousAnchor(
+    previousDeliveryReceipt,
+    previousPerformanceReceipt,
+  );
   assertDeliveryBasisAnchor({
     previousAnchor,
     receipt: deliveryReceipt,

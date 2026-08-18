@@ -37,6 +37,7 @@ describe("starter acceptance worklog contract", () => {
 \`\`\`md
 ### Not a delivery iteration
 - Request: Forged request.
+- Source reviewed: forged-reference.mp4 video reference.
 \`\`\`
 
 ## Evidence`,
@@ -98,7 +99,7 @@ describe("starter acceptance worklog contract", () => {
     expect(acceptanceTesting).toContain("builtInFitCheck");
   });
 
-  it("requires product worklogs to record storyboard evidence for video references", () => {
+  it("reports video wording as an unregistered input when typed references are empty", () => {
     const worklog = createAgentWorklogFixture({
       evidenceLines: [
         "- Source reviewed: user prompt, ref.mp4, src/app/product-renderer.tsx.",
@@ -110,34 +111,169 @@ describe("starter acceptance worklog contract", () => {
       },
     });
 
-    expect(getAgentWorklogValidationErrors(worklog)).toContain(
-      "agent-worklog.md cites a video reference, screen recording, GIF, extracted frames, or contact sheet; record a Video Reference Study with storyboard frames and frame-to-frame transition analysis.",
+    expect(
+      getAgentWorklogValidationErrors(worklog, { motionReferences: [] }),
+    ).toContain(
+      "agent-worklog.md cites a video reference, screen recording, GIF, extracted frames, or contact sheet, but appTransferMode.referenceInputs registers no motion reference input.",
     );
   });
 
-  it("accepts product worklogs that record video reference storyboard and transition evidence", () => {
+  it("requires one exact typed summary for each timed motion-reference study", () => {
+    const motionReference = {
+      contactSheetPath:
+        "src/app/reference-studies/study-main/contact-sheet.png",
+      referenceId:
+        "motion-reference-v1-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      requiresRealTimeReview: true,
+      requiresSlowedReview: true,
+      sourceSha256:
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      studyId: "study-main",
+      timingMode: "seconds" as const,
+    };
     const worklog = createAgentWorklogFixture({
       evidenceLines: [
-        "- Source reviewed: user prompt, ref.mp4, extracted frames, contact sheet, src/app/product-renderer.tsx.",
+        "- Source reviewed: user prompt, ref.mp4, extracted frames, src/app/product-renderer.tsx.",
         "- Contract applied: Toolcraft workflow and video-reference-analysis.",
-      ],
-      extraDecisionSections: [
-        [
-          "### Video Reference Study",
-          "- Decision: Implement from storyboard frames and frame-to-frame transition analysis.",
-          "- Reason: The video reference defines behavior, not only a static visual state.",
-          "- Evidence: extracted frames f000/f012/f024/f036 and transition analysis between adjacent frames.",
-        ].join("\n"),
       ],
       trailFields: {
         "Alternatives rejected": "Single screenshot implementation because the video behavior changes frame to frame.",
         "Contract rules applied": "video-reference-analysis and acceptance-product-observable.",
-        "Reference inputs": "/fixtures/reference-motion/ref.mp4 video reference, extracted frames, contact sheet.",
-        "Source/reference checked": "User prompt, /fixtures/reference-motion/ref.mp4 video, extracted frames, and contact sheet.",
+        "Reference inputs": "/fixtures/reference-motion/ref.mp4 video reference.",
+        "Source/reference checked": "User prompt and /fixtures/reference-motion/ref.mp4 video.",
       },
     });
 
-    expect(getAgentWorklogValidationErrors(worklog)).toEqual([]);
+    expect(
+      getAgentWorklogValidationErrors(worklog, {
+        motionReferences: [motionReference],
+      }),
+    ).toEqual([
+      expect.stringContaining('motion reference study "study-main"'),
+    ]);
+
+    const genericKeywords = worklog.replace(
+      "## Decision Trail",
+      [
+        "### Video Reference Study",
+        "- Evidence: storyboard frames and transition analysis from the contact sheet.",
+        "",
+        "## Decision Trail",
+      ].join("\n"),
+    );
+    expect(
+      getAgentWorklogValidationErrors(genericKeywords, {
+        motionReferences: [motionReference],
+      }),
+    ).toEqual([
+      expect.stringContaining('motion reference study "study-main"'),
+    ]);
+
+    const exactRecord = [
+      "- Motion reference study:",
+      `referenceId=${motionReference.referenceId};`,
+      `studyId=${motionReference.studyId};`,
+      `sourceSha256=${motionReference.sourceSha256};`,
+      `timingMode=${motionReference.timingMode};`,
+      `contactSheetPath=${motionReference.contactSheetPath};`,
+      "review=real-time,slowed.",
+    ].join(" ");
+    for (const inexactRecord of [
+      exactRecord.replace(
+        motionReference.referenceId,
+        `${motionReference.referenceId}x`,
+      ),
+      exactRecord.replace("studyId=study-main", "studyId=study-other"),
+      exactRecord.replace(
+        motionReference.sourceSha256,
+        `c${motionReference.sourceSha256.slice(1)}`,
+      ),
+      exactRecord.replace("timingMode=seconds", "timingMode=ordinal"),
+      exactRecord.replace(
+        motionReference.contactSheetPath,
+        "src/app/reference-studies/study-main/other-sheet.png",
+      ),
+      exactRecord.replace("review=real-time,slowed", "review=real-time"),
+    ]) {
+      expect(
+        getAgentWorklogValidationErrors(`${worklog}\n${inexactRecord}`, {
+          motionReferences: [motionReference],
+        }),
+      ).toEqual([
+        expect.stringContaining('motion reference study "study-main"'),
+      ]);
+    }
+    expect(
+      getAgentWorklogValidationErrors(`${worklog}\n${exactRecord}`, {
+        motionReferences: [motionReference],
+      }),
+    ).toEqual([]);
+  });
+
+  it("requires ordered-frame review for ordinal evidence and rejects timing review wording", () => {
+    const motionReference = {
+      contactSheetPath:
+        "src/app/reference-studies/study-ordinal/contact-sheet.png",
+      referenceId:
+        "motion-reference-v1-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      requiresRealTimeReview: false,
+      requiresSlowedReview: false,
+      sourceSha256:
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      studyId: "study-ordinal",
+      timingMode: "ordinal" as const,
+    };
+    const base = createAgentWorklogFixture();
+    const timedWording = `${base}\n- Motion reference study: referenceId=${motionReference.referenceId}; studyId=${motionReference.studyId}; sourceSha256=${motionReference.sourceSha256}; timingMode=ordinal; contactSheetPath=${motionReference.contactSheetPath}; review=real-time,slowed.`;
+    expect(
+      getAgentWorklogValidationErrors(timedWording, {
+        motionReferences: [motionReference],
+      }),
+    ).toEqual([
+      expect.stringContaining('motion reference study "study-ordinal"'),
+    ]);
+
+    const ordinalRecord = timedWording.replace(
+      "review=real-time,slowed",
+      "review=ordered-frames",
+    );
+    expect(
+      getAgentWorklogValidationErrors(ordinalRecord, {
+        motionReferences: [motionReference],
+      }),
+    ).toEqual([]);
+  });
+
+  it("does not let one record satisfy two nested studies", () => {
+    const referenceId =
+      "motion-reference-v1-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    const sourceSha256 =
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    const first = {
+      contactSheetPath:
+        "src/app/reference-studies/study-one/contact-sheet.png",
+      referenceId,
+      requiresRealTimeReview: true,
+      requiresSlowedReview: false,
+      sourceSha256,
+      studyId: "study-one",
+      timingMode: "seconds" as const,
+    };
+    const second = {
+      ...first,
+      contactSheetPath:
+        "src/app/reference-studies/study-two/contact-sheet.png",
+      studyId: "study-two",
+    };
+    const worklog = `${createAgentWorklogFixture()}\n- Motion reference study: referenceId=${referenceId}; studyId=study-one; sourceSha256=${sourceSha256}; timingMode=seconds; contactSheetPath=${first.contactSheetPath}; review=real-time.`;
+
+    expect(
+      getAgentWorklogValidationErrors(worklog, {
+        motionReferences: [first, second],
+      }),
+    ).toEqual([
+      expect.stringContaining('motion reference study "study-two"'),
+    ]);
   });
 
   it("does not treat ordinary video export worklog evidence as a video reference", () => {

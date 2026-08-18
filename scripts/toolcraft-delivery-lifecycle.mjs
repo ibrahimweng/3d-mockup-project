@@ -6,7 +6,6 @@ import {
   collectToolcraftDeliveryFunctionalContext,
 } from "./toolcraft-delivery-functional-context.mjs";
 import {
-  createToolcraftFunctionalProofModelHash,
   getToolcraftFunctionalProofModelError,
 } from "./toolcraft-functional-proof-model.mjs";
 import {
@@ -22,40 +21,15 @@ import {
 import {
   readToolcraftPerformanceRequestAuthority,
 } from "./toolcraft-performance-request-authority.mjs";
-import {
-  detectToolcraftPackageManager,
-} from "./toolcraft-proof-process.mjs";
-import {
-  resolveToolcraftChangedVerificationImpact,
-} from "./toolcraft-verification-impact.mjs";
+import { detectToolcraftPackageManager } from "./toolcraft-proof-process.mjs";
 import {
   collectToolcraftVerificationInputs,
-  getToolcraftChangedVerificationFiles,
 } from "./toolcraft-verification-inventory.mjs";
 
 const testFilePattern = /\.(?:test|spec)\.[cm]?[jt]sx?$/u;
-const dependencyPaths = new Set([
-  "bun.lock",
-  "bun.lockb",
-  "package-lock.json",
-  "package.json",
-  "pnpm-lock.yaml",
-  "yarn.lock",
-]);
-const platformConfigPattern =
-  /(?:^|\/)(?:playwright|vite|vitest)\.config\.[cm]?[jt]s$/u;
-const tsconfigPattern = /(?:^|\/)tsconfig(?:\.[^/]+)?\.json$/u;
-const editablePlatformRootPaths = new Set([
-  ".gitignore",
-]);
-const integrityManifestPath = "src/toolcraft/.toolcraft-manifest.json";
 
 function compareCodeUnits(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
-}
-
-function uniqueSorted(values) {
-  return [...new Set(values)].sort(compareCodeUnits);
 }
 
 function getAllProductTestFiles(inventory) {
@@ -70,183 +44,51 @@ function getAllProductTestFiles(inventory) {
     .sort(compareCodeUnits);
 }
 
-function isEditableDocumentation(filePath) {
-  return (
-    filePath === "docs/toolcraft/agent-worklog.md" ||
-    (filePath.startsWith("docs/") &&
-      !filePath.startsWith("docs/toolcraft/")) ||
-    /(?:^|\/)(?:README|CHANGELOG)\.md$/iu.test(filePath)
-  );
-}
-
-function isEditablePlatformConfig(filePath) {
-  return editablePlatformRootPaths.has(filePath) ||
-    platformConfigPattern.test(filePath) ||
-    tsconfigPattern.test(filePath);
-}
-
-function hasSelectedProof(impact) {
-  return [
-    impact.acceptanceIds,
-    impact.browserTestNames,
-    impact.productTestFiles,
-    impact.performanceCandidates.passIds,
-    impact.performanceCandidates.pathIds,
-    impact.performanceCandidates.testNames,
-  ].some((values) => values.length > 0);
-}
-
 function assertCurrentPreviousPerformance(performance) {
   const error = getToolcraftPreviousPerformanceError(performance);
   if (error) throw new Error(error);
   return performance;
 }
 
-function classifyChangedFiles(changedFiles, frameworkOwnedPaths) {
-  const frameworkOwnedPathSet = new Set(frameworkOwnedPaths);
-  const dependency = [];
-  const docs = [];
-  const framework = [];
-  const platform = [];
-  const product = [];
-  for (const filePath of changedFiles) {
-    if (dependencyPaths.has(filePath)) {
-      dependency.push(filePath);
-    } else if (isEditableDocumentation(filePath)) {
-      docs.push(filePath);
-    } else if (
-      isEditablePlatformConfig(filePath) ||
-      (
-        filePath.startsWith("src/toolcraft/") &&
-        filePath !== integrityManifestPath
-      )
-    ) {
-      platform.push(filePath);
-    } else if (
-      filePath === integrityManifestPath ||
-      frameworkOwnedPathSet.has(filePath)
-    ) {
-      framework.push(filePath);
-    } else if (filePath.startsWith("scripts/")) {
-      platform.push(filePath);
-    } else {
-      product.push(filePath);
-    }
-  }
-  return { dependency, docs, framework, platform, product };
-}
-
 export async function loadToolcraftDeliveryPlanningInputs({
+  authority,
   currentInventory,
   functionalContext,
   integrity,
   previous,
   projectDir,
 }) {
-  const previousPerformance = previous.missing
-    ? Object.freeze({ kind: "none" })
-    : assertCurrentPreviousPerformance(previous.anchor.performance);
-  const {
-    catalog,
-    currentFunctionalProofModel,
-    frameworkOwnedPaths,
-    graph,
-    inputRoles,
-  } = functionalContext;
   const currentModelError = getToolcraftFunctionalProofModelError(
-    currentFunctionalProofModel,
+    functionalContext.currentFunctionalProofModel,
   );
   if (currentModelError) {
     throw new Error(
       `Current functional proof model is invalid: ${currentModelError}`,
     );
   }
-  const common = {
+  const initialProof = previous.missing
+    ? null
+    : Object.freeze({
+        functionalProofModelHash:
+          previous.anchor.functionalProofModelHash,
+        sourceHash: previous.anchor.sourceHash,
+      });
+  return Object.freeze({
     allProductTestFiles: getAllProductTestFiles(currentInventory),
-    catalog,
-    currentFunctionalProofModel,
+    authority,
+    catalog: functionalContext.catalog,
+    currentFunctionalProofModel:
+      functionalContext.currentFunctionalProofModel,
     currentInventory,
+    initialProof,
     integrity,
     packageManager: detectToolcraftPackageManager(projectDir),
-  };
-  const authority =
-    await readToolcraftPerformanceRequestAuthority(projectDir);
-  if (previous.missing) {
-    return Object.freeze({
-      ...common,
-      authority,
-      changeSet: Object.freeze({
-        dependencyChanged: false,
-        docsChanged: false,
-        frameworkChanged: false,
-        impact: null,
-        platformChanged: false,
-        productInputsChanged: false,
-      }),
-      comparisonInventory: null,
-      previousFunctionalProofModel: null,
-      previousLifecycle: EMPTY_TOOLCRAFT_DELIVERY_LIFECYCLE_STATE,
-      previousPerformance,
-    });
-  }
-
-  const previousFunctionalProofModel =
-    previous.anchor.functionalProofModel;
-  const previousModelError = getToolcraftFunctionalProofModelError(
-    previousFunctionalProofModel,
-  );
-  if (previousModelError) {
-    throw new Error(
-      `Previous functional proof model is invalid: ${previousModelError}`,
-    );
-  }
-  if (
-    previous.anchor.functionalProofModelHash !==
-    createToolcraftFunctionalProofModelHash(previousFunctionalProofModel)
-  ) {
-    throw new Error(
-      "Previous functional proof model hash does not match its model.",
-    );
-  }
-  const comparisonInventory = Object.freeze({
-    entries: previous.anchor.files,
-    sourceHash: previous.anchor.sourceHash,
-  });
-  const changedFiles = getToolcraftChangedVerificationFiles(
-    comparisonInventory.entries,
-    currentInventory.entries,
-  );
-  const classified = classifyChangedFiles(
-    changedFiles,
-    frameworkOwnedPaths,
-  );
-  let impact = null;
-  if (classified.product.length > 0) {
-    const resolved = resolveToolcraftChangedVerificationImpact({
-      catalog,
-      changedFiles: classified.product,
-      currentModel: currentFunctionalProofModel,
-      graph,
-      previousModel: previousFunctionalProofModel,
-      roles: inputRoles,
-    });
-    impact = hasSelectedProof(resolved) ? resolved : null;
-  }
-  return Object.freeze({
-    ...common,
-    authority,
-    changeSet: Object.freeze({
-      dependencyChanged: classified.dependency.length > 0,
-      docsChanged: classified.docs.length > 0,
-      frameworkChanged: classified.framework.length > 0,
-      impact,
-      platformChanged: classified.platform.length > 0,
-      productInputsChanged: impact !== null,
-    }),
-    comparisonInventory,
-    previousFunctionalProofModel,
-    previousLifecycle: previous.anchor.lifecycle,
-    previousPerformance,
+    previousLifecycle: previous.missing
+      ? EMPTY_TOOLCRAFT_DELIVERY_LIFECYCLE_STATE
+      : previous.anchor.lifecycle,
+    previousPerformance: previous.missing
+      ? Object.freeze({ kind: "none" })
+      : assertCurrentPreviousPerformance(previous.anchor.performance),
   });
 }
 
@@ -270,7 +112,19 @@ const defaultDeliveryDependencies = Object.freeze({
     getToolcraftPerformanceEscalationRecommendation,
   loadPlanningInputs: loadToolcraftDeliveryPlanningInputs,
   readDeliveryAnchor: readToolcraftDeliveryAnchor,
+  readPerformanceAuthority: readToolcraftPerformanceRequestAuthority,
 });
+
+export const TOOLCRAFT_INITIAL_PROOF_ALREADY_COMPLETE = Object.freeze({
+  kind: "initial-proof-already-complete",
+  status: "focused-development-only",
+});
+
+function hasUnconsumedPerformanceAuthority(previous, authority) {
+  return authority !== null &&
+    !previous.anchor.lifecycle.consumedPerformanceRequestAuthorityHashes
+      .includes(authority.hash);
+}
 
 export async function executeToolcraftDeliveryLifecycleCore({
   dependencies,
@@ -278,18 +132,19 @@ export async function executeToolcraftDeliveryLifecycleCore({
 }) {
   const previous = await dependencies.readDeliveryAnchor(projectDir);
   if (previous.error) throw new Error(previous.error);
-  const currentInventory =
-    await dependencies.collectInventory(projectDir);
+  const authority =
+    await dependencies.readPerformanceAuthority(projectDir);
   if (
     !previous.missing &&
-    previous.anchor.sourceHash === currentInventory.sourceHash
+    !hasUnconsumedPerformanceAuthority(previous, authority)
   ) {
     console.log(
-      "Toolcraft delivery inputs are unchanged; delivery remains current.",
+      "Toolcraft initial product proof is complete; use focused checks for later edits.",
     );
-    return previous.receipt;
+    return TOOLCRAFT_INITIAL_PROOF_ALREADY_COMPLETE;
   }
-
+  const currentInventory =
+    await dependencies.collectInventory(projectDir);
   const integrity = await dependencies.evaluateIntegrity({
     inventory: currentInventory,
     platformOnly: true,
@@ -298,6 +153,7 @@ export async function executeToolcraftDeliveryLifecycleCore({
   const functionalContext =
     await dependencies.collectFunctionalContext(projectDir);
   const planningInputs = await dependencies.loadPlanningInputs({
+    authority,
     currentInventory,
     functionalContext,
     integrity,
@@ -312,12 +168,7 @@ export async function executeToolcraftDeliveryLifecycleCore({
     plan,
     result,
   });
-  await dependencies.commit({
-    plan,
-    projectDir,
-    receipt,
-    result,
-  });
+  await dependencies.commit({ plan, projectDir, receipt, result });
   if (plan.kind === "performance-iteration") {
     const recommendation = dependencies.getEscalationRecommendation({
       currentReceipt: receipt,

@@ -37,7 +37,6 @@ export const toolcraftProductOwnedGeneratedPaths = Object.freeze([
   "src/app/app-acceptance-data.ts",
   "src/app/app-composition.tsx",
   "src/app/app-performance.ts",
-  "src/app/app-verification-impact.json",
   "src/app/app-schema.test.ts",
   "src/app/app-schema.ts",
 ]);

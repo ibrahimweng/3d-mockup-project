@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import {
   createToolcraftBrowserProofSession,
+  getToolcraftBrowserActionSurface,
   getToolcraftBrowserActionTarget,
   runToolcraftBrowserAction,
   runToolcraftBrowserValueAction,
@@ -133,6 +134,7 @@ test("target-scoped actions resolve the exact field inside a grouped control", a
   });
 
   expect(getToolcraftBrowserActionTarget(action)).toBe("appearance.stroke");
+  expect(getToolcraftBrowserActionSurface(action)).toBe("panel");
   await runToolcraftBrowserAction(action);
   await expect(
     page.locator('button[data-target="appearance.stroke"]'),
@@ -168,6 +170,89 @@ test("target-scoped actions resolve the exact field inside a grouped control", a
   expect(() => session.targetAction(" ", async () => undefined)).toThrow(
     /non-empty semantic target/u,
   );
+});
+
+test("surface actions verify Canvas and Panel locator provenance", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const session = await createToolcraftBrowserProofSession(page);
+  await page.locator(TOOLCRAFT_APP_ROOT_SELECTOR).evaluate((root) => {
+    const canvas = root.querySelector('[data-slot="toolcraft-runtime-canvas"]');
+    const panel = root.querySelector("[data-toolcraft-controls-panel-shell]");
+    if (!canvas || !panel) {
+      throw new Error("Missing runtime surfaces for proof-session fixture.");
+    }
+    for (const [owner, id] of [
+      [canvas, "surface-canvas"],
+      [panel, "surface-panel"],
+    ] as const) {
+      const button = document.createElement("button");
+      button.id = id;
+      button.type = "button";
+      button.textContent = id;
+      if (id === "surface-canvas") {
+        Object.assign(button.style, {
+          left: "16px",
+          position: "absolute",
+          top: "16px",
+          zIndex: "50",
+        });
+      }
+      button.addEventListener("click", () => {
+        button.dataset.clicked = "true";
+      });
+      button.addEventListener("pointerdown", (event) => {
+        event.stopPropagation();
+      });
+      owner.append(button);
+    }
+  });
+
+  const canvasAction = session.surfaceAction("selection.active", {
+    selector: "#surface-canvas",
+    surface: "canvas",
+  });
+  const panelAction = session.surfaceAction("selection.active", {
+    selector: "#surface-panel",
+    surface: "panel",
+  });
+  expect(getToolcraftBrowserActionSurface(canvasAction)).toBe("canvas");
+  expect(getToolcraftBrowserActionSurface(panelAction)).toBe("panel");
+  await runToolcraftBrowserAction(canvasAction);
+  await runToolcraftBrowserAction(panelAction);
+  await expect(page.locator("#surface-canvas")).toHaveAttribute(
+    "data-clicked",
+    "true",
+  );
+  await expect(page.locator("#surface-panel")).toHaveAttribute(
+    "data-clicked",
+    "true",
+  );
+
+  await expect(
+    runToolcraftBrowserAction(
+      session.surfaceAction("selection.active", {
+        selector: "#surface-panel",
+        surface: "canvas",
+      }),
+    ),
+  ).rejects.toThrow(/declared canvas runtime surface/u);
+  await expect(
+    runToolcraftBrowserAction(
+      session.surfaceAction("selection.active", {
+        selector: "#missing-surface",
+        surface: "canvas",
+      }),
+    ),
+  ).rejects.toThrow(/resolve exactly once/u);
+  expect(() =>
+    session.surfaceAction("selection.active", {
+      position: { x: -1, y: 0 },
+      selector: "#surface-canvas",
+      surface: "canvas",
+    }),
+  ).toThrow(/finite nonnegative coordinates/u);
 });
 
 test("proof sessions reject pages without the Toolcraft app identity", async ({ page }) => {

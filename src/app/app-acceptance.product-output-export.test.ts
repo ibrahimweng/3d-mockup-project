@@ -4,6 +4,7 @@ import { resolveToolcraftArtifactExportIntent } from "./acceptance/artifact-expo
 import { appProductReadiness } from "./app-acceptance";
 import {
   textLooksLikePngExport,
+  textLooksLikeSvgExport,
   textLooksLikeVideoExport,
 } from "./app-acceptance.export-test-utils";
 import {
@@ -31,7 +32,7 @@ describe("Toolcraft output export acceptance contract", () => {
       new Set(["checkbox", "select", "segmented", "switch"]),
     );
 
-    if (delivery.imageEnabled || delivery.videoEnabled) {
+    if (delivery.imageEnabled || delivery.svgEnabled || delivery.videoEnabled) {
       expect(
         panelActionTexts.length,
         "Product apps with artifact delivery must define panelActions in the controls panel sticky footer.",
@@ -84,6 +85,10 @@ describe("Toolcraft output export acceptance contract", () => {
       imageExportSection !== undefined,
       '"Image Export" section presence must match resolved product export intent.',
     ).toBe(delivery.imageEnabled);
+    expect(
+      panelActionTexts.some(textLooksLikeSvgExport),
+      "SVG export action presence must match resolved product export intent.",
+    ).toBe(delivery.svgEnabled);
 
     if (delivery.imageEnabled) {
       expect(

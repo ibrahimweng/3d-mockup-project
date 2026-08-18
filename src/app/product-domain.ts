@@ -1,65 +1,157 @@
 /**
- * Product option sets and numeric domains.
+ * Product option sets and the device catalog.
  *
  * These live outside `app-schema.ts` on purpose: the schema is the public
- * assembly boundary, and keeping frequently-tuned defaults here means a later
- * change to an option list selects only this module's acceptance coverage
- * rather than everything the schema owns.
+ * assembly boundary, and keeping the frequently-tuned option lists and per-model
+ * facts here means a later change to a device selects only this module's
+ * acceptance coverage rather than everything the schema owns.
  */
-
-/** Segmented controls allow at most 4 options and 24 total label characters. */
-export const RELIEF_OPTIONS = [
-  { label: "Emboss", value: "emboss" },
-  { label: "Deboss", value: "deboss" },
-  { label: "Print", value: "print" },
-] as const;
-
-export const SCENE_OPTIONS = [
-  { label: "Seal", value: "seal" },
-  { label: "Device", value: "device" },
-] as const;
-
-export const SEAL_SHAPE_OPTIONS = [
-  { label: "Round", value: "round" },
-  { label: "Octagon", value: "octagon" },
-  { label: "Oval", value: "oval" },
-  { label: "Tag", value: "tag" },
-] as const;
-
-// 21 label characters across 4 options, inside the segmented control's budget
-// of 4 options and 24 total characters.
-export const DEVICE_OPTIONS = [
-  { label: "iPhone", value: "iphone" },
-  { label: "iPad", value: "ipad" },
-  { label: "MacBook", value: "macbook" },
-  { label: "iMac", value: "imac" },
-] as const;
 
 /**
- * Clay is a working view, not a cheaper render.
+ * Five devices, so this cannot be a segmented control: that budget is 4 options
+ * and 24 total label characters, and these names alone are 63. Select is the
+ * closest built-in for a finite named set rendered full-width.
  *
- * It strips every material, texture and piece of artwork down to one neutral
- * matte surface so only form and light remain — the same reason a modeller
- * works in clay before touching shaders. It is also always interactive, where
- * Rendered has to converge.
+ * ImagePicker was the other candidate and was rejected because it needs a
+ * visual tile per option, and the source repository ships no device thumbnails.
+ * A picker of five identical placeholder tiles is less useful than named rows.
  */
-export const SHADING_OPTIONS = [
-  { label: "Clay", value: "clay" },
-  { label: "Rendered", value: "rendered" },
+export const DEVICE_OPTIONS = [
+  { label: "iPhone 17 Pro Max", value: "iphone-17-pro-max" },
+  { label: "iPhone 5", value: "iphone-5" },
+  { label: "MacBook", value: "macbook" },
+  { label: "Studio Display", value: "studio-display" },
+  { label: "Apple Watch Ultra", value: "apple-watch-ultra" },
 ] as const;
 
-export const FINISH_OPTIONS = [
-  { label: "Polished metal", value: "polished-metal" },
-  { label: "Brushed metal", value: "brushed-metal" },
-  { label: "Cast stone", value: "cast-stone" },
-  { label: "Matte plastic", value: "matte-plastic" },
-] as const;
+export type DeviceId = (typeof DEVICE_OPTIONS)[number]["value"];
+
+export const DEFAULT_DEVICE: DeviceId = "iphone-17-pro-max";
+
+/**
+ * What a renderer needs to know about one model file.
+ *
+ * Each field exists because a model in this set actually needed it, and every
+ * value was read out of the GLB rather than guessed — see the notes per entry.
+ */
+export type DeviceDefinition = {
+  /**
+   * Nodes hidden before bounds are measured. A mesh that extends past the
+   * device pushes the camera back and floats the object above its own shadow.
+   */
+  excludedNodes: readonly string[];
+  /** Human-readable name, used for the export file name. */
+  label: string;
+  modelFile: string;
+  /**
+   * Mirror the screenshot on the display's own axes.
+   *
+   * Each model authors its screen UVs however its creator happened to unwrap
+   * them, so a texture that reads correctly on one device can arrive mirrored
+   * on another. This is measured per model by putting a legible image on the
+   * screen and reading it, not guessed.
+   */
+  screenFlip?: { x?: boolean; y?: boolean };
+  /**
+   * Screen height / width, when measuring the mesh cannot give it.
+   *
+   * The scene builder normally measures the panel carrying the display
+   * material, which is correct for a flat screen. A screen modelled at a tilt
+   * has a three-dimensional local bounding box, so measurement understates its
+   * height and the override is the honest value.
+   */
+  screenAspect?: number;
+  /**
+   * Material carrying the display, by name.
+   *
+   * Names are exact but brittle across re-exports, so the builder falls back to
+   * the strongest emissive material — a display is the surface that emits.
+   */
+  screenMaterial: string;
+  /**
+   * Scene to load when the file's default scene is not this device.
+   *
+   * Several of these files are multi-scene: `macbook.glb` also contains an
+   * iPhone and an iMac in sibling scenes, and `macstudio.glb`'s default scene
+   * holds two displays where `Exp` holds one.
+   */
+  sceneName?: string;
+  /**
+   * Turn the model about its vertical axis before framing, in degrees.
+   *
+   * The default camera looks down +Z, and not every source file models its
+   * device facing that way. Without this the Studio Display presents its back.
+   */
+  yawDegrees?: number;
+};
+
+export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
+  "apple-watch-ultra": {
+    excludedNodes: [],
+    label: "Apple Watch Ultra",
+    modelFile: "apple-watch-ultra.glb",
+    screenMaterial: "Material.004",
+  },
+  "iphone-17-pro-max": {
+    // A stray 5,155-triangle mesh spanning the full height of the source file
+    // and sitting proud of the phone's back. Nothing on a real iPhone extends
+    // above the top edge, and its bounds alone added 83mm of height. Hidden
+    // rather than deleted, so the source file stays untouched.
+    excludedNodes: ["lwfmQebmsqyrPXh"],
+    label: "iPhone 17 Pro Max",
+    modelFile: "iphone-17-pro-max.glb",
+    screenMaterial: "BsXHDwLKqtDOfrW",
+  },
+  "iphone-5": {
+    excludedNodes: [],
+    label: "iPhone 5",
+    modelFile: "iphone-5.glb",
+    // Same base mesh family as the 17 Pro Max with the display material
+    // renamed; its own default scene is the phone.
+    screenMaterial: "Screen.001",
+  },
+  macbook: {
+    excludedNodes: [],
+    label: "MacBook",
+    modelFile: "macbook.glb",
+    // 16:10. The open lid is modelled at its hinge angle, so the panel's local
+    // bounding box spans three axes and measuring it would report 0.61.
+    // 16:10. The open lid is modelled at its hinge angle, so the panel's local
+    // bounding box spans three axes and measuring it would report 0.61.
+    screenAspect: 0.625,
+    // KNOWN ISSUE: this lid's screenshot still renders mirrored left-to-right.
+    // The vertical mirror below is confirmed by observation; the horizontal one
+    // has no visible effect through either a signed texture repeat or a
+    // pre-mirrored source bitmap, which points at the panel's own UV mapping
+    // rather than at the texture. The other four devices are unaffected.
+    screenFlip: { x: true, y: true },
+    screenMaterial: "Screen.002",
+    sceneName: "Scene.002",
+  },
+  "studio-display": {
+    excludedNodes: [],
+    label: "Studio Display",
+    modelFile: "macstudio.glb",
+    screenMaterial: "Screen",
+    // The file's default scene stacks two displays; `Exp` is the single one.
+    sceneName: "Exp",
+    // Modelled facing away from the default camera.
+    yawDegrees: 180,
+  },
+};
+
+export function readDeviceDefinition(value: unknown): DeviceDefinition {
+  return (
+    DEVICE_CATALOG[value as DeviceId] ?? DEVICE_CATALOG[DEFAULT_DEVICE]
+  );
+}
 
 /**
  * How a screenshot is mapped onto the display before any manual adjustment.
  *
- * Screens are roughly 19.5:9, and almost nothing a user drops in matches that,
- * so the default has to make a sensible choice rather than distort silently.
+ * Screens across this set run from 19.5:9 to 16:10 to nearly square, and almost
+ * nothing a user drops in matches any of them, so the default has to make a
+ * sensible choice rather than distort silently.
  * 14 label characters across 3 options, inside the segmented budget.
  */
 export const FIT_OPTIONS = [
@@ -74,34 +166,3 @@ export const ENVIRONMENT_OPTIONS = [
   { label: "Dark rim", value: "dark-rim" },
   { label: "Daylight", value: "daylight" },
 ] as const;
-
-/**
- * A scene holds a set of objects rather than a single one.
- *
- * Each record is self-contained — kind, size, and a position on the ground
- * plane — so an object can be lifted from one scene and dropped into another
- * without carrying any scene-level state (lighting, camera, background) with it.
- * That independence is what makes copy between scenes meaningful rather than a
- * whole-document import.
- */
-export const OBJECT_LIMITS = {
-  /** Above this the path tracer's BVH build becomes the dominant cost. */
-  hardMax: 8,
-  size: { defaultValue: 150, max: 400, min: 10 },
-} as const;
-
-export const DEFAULT_OBJECTS = [
-  { kind: "iphone", place: { x: 0.5, y: 0.5 }, size: 150, turn: 0 },
-] as const;
-
-/**
- * Sample count is the renderer's only schema-backed workload dimension. Trace time scales
- * linearly with it, so the schema endpoint here is also the declared workload
- * boundary in `app-performance.ts`; the two must stay equal.
- */
-export const SAMPLES = {
-  defaultValue: 96,
-  max: 512,
-  min: 16,
-  step: 16,
-} as const;

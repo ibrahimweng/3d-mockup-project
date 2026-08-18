@@ -20,7 +20,11 @@ async function loadProductObservableFacade(context) {
     .replaceAll('"@playwright/test"', '"./playwright.mjs"')
     .replaceAll('"./browser-runtime-evidence"', '"./evidence.mjs"')
     .replaceAll('"./browser-proof-session"', '"./proof-session.mjs"')
-    .replaceAll('"./stable-outcome-helpers"', '"./stable-outcome.mjs"');
+    .replaceAll('"./stable-outcome-helpers"', '"./stable-outcome.mjs"')
+    .replaceAll(
+      '"./browser-product-raster-snapshot"',
+      '"./raster-snapshot.mjs"',
+    );
   const { outputText } = ts.transpileModule(source, {
     compilerOptions: {
       module: ts.ModuleKind.ESNext,
@@ -88,6 +92,47 @@ async function loadProductObservableFacade(context) {
           if (after === before) {
             throw new Error(options.message);
           }
+        }
+      `,
+    ),
+    fs.writeFile(
+      path.join(outputDir, "raster-snapshot.mjs"),
+      `
+        const warmedPages = new WeakSet();
+        const screenshotOptions = {
+          animations: "disabled",
+          caret: "hide",
+          scale: "css",
+          type: "png",
+        };
+
+        export async function resolveToolcraftProductRasterProbe(page, probe) {
+          const locator = page.locator(probe.selector);
+          const bounds = await locator.boundingBox();
+          if (
+            !bounds ||
+            bounds.width <= 0 ||
+            bounds.height <= 0 ||
+            bounds.width > 4096 ||
+            bounds.height > 4096 ||
+            bounds.width * bounds.height > 8_388_608
+          ) {
+            throw new Error(
+              'Raster probe exceeds the bounded visual proof limit.',
+            );
+          }
+          return {
+            bounds,
+            locator,
+            async capture() {
+              if (!warmedPages.has(page)) {
+                await locator.screenshot(screenshotOptions);
+                warmedPages.add(page);
+              }
+              const raster = await locator.screenshot(screenshotOptions);
+              return JSON.stringify(await page.evaluate(() => undefined, raster));
+            },
+          };
         }
       `,
     ),

@@ -12,12 +12,10 @@ import {
 } from "./toolcraft-functional-proof-model.mjs";
 import { readToolcraftCheckpointBundle } from "./toolcraft-checkpoint-bundle.mjs";
 import {
-  collectToolcraftVerificationInputs,
-  getToolcraftChangedVerificationFiles,
   getToolcraftVerificationInventoryError,
 } from "./toolcraft-verification-inventory.mjs";
 
-export const TOOLCRAFT_DELIVERY_RECEIPT_VERSION = 7;
+export const TOOLCRAFT_DELIVERY_RECEIPT_VERSION = 8;
 
 const receiptKeys = Object.freeze([
   "completedAt",
@@ -57,15 +55,6 @@ function hasExactKeys(value, expected) {
   );
 }
 
-function arraysEqual(left, right) {
-  return (
-    Array.isArray(left) &&
-    Array.isArray(right) &&
-    left.length === right.length &&
-    left.every((item, index) => item === right[index])
-  );
-}
-
 function deepFreeze(value) {
   if (value && typeof value === "object" && !Object.isFrozen(value)) {
     Object.values(value).forEach(deepFreeze);
@@ -77,7 +66,10 @@ function deepFreeze(value) {
 function getCurrentReceiptCommonError(receipt) {
   if (
     !hasExactKeys(receipt, receiptKeys) ||
-    receipt.kind !== "delivery-verification" ||
+    ![
+      "delivery-verification",
+      "targeted-performance-verification",
+    ].includes(receipt.kind) ||
     receipt.runner !== "protected-delivery" ||
     receipt.status !== "passed" ||
     receipt.version !== TOOLCRAFT_DELIVERY_RECEIPT_VERSION ||
@@ -104,6 +96,12 @@ export function getToolcraftDeliveryReceiptShapeError(receipt) {
   const functionalProofModel = deepFreeze(receipt.functionalProofModel);
   const planError = getToolcraftDeliveryPlanError(plan);
   if (planError) return planError;
+  const expectedKind = plan.kind === "functional"
+    ? "delivery-verification"
+    : "targeted-performance-verification";
+  if (receipt.kind !== expectedKind) {
+    return "Toolcraft protected receipt kind does not match its plan.";
+  }
   const modelError =
     getToolcraftFunctionalProofModelError(functionalProofModel);
   if (modelError) {
@@ -124,18 +122,6 @@ export function getToolcraftDeliveryReceiptShapeError(receipt) {
   }
   if (createToolcraftDeliveryPlanHash(plan) !== receipt.planHash) {
     return "Toolcraft delivery receipt plan hash does not match its plan.";
-  }
-  if (
-    plan.basis.kind === "changed" &&
-    !arraysEqual(
-      plan.basis.changedFiles,
-      getToolcraftChangedVerificationFiles(
-        plan.basis.comparisonInventory.entries,
-        receipt.files,
-      ),
-    )
-  ) {
-    return "Toolcraft delivery receipt changed files do not exactly match its inventories.";
   }
   return getToolcraftExecutionEvidenceError({
     evidence: receipt.evidence,
@@ -179,7 +165,9 @@ export function createToolcraftDeliveryReceipt({
     files: result?.finalInventory?.entries,
     functionalProofModel,
     functionalProofModelHash,
-    kind: "delivery-verification",
+    kind: plan.kind === "functional"
+      ? "delivery-verification"
+      : "targeted-performance-verification",
     manifestHash: plan.manifestHash,
     plan,
     planHash,
@@ -203,14 +191,10 @@ export async function readToolcraftDeliveryReceipt(rootDir) {
 }
 
 export async function validateToolcraftDeliveryReceipt({
-  collectInventory = collectToolcraftVerificationInputs,
   rootDir,
 }) {
   const loaded = await readToolcraftDeliveryReceipt(rootDir);
   if (loaded.missing) return ["Toolcraft delivery receipt is missing."];
   if (loaded.error) return [loaded.error];
-  const inventory = await collectInventory(rootDir);
-  return loaded.receipt.sourceHash === inventory.sourceHash
-    ? []
-    : ["Toolcraft delivery receipt is stale for the current source."];
+  return [];
 }

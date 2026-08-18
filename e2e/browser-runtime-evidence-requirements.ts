@@ -14,6 +14,7 @@ import {
   type ToolcraftComponentAcceptance,
   type ToolcraftControlSectionInventoryEntry,
   type ToolcraftInfinityCanvasCoverage,
+  type ToolcraftExportArtifactCoverage,
   type ToolcraftModelImportCoverage,
   type ToolcraftOrientationGizmoCoverage,
   type ToolcraftTimelinePlaybackCoverage,
@@ -35,10 +36,12 @@ type BrowserAcceptanceRequirementSource = Pick<
   | "infinityCanvasCoverage"
   | "layerCoverage"
   | "modelImportCoverage"
+  | "motionReferenceCoverage"
   | "orientationGizmoCoverage"
   | "referenceCoverage"
   | "referenceTimelineCoverage"
   | "renderScaleCoverage"
+  | "selectionScopeCoverage"
   | "target"
   | "timelineCoverage"
   | "timelinePlaybackCoverage"
@@ -112,6 +115,15 @@ const backgroundOutputCoverage = Object.keys(
   backgroundOutputEvidenceTypeByCoverage,
 ) as ToolcraftBackgroundOutputCoverage[];
 
+const exportArtifactEvidenceTypeByCoverage = {
+  "all-required-image-export-behavior": "image-export-artifact",
+  "all-required-svg-export-behavior": "svg-export-artifact",
+  "all-required-video-export-behavior": "video-export-artifact",
+} as const satisfies Record<
+  ToolcraftExportArtifactCoverage,
+  ToolcraftBrowserRuntimeRequirement["evidenceType"]
+>;
+
 const orientationEvidenceTypeByCoverage = {
   "axis-drag": "orientation-axis-drag",
   "axis-snap": "orientation-axis-snap",
@@ -132,6 +144,7 @@ const orientationGizmoCoverage = Object.keys(
 const infinityCanvasEvidenceTypeByCoverage = {
   "mode-and-restoration": "infinity-mode-restoration",
   "scene-bounds-image-export": "infinity-scene-bounds-image-export",
+  "scene-bounds-svg-export": "infinity-scene-bounds-svg-export",
   "scene-bounds-video-export": "infinity-scene-bounds-video-export",
 } as const satisfies Record<
   ToolcraftInfinityCanvasCoverage,
@@ -197,11 +210,7 @@ function deriveUnqualifiedToolcraftBrowserRuntimeRequirements(
       evidenceTypes.push(baseEvidenceType);
     }
     for (const coverage of exportArtifactCoverage) {
-      evidenceTypes.push(
-        coverage === "all-required-image-export-behavior"
-          ? "image-export-artifact"
-          : "video-export-artifact",
-      );
+      evidenceTypes.push(exportArtifactEvidenceTypeByCoverage[coverage]);
     }
 
     if (entry.canvasHandle && !hasOrientationCoverage) {
@@ -222,12 +231,19 @@ function deriveUnqualifiedToolcraftBrowserRuntimeRequirements(
     if (entry.layerCoverage) {
       evidenceTypes.push(layerEvidenceTypeByCoverage[entry.layerCoverage]);
     }
+    if (entry.selectionScopeCoverage === "two-entity-isolation") {
+      evidenceTypes.push("selection-scoped-control");
+    }
     if (entry.infinityCanvasCoverage) {
       evidenceTypes.push(
         infinityCanvasEvidenceTypeByCoverage[entry.infinityCanvasCoverage],
       );
     }
-    if (entry.referenceCoverage || entry.referenceTimelineCoverage) {
+    if (
+      entry.referenceCoverage ||
+      entry.referenceTimelineCoverage ||
+      (entry.motionReferenceCoverage?.length ?? 0) > 0
+    ) {
       evidenceTypes.push("reference-parity");
     }
     const backgroundCoverage =

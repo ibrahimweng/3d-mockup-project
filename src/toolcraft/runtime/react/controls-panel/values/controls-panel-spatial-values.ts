@@ -22,9 +22,14 @@ export function asRangeInputValue(value: unknown): { end: string; start: string 
 
 export function asVectorValue(value: unknown): { x: string; y: string } {
   if (isRecord(value)) {
+    const asVectorComponent = (component: unknown): string =>
+      typeof component === "number" && Number.isFinite(component)
+        ? String(component)
+        : asString(component, "0.00");
+
     return {
-      x: asString(value.x, "0.00"),
-      y: asString(value.y, "0.00"),
+      x: asVectorComponent(value.x),
+      y: asVectorComponent(value.y),
     };
   }
 

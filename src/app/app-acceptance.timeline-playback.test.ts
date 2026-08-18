@@ -67,6 +67,7 @@ describe("starter acceptance timeline playback contract", () => {
         transferMode: {
           animationIntent: { mode: "timeline-playback" },
           mode: "new-toolcraft-app",
+          referenceInputs: [],
         } as unknown as ToolcraftTransferMode,
       }),
     ).toContain(
@@ -82,6 +83,7 @@ describe("starter acceptance timeline playback contract", () => {
         transferMode: {
           animationIntent: { mode: "none" },
           mode: "new-toolcraft-app",
+          referenceInputs: [],
         },
       }),
     ).toContain(
@@ -97,6 +99,7 @@ describe("starter acceptance timeline playback contract", () => {
         transferMode: {
           animationIntent: { mode: "none" },
           mode: "new-toolcraft-app",
+          referenceInputs: [],
         },
       }),
     ).toContain(
@@ -119,6 +122,7 @@ describe("starter acceptance timeline playback contract", () => {
             mode: "timeline-playback",
           },
           mode: "new-toolcraft-app",
+          referenceInputs: [],
         },
       }),
     ).toContain(
@@ -141,6 +145,7 @@ describe("starter acceptance timeline playback contract", () => {
             mode: "timeline-playback",
           },
           mode: "new-toolcraft-app",
+          referenceInputs: [],
         },
       }),
     ).toContain(

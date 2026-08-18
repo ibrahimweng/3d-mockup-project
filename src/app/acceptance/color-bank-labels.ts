@@ -114,6 +114,15 @@ export function getToolcraftColorBankLabelErrors({
     return [];
   }
 
+  const sequentialColorControls = colorControls.filter(([, control]) =>
+    isToolcraftSequentialColorLabel(getControlLabelText(control)),
+  );
+  const errors = sequentialColorControls.map(([controlId, control]) => {
+    const label = getControlLabelText(control).trim();
+
+    return `${sectionLabel} / ${controlId} uses visible label "${label}" for one of multiple sibling colors. Set label: false when the colors form one shared bank, or use a distinct user-facing role such as Fill, Stroke, Background, Connector, or Object color.`;
+  });
+
   const loosePrefixes = new Set(
     colorControls
       .map(([, control]) => getToolcraftLooseTargetPrefix(control.target))
@@ -121,12 +130,9 @@ export function getToolcraftColorBankLabelErrors({
   );
 
   if (loosePrefixes.size !== 1) {
-    return [];
+    return errors;
   }
 
-  const sequentialColorControls = colorControls.filter(([, control]) =>
-    isToolcraftSequentialColorLabel(getControlLabelText(control)),
-  );
   const isPaletteVariationBank =
     colorControls.every(([, control]) =>
       isToolcraftPaletteVariationTarget(control.target),
@@ -135,28 +141,18 @@ export function getToolcraftColorBankLabelErrors({
       sequentialColorControls.length > 0);
 
   if (!isPaletteVariationBank) {
-    return [];
+    return errors;
   }
 
   const visibleColorControls = colorControls.filter(([, control]) =>
     hasVisibleControlLabel(control),
   );
-  const errors: string[] = [];
-
   if (
     visibleColorControls.length > 0 &&
     visibleColorControls.length < colorControls.length
   ) {
     errors.push(
       `${sectionLabel} mixes labeled and unlabeled color items in one palette variation group. Decide label visibility for the whole group: omit all per-item labels when colors only add variety, or label every item only when each color has a distinct user-facing role.`,
-    );
-  }
-
-  for (const [controlId, control] of sequentialColorControls) {
-    const label = getControlLabelText(control).trim();
-
-    errors.push(
-      `${sectionLabel} / ${controlId} uses visible label "${label}" for a palette variation color. When colors only add variety to one shared palette, set label: false or use collectionActions with unlabeled items. Keep visible labels only when each color edits a distinct user-facing entity such as Fill, Stroke, Background, Connector, or Object color.`,
     );
   }
 

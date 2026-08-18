@@ -11,7 +11,7 @@ import {
 import type { ToolcraftArtifactExportRequest } from "./artifact-export-request";
 import { resolveToolcraftImageExportSettings } from "./artifact-export-settings";
 import { renderToolcraftArtifactFrame } from "./artifact-frame-renderer";
-import { resolveToolcraftImageArtifactFrame } from "./artifact-scene-frame";
+import { resolveToolcraftStillArtifactFrame } from "./artifact-scene-frame";
 import { createToolcraftArtifactFrameState } from "./artifact-frame-state";
 import {
   ToolcraftSceneExportError,
@@ -80,7 +80,7 @@ export async function exportToolcraftImageArtifact(
     request.state,
     request.state.timeline.currentTimeSeconds,
   );
-  const frame = resolveToolcraftImageArtifactFrame({
+  const frame = resolveToolcraftStillArtifactFrame({
     boundsProvider: request.boundsProvider,
     productSceneRequired: request.productSceneRequired,
     state: frameState,

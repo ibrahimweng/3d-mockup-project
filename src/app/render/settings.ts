@@ -1,5 +1,6 @@
+import { DEFAULT_DEVICE } from "../product-domain";
+import type { ScreenTransform } from "./device-scene";
 import type { RasterSettings } from "./raster-renderer";
-import type { ScreenTransform } from "./iphone-scene";
 
 function vec(
   values: Record<string, unknown>,
@@ -14,6 +15,16 @@ function vec(
     x: Number.isFinite(raw.x) ? Number(raw.x) : 0.5,
     y: Number.isFinite(raw.y) ? Number(raw.y) : 0.5,
   };
+}
+
+function num(values: Record<string, unknown>, key: string, fallback: number) {
+  const value = Number(values[key]);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function str(values: Record<string, unknown>, key: string, fallback: string) {
+  const value = values[key];
+  return typeof value === "string" && value ? value : fallback;
 }
 
 /**
@@ -35,16 +46,6 @@ export function readScreenTransform(
   };
 }
 
-function num(values: Record<string, unknown>, key: string, fallback: number) {
-  const value = Number(values[key]);
-  return Number.isFinite(value) ? value : fallback;
-}
-
-function str(values: Record<string, unknown>, key: string, fallback: string) {
-  const value = values[key];
-  return typeof value === "string" && value ? value : fallback;
-}
-
 /**
  * Read runtime state into renderer settings.
  *
@@ -60,6 +61,7 @@ export function readRasterSettings(
 ): RasterSettings {
   return {
     backgroundColor: str(values, "scene.background", "#0d0d10"),
+    device: str(values, "device.model", DEFAULT_DEVICE),
     environment: str(values, "studio.environment", "studio-soft"),
     exposure: 100,
     focalLength: num(values, "camera.focalLength", 85),
