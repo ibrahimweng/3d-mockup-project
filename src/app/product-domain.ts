@@ -119,12 +119,9 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
     // 16:10. The open lid is modelled at its hinge angle, so the panel's local
     // bounding box spans three axes and measuring it would report 0.61.
     screenAspect: 0.625,
-    // KNOWN ISSUE: this lid's screenshot still renders mirrored left-to-right.
-    // The vertical mirror below is confirmed by observation; the horizontal one
-    // has no visible effect through either a signed texture repeat or a
-    // pre-mirrored source bitmap, which points at the panel's own UV mapping
-    // rather than at the texture. The other four devices are unaffected.
-    screenFlip: { x: true, y: true },
+    // This lid's screen UVs run bottom-up relative to the phones', so an
+    // unflipped design lands vertically mirrored on it.
+    screenFlip: { y: true },
     screenMaterial: "Screen.002",
     sceneName: "Scene.002",
   },

@@ -47,7 +47,7 @@ The quoted evidence must be an exact nontrivial raw substring of `Request` with 
 - State/output mapping: `device.model`, `studio.environment` and `export.includeBackground` feed `readRasterSettings` and rebuild the scene through `buildDeviceScene`. `artwork.image` media feeds the display texture through `createScreenTexture`. `artwork.fit`, `artwork.scale`, `artwork.offset` and `artwork.stretch` feed `readScreenTransform` and rewrite the display texture's repeat and offset only. `camera.orbit` and `camera.focalLength` feed `RasterRenderer.setPose`. `scene.background` colours the ground material. Preview and export read the same two functions, so the exported frame is the frame the preview shows.
 - Performance intent: ordinary-product-work
 - Verification: One bare `npm run verify:delivery` will derive and run the protected proof.
-- Risks: The MacBook's screenshot still renders mirrored left-to-right; the vertical mirror is fixed and the other four devices are unaffected. `macstudio.glb` is 96MB, so first selection of Studio Display is slow. `iphone-5.glb` contains the same phone geometry as the 17 Pro Max, so those two options look alike. Lighting is image-based, so shadows come from one directional map and reflections sample only the environment.
+- Risks: `macstudio.glb` was 96MB, so first selection of Studio Display is slow. `iphone-5.glb` contains the same phone geometry as the 17 Pro Max, so those two options look alike. Lighting is image-based, so shadows come from one directional map and reflections sample only the environment.
 
 ## Decisions
 
@@ -116,7 +116,6 @@ The quoted evidence must be an exact nontrivial raw substring of `Request` with 
 
 ## Risks
 
-- Risk: The MacBook's screenshot renders mirrored left-to-right. The vertical mirror is corrected and the other four devices are unaffected; neither a signed texture repeat nor a pre-mirrored source bitmap changed the horizontal axis, which points at that panel's own UV mapping.
 - Risk: `macstudio.glb` is 96MB, so the first selection of Studio Display is slow to load. Rendering is cheap once it is decoded.
 - Risk: `iphone-5.glb` contains the same phone geometry as `iphone-17-pro-max.glb`, so those two device options render nearly the same object.
 - Risk: `src/app/render/device-scene.ts` imports `GLTFLoader` and `RGBELoader`, which the product boundary checker rejects. The reference app has the same violation, and the runtime's sanctioned alternative — a model `fileDrop` with runtime presentation — cannot express bundled device geometry or HDR environments.

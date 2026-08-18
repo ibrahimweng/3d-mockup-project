@@ -91,10 +91,6 @@ promoted anywhere public.
 
 ## Known issues
 
-- The MacBook's screenshot renders mirrored left-to-right. The vertical mirror
-  is corrected and the other four devices are unaffected; neither a signed
-  texture repeat nor a pre-mirrored source bitmap changed the horizontal axis,
-  which points at that panel's own UV mapping.
 - `src/app/render/device-scene.ts` imports `GLTFLoader` and `RGBELoader`, which
   Toolcraft's product-boundary checker rejects, so `npm test` fails on those two
   lines. The sanctioned alternative — a model `fileDrop` backed by runtime

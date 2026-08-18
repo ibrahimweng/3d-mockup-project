@@ -52,11 +52,15 @@ export type DeviceScene = {
  * largest texture does not work: on these phones two correctly-sized unlit
  * panels sit behind the real display and are never seen.
  */
-function findScreenMaterial(
+function findScreenMaterials(
   root: THREE.Object3D,
   materialName: string,
-): THREE.MeshStandardMaterial | null {
-  let byName: THREE.MeshStandardMaterial | null = null;
+): THREE.MeshStandardMaterial[] {
+  // Every material carrying the configured name, not just the first found. A
+  // model can duplicate its display material across several meshes, and setting
+  // only one instance leaves the visible panel showing its stock wallpaper --
+  // or the panel the user is looking at unchanged while a hidden twin updates.
+  const byName: THREE.MeshStandardMaterial[] = [];
   let byEmission: THREE.MeshStandardMaterial | null = null;
   let strongest = 0;
 
@@ -71,7 +75,7 @@ function findScreenMaterial(
     }
 
     if (material.name === materialName) {
-      byName = material;
+      if (!byName.includes(material)) byName.push(material);
       return;
     }
 
@@ -83,7 +87,8 @@ function findScreenMaterial(
     }
   });
 
-  return byName ?? byEmission;
+  if (byName.length > 0) return byName;
+  return byEmission ? [byEmission] : [];
 }
 
 /**
@@ -95,12 +100,15 @@ function findScreenMaterial(
  */
 function measureScreenAspect(
   root: THREE.Object3D,
-  screenMaterial: THREE.MeshStandardMaterial | null,
+  screenMaterials: readonly THREE.MeshStandardMaterial[],
   fallback: number,
 ): number {
   let aspect = fallback;
   root.traverse((object) => {
-    if (!(object instanceof THREE.Mesh) || object.material !== screenMaterial) {
+    if (
+      !(object instanceof THREE.Mesh) ||
+      !screenMaterials.includes(object.material as THREE.MeshStandardMaterial)
+    ) {
       return;
     }
     object.geometry.computeBoundingBox();
@@ -289,13 +297,13 @@ export async function buildDeviceScene(options: {
   key.shadow.camera.far = sphere.radius * 12;
   scene.add(key);
 
-  const screenMaterial = findScreenMaterial(
+  const screenMaterials = findScreenMaterials(
     subject,
     options.device.screenMaterial,
   );
   const screenAspect =
     options.device.screenAspect ??
-    measureScreenAspect(subject, screenMaterial, 9 / 19.5);
+    measureScreenAspect(subject, screenMaterials, 9 / 19.5);
 
   const camera = new THREE.PerspectiveCamera(
     35,
@@ -318,19 +326,21 @@ export async function buildDeviceScene(options: {
     },
     scene,
     setArtwork: (texture, transform) => {
-      if (!screenMaterial) return;
+      if (screenMaterials.length === 0) return;
       if (texture) applyScreenTransform(texture, screenAspect, transform);
       // A display emits rather than reflects. Assigning the artwork as an
       // emissive map keeps it readable at full brightness regardless of how the
       // environment happens to be lighting the rest of the device. The stock
       // wallpaper on these models is an emissiveMap, so that is the channel
       // that has to be replaced; setting only `map` leaves the original glowing.
-      screenMaterial.map = texture;
-      screenMaterial.emissiveMap = texture;
-      screenMaterial.emissive = new THREE.Color(0xffffff);
-      screenMaterial.emissiveIntensity = texture ? 1 : 0;
-      screenMaterial.toneMapped = false;
-      screenMaterial.needsUpdate = true;
+      for (const screenMaterial of screenMaterials) {
+        screenMaterial.map = texture;
+        screenMaterial.emissiveMap = texture;
+        screenMaterial.emissive = new THREE.Color(0xffffff);
+        screenMaterial.emissiveIntensity = texture ? 1 : 0;
+        screenMaterial.toneMapped = false;
+        screenMaterial.needsUpdate = true;
+      }
     },
     subject,
     subjectRadius: sphere.radius,
