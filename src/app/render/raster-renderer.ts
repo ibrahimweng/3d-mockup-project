@@ -1,0 +1,190 @@
+import * as THREE from "three";
+
+import {
+  buildIPhoneScene,
+  type IPhoneScene,
+  type ScreenTransform,
+} from "./iphone-scene";
+
+type Pose = Readonly<{
+  position: readonly [number, number, number];
+  up: readonly [number, number, number];
+}>;
+
+export type RasterSettings = {
+  backgroundColor: string;
+  environment: string;
+  exposure: number;
+  focalLength: number;
+  showBackground: boolean;
+};
+
+/**
+ * Real-time renderer for the iPhone scene.
+ *
+ * Deliberately much smaller than the path-traced renderer it replaces: there is
+ * no accumulator, no sample budget, no convergence and no settle window. A frame
+ * is one `render()` call, so the only question is whether anything changed since
+ * the last one.
+ */
+export class RasterRenderer {
+  private built: IPhoneScene | null = null;
+  private disposed = false;
+  private loading: Promise<void> | null = null;
+  private lastKey = "";
+  private pointer = new THREE.Vector2();
+  private raycaster = new THREE.Raycaster();
+  private settings: RasterSettings | null = null;
+  // Remembered so a scene that finishes loading after the canvas was sized
+  // still adopts the correct aspect. Without this the camera keeps its
+  // constructor default of 1 and renders a tall phone square.
+  private viewport = { height: 0, width: 0 };
+
+  readonly renderer: THREE.WebGLRenderer;
+
+  constructor(canvas: HTMLCanvasElement) {
+    this.renderer = new THREE.WebGLRenderer({
+      alpha: true,
+      antialias: true,
+      canvas,
+    });
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.shadowMap.enabled = true;
+    // Soft percentage-closer filtering. The shadow exists to ground the phone,
+    // and a hard-edged one reads as a cutout pasted onto the backdrop.
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  }
+
+  get ready(): boolean {
+    return this.built !== null;
+  }
+
+  /** Rebuild only when something the scene is actually made of has changed. */
+  async update(settings: RasterSettings, onReady: () => void): Promise<void> {
+    if (this.disposed) return;
+
+    this.settings = settings;
+    this.renderer.toneMappingExposure = settings.exposure / 100;
+
+    const key = JSON.stringify([
+      settings.backgroundColor,
+      settings.environment,
+      settings.showBackground,
+    ]);
+    if (key === this.lastKey && this.built) return;
+    if (this.loading) return;
+
+    this.lastKey = key;
+    this.loading = buildIPhoneScene({
+      backgroundColor: settings.backgroundColor,
+      environmentUrl: `${import.meta.env.BASE_URL}hdri/${settings.environment}.hdr`,
+      renderer: this.renderer,
+      showGround: settings.showBackground,
+    })
+      .then((scene) => {
+        if (this.disposed) {
+          scene.dispose();
+          return;
+        }
+        this.built?.dispose();
+        this.built = scene;
+        this.applyViewport();
+        onReady();
+      })
+      .catch(() => {
+        // A failed load leaves the previous scene visible rather than blanking
+        // the canvas; the key is cleared so the next change retries.
+        this.lastKey = "";
+      })
+      .finally(() => {
+        this.loading = null;
+      });
+  }
+
+  setArtwork(texture: THREE.Texture | null, transform?: ScreenTransform): void {
+    this.built?.setArtwork(texture, transform);
+  }
+
+  /**
+   * Point the camera. Direction comes from the pose; distance is derived from
+   * the subject and the current field of view so the phone stays framed at any
+   * focal length.
+   */
+  setPose(pose: Pose): void {
+    const built = this.built;
+    const settings = this.settings;
+    if (!built || !settings) return;
+
+    const direction = new THREE.Vector3(
+      pose.position[0],
+      pose.position[1],
+      pose.position[2],
+    );
+    if (direction.lengthSq() < 1e-6) direction.set(0, 0.6, 3.4);
+    direction.normalize();
+
+    // 36mm full-frame equivalent, so the focal length control means what it
+    // means on a real camera body.
+    built.camera.fov =
+      2 * Math.atan(36 / (2 * settings.focalLength)) * (180 / Math.PI);
+
+    const halfFov = THREE.MathUtils.degToRad(built.camera.fov) / 2;
+    const aspectCorrection =
+      built.camera.aspect < 1 ? 1 / built.camera.aspect : 1;
+    const distance =
+      ((built.subjectRadius * 1.25) / Math.tan(halfFov)) * aspectCorrection;
+
+    built.camera.position.copy(direction.multiplyScalar(distance));
+    built.camera.up.set(pose.up[0], pose.up[1], pose.up[2]);
+    built.camera.lookAt(built.target);
+    built.camera.updateProjectionMatrix();
+  }
+
+  setSize(width: number, height: number, pixelRatio: number): void {
+    if (this.disposed || width <= 0 || height <= 0) return;
+    this.viewport = { height, width };
+    this.renderer.setPixelRatio(pixelRatio);
+    this.renderer.setSize(width, height, false);
+    this.applyViewport();
+  }
+
+  private applyViewport(): void {
+    const { height, width } = this.viewport;
+    if (!this.built || width <= 0 || height <= 0) return;
+    this.built.camera.aspect = width / height;
+    this.built.camera.updateProjectionMatrix();
+  }
+
+  /** Is the phone under this client point? Misses fall through to viewport pan. */
+  hitTest(clientX: number, clientY: number): boolean {
+    if (this.disposed || !this.built) return false;
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return false;
+
+    this.pointer.set(
+      ((clientX - rect.left) / rect.width) * 2 - 1,
+      -((clientY - rect.top) / rect.height) * 2 + 1,
+    );
+    this.raycaster.setFromCamera(this.pointer, this.built.camera);
+
+    // Only the phone counts. The ground fills the frame, so including it would
+    // make every drag a rotation and leave no way to pan.
+    const phone = this.built.scene.children.find(
+      (child) => child.type === "Group" || child.type === "Object3D",
+    );
+    if (!phone) return false;
+    return this.raycaster.intersectObject(phone, true).length > 0;
+  }
+
+  render(): void {
+    if (this.disposed || !this.built) return;
+    this.renderer.render(this.built.scene, this.built.camera);
+  }
+
+  dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    this.built?.dispose();
+    this.renderer.dispose();
+  }
+}
