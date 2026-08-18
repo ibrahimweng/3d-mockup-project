@@ -166,19 +166,48 @@ export class RasterRenderer {
 
   /** Is the device under this client point? Misses fall through to viewport pan. */
   hitTest(clientX: number, clientY: number): boolean {
-    if (this.disposed || !this.built) return false;
+    const built = this.aim(clientX, clientY);
+    if (!built) return false;
+
+    // Only the device counts. The ground fills the frame, so including it would
+    // make every drag a rotation and leave no way to pan.
+    return this.raycaster.intersectObject(built.subject, true).length > 0;
+  }
+
+  /**
+   * Where on the display this client point lands, in the design's own
+   * coordinates, or null if the point is not on a screen.
+   *
+   * Reading the UV rather than projecting the pointer onto a plane keeps the
+   * drag correct at any camera angle: the design tracks the pointer across a
+   * screen seen almost edge-on exactly as it does head-on.
+   */
+  hitScreenUV(clientX: number, clientY: number): { u: number; v: number } | null {
+    const built = this.aim(clientX, clientY);
+    if (!built || built.screenMeshes.length === 0) return null;
+
+    const hit = this.raycaster
+      .intersectObjects(built.screenMeshes, false)
+      .find((intersection) => intersection.uv);
+    return hit?.uv ? { u: hit.uv.x, v: hit.uv.y } : null;
+  }
+
+  /** How much of the design is currently cropped, per axis. */
+  screenSlack(): { x: number; y: number } {
+    return this.built?.getScreenSlack() ?? { x: 0, y: 0 };
+  }
+
+  private aim(clientX: number, clientY: number): DeviceScene | null {
+    if (this.disposed || !this.built) return null;
     const rect = this.renderer.domElement.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) return false;
+    if (rect.width <= 0 || rect.height <= 0) return null;
 
     this.pointer.set(
       ((clientX - rect.left) / rect.width) * 2 - 1,
       -((clientY - rect.top) / rect.height) * 2 + 1,
     );
     this.raycaster.setFromCamera(this.pointer, this.built.camera);
-
-    // Only the device counts. The ground fills the frame, so including it would
-    // make every drag a rotation and leave no way to pan.
-    return this.raycaster.intersectObject(this.built.subject, true).length > 0;
+    return this.built;
   }
 
   render(): void {

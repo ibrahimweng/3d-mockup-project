@@ -80,8 +80,14 @@ Adding a sixth device is a catalog entry, not a code change.
 | Background | The ground plane behind the device, and its colour |
 | Image Export | PNG or JPG, at a 2K, 4K or 8K long edge |
 
-Dragging the device rotates it; a drag that misses falls through to the canvas
-and pans the viewport.
+One pointer, three surfaces. Dragging **on the screen** moves the design across
+it. Dragging **the body** rotates the device. Dragging **empty canvas** pans the
+viewport. The split is decided on pointer-down by what the ray actually hits, so
+there is no mode to switch.
+
+Movement is measured in the screen's own UV space rather than in pixels, so the
+design keeps up with the pointer even on a screen seen almost edge-on. An axis
+that is not cropped has no slack and correctly does not move.
 
 ## Assets and licensing
 

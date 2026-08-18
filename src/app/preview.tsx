@@ -11,6 +11,7 @@ import {
 } from "@/toolcraft/runtime/react";
 
 import { forgetArtworkUrl, publishArtworkUrl } from "./artwork-store";
+import { useDesignDrag } from "./design-drag";
 import { readDeviceDefinition } from "./product-domain";
 import { RasterRenderer } from "./render/raster-renderer";
 import { createScreenTexture } from "./render/screen-texture";
@@ -155,12 +156,16 @@ export function MockupPreview(): React.ReactElement {
     dirtyRef.current = true;
   }, [height, pose, renderScale, sceneVersion, width]);
 
-  // Dragging the device rotates it; a drag that misses falls through to the
-  // runtime and pans the viewport. Two-finger pan and pinch zoom are already
-  // native to CanvasShell.
+  // Three surfaces share one pointer. The screen edits the design, the body
+  // rotates the device, and a miss falls through to the runtime and pans the
+  // viewport. Orbit therefore declines a hit that landed on a display, so the
+  // design drag can claim it first.
   const hitTest = React.useCallback(
-    (clientX: number, clientY: number) =>
-      rendererRef.current?.hitTest(clientX, clientY) ?? false,
+    (clientX: number, clientY: number) => {
+      const renderer = rendererRef.current;
+      if (!renderer?.hitTest(clientX, clientY)) return false;
+      return renderer.hitScreenUV(clientX, clientY) === null;
+    },
     [],
   );
   const orbitHandlers = useToolcraftModelOrbitInteraction<HTMLCanvasElement>({
@@ -168,6 +173,35 @@ export function MockupPreview(): React.ReactElement {
     historyLabel: "Rotate view",
     target: "camera.orbit",
   });
+  const designDrag = useDesignDrag(rendererRef, artworkUrl !== null);
+
+  // The design drag is offered the pointer first; anything it declines carries
+  // on to orbit unchanged.
+  const pointerHandlers = React.useMemo(
+    () => ({
+      onPointerCancel: (event: React.PointerEvent<HTMLCanvasElement>) => {
+        if (!designDrag.onPointerCancel(event)) {
+          orbitHandlers.onPointerCancel?.(event);
+        }
+      },
+      onPointerDown: (event: React.PointerEvent<HTMLCanvasElement>) => {
+        if (!designDrag.onPointerDown(event)) {
+          orbitHandlers.onPointerDown?.(event);
+        }
+      },
+      onPointerMove: (event: React.PointerEvent<HTMLCanvasElement>) => {
+        if (!designDrag.onPointerMove(event)) {
+          orbitHandlers.onPointerMove?.(event);
+        }
+      },
+      onPointerUp: (event: React.PointerEvent<HTMLCanvasElement>) => {
+        if (!designDrag.onPointerUp(event)) {
+          orbitHandlers.onPointerUp?.(event);
+        }
+      },
+    }),
+    [designDrag, orbitHandlers],
+  );
 
   React.useEffect(() => {
     let handle = 0;
@@ -189,6 +223,7 @@ export function MockupPreview(): React.ReactElement {
       data-toolcraft-product-output
       ref={canvasRef}
       {...orbitHandlers}
+      {...pointerHandlers}
     />
   );
 }

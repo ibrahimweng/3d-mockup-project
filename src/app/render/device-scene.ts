@@ -27,9 +27,20 @@ export type ScreenTransform = {
   stretch: { x: number; y: number };
 };
 
+export type ScreenSlack = { x: number; y: number };
+
 export type DeviceScene = {
   camera: THREE.PerspectiveCamera;
   dispose: () => void;
+  /**
+   * How much of the design is cropped on each axis, 0..1.
+   *
+   * Dragging can only move the design across what is actually hidden, so this
+   * is what converts a pointer delta into an offset delta.
+   */
+  getScreenSlack: () => ScreenSlack;
+  /** The display meshes, for hit testing the screen apart from the body. */
+  screenMeshes: THREE.Mesh[];
   /** The device geometry, so a hit test can ignore the ground. */
   subject: THREE.Object3D;
   /** Set the artwork shown on the display, or null to leave it dark. */
@@ -132,6 +143,7 @@ function applyScreenTransform(
   texture: THREE.Texture,
   screenAspect: number,
   transform: ScreenTransform | undefined,
+  slack: ScreenSlack,
 ): void {
   // Sampling outside 0..1 must clamp, not tile: a zoomed-in screenshot would
   // otherwise repeat itself around the edges of the display.
@@ -144,6 +156,8 @@ function applyScreenTransform(
   if (!transform) {
     texture.repeat.set(1, 1);
     texture.offset.set(0, 0);
+    slack.x = 0;
+    slack.y = 0;
     texture.needsUpdate = true;
     return;
   }
@@ -181,6 +195,8 @@ function applyScreenTransform(
   // slack on that axis and the offset correctly does nothing.
   const slackX = Math.max(0, 1 - repeatX);
   const slackY = Math.max(0, 1 - repeatY);
+  slack.x = slackX;
+  slack.y = slackY;
   texture.offset.set(
     (Math.max(0, Math.min(1, transform.offset.x)) - 0.5) * slackX,
     (Math.max(0, Math.min(1, transform.offset.y)) - 0.5) * slackY,
@@ -358,6 +374,19 @@ export async function buildDeviceScene(options: {
     options.device.screenAspect ??
     measureScreenAspect(subject, screenMaterials, 9 / 19.5);
 
+  const screenMeshes: THREE.Mesh[] = [];
+  subject.traverse((object) => {
+    if (
+      object instanceof THREE.Mesh &&
+      object.visible &&
+      screenMaterials.includes(object.material as THREE.MeshStandardMaterial)
+    ) {
+      screenMeshes.push(object);
+    }
+  });
+
+  const slack: ScreenSlack = { x: 0, y: 0 };
+
   const camera = new THREE.PerspectiveCamera(
     35,
     1,
@@ -367,6 +396,8 @@ export async function buildDeviceScene(options: {
 
   return {
     camera,
+    getScreenSlack: () => ({ x: slack.x, y: slack.y }),
+    screenMeshes,
     dispose: () => {
       for (const item of disposables) item.dispose();
       subject.traverse((object) => {
@@ -380,7 +411,7 @@ export async function buildDeviceScene(options: {
     scene,
     setArtwork: (texture, transform) => {
       if (screenMaterials.length === 0) return;
-      if (texture) applyScreenTransform(texture, screenAspect, transform);
+      if (texture) applyScreenTransform(texture, screenAspect, transform, slack);
       // A display emits rather than reflects. Assigning the artwork as an
       // emissive map keeps it readable at full brightness regardless of how the
       // environment happens to be lighting the rest of the device. The stock

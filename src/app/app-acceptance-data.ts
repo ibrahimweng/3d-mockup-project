@@ -210,18 +210,36 @@ export const appProductReadiness: ToolcraftProductReadiness = {
     {
       alternative: {
         reason:
-          "Dragging the image directly on the rendered screen would fight the pointer with device rotation, which already owns primary drag on that geometry.",
-        surface: "canvas",
+          "A panel pad cannot show which part of the design sits under the pointer, so nudging values while watching the screen is a slower way to do the same thing.",
+        surface: "panel",
       },
-      capability: "property-edit",
+      capability: "direct-spatial-edit",
       evidence: {
         detail:
-          "The reference authors screen placement through panel vector pads and a slider while primary canvas drag rotates the device.",
-        source: "reference",
+          "The user asked for the design to be moved by dragging on the screen while a drag on the body still rotates the device.",
+        source: "user-request",
       },
-      id: "screen-placement",
+      id: "screen-placement-drag",
       reason:
-        "The vector pads author an exact, repeatable position and stretch inside the display while primary drag stays with rotation.",
+        "Placing a design inside a screen is a spatial judgement about what gets cropped, and dragging the design itself gives direct correspondence between hand movement and result.",
+      surface: "canvas",
+      target: "artwork.offset",
+    },
+    {
+      alternative: {
+        reason:
+          "A freehand drag cannot express an exact coordinate, be nudged a fraction at a time, or be reset to a known value.",
+        surface: "canvas",
+      },
+      capability: "precise-value-entry",
+      evidence: {
+        detail:
+          "The pad remains the way to author an exact, repeatable position and to reset it, which dragging cannot do.",
+        source: "usability-analysis",
+      },
+      id: "screen-placement-values",
+      reason:
+        "The pad authors an exact coordinate for the same placement the canvas drag edits freehand; the two capabilities differ rather than mirroring each other.",
       // One device is rendered at a time, so screen placement is a global
       // property rather than one scoped to a selected entity.
       selectionScope: { mode: "global" },
@@ -410,7 +428,7 @@ export const appAcceptance: readonly ToolcraftComponentAcceptance[] = [
       "Dragging Screen position pans the cropped image inside the display, Screen scale zooms it about its centre, and Screen stretch changes each axis independently, all without reloading the model.",
     fixture: "an uploaded PNG cropped by the current fit mode",
     id: "artwork.placement.transform",
-    interactionId: "screen-placement",
+    interactionId: "screen-placement-values",
     kind: "control",
     referenceCoverage: "control-mapping",
     target: "artwork.offset",
@@ -466,6 +484,33 @@ export const appAcceptance: readonly ToolcraftComponentAcceptance[] = [
     referenceCoverage: "renderer-state",
     target: "studio.environment",
     userAction: "Choose each Environment option and inspect the render.",
+  },
+  {
+    automated: true,
+    automatedTestName:
+      "screen drags claim the pointer and body drags leave it to orbit",
+    browser: true,
+    browserTestName:
+      "browser: dragging on the screen moves the design while dragging the body rotates",
+    canvasHandle: {
+      exportCleanTestName:
+        "browser: the exported PNG contains no placement chrome",
+      outputObservable:
+        "The design slides under the pointer inside the display while the device stays still.",
+      testId: "toolcraft-product-output",
+      writesTarget: "artwork.offset",
+    },
+    componentType: "canvas",
+    evidence: "product-output",
+    expectedObservable:
+      "A drag starting on the display moves the design across it and leaves the device's orientation unchanged; a drag starting on the body rotates the device and leaves the design where it sits; a drag starting on empty canvas pans the viewport.",
+    fixture: "a design larger than the display so it is cropped on both axes",
+    id: "artwork.placement.drag",
+    interactionId: "screen-placement-drag",
+    kind: "canvas-handle",
+    target: "artwork.offset",
+    userAction:
+      "Drag across the device's screen, then drag across its body, then drag the empty background.",
   },
   {
     automated: true,
