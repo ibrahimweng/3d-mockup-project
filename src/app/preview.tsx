@@ -13,6 +13,7 @@ import {
 import { forgetArtworkUrl, publishArtworkUrl } from "./artwork-store";
 import { useDesignDrag } from "./design-drag";
 import { useViewOrbit } from "./view-orbit";
+import { useViewPan } from "./view-pan";
 import { readDeviceDefinition } from "./product-domain";
 import { RasterRenderer } from "./render/raster-renderer";
 import { createScreenTexture } from "./render/screen-texture";
@@ -163,10 +164,9 @@ export function MockupPreview(): React.ReactElement {
     dirtyRef.current = true;
   }, [height, pose, renderScale, sceneVersion, width]);
 
-  // Three surfaces share one pointer. The screen edits the design, the body
-  // rotates the device, and a miss falls through to the runtime and pans the
-  // viewport. Orbit therefore declines a hit that landed on a display, so the
-  // design drag can claim it first.
+  // The runtime's own model orbit still backs this up for a press that reaches
+  // it, and it declines a hit that landed on a display so the design drag can
+  // claim that first.
   const hitTest = React.useCallback(
     (clientX: number, clientY: number) => {
       const renderer = rendererRef.current;
@@ -182,34 +182,48 @@ export function MockupPreview(): React.ReactElement {
   });
   const designDrag = useDesignDrag(rendererRef, artworkUrl !== null);
   const viewOrbit = useViewOrbit();
+  const viewPan = useViewPan();
 
-  // Pointer priority, highest first: a dedicated orbit binding, then the design
-  // drag on a display, then the runtime's own model orbit, then CanvasShell.
-  // Each declines what is not its own, so there is never a mode to switch.
+  // One pointer, three verbs, decided by which button is down and what is
+  // under it rather than by a mode:
+  //
+  //   middle button      -> move the board (two fingers do this already, as a
+  //                         wheel event the runtime handles itself)
+  //   primary on screen  -> move the design across the display
+  //   primary elsewhere  -> rotate the device, including the empty space
+  //                         beside it, so there is nothing to aim at
+  //
+  // Order matters only between the middle two: the design drag has to see a
+  // press before the orbit claims everything primary. Each declines what is
+  // not its own and the rest falls through to the runtime.
   const pointerHandlers = React.useMemo(
     () => ({
       onPointerCancel: (event: React.PointerEvent<HTMLCanvasElement>) => {
-        if (viewOrbit.onPointerCancel(event)) return;
+        if (viewPan.onPointerCancel(event)) return;
         if (designDrag.onPointerCancel(event)) return;
+        if (viewOrbit.onPointerCancel(event)) return;
         orbitHandlers.onPointerCancel?.(event);
       },
       onPointerDown: (event: React.PointerEvent<HTMLCanvasElement>) => {
-        if (viewOrbit.onPointerDown(event)) return;
+        if (viewPan.onPointerDown(event)) return;
         if (designDrag.onPointerDown(event)) return;
+        if (viewOrbit.onPointerDown(event)) return;
         orbitHandlers.onPointerDown?.(event);
       },
       onPointerMove: (event: React.PointerEvent<HTMLCanvasElement>) => {
-        if (viewOrbit.onPointerMove(event)) return;
+        if (viewPan.onPointerMove(event)) return;
         if (designDrag.onPointerMove(event)) return;
+        if (viewOrbit.onPointerMove(event)) return;
         orbitHandlers.onPointerMove?.(event);
       },
       onPointerUp: (event: React.PointerEvent<HTMLCanvasElement>) => {
-        if (viewOrbit.onPointerUp(event)) return;
+        if (viewPan.onPointerUp(event)) return;
         if (designDrag.onPointerUp(event)) return;
+        if (viewOrbit.onPointerUp(event)) return;
         orbitHandlers.onPointerUp?.(event);
       },
     }),
-    [designDrag, orbitHandlers, viewOrbit],
+    [designDrag, orbitHandlers, viewOrbit, viewPan],
   );
 
   React.useEffect(() => {

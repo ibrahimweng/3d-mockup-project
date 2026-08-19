@@ -18,7 +18,6 @@
  */
 export const DEVICE_OPTIONS = [
   { label: "iPhone 17 Pro Max", value: "iphone-17-pro-max" },
-  { label: "iPhone 17 Pro Max (Orange)", value: "iphone-orange" },
   { label: "MacBook", value: "macbook" },
   { label: "iMac", value: "imac" },
   { label: "Studio Display", value: "studio-display" },
@@ -145,6 +144,17 @@ export type DeviceDefinition = {
    * preference.
    */
   materialCorrections?: Readonly<Record<string, MaterialCorrection>>;
+  /**
+   * Body materials a colourway paints flat rather than tints.
+   *
+   * A colourway normally writes base colour alone, which multiplies whatever
+   * base-colour texture the material carries. That is right for a neutral
+   * texture — brushed aluminium tints and keeps its grain — but wrong for one
+   * whose own colour is the thing being replaced, where tinting an orange
+   * panel silver just yields a paler orange. Naming a material here sets its
+   * texture aside for the duration of a colourway; Natural puts it back.
+   */
+  repaintedMaterials?: readonly string[];
   screenMaterial: string;
   /**
    * Scene to load when the file's default scene is not this device.
@@ -164,10 +174,25 @@ export type DeviceDefinition = {
 };
 
 /**
- * Every material carrying the orange finish across the phone family.
+ * The back panel and the small trim beside it.
  *
- * Read out of both GLBs rather than eyeballed: any material whose base colour
- * is red-dominant. Missing the small ones leaves an orange side button on an
+ * Both carry their orange in a base-colour texture rather than in a base
+ * colour, and a colourway multiplies rather than replaces, so tinting the
+ * panel silver only produces a paler orange. These are listed separately so
+ * the finish can set their texture aside and paint them flat.
+ *
+ * `SMUhrjUPCjJkPUK` is not a typo for the `.001` below it: the file carries
+ * both, the suffixed one as a plain base colour and this one as the printed
+ * panel, and only the first was found by a sweep for red base colours.
+ */
+const PHONE_PRINTED_PANELS = ["SMUhrjUPCjJkPUK", "HETovHCBsEjcSiP"] as const;
+
+/**
+ * Every material carrying the phone's finish.
+ *
+ * Read out of the GLB rather than eyeballed: any material whose base colour is
+ * red-dominant, plus the printed panels above, which a base-colour sweep
+ * cannot see. Missing the small ones leaves an orange side button on an
  * otherwise repainted phone.
  */
 const PHONE_BODY_MATERIALS = [
@@ -182,6 +207,7 @@ const PHONE_BODY_MATERIALS = [
   "yPEFElLJTRhfWfw",
   "PJgHvfOhNXkxvzq",
   "awYxKfiOpRgQIxD",
+  ...PHONE_PRINTED_PANELS,
 ] as const;
 
 const PHONE_FINISHES: Partial<Record<FinishId, DeviceFinish>> = {
@@ -213,32 +239,23 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
     screenMaterial: "Material.004",
   },
   "iphone-17-pro-max": {
-    // A stray 5,155-triangle mesh spanning the full height of the source file
-    // and sitting proud of the phone's back. Nothing on a real iPhone extends
-    // above the top edge, and its bounds alone added 83mm of height. Hidden
-    // rather than deleted, so the source file stays untouched.
-    excludedNodes: ["lwfmQebmsqyrPXh"],
-    // Every material that carries this phone family's finish. The two phone
-    // models are near-identical, so both name the same union; a material the
-    // file does not contain is ignored.
+    excludedNodes: [],
+    // Every material carrying the phone's finish.
     bodyMaterials: PHONE_BODY_MATERIALS,
     finishes: PHONE_FINISHES,
     label: "iPhone 17 Pro Max",
-    modelFile: "iphone-17-pro-max.glb",
-    screenMaterial: "BsXHDwLKqtDOfrW",
-  },
-  "iphone-orange": {
-    excludedNodes: [],
-    // Every material that carries this phone family's finish. The two phone
-    // models are near-identical, so both name the same union; a material the
-    // file does not contain is ignored.
-    bodyMaterials: PHONE_BODY_MATERIALS,
-    finishes: PHONE_FINISHES,
-    label: "iPhone 17 Pro Max (Orange)",
     modelFile: "iphone-5.glb",
-    // The file is named for an iPhone 5 but holds the same phone geometry as
-    // the 17 Pro Max in an orange finish, with the display material renamed.
-    // Labelled for what it renders rather than what the file is called.
+    // The file is named for an iPhone 5 but holds a 17 Pro Max in orange, with
+    // the display material renamed. The catalog is named for what it renders.
+    //
+    // The repository also ships `iphone-17-pro-max.glb`, which is the same
+    // phone without the orange back panel and with a stray full-height mesh
+    // that had to be hidden. Only one of the two is worth offering, and this
+    // is the better model.
+    //
+    // The back panel's colour is printed into its texture rather than set as a
+    // base colour, so tinting it leaves it orange whatever finish is chosen.
+    repaintedMaterials: PHONE_PRINTED_PANELS,
     screenMaterial: "Screen.001",
   },
   macbook: {
