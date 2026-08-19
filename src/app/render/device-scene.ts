@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { toCreasedNormals } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
@@ -51,10 +53,34 @@ const environmentCache = new WeakMap<
   Map<string, THREE.Texture>
 >();
 
+/**
+ * One loader, with a Draco decoder attached.
+ *
+ * A model authored for the web usually arrives Draco-compressed, and the
+ * alternative to decoding it here is decompressing it beforehand — which for
+ * the Mac Studio means 3.4MB becoming 34.8MB, or being decimated until it
+ * fits, which costs the surface detail the model was supplied for. Decoding
+ * at load keeps a supplied file exactly as its author sent it.
+ *
+ * The decoder runs on a worker, so the main thread is not blocked while a
+ * device is decompressed, and it is created once because each instance spawns
+ * its own workers.
+ */
+function createLoader(): GLTFLoader {
+  const draco = new DRACOLoader();
+  draco.setDecoderPath(`${import.meta.env.BASE_URL}draco/`);
+  // WebAssembly by default, which is several times faster than the JavaScript
+  // fallback the same directory also carries for anything that cannot run it.
+  return new GLTFLoader().setDRACOLoader(draco);
+}
+
+let loader: GLTFLoader | null = null;
+
 function loadModel(url: string): Promise<GLTF> {
   const cached = modelCache.get(url);
   if (cached) return cached;
-  const pending = new GLTFLoader().loadAsync(url);
+  loader ??= createLoader();
+  const pending = loader.loadAsync(url);
   modelCache.set(url, pending);
   // A failed load must not poison the cache, or the device can never load.
   void pending.catch(() => modelCache.delete(url));
@@ -317,6 +343,84 @@ export type LightingSettings = {
 };
 
 /**
+ * Give every surface a normal that matches the face it belongs to.
+ *
+ * A model that welds a flat panel to its rounded bevel leaves the corner
+ * vertices holding an average of both, so the flat face shades as a gradient
+ * between them — a soft fan spreading from a corner, on a surface that should
+ * be uniform. Recomputing with a crease threshold splits the sharp edges and
+ * leaves the fillets smooth.
+ *
+ * The geometry is cloned first because `Object3D.clone` shares it with the
+ * parsed model in the cache, and this must not reach another scene.
+ */
+function creaseNormals(root: THREE.Object3D, angleDegrees: number): void {
+  const creaseAngle = THREE.MathUtils.degToRad(angleDegrees);
+  const done = new Map<THREE.BufferGeometry, THREE.BufferGeometry>();
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    const existing = done.get(object.geometry);
+    if (existing) {
+      object.geometry = existing;
+      return;
+    }
+    const creased = toCreasedNormals(object.geometry, creaseAngle);
+    done.set(object.geometry, creased);
+    object.geometry = creased;
+  });
+}
+
+/**
+ * Rebuild the display's texture coordinates from its own geometry.
+ *
+ * Panels are frequently unwrapped into a corner of a shared atlas, which is
+ * right for a wallpaper baked into the file and wrong for a design supplied at
+ * runtime — that design would land squeezed into part of the panel and cropped
+ * by the rest. Doing it here rather than in the file keeps a supplied model
+ * byte for byte as its author sent it.
+ *
+ * A display is flat, so the two axes it spans are the two with any extent, and
+ * position maps to texture coordinate along them. The remaining axis is the
+ * panel's own thickness and is ignored.
+ */
+function unwrapScreen(meshes: readonly THREE.Mesh[]): void {
+  for (const mesh of meshes) {
+    // `Object3D.clone` shares geometry with its source, and the source is the
+    // parsed model held in the cache for the life of the page. Writing to it
+    // would reach every other scene built from the same file, so the panel
+    // gets its own copy first. It is a handful of vertices.
+    const geometry = mesh.geometry.clone();
+    mesh.geometry = geometry;
+    const position = geometry.getAttribute("position");
+    if (!position) continue;
+
+    geometry.computeBoundingBox();
+    const box = geometry.boundingBox;
+    if (!box) continue;
+    const size = box.getSize(new THREE.Vector3()).toArray();
+    const [horizontal, vertical] = [0, 1, 2]
+      .sort((a, b) => size[b] - size[a])
+      .slice(0, 2);
+    if (!(size[horizontal] > 0) || !(size[vertical] > 0)) continue;
+
+    const min = box.min.toArray();
+    const uv = new Float32Array(position.count * 2);
+    for (let index = 0; index < position.count; index += 1) {
+      const point = [
+        position.getX(index),
+        position.getY(index),
+        position.getZ(index),
+      ];
+      uv[index * 2] =
+        (point[horizontal] - min[horizontal]) / size[horizontal];
+      // Textures are uploaded unflipped, so v runs down from the top edge.
+      uv[index * 2 + 1] = 1 - (point[vertical] - min[vertical]) / size[vertical];
+    }
+    geometry.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+  }
+}
+
+/**
  * Repair the materials a model got wrong, before anything else touches them.
  *
  * This runs once per built scene and on the scene's own material clones, so a
@@ -488,6 +592,11 @@ export async function buildDeviceScene(options: {
   // Corrections first: a colourway paints over a repaired material, never the
   // other way round, and Natural returns to the repaired model rather than to
   // the file as shipped.
+  // Before anything measures or paints: this replaces the geometry.
+  if (options.device.creaseAngleDegrees !== undefined) {
+    creaseNormals(subject, options.device.creaseAngleDegrees);
+  }
+
   applyMaterialCorrections(subject, options.device);
   const baseColors = captureBaseColors(subject);
   applyFinish(baseColors, options.device, options.finish);
@@ -618,6 +727,9 @@ export async function buildDeviceScene(options: {
       screenMeshes.push(object);
     }
   });
+
+  // After the meshes are known and before anything samples them.
+  if (options.device.screenUnwrap) unwrapScreen(screenMeshes);
 
   const slack: ScreenSlack = { x: 0, y: 0 };
 

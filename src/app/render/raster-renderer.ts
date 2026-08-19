@@ -87,6 +87,11 @@ export class RasterRenderer {
     return this.built !== null;
   }
 
+  /** Highest anisotropy this context supports, for the display texture. */
+  get maxAnisotropy(): number {
+    return this.renderer.capabilities.getMaxAnisotropy();
+  }
+
   /** Rebuild only when something the scene is actually made of has changed. */
   async update(settings: RasterSettings, onReady: () => void): Promise<void> {
     if (this.disposed) return;
