@@ -143,6 +143,24 @@ The quoted evidence must be an exact nontrivial raw substring of `Request` with 
 - Reason: Requiring the pointer to find the object before it can rotate is what makes a 3D viewer feel fiddly, and the space beside the device is the natural place to grab. Panning is a view action, so it moves to the view button; two fingers already pan, because a trackpad swipe arrives as a wheel event the runtime turns into a canvas offset.
 - Evidence: `claimsOrbit` in `src/app/view-orbit.ts`, `src/app/view-pan.ts`, and the priority chain in `src/app/preview.tsx`. Driven in Chromium: a primary drag on empty canvas turns the phone from front to profile, a middle drag moves the board without changing the pose, and a primary drag on the display still moves the design with the device held still.
 
+### Preview resolution
+
+- Decision: The preview draws at `min(devicePixelRatio, renderScale)` device pixels per CSS pixel, capped at 2, and drops to 0.6 of that while a gesture is in flight.
+- Reason: It drew at `devicePixelRatio * renderScale`, which on a retina display is four device pixels per CSS pixel — sixteen times the pixel count of the box it is shown in. Measured: a 1080x1350 preview was rendering 4320x5400, 23.3 megapixels a frame, nearly three times a 4K frame, to fill 1.46 megapixels of screen. None of it was visible, because a display cannot show more than its own ratio, and none of it reached the export either: `export-renderer.ts` builds its own renderer at the requested size with a pixel ratio of 1.
+- Evidence: `pixelRatio` in `src/app/preview.tsx`. Measured in Chromium at `deviceScaleFactor: 2` — 23.33 MP before, 5.83 MP idle after, 2.10 MP mid-drag, restored on release. The same 25-move orbit took 157s before and 35s after under software rendering.
+
+### Shadow updates
+
+- Decision: `shadowMap.autoUpdate` is off; the depth map is redrawn only when the scene is rebuilt or a live setting changes.
+- Reason: The shadow depends on the light and the object, and an orbit moves neither — only the camera. On automatic, three.js redrew the whole scene into a 2048-square depth map every frame, so rotating cost two full passes instead of one. Measured as 64 draw calls per frame before and 37 after.
+- Evidence: `invalidateShadow` in `src/app/render/raster-renderer.ts` and its call sites.
+
+### Live settings guard
+
+- Decision: `applyLiveSettings` keeps its own key and returns early when nothing it owns has changed.
+- Reason: The settings object is rebuilt on every store change, and during a drag that is every pointer move, so a rotation was repainting every material in the model, replacing the whole light rig and rebuilding the ground sixty times a second. None of it had changed.
+- Evidence: `lastLiveKey` in `src/app/render/raster-renderer.ts`.
+
 ## Verification
 
 - `npm run typecheck` passes.
@@ -153,5 +171,5 @@ The quoted evidence must be an exact nontrivial raw substring of `Request` with 
 ## Risks
 
 - Risk: `macstudio.glb` was 96MB; its three 4096-square PNGs were re-encoded as 2048 JPEG to bring it to 21MB, verified as visually identical. Parsed models and convolved environments are now cached for the life of the page, so each is paid for once — returning to a device already seen issues no request at all.
-- Risk: `iphone-17-pro-max.glb` is no longer referenced by the catalog, because it and `iphone-5.glb` hold the same phone and only one is worth offering. It still ships in `public/`, so it costs 5MB of every deploy until it is deleted.
+- Risk: `canvas.renderScale` now reads as a ceiling on the display's pixel ratio rather than a multiplier on top of it. On a 1x display the control has no effect, because there is nothing to cap.
 - Risk: `src/app/render/device-scene.ts` imports `GLTFLoader` and `RGBELoader`, which the product boundary checker rejects. The reference app has the same violation, and the runtime's sanctioned alternative — a model `fileDrop` with runtime presentation — cannot express bundled device geometry or HDR environments.

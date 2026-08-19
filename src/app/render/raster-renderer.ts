@@ -45,6 +45,7 @@ export class RasterRenderer {
   // constructor default of 1 and renders a tall phone square.
   private viewport = { height: 0, width: 0 };
   private lastEnvironment = "";
+  private lastLiveKey = "";
   /** Called when a swapped-in studio has finished convolving. */
   onEnvironmentReady: (() => void) | null = null;
 
@@ -61,6 +62,17 @@ export class RasterRenderer {
     // Soft percentage-closer filtering. The shadow exists to ground the device,
     // and a hard-edged one reads as a cutout pasted onto the backdrop.
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // The shadow depends on the light and the object, not on where the camera
+    // is looking from. Left on automatic, three.js redraws the whole scene into
+    // a 2048-square depth map on every frame, so an orbit — which moves neither
+    // the light nor the object — costs two full passes instead of one.
+    this.renderer.shadowMap.autoUpdate = false;
+    this.renderer.shadowMap.needsUpdate = true;
+  }
+
+  /** The shadow is stale: redraw the depth map on the next frame. */
+  private invalidateShadow(): void {
+    this.renderer.shadowMap.needsUpdate = true;
   }
 
   get ready(): boolean {
@@ -103,7 +115,9 @@ export class RasterRenderer {
         this.built?.dispose();
         this.built = scene;
         this.lastEnvironment = settings.environment;
+        this.lastLiveKey = "";
         this.applyLiveSettings(settings);
+        this.invalidateShadow();
         this.applyViewport();
         onReady();
       })
@@ -117,14 +131,35 @@ export class RasterRenderer {
       });
   }
 
-  /** Everything a scene can absorb without being rebuilt. */
+  /**
+   * Everything a scene can absorb without being rebuilt.
+   *
+   * Guarded by its own key because the settings object is rebuilt on every
+   * store change, and during a drag that is every pointer move. Without the
+   * guard a rotation repainted every material in the model, replaced the whole
+   * light rig and rebuilt the ground sixty times a second, none of which had
+   * changed.
+   */
   private applyLiveSettings(settings: RasterSettings): void {
     const built = this.built;
     if (!built) return;
+
+    const key = JSON.stringify([
+      settings.backgroundColor,
+      settings.environment,
+      settings.finish,
+      settings.lighting,
+      settings.showBackground,
+    ]);
+    if (key === this.lastLiveKey) return;
+    this.lastLiveKey = key;
+
     this.applyEnvironment(built, settings.environment);
     built.setFinish(readFinishId(settings.finish));
     built.setLighting(settings.lighting);
     built.setGround(settings.showBackground, settings.backgroundColor);
+    // Colour, lights and the ground plane all feed the depth map.
+    this.invalidateShadow();
   }
 
   /**

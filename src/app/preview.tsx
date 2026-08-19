@@ -20,6 +20,11 @@ import { createScreenTexture } from "./render/screen-texture";
 import { readRasterSettings, readScreenTransform } from "./render/settings";
 import styles from "./preview.module.css";
 
+/** Drawing above the display's own ratio is pixels nobody can see. */
+const MAX_PIXEL_RATIO = 2;
+/** How far resolution drops while a gesture is in flight. */
+const INTERACTION_PIXEL_SCALE = 0.6;
+
 export function MockupPreview(): React.ReactElement {
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
   const rendererRef = React.useRef<RasterRenderer | null>(null);
@@ -28,6 +33,10 @@ export function MockupPreview(): React.ReactElement {
   // scene every tick would hold the GPU at load for no visible change.
   const dirtyRef = React.useRef(true);
   const [sceneVersion, setSceneVersion] = React.useState(0);
+  // Dragging trades resolution for frame rate. Nothing is being inspected
+  // closely while the scene is in motion, and the alternative is a sharp
+  // picture that arrives after the pointer has already moved on.
+  const [interacting, setInteracting] = React.useState(false);
 
   const values = useToolcraftEvaluatedValues();
   const frame = useToolcraftProductSceneFrame();
@@ -156,13 +165,32 @@ export function MockupPreview(): React.ReactElement {
   const height = rect?.height ?? 0;
   const renderScale = Number(values["canvas.renderScale"] ?? 2) || 2;
 
+  /**
+   * Device pixels per CSS pixel to draw the preview at.
+   *
+   * This used to be `devicePixelRatio * renderScale`, which on any retina
+   * display meant four device pixels per CSS pixel — sixteen times the pixel
+   * count of the box it is shown in, and 23 megapixels a frame for a preview
+   * 1080 wide. None of it was visible: a display cannot show more than its own
+   * pixel ratio, and export does not go through this canvas at all, it builds
+   * its own renderer at the requested size. So the scale is a ceiling on the
+   * display's ratio rather than a multiplier on top of it, and dragging drops
+   * further still, because a frame that arrives late is worse than a frame
+   * that is slightly soft.
+   */
+  const pixelRatio = React.useMemo(() => {
+    const display = Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO);
+    const still = Math.min(display, Math.max(1, renderScale));
+    return interacting ? Math.max(1, still * INTERACTION_PIXEL_SCALE) : still;
+  }, [interacting, renderScale]);
+
   React.useEffect(() => {
     const renderer = rendererRef.current;
     if (!renderer || width <= 0 || height <= 0) return;
-    renderer.setSize(width, height, window.devicePixelRatio * renderScale);
+    renderer.setSize(width, height, pixelRatio);
     renderer.setPose(pose);
     dirtyRef.current = true;
-  }, [height, pose, renderScale, sceneVersion, width]);
+  }, [height, pixelRatio, pose, sceneVersion, width]);
 
   // The runtime's own model orbit still backs this up for a press that reaches
   // it, and it declines a hit that landed on a display so the design drag can
@@ -199,15 +227,21 @@ export function MockupPreview(): React.ReactElement {
   const pointerHandlers = React.useMemo(
     () => ({
       onPointerCancel: (event: React.PointerEvent<HTMLCanvasElement>) => {
+        setInteracting(false);
         if (viewPan.onPointerCancel(event)) return;
         if (designDrag.onPointerCancel(event)) return;
         if (viewOrbit.onPointerCancel(event)) return;
         orbitHandlers.onPointerCancel?.(event);
       },
       onPointerDown: (event: React.PointerEvent<HTMLCanvasElement>) => {
-        if (viewPan.onPointerDown(event)) return;
-        if (designDrag.onPointerDown(event)) return;
-        if (viewOrbit.onPointerDown(event)) return;
+        const claimed =
+          viewPan.onPointerDown(event) ||
+          designDrag.onPointerDown(event) ||
+          viewOrbit.onPointerDown(event);
+        if (claimed) {
+          setInteracting(true);
+          return;
+        }
         orbitHandlers.onPointerDown?.(event);
       },
       onPointerMove: (event: React.PointerEvent<HTMLCanvasElement>) => {
@@ -217,6 +251,7 @@ export function MockupPreview(): React.ReactElement {
         orbitHandlers.onPointerMove?.(event);
       },
       onPointerUp: (event: React.PointerEvent<HTMLCanvasElement>) => {
+        setInteracting(false);
         if (viewPan.onPointerUp(event)) return;
         if (designDrag.onPointerUp(event)) return;
         if (viewOrbit.onPointerUp(event)) return;
