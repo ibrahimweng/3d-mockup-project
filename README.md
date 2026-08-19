@@ -28,8 +28,7 @@ framework preset, the `npm run build` command and the `dist` output directory.
 
 | Device | Model file | Notes |
 | --- | --- | --- |
-| iPhone 17 Pro Max | `iphone-17-pro-max.glb` | Default |
-| iPhone 17 Pro Max (Orange) | `iphone-5.glb` | Named for an iPhone 5, but holds the same phone in an orange finish |
+| iPhone 17 Pro Max | `iphone-5.glb` | Default. Named for an iPhone 5, but holds a 17 Pro Max in orange. Its back panel's colour is printed into a texture, so a colourway repaints it rather than tinting it |
 | MacBook | `macbook.glb` | Scene `Scene.002`; the file also holds an iPhone and the iMac below |
 | iMac | `macbook.glb` | Scene `Scene.001`; the 24-inch model, sharing the MacBook's download |
 | Studio Display | `macstudio.glb` | Scene `Exp`; the default scene stacks two displays. Its stand and bezel ship as pure black metal and are repaired in the catalog |
@@ -105,6 +104,10 @@ that is not cropped has no slack and correctly does not move.
   and why 1K is deliberate.
 - `public/models/*.glb` — the device models listed above. `macbook.glb` carries
   the MacBook and the iMac in sibling scenes, so the two share one download.
+  `iphone-17-pro-max.glb` is no longer referenced: it is the same phone as
+  `iphone-5.glb` without the orange back panel, and with a stray full-height
+  mesh that had to be hidden. Kept in case it is wanted again; delete it to
+  save 5MB from every deploy.
 
 Model provenance is not recorded anywhere in the repo. If these came from a
 source with attribution or licensing terms, that belongs here before the site is

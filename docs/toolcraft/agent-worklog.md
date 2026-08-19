@@ -35,7 +35,7 @@ The quoted evidence must be an exact nontrivial raw substring of `Request` with 
 
 - Request: Rebuild the 3D mockup application at `3d-mockup-project` using Toolcraft, supporting all five bundled device models through a device picker, porting and adapting the existing implementation rather than re-authoring it.
 - Task type: Reference app port, schema and controls, custom renderer, canvas output, image export, acceptance, and performance.
-- User-visible result: A screenshot dropped into the panel appears on the selected device's display. Six devices are selectable (iPhone 17 Pro Max, iPhone 17 Pro Max in orange, MacBook, iMac, Studio Display, Apple Watch Ultra); each loads its own model, reframes the camera around its own bounds, and keeps the screenshot on its own screen. Fit mode, scale, position and stretch place the image inside the display. Four captured studio environments relight the scene, focal length changes perspective, dragging the device rotates it while dragging the background pans, the ground plane can be turned off, and Export PNG downloads the framed result.
+- User-visible result: A screenshot dropped into the panel appears on the selected device's display. Five devices are selectable (iPhone 17 Pro Max, MacBook, iMac, Studio Display, Apple Watch Ultra); each loads its own model, reframes the camera around its own bounds, and keeps the screenshot on its own screen. Fit mode, scale, position and stretch place the image inside the display. Four captured studio environments relight the scene, focal length changes perspective, dragging the device rotates it while dragging the background pans, the ground plane can be turned off, and Export PNG downloads the framed result.
 - Source/reference checked: `https://github.com/ibrahimweng/3d-mockup-project` at commit c2b67e6, cloned and run locally. Read `src/app/app-schema.ts`, `app-composition.tsx`, `product-domain.ts`, `preview.tsx`, `export-renderer.ts`, `artwork-store.ts` and all of `src/app/render`. Inspected every GLB in `public/models` with `@gltf-transform` to record its scenes, emissive display material and screen geometry. The deployed build at `3d-mockup-project-main.vercel.app` is unreachable from this environment because the network policy denies `vercel.app`, so the repository at that commit is the reference.
 - Reference inputs: None. The reference is a running application and its source, not a motion recording, so `referenceInputs` is the empty no-reference fast path.
 - Docs/contracts read: `workflow.md`, `core/reference-study.md`, `core/runtime-boundary.md`, `assembly-workflow.md`, `core/control-selection.md`, `core/layout.md`, `core/performance.md`, `core/setup-export.md`, `core/media-upload.md`, `schema-reference.md`, `decision-contract.md`, `component-rules.md`, `renderer-technique.md`, and `performance.md`.
@@ -131,6 +131,18 @@ The quoted evidence must be an exact nontrivial raw substring of `Request` with 
 - Reason: Asked to "check the imac". No iMac was selectable, but one is modelled in a scene the app never loaded, so the model was there and only the catalog entry was missing. It costs no new asset and no new code — the two devices share one download and the second is served from the model cache.
 - Evidence: The `imac` entry in `src/app/product-domain.ts`. Its yaw was measured rather than guessed: the display's world normal points along +X where the camera looks down +Z, hence `yawDegrees: -90`. Driving all six devices in Chromium fetches five GLBs, because the iMac hits the MacBook's.
 
+### Printed panels
+
+- Decision: `repaintedMaterials` names body materials whose base texture a colourway sets aside, so the colour lands flat; Natural puts the texture back.
+- Reason: The phone's back panel carries its orange in a base-colour texture, and a colourway writes base colour alone, which multiplies. Painting the panel silver therefore produced a paler orange rather than silver, leaving one orange card on an otherwise repainted phone. Tinting is still right where the texture is neutral — the Studio Display's brushed aluminium keeps its grain — so this is opt-in per material rather than a change to how finishes work.
+- Evidence: `PHONE_PRINTED_PANELS` in `src/app/product-domain.ts` and the `repainted` branch of `applyFinish`. The two materials were found by measuring texture means rather than base colours, which is why an earlier sweep for red base colours missed them: one of them, `SMUhrjUPCjJkPUK`, differs from a material already in the list only by a `.001` suffix.
+
+### Pointer model
+
+- Decision: A plain primary drag rotates the device wherever it starts, the display still claims that drag for the design, and the middle button moves the board.
+- Reason: Requiring the pointer to find the object before it can rotate is what makes a 3D viewer feel fiddly, and the space beside the device is the natural place to grab. Panning is a view action, so it moves to the view button; two fingers already pan, because a trackpad swipe arrives as a wheel event the runtime turns into a canvas offset.
+- Evidence: `claimsOrbit` in `src/app/view-orbit.ts`, `src/app/view-pan.ts`, and the priority chain in `src/app/preview.tsx`. Driven in Chromium: a primary drag on empty canvas turns the phone from front to profile, a middle drag moves the board without changing the pose, and a primary drag on the display still moves the design with the device held still.
+
 ## Verification
 
 - `npm run typecheck` passes.
@@ -141,5 +153,5 @@ The quoted evidence must be an exact nontrivial raw substring of `Request` with 
 ## Risks
 
 - Risk: `macstudio.glb` was 96MB; its three 4096-square PNGs were re-encoded as 2048 JPEG to bring it to 21MB, verified as visually identical. Parsed models and convolved environments are now cached for the life of the page, so each is paid for once — returning to a device already seen issues no request at all.
-- Risk: `iphone-5.glb` contains the same phone geometry as `iphone-17-pro-max.glb`, so those two device options render nearly the same object.
+- Risk: `iphone-17-pro-max.glb` is no longer referenced by the catalog, because it and `iphone-5.glb` hold the same phone and only one is worth offering. It still ships in `public/`, so it costs 5MB of every deploy until it is deleted.
 - Risk: `src/app/render/device-scene.ts` imports `GLTFLoader` and `RGBELoader`, which the product boundary checker rejects. The reference app has the same violation, and the runtime's sanctioned alternative — a model `fileDrop` with runtime presentation — cannot express bundled device geometry or HDR environments.

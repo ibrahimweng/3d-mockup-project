@@ -7,24 +7,24 @@ import {
 } from "@/toolcraft/runtime/react";
 
 /**
- * Blender-style turntable orbit, from anywhere on the canvas.
+ * Turntable orbit, from anywhere on the canvas.
  *
  * The runtime's own model orbit claims a plain primary drag that lands on the
  * device, which is right for grabbing the object but leaves nothing to grab
- * when the screen owns that drag and the body is a thin rail. A 3D tool solves
- * this with a dedicated orbit button rather than a mode, so this adds the two
- * bindings people already have in their hands:
+ * when the screen owns that drag and the body is a thin rail. Dragging the
+ * space beside the phone is the natural way to swing it round, and requiring
+ * the pointer to find the object first is the thing that makes a 3D viewer
+ * feel fiddly.
  *
- * - middle-drag anywhere, as in Blender;
- * - Alt with a primary drag, for trackpads and mice without a middle button.
+ * So a plain primary drag rotates wherever it starts. The one exception is the
+ * display, which the design drag claims ahead of this so a screenshot can be
+ * pushed around its own screen; the priority chain in `preview.tsx` is what
+ * enforces that order. Moving the view rather than the object is the middle
+ * button's job, and two fingers on a trackpad already pan through the
+ * runtime's own wheel handling.
  *
- * Neither collides with what already exists: the runtime declines modified and
- * non-primary presses, and the design drag only claims a plain primary press on
- * a display.
- *
- * The rotation matches the runtime's own: horizontal movement turns around
- * world up, vertical movement turns around the screen-horizontal axis, at 0.4
- * degrees per CSS pixel.
+ * Horizontal movement turns around world up, vertical movement turns around
+ * the screen-horizontal axis, at 0.4 degrees per CSS pixel.
  */
 
 const TARGET = "camera.orbit";
@@ -43,10 +43,20 @@ export type ViewOrbitHandlers = {
   onPointerUp: (event: React.PointerEvent<HTMLCanvasElement>) => boolean;
 };
 
+/**
+ * A plain primary press, unmodified.
+ *
+ * Modifier combinations are left alone so the browser's and the runtime's own
+ * shortcuts keep working, and the middle button is left to the pan.
+ */
 function claimsOrbit(event: React.PointerEvent<HTMLCanvasElement>): boolean {
-  const middleButton = event.button === 1;
-  const altPrimary = event.button === 0 && event.altKey;
-  return middleButton || altPrimary;
+  return (
+    event.button === 0 &&
+    !event.altKey &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    !event.shiftKey
+  );
 }
 
 /**

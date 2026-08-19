@@ -347,14 +347,18 @@ function applyMaterialCorrections(
 }
 
 /**
- * The colour every material carries once corrections are in and before any
+ * What every material looks like once corrections are in and before any
  * colourway is chosen — in other words, what Natural means for this model.
  *
  * A finish is applied to the scene on screen rather than by rebuilding it, so
  * without somewhere to return to, leaving a colourway would leave its paint
  * behind and Natural would be reachable only by reloading the device.
+ *
+ * The base-colour texture is kept alongside the colour because a colourway can
+ * set it aside — see `repaintedMaterials` — and Natural has to put it back.
  */
-type BaseColors = Map<THREE.MeshStandardMaterial, THREE.Color>;
+type BaseAppearance = { color: THREE.Color; map: THREE.Texture | null };
+type BaseColors = Map<THREE.MeshStandardMaterial, BaseAppearance>;
 
 function standardMaterials(root: THREE.Object3D): THREE.MeshStandardMaterial[] {
   const seen = new Set<THREE.MeshStandardMaterial>();
@@ -373,7 +377,7 @@ function standardMaterials(root: THREE.Object3D): THREE.MeshStandardMaterial[] {
 function captureBaseColors(root: THREE.Object3D): BaseColors {
   const colors: BaseColors = new Map();
   for (const material of standardMaterials(root)) {
-    colors.set(material, material.color.clone());
+    colors.set(material, { color: material.color.clone(), map: material.map });
   }
   return colors;
 }
@@ -396,6 +400,7 @@ function applyFinish(
 ): void {
   const colorway = device.finishes?.[finish];
   const body = new Set(device.bodyMaterials ?? []);
+  const repainted = new Set(device.repaintedMaterials ?? []);
   const accents = colorway?.accents ?? {};
 
   for (const [material, base] of baseColors) {
@@ -404,7 +409,14 @@ function applyFinish(
       accents[material.name] ??
       (colorway && body.has(material.name) ? colorway.body : null);
     if (hex) material.color.set(hex);
-    else material.color.copy(base);
+    else material.color.copy(base.color);
+
+    // A painted material whose own colour lives in its texture has to lose the
+    // texture, or the paint only tints it. Natural restores it, which is why
+    // the map was captured rather than discarded.
+    if (repainted.has(material.name)) {
+      material.map = hex ? null : base.map;
+    }
     material.needsUpdate = true;
   }
 }
