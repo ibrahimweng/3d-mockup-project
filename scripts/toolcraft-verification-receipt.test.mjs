@@ -23,11 +23,6 @@ import {
   createToolcraftFunctionalProofModelHash,
 } from "./toolcraft-functional-proof-model.mjs";
 import {
-  createDeliveryFixture,
-  functionalTestName,
-  removeDeliveryFixture,
-} from "./run-delivery-verification-test-helpers.mjs";
-import {
   collectToolcraftVerificationInputs,
 } from "./toolcraft-verification-receipt.mjs";
 import * as receiptModule from "./toolcraft-verification-receipt.mjs";
@@ -87,7 +82,11 @@ function createInitialReceipt(inventory) {
     steps: [
       { kind: "docs" },
       { kind: "code-health" },
-      { files: ["src/app/app-schema.test.ts"], kind: "product-tests" },
+      {
+        acceptanceIds: null,
+        files: ["src/app/app-schema.test.ts"],
+        kind: "product-tests",
+      },
       { kind: "build" },
       {
         kind: "browser-functional",
@@ -299,86 +298,6 @@ test("does not expose a reusable passed-checkpoint writer", () => {
   assert.equal("writeToolcraftPerformanceReceipt" in receiptModule, false);
 });
 
-test("current impact validation requires every runtime module and resource owner", async (t) => {
-  const rootDir = createDeliveryFixture();
-  t.after(() => removeDeliveryFixture(rootDir));
-  const appRoot = path.join(rootDir, "src", "app");
-  await fs.writeFile(
-    path.join(appRoot, "app-composition.tsx"),
-    "import '../app.ts'; import './renderer.ts'; export const composition = true;\n",
-  );
-  await fs.writeFile(
-    path.join(appRoot, "app-schema.ts"),
-    "export { schema } from './schema.ts';\n",
-  );
-  await fs.writeFile(
-    path.join(appRoot, "app-acceptance-data.ts"),
-    "export const acceptance = true;\n",
-  );
-  await fs.writeFile(
-    path.join(appRoot, "app-performance.ts"),
-    "export const performance = true;\n",
-  );
-  await fs.mkdir(path.join(rootDir, "public"), { recursive: true });
-  await fs.writeFile(
-    path.join(rootDir, "public", "product-pulse.svg"),
-    "<svg xmlns=\"http://www.w3.org/2000/svg\"/>\n",
-  );
-  await fs.writeFile(
-    path.join(rootDir, "public", "unowned-texture.svg"),
-    "<svg xmlns=\"http://www.w3.org/2000/svg\"/>\n",
-  );
-  await fs.writeFile(
-    path.join(rootDir, "src", "app", "app-verification-impact.json"),
-    `${JSON.stringify({
-      owners: [
-        "src/app.ts",
-        "src/app/app-composition.tsx",
-        "src/app/app-schema.ts",
-        "src/app/renderer.ts",
-        "src/app/schema.ts",
-        "public/product-pulse.svg",
-        "public/unowned-texture.svg",
-      ].map((ownerPath) => ({
-        acceptanceIds: ["persistence.reload"],
-        kind: ownerPath.startsWith("public/")
-          ? "presentation"
-          : "functional",
-        path: ownerPath,
-      })),
-      version: 3,
-    })}\n`,
-  );
-  const loaded =
-    await receiptModule.validateToolcraftCurrentPerformanceImpactInventory({
-      catalog: {
-        acceptance: [{
-          acceptanceId: "persistence.reload",
-          contractHash: "a".repeat(64),
-          domainId: "persistence",
-          file: "app-controls.spec.ts",
-          testName: functionalTestName,
-        }],
-        performance: [],
-        version: 2,
-      },
-      rootDir,
-    });
-
-  assert.equal(
-    loaded.inventory.owners.some(
-      ({ path: ownerPath }) => ownerPath === "public/product-pulse.svg",
-    ),
-    true,
-  );
-  assert.equal(
-    loaded.inventory.owners.some(
-      ({ path: ownerPath }) => ownerPath === "public/unowned-texture.svg",
-    ),
-    true,
-  );
-});
-
 test("full performance recovery points only to the operator command", async (t) => {
   const rootDir = await createReceiptFixture();
   t.after(() => fs.rm(rootDir, { force: true, recursive: true }));
@@ -388,7 +307,7 @@ test("full performance recovery points only to the operator command", async (t) 
     missing: true,
   });
   assert.deepEqual(await receiptModule.validateToolcraftPerformanceReceipt({ rootDir }), [
-    `Toolcraft performance receipt is missing. An operator must run ${TOOLCRAFT_FULL_PERFORMANCE_VERIFICATION_COMMAND} to create a full checkpoint before targeted iteration evidence can be recorded.`,
+    `Toolcraft performance receipt is missing. An operator must run ${TOOLCRAFT_FULL_PERFORMANCE_VERIFICATION_COMMAND} to create a full checkpoint.`,
   ]);
 });
 

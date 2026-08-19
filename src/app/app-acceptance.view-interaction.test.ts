@@ -20,6 +20,7 @@ const defaultPose = {
 const noAnimation: ToolcraftTransferMode = {
   animationIntent: { mode: "none" },
   mode: "new-toolcraft-app",
+  referenceInputs: [],
 };
 
 const timelineAnimation: ToolcraftTransferMode = {
@@ -32,6 +33,7 @@ const timelineAnimation: ToolcraftTransferMode = {
     mode: "timeline-playback",
   },
   mode: "new-toolcraft-app",
+  referenceInputs: [],
 };
 
 function createProductReadiness(
@@ -40,6 +42,7 @@ function createProductReadiness(
   return {
     exportIntent: {
       image: { mode: "toolcraft-default" },
+      svg: { mode: "not-requested" },
       video: { mode: "not-requested" },
     },
     interactionOwnership: [],
@@ -117,6 +120,7 @@ describe("Toolcraft spatial view interaction intent", () => {
     const productReadiness = {
       exportIntent: {
         image: { mode: "toolcraft-default" },
+        svg: { mode: "not-requested" },
         video: { mode: "not-requested" },
       },
       mode: "product",

@@ -19,6 +19,7 @@ describe("starter acceptance custom reference timeline contract", () => {
         transferMode: {
           behaviorCoverage: ["canvas-sizing", "control-mapping", "renderer-state"],
           mode: "reference-runtime-clone",
+          referenceInputs: [],
           referenceName: "legacy state timeline",
           referenceTimeline: {
             behaviorCoverage: ["state-jump", "trim-range"],
@@ -117,6 +118,7 @@ describe("starter acceptance custom reference timeline contract", () => {
         transferMode: {
           behaviorCoverage: ["canvas-sizing", "control-mapping", "renderer-state"],
           mode: "reference-runtime-clone",
+          referenceInputs: [],
           referenceFeatureInventory: makeReferenceFeatureInventory([
             {
               acceptanceId: "reference.timeline.stateJump",

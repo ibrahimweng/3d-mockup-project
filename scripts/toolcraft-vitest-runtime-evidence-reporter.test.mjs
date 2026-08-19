@@ -5,8 +5,10 @@ import path from "node:path";
 import test from "node:test";
 
 import {
+  TOOLCRAFT_VITEST_RUNTIME_ACCEPTANCE_SELECTION_ENV,
   TOOLCRAFT_VITEST_RUNTIME_MARKER_TEST_NAME,
   TOOLCRAFT_VITEST_RUNTIME_REQUIREMENTS_ANNOTATION_TYPE,
+  serializeToolcraftVitestRuntimeAcceptanceSelection,
   serializeToolcraftVitestRuntimeRequirements,
 } from "./toolcraft-vitest-runtime-contract.mjs";
 import ToolcraftVitestRuntimeEvidenceReporter, {
@@ -115,4 +117,112 @@ test("validates generated-app requirements from actual runner tasks", async (con
   await new ToolcraftVitestRuntimeEvidenceReporter().onTestRunEnd([
     createTestModule([marker, productTest]),
   ]);
+
+  const unrelatedRequirement = {
+    kind: "acceptance",
+    requirementId: "material.host",
+    testName: "keeps the baseline material extension inactive",
+  };
+  const targetedMarker = createTestTask({
+    annotations: [
+      {
+        message: serializeToolcraftVitestRuntimeRequirements([
+          requirement,
+          unrelatedRequirement,
+        ]),
+        type: TOOLCRAFT_VITEST_RUNTIME_REQUIREMENTS_ANNOTATION_TYPE,
+      },
+    ],
+    filePath: markerPath,
+    name: TOOLCRAFT_VITEST_RUNTIME_MARKER_TEST_NAME,
+  });
+  const previousSelection =
+    process.env[TOOLCRAFT_VITEST_RUNTIME_ACCEPTANCE_SELECTION_ENV];
+  context.after(() => {
+    if (previousSelection === undefined) {
+      delete process.env[TOOLCRAFT_VITEST_RUNTIME_ACCEPTANCE_SELECTION_ENV];
+    } else {
+      process.env[TOOLCRAFT_VITEST_RUNTIME_ACCEPTANCE_SELECTION_ENV] =
+        previousSelection;
+    }
+  });
+  delete process.env[TOOLCRAFT_VITEST_RUNTIME_ACCEPTANCE_SELECTION_ENV];
+  await assert.rejects(
+    new ToolcraftVitestRuntimeEvidenceReporter().onTestRunEnd([
+      createTestModule([targetedMarker, productTest]),
+    ]),
+    /Missing required automated test.*baseline material extension/iu,
+  );
+  process.env[TOOLCRAFT_VITEST_RUNTIME_ACCEPTANCE_SELECTION_ENV] =
+    serializeToolcraftVitestRuntimeAcceptanceSelection([
+      "appearance.opacity",
+    ]);
+
+  await new ToolcraftVitestRuntimeEvidenceReporter().onTestRunEnd([
+    createTestModule([targetedMarker, productTest]),
+  ]);
+
+  const sharedTestMarker = createTestTask({
+    annotations: [
+      {
+        message: serializeToolcraftVitestRuntimeRequirements([
+          requirement,
+          { ...unrelatedRequirement, testName: requirement.testName },
+        ]),
+        type: TOOLCRAFT_VITEST_RUNTIME_REQUIREMENTS_ANNOTATION_TYPE,
+      },
+    ],
+    filePath: markerPath,
+    name: TOOLCRAFT_VITEST_RUNTIME_MARKER_TEST_NAME,
+  });
+  process.env[TOOLCRAFT_VITEST_RUNTIME_ACCEPTANCE_SELECTION_ENV] =
+    serializeToolcraftVitestRuntimeAcceptanceSelection([
+      "appearance.opacity",
+      "material.host",
+    ]);
+  await new ToolcraftVitestRuntimeEvidenceReporter().onTestRunEnd([
+    createTestModule([sharedTestMarker, productTest]),
+  ]);
+
+  process.env[TOOLCRAFT_VITEST_RUNTIME_ACCEPTANCE_SELECTION_ENV] =
+    serializeToolcraftVitestRuntimeAcceptanceSelection([
+      "reference.flash-events",
+    ]);
+  await assert.rejects(
+    new ToolcraftVitestRuntimeEvidenceReporter().onTestRunEnd([
+      createTestModule([targetedMarker, productTest]),
+    ]),
+    /unknown acceptance requirement.*reference\.flash-events/iu,
+  );
+});
+
+test("full runtime evidence cannot pass with zero published requirements", async () => {
+  const marker = createTestTask({
+    annotations: [
+      {
+        message: serializeToolcraftVitestRuntimeRequirements([]),
+        type: TOOLCRAFT_VITEST_RUNTIME_REQUIREMENTS_ANNOTATION_TYPE,
+      },
+    ],
+    filePath: "/workspace/src/app/app-automated-runtime-evidence.test.ts",
+    name: TOOLCRAFT_VITEST_RUNTIME_MARKER_TEST_NAME,
+  });
+  const previousSelection =
+    process.env[TOOLCRAFT_VITEST_RUNTIME_ACCEPTANCE_SELECTION_ENV];
+  delete process.env[TOOLCRAFT_VITEST_RUNTIME_ACCEPTANCE_SELECTION_ENV];
+  try {
+    await assert.rejects(
+      new ToolcraftVitestRuntimeEvidenceReporter().onTestRunEnd([
+        createTestModule([marker]),
+      ]),
+      /at least one runtime requirement/iu,
+    );
+  } finally {
+    if (previousSelection === undefined) {
+      delete process.env[TOOLCRAFT_VITEST_RUNTIME_ACCEPTANCE_SELECTION_ENV];
+    } else {
+      process.env[TOOLCRAFT_VITEST_RUNTIME_ACCEPTANCE_SELECTION_ENV] =
+        previousSelection;
+    }
+  }
 });

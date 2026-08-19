@@ -196,7 +196,8 @@ describe("starter acceptance layers contract", () => {
       }),
     ).toEqual(
       expect.arrayContaining([
-        'Layer / opacity (selectedLayer.opacity) targets selectedLayer.* and must have acceptance layerCoverage "selected-layer-controls" proving the control edits the currently selected layer output.',
+        'selectedLayer.opacity must declare selectionScopeCoverage "two-entity-isolation" proving edits stay on the selected entity.',
+        'selectedLayer.opacity targets selectedLayer.* and must declare layerCoverage "selected-layer-controls" together with two-entity isolation.',
       ]),
     );
   });

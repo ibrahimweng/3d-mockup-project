@@ -1,7 +1,6 @@
 import type {
   ToolcraftDeliveryCatalog,
-  ToolcraftVerificationImpact,
-} from "./toolcraft-verification-impact.d.mts";
+} from "./playwright-test-title-selection.mjs";
 import type {
   ToolcraftTargetedPerformanceComparisonHash,
   ToolcraftTargetedPerformanceReport,
@@ -31,13 +30,13 @@ export type ToolcraftDeliveryLifecycleState = Readonly<{
 }>;
 
 export type ToolcraftFunctionalProofStep =
-  | Readonly<{
-      kind: "dependencies";
-      packageManager: ToolcraftPackageManager;
-    }>
   | Readonly<{ kind: "docs" }>
   | Readonly<{ kind: "code-health" }>
-  | Readonly<{ kind: "product-tests"; files: readonly string[] }>
+  | Readonly<{
+      acceptanceIds: null;
+      files: readonly string[];
+      kind: "product-tests";
+    }>
   | Readonly<{ kind: "build" }>
   | Readonly<{
       kind: "browser-functional";
@@ -67,19 +66,14 @@ export type ToolcraftInitialDeliveryBasis = Readonly<{
   kind: "initial";
 }>;
 
-export type ToolcraftChangedDeliveryBasis = Readonly<{
-  kind: "changed";
-  comparisonFunctionalProofModelHash: string;
-  comparisonInventory: ToolcraftVerificationInventory;
-  changedFiles: readonly string[];
+export type ToolcraftPerformanceRequestBasis = Readonly<{
+  initialFunctionalProofModelHash: string;
+  initialSourceHash: string;
+  kind: "performance-request";
 }>;
 
-export type ToolcraftDeliveryBasis =
-  | ToolcraftInitialDeliveryBasis
-  | ToolcraftChangedDeliveryBasis;
-
 export type FunctionalDeliveryPlan = Readonly<{
-  basis: ToolcraftDeliveryBasis;
+  basis: ToolcraftInitialDeliveryBasis;
   functionalProofModelHash: string;
   kind: "functional";
   lifecycle: ToolcraftDeliveryLifecycleState;
@@ -89,7 +83,7 @@ export type FunctionalDeliveryPlan = Readonly<{
 }>;
 
 export type PerformanceIterationPlan = Readonly<{
-  basis: ToolcraftChangedDeliveryBasis;
+  basis: ToolcraftPerformanceRequestBasis;
   functionalProofModelHash: string;
   kind: "performance-iteration";
   lifecycle: ToolcraftDeliveryLifecycleState;
@@ -98,7 +92,7 @@ export type PerformanceIterationPlan = Readonly<{
   requestAuthorityHash: string;
   performanceComparison: ToolcraftDeliveryPerformanceComparison;
   steps: readonly [
-    ...ToolcraftFunctionalProofStep[],
+    Readonly<{ kind: "build" }>,
     ToolcraftBrowserPerformanceProofStep,
   ];
 }>;
@@ -111,20 +105,14 @@ export type ToolcraftDeliveryPlanningInputs = Readonly<{
   allProductTestFiles: readonly string[];
   authority: ToolcraftPerformanceRequestAuthority | null;
   catalog: ToolcraftDeliveryCatalog;
-  changeSet: Readonly<{
-    dependencyChanged: boolean;
-    docsChanged: boolean;
-    frameworkChanged: boolean;
-    impact: ToolcraftVerificationImpact | null;
-    platformChanged: boolean;
-    productInputsChanged: boolean;
-  }>;
-  comparisonInventory: ToolcraftVerificationInventory | null;
   currentFunctionalProofModel: ToolcraftFunctionalProofModel;
   currentInventory: ToolcraftVerificationInventory;
+  initialProof: Readonly<{
+    functionalProofModelHash: string;
+    sourceHash: string;
+  }> | null;
   integrity: Readonly<{ manifestHash: string; sourceHash: string }>;
   packageManager: ToolcraftPackageManager;
-  previousFunctionalProofModel: ToolcraftFunctionalProofModel | null;
   previousLifecycle: ToolcraftDeliveryLifecycleState;
   previousPerformance:
     | Readonly<{ kind: "none" }>
@@ -136,7 +124,7 @@ export type ToolcraftDeliveryPlanningInputs = Readonly<{
       }>;
 }>;
 
-export const TOOLCRAFT_DELIVERY_PLAN_VERSION: 4;
+export const TOOLCRAFT_DELIVERY_PLAN_VERSION: 6;
 
 export function createToolcraftDeliveryPlan(
   inputs: ToolcraftDeliveryPlanningInputs,
@@ -152,4 +140,4 @@ export function createToolcraftDeliveryPlanHash(
 
 export function getToolcraftDeliveryDiagnosticTier(
   plan: ToolcraftDeliveryPlan,
-): 0 | 1 | 2 | 3 | 4;
+): 3 | 4;

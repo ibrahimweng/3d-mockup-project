@@ -9,7 +9,6 @@ Every visible product entity must prove it works. A control is not accepted beca
 - `src/app/app-acceptance-data.ts`
 - app-specific tests under `src/app` outside the reserved `app-acceptance.*` framework namespace
 - `src/app/app-performance.ts`
-- `src/app/app-verification-impact.json` (presentation, functional, and performance ownership with nearest acceptance ids and exact performance pass ids)
 - `src/app/app-performance.test.ts`
 - `docs/toolcraft/agent-worklog.md`
 - `e2e/app-browser-acceptance.spec.ts`
@@ -18,7 +17,7 @@ Every visible product entity must prove it works. A control is not accepted beca
 - `e2e/app-kernel-benchmarks.ts`
 - `e2e/product-observable-helpers.ts`
 
-Use focused checks during edits. First delivery and later delivery run bare `npm run verify:delivery` per `workflow.md`. Performance complaint authority adds an iteration; explicit full audit authority permits `npm run verify:perf`.
+First delivery runs bare `npm run verify:delivery` once. Later edits run an exact unit/component test and `npm run test:feature -- <acceptance-id>`: finite selectors expand to affected acceptance peers, while leaf IDs stay one browser scenario. Use `npm run test:feature -- --all` only for a cross-cutting edit; it still runs product acceptance only. Repeated delivery is a protected no-op. Performance complaint authority adds one targeted iteration; explicit full-audit authority permits `npm run verify:perf`.
 
 ## Product Readiness
 
@@ -30,7 +29,7 @@ The exported starter may keep `appProductReadiness.mode: "starter"` only while i
 - required `exportIntent`;
 - `viewInteraction`.
 
-`productReadiness.exportIntent` is the typed authority for artifact delivery. Acceptance, schema actions, and export settings must correspond exactly to its resolved image and video capabilities. The evidence-bearing modes and decision sequence live in `core/setup-export.md`; do not infer export intent from animation or timeline state.
+`productReadiness.exportIntent` owns artifact delivery. Acceptance, actions, and applicable settings must match its image, SVG, and video capabilities. SVG has no settings section and means self-contained editable vectors. See `core/setup-export.md`; never infer intent from renderer technology, animation, or timeline state.
 
 `viewInteraction` classifies the product as `non-spatial`, `orbit`,
 `fixed-camera`, or `timeline-camera`. Editable spatial scenes default to orbit;
@@ -40,7 +39,7 @@ Product readiness also requires product surface: controls, layers, timeline, `ca
 
 ## Implementation Worklog
 
-Product apps must update `docs/toolcraft/agent-worklog.md` before final delivery. The file records why the app chose its renderer, view interaction mode, timeline mode, layer policy, control grouping, export behavior, and performance strategy.
+Product apps must update `docs/toolcraft/agent-worklog.md` before first delivery and when later decisions materially change. The file records why the app chose its renderer, view interaction mode, timeline mode, layer policy, control grouping, export behavior, and performance strategy.
 
 The worklog must declare `Mode: product`. Every `Decision Trail` records human intent: `Request:`, `Task type:`, `User-visible result:`, `Source/reference checked:`, `Reference inputs:`, `Docs/contracts read:`, `Contract rules applied:`, `View interaction intent:`, `Interaction ownership:`, `Decision:`, `Alternatives rejected:`, `State/output mapping:`, `Performance intent:`, bare-delivery `Verification:`, and `Risks:`. Steering within one request stays in that batch. `Reference inputs:` lists every prompt/reference asset or `None`; `State/output mapping:` connects state to visible output or export.
 
@@ -81,9 +80,9 @@ Protected Vitest and Playwright reporters evaluate passed runner results plus ma
 
 The `e2e/app-browser-*` prefix is reserved for signed framework specs.
 
-## Semantic Proof Ownership
+## Proof Boundaries
 
-Every runtime production module/resource has a direct owner in `src/app/app-verification-impact.json`; proof and test paths cannot own them. Each browser file owns one acceptance domain (the first ID segment). Later delivery compares semantic models and selects changed contracts, owners/domains, and product-unit tests—not filenames or reverse imports. Additive owner deltas select only new IDs; other deltas retain affected IDs.
+First delivery proves the complete acceptance catalog. Later ordinary edits do not derive an aggregate proof model or infer from changed files: run the exact product test, then pass its acceptance ID to `test:feature`. Semantic closure reuses current applicability cases; the existing reporter still requires each selected branch, layout, and product outcome. Invalid IDs, titles, or plans fail before browser startup. The development server tests current source instead of stale build output. A repeated bare `verify:delivery` neither discovers nor runs these checks.
 
 Classifier output establishes complaint authority only; unresolved localization creates no intent/path regardless of result. Only localized/clarified work starts an iteration.
 
@@ -91,7 +90,7 @@ Contract docs are signed except product-owned `agent-worklog.md` and optional `w
 
 Framework meta-tests are product-invariant: their synthetic validator cases use protected neutral contract fixtures, never the editable app schema, product acceptance rows, transfer intent, or section inventory. Put exact product targets, defaults, option values, and product-specific expectations in separate app-owned tests. The product gates still read `app-schema.ts`, `app-acceptance-data.ts`, product test names, worklog evidence, and browser scenarios dynamically.
 
-The same ownership split applies to performance: edit `app-performance.ts`, `app-verification-impact.json`, product performance path adapters, and the kernel candidate harness when assessment requires it. Do not edit supplied `app-performance.*` meta-tests, protected reporters, receipt writers, or `app-performance-test-utils.ts`; they validate product inputs and own execution evidence.
+For performance work, edit `app-performance.ts`, product performance path adapters, and the kernel candidate harness when assessment requires it. Do not edit supplied `app-performance.*` meta-tests, protected reporters, receipt writers, or `app-performance-test-utils.ts`; they validate product inputs and own execution evidence.
 
 Slider and range slider rows must prove live behavior. Browser tests should drag the real thumb and assert the runtime value and product-level canvas observable update during the drag, not only after pointer release, blur, an Apply action, or a final commit. Performance-sensitive sliders still need this live acceptance; jank is handled through renderer optimization and targeted performance coverage, not by making the slider deferred by default.
 
@@ -179,7 +178,7 @@ High-confidence wrong-substitution cases:
 
 ## Interaction Ownership Evidence
 
-Product readiness declares `interactionOwnership`. Canvas handles, custom interactions, and panel controls sharing a canvas target bind `interactionId`. Acceptance rejects one id on both surfaces, renamed copies of the same target/capability, bad links, or choices lacking evidence and an alternate-surface reason. Distinct capabilities may share state across surfaces and are proved separately.
+`interactionOwnership` gives each operation one surface; linked canvas/panel operations must be complementary, not renamed copies. Property edits declare global or selected `selectionScope`; selected properties name a selection owner and `selectionScopeCoverage: "two-entity-isolation"`. Protected Canvas/Panel pixels prove selection is inert, editing A changes only A, editing B changes only B, and the control rebinds. `selectedLayer.*` reuses this recipe; whole-canvas/signature/direct-command proof is invalid.
 
 `fileDrop` rows prove upload/admission, clear/remove, reset/default restoration, and binary/model lifecycle. Without Layers ownership they also prove image rotate/flip and `multiple` reorder. With `panels.layers` and typed media-management ownership, omit those claims from `fileDrop`: runtime `layerCoverage: "reorder"` and `"selected-layer-controls"` rows prove order and selected-transform output. Clear-only proof is invalid; Reset restores defaults or removes uploaded media.
 
@@ -203,7 +202,7 @@ Custom controls cannot be justified by icons, layout, styling, compactness, or c
 Valid acceptance evidence includes:
 
 - rendered product pixels;
-- exported image/video bytes;
+- exported image/SVG/video bytes;
 - canvas hash or DOM-visible product result;
 - clipboard, file, or blob payload;
 - cleared media preview and canvas;
@@ -212,7 +211,7 @@ Valid acceptance evidence includes:
 - changed timeline playback state plus rendered frame.
 - restored persisted value or product output after browser reload.
 
-Product apps include artifact acceptance only for the delivery enabled by `productReadiness.exportIntent`. Image-only products prove complete image coverage; image-plus-video products prove both; video-only products prove complete video coverage; explicit no-export products have no image/video artifact rows. Timeline playback, keyframes, or animation never add video acceptance. Clipboard copy can be tested as an additional behavior, but it cannot substitute for the recorded artifact intent.
+Artifact acceptance follows `productReadiness.exportIntent`. Image/video use complete artifact coverage; requested SVG adds `all-required-svg-export-behavior` and protected exact-download vector proof. Explicit no-export products have no artifact rows. Renderer technology never adds SVG, and timeline behavior never adds video. Clipboard proof cannot replace recorded artifact intent.
 
 Export-content proof is distinct from export mechanics: content inspects selected artifact semantics; mechanics proves lifecycle, format, dimensions, transport, and errors. Neither substitutes.
 
@@ -268,16 +267,17 @@ Animated viewport tests must also prove that canvas drag, pan, pinch, zoom, and 
 
 ## Video References
 
-When a video, GIF, screen recording, contact sheet, or extracted-frame sequence is used as a reference, acceptance is driven by `appTransferMode.videoReferenceStudy`.
+When a video, GIF, screen recording, contact sheet, or extracted-frame sequence
+is used as a reference, acceptance is driven by typed
+`appTransferMode.referenceInputs`. Each authored behavior points to one
+observable acceptance row, and that row owns the exact reverse
+`motionReferenceCoverage` pair plus browser `reference-parity` evidence. The
+semantic validator requires complete phases and exactly one classification for
+every detected event. Follow `core/reference-study.md` for preprocessing,
+sampling, artifacts, timing, worklog records, and the no-reference fast path.
 
-- `storyboard` records timecoded frames with visible state and behavior observations;
-- `transitionAnalysis` records frame-to-frame deltas, not only isolated frame descriptions;
-- `behaviorDecomposition` states which observed behaviors must be copied;
-- `acceptanceMapping` maps each observed video behavior to a real acceptance row;
-- mapped acceptance rows must be automated, browser-backed, and observable in product output, timeline output, export output, or a real command side effect;
-- `agent-worklog.md` records Video Reference Study evidence when `Reference inputs`, `Source/reference checked`, or `Source reviewed` cites video, GIF, screen recording, contact sheet, or extracted frames.
-
-Do not accept a video reference implementation proved only by a single screenshot, a visual summary, generic canvas hashes, or static style checks.
+Do not accept a motion-reference implementation proved only by a single
+screenshot, a visual summary, generic canvas hashes, or static style checks.
 
 ## Reference Clone
 

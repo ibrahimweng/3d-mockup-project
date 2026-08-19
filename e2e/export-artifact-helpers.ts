@@ -43,9 +43,22 @@ export type ToolcraftVideoArtifactInspection = Readonly<{
   width: number;
 }>;
 
+export type ToolcraftSvgArtifactInspection = Readonly<{
+  backgroundColor: string | null;
+  byteLength: number;
+  contentHash: string;
+  height: number;
+  kind: "svg";
+  mediaType: "image/svg+xml";
+  vectorElementCount: number;
+  viewBox: readonly [number, number, number, number];
+  width: number;
+}>;
+
 export type ToolcraftExportArtifactInspection =
   | ToolcraftBinaryArtifactInspection
   | ToolcraftImageArtifactInspection
+  | ToolcraftSvgArtifactInspection
   | ToolcraftVideoArtifactInspection;
 
 export type ToolcraftExportArtifactInspectionResult =
@@ -244,6 +257,52 @@ function validateInspection(
     return;
   }
 
+  if (inspection.kind === "svg") {
+    assertPositiveInteger(inspection.width, "width", requirementId);
+    assertPositiveInteger(inspection.height, "height", requirementId);
+    assertPositiveInteger(
+      inspection.vectorElementCount,
+      "vectorElementCount",
+      requirementId,
+    );
+    if (inspection.mediaType !== "image/svg+xml") {
+      throw new Error(
+        `Export requirement "${requirementId}" must report SVG mediaType.`,
+      );
+    }
+    if (
+      inspection.backgroundColor !== null &&
+      (typeof inspection.backgroundColor !== "string" ||
+        !inspection.backgroundColor.trim())
+    ) {
+      throw new Error(
+        `Export requirement "${requirementId}" must report an SVG background color or null.`,
+      );
+    }
+    if (
+      typeof inspection.contentHash !== "string" ||
+      !inspection.contentHash.trim()
+    ) {
+      throw new Error(
+        `Export requirement "${requirementId}" must hash exact SVG bytes.`,
+      );
+    }
+    if (
+      !Array.isArray(inspection.viewBox) ||
+      inspection.viewBox.length !== 4 ||
+      inspection.viewBox.some(
+        (value) => typeof value !== "number" || !Number.isFinite(value),
+      ) ||
+      Number(inspection.viewBox[2]) <= 0 ||
+      Number(inspection.viewBox[3]) <= 0
+    ) {
+      throw new Error(
+        `Export requirement "${requirementId}" must report a finite positive SVG viewBox.`,
+      );
+    }
+    return;
+  }
+
   throw new Error(
     `Export requirement "${requirementId}" returned an unknown artifact inspection kind.`,
   );
@@ -279,6 +338,7 @@ export function getToolcraftSemanticArtifactSignature(
   validateToolcraftExportArtifactInspection(inspection, requirementId);
   if (inspection.kind === "image") {
     return JSON.stringify({
+      backgroundColor: inspection.backgroundColor,
       decodedPixelHash: inspection.decodedPixelHash,
       height: inspection.height,
       mediaType: inspection.mediaType,
@@ -294,6 +354,16 @@ export function getToolcraftSemanticArtifactSignature(
       mediaType: inspection.mediaType,
       packetTimings: inspection.packetTimings,
       samplePixelHashes: inspection.samplePixelHashes,
+      width: inspection.width,
+    });
+  }
+  if (inspection.kind === "svg") {
+    return JSON.stringify({
+      contentHash: inspection.contentHash,
+      height: inspection.height,
+      mediaType: inspection.mediaType,
+      vectorElementCount: inspection.vectorElementCount,
+      viewBox: inspection.viewBox,
       width: inspection.width,
     });
   }

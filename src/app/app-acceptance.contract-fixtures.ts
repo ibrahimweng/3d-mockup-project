@@ -73,6 +73,7 @@ export const contractSectionInventoryFixture: readonly ToolcraftControlSectionIn
 export const contractTransferModeFixture: ToolcraftTransferMode = {
   animationIntent: { mode: "none" },
   mode: "new-toolcraft-app",
+  referenceInputs: [],
 };
 
 export const contractProductReadinessFixture: ToolcraftProductReadiness = {

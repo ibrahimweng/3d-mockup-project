@@ -1,5 +1,6 @@
+import { DEFAULT_DEVICE, DEFAULT_FINISH } from "../product-domain";
+import type { ScreenTransform } from "./device-scene";
 import type { RasterSettings } from "./raster-renderer";
-import type { ScreenTransform } from "./iphone-scene";
 
 function vec(
   values: Record<string, unknown>,
@@ -14,6 +15,24 @@ function vec(
     x: Number.isFinite(raw.x) ? Number(raw.x) : 0.5,
     y: Number.isFinite(raw.y) ? Number(raw.y) : 0.5,
   };
+}
+
+function signedVec(
+  values: Record<string, unknown>,
+  key: string,
+): { x: number; y: number } {
+  const raw = vec(values, key);
+  return { x: (raw.x - 0.5) * 2, y: (raw.y - 0.5) * 2 };
+}
+
+function num(values: Record<string, unknown>, key: string, fallback: number) {
+  const value = Number(values[key]);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function str(values: Record<string, unknown>, key: string, fallback: string) {
+  const value = values[key];
+  return typeof value === "string" && value ? value : fallback;
 }
 
 /**
@@ -35,16 +54,6 @@ export function readScreenTransform(
   };
 }
 
-function num(values: Record<string, unknown>, key: string, fallback: number) {
-  const value = Number(values[key]);
-  return Number.isFinite(value) ? value : fallback;
-}
-
-function str(values: Record<string, unknown>, key: string, fallback: string) {
-  const value = values[key];
-  return typeof value === "string" && value ? value : fallback;
-}
-
 /**
  * Read runtime state into renderer settings.
  *
@@ -60,9 +69,20 @@ export function readRasterSettings(
 ): RasterSettings {
   return {
     backgroundColor: str(values, "scene.background", "#0d0d10"),
+    device: str(values, "device.model", DEFAULT_DEVICE),
     environment: str(values, "studio.environment", "studio-soft"),
     exposure: 100,
+    finish: str(values, "device.finish", DEFAULT_FINISH),
     focalLength: num(values, "camera.focalLength", 85),
+    lighting: {
+      environmentIntensity: num(values, "studio.intensity", 100) / 100,
+      fillIntensity: num(values, "light.fill", 30) / 100,
+      keyColor: str(values, "light.keyColor", "#FFFFFF"),
+      // The pad is 0..1 with 0.5 centred; the rig wants -1..1 with 0 straight on.
+      keyDirection: signedVec(values, "light.keyDirection"),
+      keyIntensity: num(values, "light.keyIntensity", 110) / 100,
+      rimIntensity: num(values, "light.rim", 0) / 100,
+    },
     showBackground: values["export.includeBackground"] !== false,
   };
 }

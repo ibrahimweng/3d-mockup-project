@@ -125,7 +125,7 @@ test("rejects a receipt whose file inventory does not produce its source hash", 
   await writeToolcraftCheckpointBundle({
     bundle: {
       ...loaded.bundle,
-      currentPerformance: { ...loaded.bundle.currentPerformance, files: [] },
+      performanceBaseline: { ...loaded.bundle.performanceBaseline, files: [] },
     },
     rootDir,
   });
@@ -177,8 +177,8 @@ test("rejects malformed and non-passed receipts", async (t) => {
   await writeToolcraftCheckpointBundle({
     bundle: {
       ...loaded.bundle,
-      currentPerformance: {
-        ...loaded.bundle.currentPerformance,
+      performanceBaseline: {
+        ...loaded.bundle.performanceBaseline,
         status: "failed",
       },
     },
@@ -189,26 +189,24 @@ test("rejects malformed and non-passed receipts", async (t) => {
   assert.match(failedErrors[0], /passed/iu);
 });
 
-test("rejects unsupported current and baseline receipt versions", async (t) => {
+test("rejects unsupported full baseline receipt versions", async (t) => {
   const rootDir = await createReceiptFixture();
   t.after(() => fs.rm(rootDir, { force: true, recursive: true }));
 
-  for (const field of ["currentPerformance", "performanceBaseline"]) {
-    await writePassedCheckpointFixture(rootDir);
-    const loaded = await readToolcraftCheckpointBundle(rootDir);
-    await writeToolcraftCheckpointBundle({
-      bundle: {
-        ...loaded.bundle,
-        [field]: {
-          ...loaded.bundle[field],
-          version: 2,
-        },
+  await writePassedCheckpointFixture(rootDir);
+  const loaded = await readToolcraftCheckpointBundle(rootDir);
+  await writeToolcraftCheckpointBundle({
+    bundle: {
+      ...loaded.bundle,
+      performanceBaseline: {
+        ...loaded.bundle.performanceBaseline,
+        version: 2,
       },
-      rootDir,
-    });
-    assert.match(
-      (await validateToolcraftPerformanceReceipt({ rootDir }))[0],
-      /unsupported version/iu,
-    );
-  }
+    },
+    rootDir,
+  });
+  assert.match(
+    (await validateToolcraftPerformanceReceipt({ rootDir }))[0],
+    /unsupported version/iu,
+  );
 });

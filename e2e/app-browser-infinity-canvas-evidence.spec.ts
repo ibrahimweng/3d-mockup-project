@@ -6,6 +6,9 @@ import {
   expectToolcraftInfinityCanvasVideoExportEvidence,
   observeInfinityCanvas,
 } from "./browser-infinity-canvas-evidence";
+import { expectToolcraftInfinityCanvasSvgExportEvidence } from "./browser-infinity-canvas-svg-evidence";
+import { createToolcraftSvgFixtureDownload } from "./svg-download-test-fixtures";
+import { inspectToolcraftSvgDownload } from "./svg-artifact-inspection";
 import {
   readToolcraftCanvasViewport,
   zoomToolcraftCanvasViewport,
@@ -91,6 +94,41 @@ test("toolcraft Infinity canvas video evidence compares decoded envelopes", asyn
       expectedFiniteSize: { height: 1350, width: 1080 },
       expectedInfiniteSize: { height: 640, width: 640 },
       requirementId: "fixture.infinity.video",
+      target: "canvas.infinity",
+    },
+  );
+});
+
+test("toolcraft Infinity canvas SVG evidence compares inspected vector envelopes", async ({
+  page,
+}) => {
+  const source = (width: number, height: number, x: number, y: number) =>
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${x} ${y} ${width} ${height}"><g data-toolcraft-product-scene="true"><rect data-shape="true" x="${x}" y="${y}" width="${width}" height="${height}" fill="#52AAFF"/></g></svg>`;
+  const finite = await inspectToolcraftSvgDownload({
+    download: await createToolcraftSvgFixtureDownload(
+      page,
+      source(1080, 1350, 0, 0),
+      "finite.svg",
+    ),
+    page,
+  });
+  const infinite = await inspectToolcraftSvgDownload({
+    download: await createToolcraftSvgFixtureDownload(
+      page,
+      source(640, 400, -320, -200),
+      "infinite.svg",
+    ),
+    page,
+  });
+  await expectToolcraftInfinityCanvasSvgExportEvidence(
+    {
+      finite: finite.inspection,
+      infinite: infinite.inspection,
+    },
+    {
+      expectedFiniteSize: { height: 1350, width: 1080 },
+      expectedInfiniteSize: { height: 400, width: 640 },
+      requirementId: "fixture.infinity.svg",
       target: "canvas.infinity",
     },
   );

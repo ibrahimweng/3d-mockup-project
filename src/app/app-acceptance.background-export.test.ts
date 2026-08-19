@@ -11,6 +11,7 @@ import { makeControlAcceptance } from "./app-acceptance.test-utils";
 const imageExportProductReadiness: ToolcraftProductReadiness = {
   exportIntent: {
     image: { mode: "toolcraft-default" },
+    svg: { mode: "not-requested" },
     video: { mode: "not-requested" },
   },
   interactionOwnership: [],
@@ -28,6 +29,7 @@ const videoExportProductReadiness: ToolcraftProductReadiness = {
   ...imageExportProductReadiness,
   exportIntent: {
     image: { mode: "toolcraft-default" },
+    svg: { mode: "not-requested" },
     video: {
       evidence: "The background fixture explicitly exercises video background export.",
       mode: "user-requested",

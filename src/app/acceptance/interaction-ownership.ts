@@ -56,6 +56,7 @@ function getAcceptanceTarget(
 function getEntryShapeErrors(
   entry: ToolcraftInteractionOwnershipEntry,
   controlTargets: ReadonlySet<string>,
+  acceptanceTargets: ReadonlySet<string>,
 ): string[] {
   const errors: string[] = [];
   const expectedAlternative = entry.surface === "canvas" ? "panel" : "canvas";
@@ -66,7 +67,14 @@ function getEntryShapeErrors(
 
   if (!entry.target.trim()) {
     errors.push(`${entry.id || "interactionOwnership entry"} target must be non-empty.`);
-  } else if (!isToolcraftSupportedInteractionTarget(entry.target, controlTargets)) {
+  } else if (
+    !(
+      (entry.capability === "spatial-selection" ||
+        entry.capability === "structured-selection") &&
+      acceptanceTargets.has(entry.target)
+    ) &&
+    !isToolcraftSupportedInteractionTarget(entry.target, controlTargets)
+  ) {
     errors.push(
       `${entry.id} target ${entry.target} does not match a schema target or supported editor command.`,
     );
@@ -168,6 +176,12 @@ export function getToolcraftInteractionOwnershipErrors({
 
   const errors: string[] = [];
   const controlTargets = new Set(controls.map(({ control }) => control.target));
+  const acceptanceTargets = new Set(
+    acceptance.flatMap((entry) => {
+      const target = getAcceptanceTarget(entry);
+      return target ? [target] : [];
+    }),
+  );
   const visibleControlByTarget = new Map(
     controls.map((control) => [control.control.target, control] as const),
   );
@@ -182,7 +196,9 @@ export function getToolcraftInteractionOwnershipErrors({
   const duplicateIds = new Set<string>();
 
   for (const entry of inventory) {
-    errors.push(...getEntryShapeErrors(entry, controlTargets));
+    errors.push(
+      ...getEntryShapeErrors(entry, controlTargets, acceptanceTargets),
+    );
 
     if (inventoryById.has(entry.id)) {
       duplicateIds.add(entry.id);

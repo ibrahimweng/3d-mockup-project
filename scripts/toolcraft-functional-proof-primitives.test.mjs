@@ -5,7 +5,12 @@ import test from "node:test";
 import {
   createToolcraftAcceptanceContractHash,
   createToolcraftCanonicalJsonHash,
+  deepFreezeToolcraftValue,
   deriveToolcraftAcceptanceDomainId,
+  hasToolcraftExactRecordKeys,
+  isToolcraftCanonicalTargetArray,
+  isToolcraftDeeplyFrozen,
+  isToolcraftDenseExactArray,
   serializeToolcraftCanonicalJson,
 } from "./toolcraft-functional-proof-primitives.mjs";
 
@@ -22,6 +27,44 @@ test("one primitive boundary owns canonical serialization and semantic hashes", 
     createToolcraftCanonicalJsonHash(value),
   );
   assert.equal(deriveToolcraftAcceptanceDomainId("material.shape"), "material");
+});
+
+test("canonical structural primitives reject ambiguous proof shapes", () => {
+  assert.equal(
+    hasToolcraftExactRecordKeys({ files: [], kind: "product-tests" }, [
+      "files",
+      "kind",
+    ]),
+    true,
+  );
+  assert.equal(
+    hasToolcraftExactRecordKeys({ files: [], kind: "product-tests", extra: true }, [
+      "files",
+      "kind",
+    ]),
+    false,
+  );
+  assert.equal(isToolcraftDenseExactArray(["a"]), true);
+  assert.equal(isToolcraftDenseExactArray(Array(1)), false);
+  assert.equal(
+    isToolcraftCanonicalTargetArray(["src/app/a.ts", "src/app/b.ts"], {
+      paths: true,
+    }),
+    true,
+  );
+  assert.equal(
+    isToolcraftCanonicalTargetArray(["src/app/b.ts", "../a.ts"], {
+      paths: true,
+    }),
+    false,
+  );
+});
+
+test("canonical deep freeze preserves identity and proves nested immutability", () => {
+  const value = { nested: { acceptanceIds: ["output.updates"] } };
+
+  assert.equal(deepFreezeToolcraftValue(value), value);
+  assert.equal(isToolcraftDeeplyFrozen(value), true);
 });
 
 test("canonical primitives reject symbol keys at every object depth", () => {

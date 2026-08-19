@@ -17,6 +17,7 @@ import {
 const layeredMediaProductReadiness: ToolcraftProductReadiness = {
   exportIntent: {
     image: { mode: "toolcraft-default" },
+    svg: { mode: "not-requested" },
     video: { mode: "not-requested" },
   },
   interactionOwnership: [
@@ -37,6 +38,28 @@ const layeredMediaProductReadiness: ToolcraftProductReadiness = {
         "Layers is the single surface for image selection, ordering, and transforms.",
       surface: "panel",
       target: "media.sources",
+    },
+    {
+      alternative: {
+        reason:
+          "Canvas transform buttons would duplicate precise actions already owned by Layers.",
+        surface: "canvas",
+      },
+      capability: "property-edit",
+      evidence: {
+        detail:
+          "The product requires transforms to apply only to the layer selected in Layers.",
+        source: "user-request",
+      },
+      id: "layers-selected-transform",
+      reason:
+        "The Layers property action remains bound to the explicitly selected image.",
+      selectionScope: {
+        mode: "selected-entity",
+        selectionInteractionId: "layers-media-management",
+      },
+      surface: "panel",
+      target: "selectedLayer.transform",
     },
   ],
   mode: "product",
@@ -84,6 +107,10 @@ function createLayerAcceptance({
     kind: "runtime",
     layerCoverage,
     mediaLifecycleCoverage,
+    selectionScopeCoverage:
+      layerCoverage === "selected-layer-controls"
+        ? "two-entity-isolation"
+        : undefined,
     target,
     userAction: `Exercise ${id} through the runtime Layers panel.`,
   };
@@ -131,6 +158,7 @@ function createLayeredMediaAcceptance({
       ? [
           createLayerAcceptance({
             id: "layers.selected-transform",
+            interactionId: "layers-selected-transform",
             layerCoverage: "selected-layer-controls",
             mediaLifecycleCoverage: [
               "rotate",

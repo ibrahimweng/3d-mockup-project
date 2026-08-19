@@ -23,7 +23,7 @@ Use this before writing a schema, spec, or implementation plan. It separates har
 | Timeline | Heuristic, then invariant | Choose from Animation Intent Inventory and transport behavior |
 | Controls | Mixed | Bind every visible control, choose one evidence-backed surface per operation, and make artifact UI match required export intent |
 | Renderer | Default plus invariant | Choose technique from fidelity/workload and declare spatial view interaction before renderer code |
-| Reference analysis | Invariant | Study video references as frame-to-frame behavior before implementation |
+| Reference analysis | Invariant | Register typed motion-reference evidence, classify complete behavior, and prove browser parity before implementation |
 | Reference clone | Invariant | Preserve reference behavior unless redesign is explicit |
 | Acceptance | Invariant | Prove product observables, not only runtime mutation |
 | Performance | Mixed | Workload controls need enforced envelope boundaries; derived paths receive central profiles; animated previews yield to viewport interactions |
@@ -36,7 +36,7 @@ The runtime shell invariant means product code exports the typed composition and
 
 This catalog mirrors `TOOLCRAFT_DECISION_CONTRACT`. If runtime adds or renames a rule id, this page and `AGENTS.md` must list the same id.
 
-`output-export-required` keeps artifact intent and implementation in exact correspondence. Product-mode readiness records `productReadiness.exportIntent`; schema actions, settings sections, and artifact acceptance expose exactly the enabled image/video capabilities. The authoritative decision sequence and evidence requirements live in `core/setup-export.md`.
+`output-export-required` keeps artifact intent and implementation in exact correspondence. Product-mode readiness records `productReadiness.exportIntent`; schema actions, applicable settings sections, and artifact acceptance expose exactly the enabled image/SVG/video capabilities. SVG is explicit-request-only and means self-contained editable vectors. The authoritative decision sequence and evidence requirements live in `core/setup-export.md`. `interaction-surface-ownership` classifies property edits as global or selected-entity; selected properties name their selection interaction and prove bidirectional isolation with two entities. `layers-enabled-behavior` reuses that proof for `selectedLayer.*`.
 
 [//]: # (toolcraft-contract:decision-rule-table:start)
 | Rule ID | Level | Area |

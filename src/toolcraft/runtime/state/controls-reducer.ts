@@ -12,6 +12,13 @@ import {
   tagToolcraftControlsResetHistoryPatch,
 } from "./history-patch-metadata";
 import { getToolcraftResetMediaPatch } from "./media-state";
+import {
+  areToolcraftControlValuesEqual,
+} from "./control-value-codecs";
+import {
+  getToolcraftValueControls,
+  normalizeToolcraftControlValue,
+} from "./control-value-normalization";
 import type {
   ToolcraftCommand,
   ToolcraftState,
@@ -74,18 +81,34 @@ export function reduceToolcraftControlsCommand(
         };
       }
 
-      if (Object.is(state.values[command.target], command.value)) {
+      const control = getToolcraftValueControls(state.schema).get(
+        command.target,
+      );
+      const normalized = control
+        ? normalizeToolcraftControlValue(control, command.value)
+        : { accepted: true as const, value: command.value };
+
+      if (!normalized.accepted) {
+        return state;
+      }
+
+      if (
+        areToolcraftControlValuesEqual(
+          state.values[command.target],
+          normalized.value,
+        )
+      ) {
         return state;
       }
 
       return commitToolcraftValuePatch(
         state,
         {
-          after: { [command.target]: command.value },
+          after: { [command.target]: normalized.value },
           before: { [command.target]: state.values[command.target] },
           label: command.label ?? command.target,
         },
-        { ...state.values, [command.target]: command.value },
+        { ...state.values, [command.target]: normalized.value },
         {
           group: command.historyGroup,
           mode: command.history,

@@ -1,5 +1,6 @@
 import * as React from "react";
 import * as THREE from "three";
+import type { ToolcraftImageAsset } from "@/toolcraft/runtime";
 import {
   readToolcraftOrientationPose,
   useToolcraft,
@@ -10,16 +11,20 @@ import {
 } from "@/toolcraft/runtime/react";
 
 import { forgetArtworkUrl, publishArtworkUrl } from "./artwork-store";
+import { useDesignDrag } from "./design-drag";
+import { useViewOrbit } from "./view-orbit";
+import { readDeviceDefinition } from "./product-domain";
 import { RasterRenderer } from "./render/raster-renderer";
+import { createScreenTexture } from "./render/screen-texture";
 import { readRasterSettings, readScreenTransform } from "./render/settings";
 import styles from "./preview.module.css";
 
-export function PlinthPreview(): React.ReactElement {
+export function MockupPreview(): React.ReactElement {
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
   const rendererRef = React.useRef<RasterRenderer | null>(null);
   const artworkRef = React.useRef<THREE.Texture | null>(null);
   // A frame is only drawn when something has invalidated it. Redrawing a static
-  // scene every tick is what held the GPU at load in the previous renderer.
+  // scene every tick would hold the GPU at load for no visible change.
   const dirtyRef = React.useRef(true);
   const [sceneVersion, setSceneVersion] = React.useState(0);
 
@@ -30,7 +35,7 @@ export function PlinthPreview(): React.ReactElement {
   const artworkAssets = React.useMemo(
     () =>
       state.mediaAssets.filter(
-        (asset) =>
+        (asset): asset is ToolcraftImageAsset =>
           asset.assetKind === "image" && asset.sourceTarget === "artwork.image",
       ),
     [state.mediaAssets],
@@ -52,15 +57,22 @@ export function PlinthPreview(): React.ReactElement {
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
     const renderer = new RasterRenderer(canvas);
+    // A studio swapped in place changes the lighting without rebuilding the
+    // scene, so the frame has to be invalidated when it finishes convolving.
+    renderer.onEnvironmentReady = () => {
+      dirtyRef.current = true;
+    };
     rendererRef.current = renderer;
     return () => {
       rendererRef.current = null;
+      renderer.onEnvironmentReady = null;
       renderer.dispose();
     };
   }, []);
 
   // Model and environment load asynchronously, so the scene announces itself
-  // when ready rather than the first frame racing an empty scene.
+  // when ready rather than the first frame racing an empty scene. Switching
+  // device runs through the same path.
   React.useEffect(() => {
     const renderer = rendererRef.current;
     if (!renderer) return;
@@ -73,6 +85,10 @@ export function PlinthPreview(): React.ReactElement {
 
   const artworkAsset = artworkAssets.at(-1) ?? null;
   const artworkUrl = artworkAsset ? (urls.get(artworkAsset.id) ?? null) : null;
+  // Runtime owns rotate and flip through the actions under the uploader; the
+  // renderer reads that state rather than keeping its own copy.
+  const designTransform = artworkAsset?.transform;
+  const designTransformKey = JSON.stringify(designTransform ?? {});
 
   React.useEffect(() => {
     if (!artworkAsset || !artworkUrl) return undefined;
@@ -98,12 +114,11 @@ export function PlinthPreview(): React.ReactElement {
       .decode()
       .then(() => {
         if (cancelled) return;
-        const texture = new THREE.Texture(image);
-        texture.colorSpace = THREE.SRGBColorSpace;
-        // The model's own UVs expect a top-down texture, matching how its stock
-        // wallpaper was authored.
-        texture.flipY = false;
-        texture.needsUpdate = true;
+        const texture = createScreenTexture(
+          image,
+          readDeviceDefinition(settings.device),
+          designTransform,
+        );
 
         artworkRef.current?.dispose();
         artworkRef.current = texture;
@@ -117,7 +132,10 @@ export function PlinthPreview(): React.ReactElement {
     return () => {
       cancelled = true;
     };
-  }, [artworkUrl, sceneVersion]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the transform is
+    // tracked by its serialized key so a new object identity alone cannot
+    // re-decode the source image.
+  }, [artworkUrl, designTransformKey, sceneVersion, settings.device]);
 
   React.useEffect(() => {
     rendererRef.current?.setPose(pose);
@@ -145,12 +163,16 @@ export function PlinthPreview(): React.ReactElement {
     dirtyRef.current = true;
   }, [height, pose, renderScale, sceneVersion, width]);
 
-  // Dragging the phone rotates it; a drag that misses falls through to the
-  // runtime and pans the viewport. Two-finger pan and pinch zoom are already
-  // native to CanvasShell.
+  // Three surfaces share one pointer. The screen edits the design, the body
+  // rotates the device, and a miss falls through to the runtime and pans the
+  // viewport. Orbit therefore declines a hit that landed on a display, so the
+  // design drag can claim it first.
   const hitTest = React.useCallback(
-    (clientX: number, clientY: number) =>
-      rendererRef.current?.hitTest(clientX, clientY) ?? false,
+    (clientX: number, clientY: number) => {
+      const renderer = rendererRef.current;
+      if (!renderer?.hitTest(clientX, clientY)) return false;
+      return renderer.hitScreenUV(clientX, clientY) === null;
+    },
     [],
   );
   const orbitHandlers = useToolcraftModelOrbitInteraction<HTMLCanvasElement>({
@@ -158,6 +180,37 @@ export function PlinthPreview(): React.ReactElement {
     historyLabel: "Rotate view",
     target: "camera.orbit",
   });
+  const designDrag = useDesignDrag(rendererRef, artworkUrl !== null);
+  const viewOrbit = useViewOrbit();
+
+  // Pointer priority, highest first: a dedicated orbit binding, then the design
+  // drag on a display, then the runtime's own model orbit, then CanvasShell.
+  // Each declines what is not its own, so there is never a mode to switch.
+  const pointerHandlers = React.useMemo(
+    () => ({
+      onPointerCancel: (event: React.PointerEvent<HTMLCanvasElement>) => {
+        if (viewOrbit.onPointerCancel(event)) return;
+        if (designDrag.onPointerCancel(event)) return;
+        orbitHandlers.onPointerCancel?.(event);
+      },
+      onPointerDown: (event: React.PointerEvent<HTMLCanvasElement>) => {
+        if (viewOrbit.onPointerDown(event)) return;
+        if (designDrag.onPointerDown(event)) return;
+        orbitHandlers.onPointerDown?.(event);
+      },
+      onPointerMove: (event: React.PointerEvent<HTMLCanvasElement>) => {
+        if (viewOrbit.onPointerMove(event)) return;
+        if (designDrag.onPointerMove(event)) return;
+        orbitHandlers.onPointerMove?.(event);
+      },
+      onPointerUp: (event: React.PointerEvent<HTMLCanvasElement>) => {
+        if (viewOrbit.onPointerUp(event)) return;
+        if (designDrag.onPointerUp(event)) return;
+        orbitHandlers.onPointerUp?.(event);
+      },
+    }),
+    [designDrag, orbitHandlers, viewOrbit],
+  );
 
   React.useEffect(() => {
     let handle = 0;
@@ -179,6 +232,7 @@ export function PlinthPreview(): React.ReactElement {
       data-toolcraft-product-output
       ref={canvasRef}
       {...orbitHandlers}
+      {...pointerHandlers}
     />
   );
 }

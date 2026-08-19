@@ -121,19 +121,6 @@ export function createVerificationFixture(prefix) {
   writeFileSync(path.join(rootDir, "src", "app", "app.test.ts"),
     "export const appTest = true;\n");
   writeFileSync(
-    path.join(rootDir, "src", "app", "app-verification-impact.json"),
-    `${JSON.stringify({
-      owners: [
-        {
-          acceptanceIds: ["persistence.reload"],
-          kind: "functional",
-          path: "src/app.ts",
-        },
-      ],
-      version: 3,
-    })}\n`,
-  );
-  writeFileSync(
     path.join(rootDir, "src", "toolcraft", ".toolcraft-manifest.json"),
     '{"protectedFiles":{}}\n',
   );
@@ -241,20 +228,6 @@ export function createProtectedRunnerFixture(
   deliveryCatalog = fixtureDeliveryCatalog,
 ) {
   const rootDir = createVerificationFixture("protected-runner");
-  writeFileSync(
-    path.join(rootDir, "src", "app", "app-verification-impact.json"),
-    `${JSON.stringify({
-      owners: [
-        {
-          acceptanceIds: ["persistence.reload"],
-          kind: "performance",
-          passIds: ["composite"],
-          path: "src/app.ts",
-        },
-      ],
-      version: 3,
-    })}\n`,
-  );
   const fixtureScriptsDir = path.join(rootDir, "scripts");
   const binDir = path.join(rootDir, "node_modules", ".bin");
   mkdirSync(fixtureScriptsDir, { recursive: true });

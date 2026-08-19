@@ -45,9 +45,6 @@ function deferred() {
 }
 
 function createScheduledPlan() {
-  const comparisonInventory = createInventory({
-    "src/app/app-schema.ts": hash("1"),
-  });
   const finalInventory = createInventory({
     "src/app/app-schema.ts": hash("2"),
   });
@@ -57,12 +54,7 @@ function createScheduledPlan() {
   return {
     finalInventory,
     plan: freeze({
-      basis: {
-        changedFiles: ["src/app/app-schema.ts"],
-        comparisonFunctionalProofModelHash: functionalProofModelHash,
-        comparisonInventory,
-        kind: "changed",
-      },
+      basis: { kind: "initial" },
       functionalProofModelHash,
       kind: "functional",
       lifecycle: EMPTY_TOOLCRAFT_DELIVERY_LIFECYCLE_STATE,
@@ -72,6 +64,7 @@ function createScheduledPlan() {
         { kind: "docs" },
         { kind: "code-health" },
         {
+          acceptanceIds: null,
           files: ["src/app/app-schema.test.ts"],
           kind: "product-tests",
         },
@@ -334,7 +327,7 @@ test("parallel failure waits for every sibling and reports canonical step order"
 });
 
 test("requires a deeply frozen plan and explicit frozen operations", async () => {
-  const { plan, result } = createPlanReceiptFixture("functional-changed");
+  const { plan, result } = createPlanReceiptFixture("functional-initial");
   await assert.rejects(
     executeToolcraftDeliveryPlanCore({
       operations: {},
@@ -357,7 +350,7 @@ test("requires a deeply frozen plan and explicit frozen operations", async () =>
 
 test("same-process authority reserves one exact receipt", async () => {
   const { functionalProofModel, plan, result } =
-    createPlanReceiptFixture("functional-changed");
+    createPlanReceiptFixture("functional-initial");
   const projectDir = path.resolve("/workspace/app");
   const registry = createToolcraftPlanExecutionAuthorityRegistry(async () =>
     freeze(structuredClone(result)),
@@ -397,7 +390,7 @@ test("same-process authority reserves one exact receipt", async () => {
 
 test("same-process authority rejects forged, cross-project, and released bindings", async () => {
   const { functionalProofModel, plan, result } =
-    createPlanReceiptFixture("functional-changed");
+    createPlanReceiptFixture("functional-initial");
   const projectDir = path.resolve("/workspace/app");
   const registry = createToolcraftPlanExecutionAuthorityRegistry(async () =>
     freeze(structuredClone(result)),

@@ -11,8 +11,9 @@ import {
 import type { ToolcraftState } from "../../state/types";
 import {
   getToolcraftExportRendererCoverageErrors,
-  type ToolcraftProductExportRenderer,
-} from "../../export/product-export-renderer";
+} from "../../export/export-renderer-coverage";
+import type { ToolcraftProductExportRenderer } from "../../export/product-export-renderer";
+import type { ToolcraftProductSvgExportRenderer } from "../../export/product-svg-export-renderer";
 import { CanvasShell } from "../canvas/canvas-shell";
 import { ToolcraftProductSceneBoundsBoundary } from "../canvas/product-scene-surface";
 import {
@@ -41,6 +42,7 @@ export type ToolcraftAppComposition = {
   rendererPipelineRegistration?: AnyToolcraftRendererPipelineRegistration;
   sceneBoundsProvider?: ToolcraftProductSceneBoundsProvider;
   schema: ResolvedToolcraftAppSchema;
+  svgExportRenderer?: ToolcraftProductSvgExportRenderer;
 };
 
 export type ToolcraftAppProps = ToolcraftAppComposition & {
@@ -139,6 +141,7 @@ export function ToolcraftApp({
   rendererPipelineRegistration,
   sceneBoundsProvider,
   schema,
+  svgExportRenderer,
   ...props
 }: ToolcraftAppProps): React.JSX.Element {
   const suppressedModelTargets = modelPresentation?.mode === "custom"
@@ -152,6 +155,7 @@ export function ToolcraftApp({
     exportRenderer,
     productSceneRequired,
     schema,
+    svgExportRenderer,
   });
   if (exportRendererErrors.length > 0) {
     throw new Error(
@@ -162,6 +166,7 @@ export function ToolcraftApp({
     ...(sceneBoundsProvider ? { boundsProvider: sceneBoundsProvider } : {}),
     ...(exportRenderer ? { exportRenderer } : {}),
     productSceneRequired,
+    ...(svgExportRenderer ? { svgExportRenderer } : {}),
     visibility: createToolcraftRuntimeSceneVisibility({
       renderDefaultImages: renderDefaultCanvasMedia,
       suppressedModelTargets,

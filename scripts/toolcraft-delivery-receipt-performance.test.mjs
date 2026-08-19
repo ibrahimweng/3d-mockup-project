@@ -87,7 +87,7 @@ test("rejects a rehashed plan whose comparison hash is forged", () => {
   const report = createToolcraftTargetedPerformanceReport({
     ...currentReport,
     requestAuthorityHash: "c".repeat(64),
-    sourceHash: fixture.plan.basis.comparisonInventory.sourceHash,
+    sourceHash: fixture.plan.sourceHash,
   });
   const comparisonHash =
     createToolcraftTargetedPerformanceComparisonHash(report);

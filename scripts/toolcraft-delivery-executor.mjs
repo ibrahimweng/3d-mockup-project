@@ -30,6 +30,7 @@ import {
 } from "./toolcraft-verification-inventory.mjs";
 import {
   getToolcraftProductTestProcessArgs,
+  getToolcraftProductTestProcessEnvironment,
 } from "./toolcraft-vitest-runtime-contract.mjs";
 import {
   runToolcraftProtectedBrowserBuild,
@@ -271,7 +272,10 @@ function createToolcraftProofOperations() {
       runToolcraftProofProcess(
         getToolcraftBinaryPath(projectDir, "vitest"),
         getToolcraftProductTestProcessArgs(step.files),
-        { cwd: projectDir },
+        {
+          cwd: projectDir,
+          env: getToolcraftProductTestProcessEnvironment(step.acceptanceIds),
+        },
       ),
   });
 }

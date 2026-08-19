@@ -9,6 +9,7 @@ import {
 } from "./coverage";
 import {
   schemaHasPngExportPanelAction,
+  schemaHasSvgExportPanelAction,
   schemaHasVideoExportPanelAction,
 } from "./output-export";
 import type {
@@ -178,7 +179,11 @@ export function getToolcraftCanvasSizingCoverageErrors({
   const errors: string[] = [];
 
   if (schema.canvas.sizing.mode === "fixed-output") {
-    if (schemaHasPngExportPanelAction(schema) || schemaHasVideoExportPanelAction(schema)) {
+    if (
+      schemaHasPngExportPanelAction(schema) ||
+      schemaHasSvgExportPanelAction(schema) ||
+      schemaHasVideoExportPanelAction(schema)
+    ) {
       errors.push(
         'Product/output apps with export actions must use canvas.sizing mode "editable-output" so Aspect ratio, Canvas width, and Canvas height are always available. Put reference, fixed-format, or user-requested dimensions in canvas.size as the initial value instead of hiding size controls with "fixed-output".',
       );

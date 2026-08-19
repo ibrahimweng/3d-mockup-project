@@ -7,6 +7,9 @@ import {
 } from "./toolcraft-checkpoint-bundle.mjs";
 import { assertDeliveryCheckpointState } from "./toolcraft-checkpoint-delivery-state.mjs";
 import {
+  getToolcraftDeliveryReceiptShapeError,
+} from "./toolcraft-delivery-receipt.mjs";
+import {
   finalizeToolcraftPlanExecutionAuthority,
   releaseToolcraftPlanExecutionAuthority,
   reserveToolcraftPlanExecutionAuthority,
@@ -44,6 +47,28 @@ function getExistingAuthority(loaded) {
   return loaded.bundle;
 }
 
+function createCheckpointCandidate(existing, receipt) {
+  const receiptError = getToolcraftDeliveryReceiptShapeError(receipt);
+  if (receiptError) throw new Error(receiptError);
+  if (receipt.plan.kind === "performance-iteration") {
+    if (!existing.delivery) {
+      throw new Error(
+        "Toolcraft targeted performance requires an initial delivery receipt.",
+      );
+    }
+    return createToolcraftCheckpointBundle({
+      currentPerformance: receipt,
+      delivery: existing.delivery,
+      performanceBaseline: existing.performanceBaseline,
+    });
+  }
+  return createToolcraftCheckpointBundle({
+    currentPerformance: existing.currentPerformance,
+    delivery: receipt,
+    performanceBaseline: existing.performanceBaseline,
+  });
+}
+
 export async function commitToolcraftDeliveryCheckpoint(options) {
   assertCommitOptions(options);
   const {
@@ -57,11 +82,7 @@ export async function commitToolcraftDeliveryCheckpoint(options) {
   const loaded = await readToolcraftCheckpointBundle(resolvedProjectDir);
   const existing = getExistingAuthority(loaded);
   const previousDeliveryReceipt = existing.delivery;
-  const candidate = createToolcraftCheckpointBundle({
-    currentPerformance: existing.currentPerformance,
-    delivery: deliveryReceipt,
-    performanceBaseline: existing.performanceBaseline,
-  });
+  const candidate = createCheckpointCandidate(existing, deliveryReceipt);
 
   let planExecutionReservation = reserveToolcraftPlanExecutionAuthority({
     authority: planExecutionAuthority,
@@ -71,9 +92,10 @@ export async function commitToolcraftDeliveryCheckpoint(options) {
   let durablyCommitted = false;
   try {
     await assertDeliveryCheckpointState({
-      deliveryReceipt: candidate.delivery,
+      deliveryReceipt,
       finalInventory,
       previousDeliveryReceipt,
+      previousPerformanceReceipt: existing.currentPerformance,
     });
     await writeToolcraftCheckpointBundle({
       bundle: candidate,

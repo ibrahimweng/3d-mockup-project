@@ -8,6 +8,7 @@ const forbiddenCanvasExportMethods = new Set([
   "toBlob",
   "toDataURL",
 ]);
+const forbiddenGlobalExportFunctions = new Set(["showSaveFilePicker"]);
 
 export function getToolcraftProductExportModuleKind(
   normalizedSpecifier,
@@ -116,12 +117,20 @@ export function createToolcraftProductExportInspector({
     return {
       ...getNodeLocation(sourceFile, node),
       kind: "runtime-export-ownership",
-      message: `Product source must not own ${subject}. Declare exportRenderer and let runtime export actions encode and download the artifact.`,
+      message: `Product source must not own ${subject}. Declare exportRenderer for image/video or svgExportRenderer for SVG and let runtime export actions create and download the artifact.`,
       repoPath,
     };
   }
 
   return (node) => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      forbiddenGlobalExportFunctions.has(node.expression.text) &&
+      !isLexicallyDeclared(node.expression)
+    ) {
+      return [violation(node, `${node.expression.text} artifact delivery`)];
+    }
     if (
       ts.isNewExpression(node) &&
       ts.isIdentifier(node.expression) &&

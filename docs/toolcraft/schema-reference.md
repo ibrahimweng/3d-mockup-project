@@ -18,7 +18,7 @@ Top-level schema fields:
 | `settingsTransfer` | Runtime-owned Export Settings / Import Settings identity.              | `core/setup-export.md`                                                     |
 | `panelActions`     | Sticky product delivery actions such as export, copy, generate, apply. | `core/setup-export.md`, `core/control-selection.md`                        |
 
-Schema controls always bind to a `target`, use `defaultValue` for reset behavior, and include `performanceRole` / `performanceReason` on visible non-action controls. Use built-in control `type` values before `controlRenderers`.
+Schema controls always bind to a `target`, use `defaultValue` for reset behavior, and include `performanceRole` / `performanceReason` on visible non-action controls. Use built-in control `type` values before `controlRenderers`. Built-in targets have one canonical runtime value model through defaults, seeded/live state, undo/reset, persistence, settings transfer, and keyframes; renderers never decode React callback shapes. `color` state is an expanded uppercase `#RRGGBB` string even though Color emits `{ hex }`. Compound/collection values keep their documented models; ordinary `fileDrop` bytes stay outside `state.values`.
 
 ## Canvas
 
@@ -160,7 +160,7 @@ Common control fields:
 | `description`       | Product-specific help text only when it adds meaning beyond the label.                                                       |
 | `applicability`     | Required product claim: `{ mode: "always" }` or `{ mode: "conditional", all: [...] }`. Hidden values are preserved.       |
 | `orderRole`         | Makes section order testable.                                                                                                |
-| `semanticGroup`     | Language-independent product sub-entity/workflow grouping, required on every control in sections with eight to ten controls. |
+| `semanticGroup`     | Language-independent product sub-entity/workflow grouping, required on every control in sections with eight to ten controls and on every plain Color when a mixed section contains multiple plain Colors. |
 | `sliderValueKind`   | `slider` intent: `"continuous"` or `"discrete"`.                                                                             |
 | `textValueKind`     | `text`/`code` intent: `"single-line"`, `"multiline"`, or `"structured"`.                                                     |
 | `curveIntent`       | `curves` composition: `"single-value-map"` or `"color-channels"`.                                                            |
@@ -220,7 +220,7 @@ before schema controls or renderer code:
 
 ```ts
 export const appProductReadiness: ToolcraftProductReadiness = {
-  exportIntent: { image: { mode: "toolcraft-default" }, video: { mode: "not-requested" } },
+  exportIntent: { image: { mode: "toolcraft-default" }, svg: { mode: "not-requested" }, video: { mode: "not-requested" } },
   interactionOwnership: [],
   mode: "product",
   productName: "Model Studio",
@@ -313,17 +313,17 @@ Reference and motion metadata lives in `appTransferMode`.
 
 Use `transferMode: "reference-runtime-clone"` when porting an existing app unless the user explicitly asks for redesign. Reference clones declare `referenceStudy`, `referenceFeatureInventory`, and acceptance mapping; detailed evidence requirements live in `core/reference-study.md`.
 
-Every product readiness declaration includes required `exportIntent`. Its resolved image/video capabilities must correspond exactly to schema actions and settings sections. Use `core/setup-export.md` for the authoritative modes, evidence requirements, and decision sequence.
+Every product readiness declaration includes required `exportIntent`. Its resolved image/SVG/video capabilities must correspond exactly to typed schema actions, applicable settings sections, and artifact acceptance. Use `core/setup-export.md` for the authoritative modes, evidence requirements, and decision sequence.
 
-Video references declare `videoReferenceStudy` before implementation. Animated products declare `animationIntent`, and playback/keyframe timeline apps declare a proven loop duration when known. Detailed animation rules live in `core/timeline-animation.md`.
+Motion references declare typed `referenceInputs` before implementation; each behavior maps bidirectionally to observable acceptance and browser `reference-parity`. The canonical preprocessing, sampling, evidence, timing, and no-reference rules live in `core/reference-study.md`. Animated products declare `animationIntent`, and playback/keyframe timeline apps declare a proven loop duration when known. Detailed animation rules live in `core/timeline-animation.md`.
 
 ## Export And Actions
 
-Product apps expose enabled artifact delivery through sticky `panelActions`, not canvas UI or ordinary body controls. `productReadiness.exportIntent` is required: image export defaults on and is absent only with explicit removal evidence; video export exists only with explicit user-request evidence. Animation, playback, keyframes, and timeline presence never change that intent.
+Product apps expose enabled artifact delivery through sticky `panelActions`, not canvas UI or ordinary body controls. `productReadiness.exportIntent` is required: image export defaults on and is absent only with explicit removal evidence; SVG/video exist only with explicit user-request evidence. Renderer technology, animation, playback, keyframes, and timeline presence never change that intent.
 
-Every app with `Export PNG` includes `Image Export` controls with `export.image.format` and `export.image.resolution`. Apps with `Export Video` include `Video Export` controls with `export.video.format` and `export.video.resolution`. Image-only, image-plus-video, video-only, and explicit no-export layouts must match `core/setup-export.md` exactly.
+Every app with `Export PNG` includes `Image Export` controls with `export.image.format` and `export.image.resolution`. Apps with `Export Video` include `Video Export` controls with `export.video.format` and `export.video.resolution`. `Export SVG` has no settings section and joins the sticky actions without changing image/video settings adjacency. Resolved layouts must match `core/setup-export.md` exactly.
 
-Use the standard runtime path: declare typed `export-image`/`export-video` panel actions and their settings, provide one `ToolcraftAppComposition.exportRenderer` when product code contributes pixels, and draw one deterministic frame from the supplied state/time in scene coordinates. Call `shouldIncludeToolcraftPreviewBackground(state)` only for bounded live preview; runtime owns artifact composition, sizing, encoding, download, progress, and errors.
+Use the standard runtime path: declare typed `export-image`/`export-video` actions plus their settings and provide `ToolcraftAppComposition.exportRenderer` when product code contributes pixels. For explicit SVG delivery, declare `export-svg` and provide `svgExportRenderer`, which appends namespace-aware editable vector nodes to the supplied detached group. Call `shouldIncludeToolcraftPreviewBackground(state)` only for bounded live preview; runtime owns artifact composition, frame/sizing, SVG validation/serialization, raster/video encoding, download, progress, and errors.
 
 Detailed Setup, Background, Image Export, Video Export, sticky action, icon, and progress rules live in `core/setup-export.md`.
 

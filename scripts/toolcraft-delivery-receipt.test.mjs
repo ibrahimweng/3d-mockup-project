@@ -24,7 +24,7 @@ function assertDeeplyFrozen(value) {
   Object.values(value).forEach(assertDeeplyFrozen);
 }
 
-test("constructs the exact deeply frozen version 7 receipt", () => {
+test("constructs the exact deeply frozen version 8 receipt", () => {
   const { functionalProofModel, plan, result } = createPlanReceiptFixture();
   const receipt = createToolcraftDeliveryReceipt({
     functionalProofModel,
@@ -32,9 +32,9 @@ test("constructs the exact deeply frozen version 7 receipt", () => {
     result,
   });
 
-  assert.equal(TOOLCRAFT_DELIVERY_RECEIPT_VERSION, 7);
-  assert.equal(receipt.planVersion, 4);
-  assert.equal(receipt.version, 7);
+  assert.equal(TOOLCRAFT_DELIVERY_RECEIPT_VERSION, 8);
+  assert.equal(receipt.planVersion, 6);
+  assert.equal(receipt.version, 8);
   assert.deepEqual(Object.keys(receipt).sort(), [
     "completedAt",
     "evidence",
@@ -74,22 +74,40 @@ test("constructs initial functional proof with exact browser evidence", () => {
   );
 });
 
-test("rejects obsolete receipt 6 and plan 3 identities", () => {
+test("receipt creation rejects an initial plan with an empty runtime selection", () => {
+  const fixture = createPlanReceiptFixture("functional-initial");
+  const plan = structuredClone(fixture.plan);
+  plan.steps.find(({ kind }) => kind === "product-tests").acceptanceIds = [];
+  const freeze = (value) => {
+    if (value && typeof value === "object" && !Object.isFrozen(value)) {
+      Object.values(value).forEach(freeze);
+      Object.freeze(value);
+    }
+    return value;
+  };
+
+  assert.throws(
+    () => createToolcraftDeliveryReceipt({ ...fixture, plan: freeze(plan) }),
+    /complete product-test selection/iu,
+  );
+});
+
+test("rejects obsolete receipt 7 and plan 5 identities", () => {
   const receipt = createToolcraftDeliveryReceipt(
-    createPlanReceiptFixture("functional-changed"),
+    createPlanReceiptFixture("functional-initial"),
   );
 
   assert.match(
-    getToolcraftDeliveryReceiptShapeError({ ...receipt, version: 6 }),
+    getToolcraftDeliveryReceiptShapeError({ ...receipt, version: 7 }),
     /malformed|unsupported/iu,
   );
   assert.match(
-    getToolcraftDeliveryReceiptShapeError({ ...receipt, planVersion: 3 }),
+    getToolcraftDeliveryReceiptShapeError({ ...receipt, planVersion: 5 }),
     /malformed|unsupported/iu,
   );
 });
 
-test("validates only the current receipt source and ignores full-performance state", async (t) => {
+test("validates historical initial proof without requiring later source freshness", async (t) => {
   const rootDir = await createReceiptFixture();
   t.after(() => fs.rm(rootDir, { force: true, recursive: true }));
   const { functionalProofModel, plan, result } = createPlanReceiptFixture();
@@ -106,17 +124,7 @@ test("validates only the current receipt source and ignores full-performance sta
   bundle.performanceBaseline = { malformed: true };
   await fs.writeFile(bundlePath, `${JSON.stringify(bundle)}\n`);
 
-  assert.deepEqual(await validateToolcraftDeliveryReceipt({
-    collectInventory: async () => result.finalInventory,
-    rootDir,
-  }), []);
-  assert.deepEqual(await validateToolcraftDeliveryReceipt({
-    collectInventory: async () => ({
-      ...result.finalInventory,
-      sourceHash: "0".repeat(64),
-    }),
-    rootDir,
-  }), ["Toolcraft delivery receipt is stale for the current source."]);
+  assert.deepEqual(await validateToolcraftDeliveryReceipt({ rootDir }), []);
 });
 
 test("rejects a different valid model and every model/hash tamper", () => {

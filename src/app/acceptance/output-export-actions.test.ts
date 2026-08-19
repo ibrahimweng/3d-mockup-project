@@ -3,6 +3,7 @@ import { defineToolcraft } from "@/toolcraft/runtime";
 
 import {
   schemaHasPngExportPanelAction,
+  schemaHasSvgExportPanelAction,
   schemaHasVideoExportPanelAction,
 } from "./output-export-actions";
 
@@ -16,6 +17,11 @@ function createOutputSchema() {
             controls: {
               output: {
                 actions: [
+                  {
+                    label: "Guardar vector",
+                    role: "export-svg",
+                    value: "salida.vector",
+                  },
                   {
                     label: "Guardar imagen",
                     role: "export-image",
@@ -41,10 +47,11 @@ function createOutputSchema() {
 }
 
 describe("Toolcraft typed output action roles", () => {
-  it("detects image and video export without parsing labels or values", () => {
+  it("detects image, SVG, and video export without parsing labels or values", () => {
     const schema = createOutputSchema();
 
     expect(schemaHasPngExportPanelAction(schema)).toBe(true);
+    expect(schemaHasSvgExportPanelAction(schema)).toBe(true);
     expect(schemaHasVideoExportPanelAction(schema)).toBe(true);
   });
 
@@ -71,6 +78,7 @@ describe("Toolcraft typed output action roles", () => {
     });
 
     expect(schemaHasPngExportPanelAction(schema)).toBe(false);
+    expect(schemaHasSvgExportPanelAction(schema)).toBe(false);
     expect(schemaHasVideoExportPanelAction(schema)).toBe(false);
   });
 });

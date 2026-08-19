@@ -15,6 +15,7 @@ export * from "./schema/define-toolcraft";
 export { TOOLCRAFT_CANVAS_RENDER_SCALE } from "./schema/canvas-render-scale";
 export * from "./schema/collection-item-controls";
 export * from "./schema/control-applicability";
+export * from "./schema/artifact-export-actions";
 export * from "./schema/keyframe-capability";
 export * from "./schema/runtime-targets";
 export * from "./schema/types";

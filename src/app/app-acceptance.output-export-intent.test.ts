@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import {
   getToolcraftOutputExportErrors,
   schemaHasPngExportPanelAction,
+  schemaHasSvgExportPanelAction,
   schemaHasVideoExportPanelAction,
 } from "./acceptance/output-export";
 import { buildToolcraftOutputExportFacts } from "./acceptance/output-export-model";
@@ -46,9 +47,11 @@ function makeProductReadiness(
 
 function makeOutputActionsSection({
   image,
+  svg,
   video,
 }: {
   image: boolean;
+  svg: boolean;
   video: boolean;
 }): ToolcraftControlSectionSchema {
   const actions: ToolcraftActionSchema[] = [];
@@ -59,6 +62,15 @@ function makeOutputActionsSection({
       label: "Export PNG",
       role: "export-image",
       value: "export.png",
+    });
+  }
+
+  if (svg) {
+    actions.push({
+      icon: "upload-simple",
+      label: "Export SVG",
+      role: "export-svg",
+      value: "export.svg",
     });
   }
 
@@ -87,19 +99,21 @@ function makeOutputActionsSection({
 function makeExportSchema({
   imageAction = false,
   imageSection = false,
+  svgAction = false,
   timeline = false,
   videoAction = false,
   videoSection = false,
 }: {
   imageAction?: boolean;
   imageSection?: boolean;
+  svgAction?: boolean;
   timeline?: boolean;
   videoAction?: boolean;
   videoSection?: boolean;
 } = {}) {
   const sections: ToolcraftControlSectionSchema[] = [];
 
-  if (imageAction || videoAction) {
+  if (imageAction || svgAction || videoAction) {
     sections.push(makeBackgroundSection());
   }
   if (imageSection) {
@@ -108,8 +122,14 @@ function makeExportSchema({
   if (videoSection) {
     sections.push(makeVideoExportSection());
   }
-  if (imageAction || videoAction) {
-    sections.push(makeOutputActionsSection({ image: imageAction, video: videoAction }));
+  if (imageAction || svgAction || videoAction) {
+    sections.push(
+      makeOutputActionsSection({
+        image: imageAction,
+        svg: svgAction,
+        video: videoAction,
+      }),
+    );
   }
 
   const panels: ToolcraftAppSchema["panels"] = {
@@ -133,12 +153,14 @@ function makeExportSchema({
 
 function makeArtifactCoverage({
   image,
+  svg,
   video,
 }: {
   image: boolean;
+  svg: boolean;
   video: boolean;
 }): readonly ToolcraftComponentAcceptance[] {
-  if (!image && !video) {
+  if (!image && !svg && !video) {
     return [];
   }
 
@@ -146,6 +168,9 @@ function makeArtifactCoverage({
 
   if (image) {
     exportArtifactCoverage.push("all-required-image-export-behavior");
+  }
+  if (svg) {
+    exportArtifactCoverage.push("all-required-svg-export-behavior");
   }
   if (video) {
     exportArtifactCoverage.push("all-required-video-export-behavior");
@@ -155,6 +180,7 @@ function makeArtifactCoverage({
     {
       actionCoverage: [
         ...(image ? ["export.png"] : []),
+        ...(svg ? ["export.svg"] : []),
         ...(video ? ["export.video"] : []),
       ],
       automated: true,
@@ -184,6 +210,7 @@ function getExplicitExportErrors({
   return getToolcraftOutputExportErrors({
     acceptance: makeArtifactCoverage({
       image: schemaHasPngExportPanelAction(schema),
+      svg: schemaHasSvgExportPanelAction(schema),
       video: schemaHasVideoExportPanelAction(schema),
     }),
     controls: collectToolcraftVisibleAcceptanceControls(schema),
@@ -197,6 +224,7 @@ describe("Toolcraft explicit output export intent", () => {
     const errors = getExplicitExportErrors({
       intent: {
         image: { mode: "toolcraft-default" },
+        svg: { mode: "not-requested" },
         video: { mode: "not-requested" },
       },
       schema: makeExportSchema({
@@ -219,6 +247,7 @@ describe("Toolcraft explicit output export intent", () => {
     const errors = getExplicitExportErrors({
       intent: {
         image: { mode: "toolcraft-default" },
+        svg: { mode: "not-requested" },
         video: {
           evidence: "The user explicitly requested MP4 delivery.",
           mode: "user-requested",
@@ -265,6 +294,7 @@ describe("Toolcraft explicit output export intent", () => {
             evidence: "The user explicitly requested no image artifact.",
             mode: "user-removed",
           },
+          svg: { mode: "not-requested" },
           video: { mode: "not-requested" },
         },
         schema: makeExportSchema({ imageAction, imageSection }),
@@ -277,6 +307,7 @@ describe("Toolcraft explicit output export intent", () => {
       getExplicitExportErrors({
         intent: {
           image: { mode: "toolcraft-default" },
+          svg: { mode: "not-requested" },
           video: { mode: "not-requested" },
         },
         schema: makeExportSchema(),
@@ -291,6 +322,7 @@ describe("Toolcraft explicit output export intent", () => {
       getExplicitExportErrors({
         intent: {
           image: { evidence: " \n\t", mode: "user-removed" },
+          svg: { mode: "not-requested" },
           video: { mode: "not-requested" },
         },
         schema: makeExportSchema(),
@@ -308,6 +340,7 @@ describe("Toolcraft explicit output export intent", () => {
             evidence: "The user explicitly requested no image artifact.",
             mode: "user-removed",
           },
+          svg: { mode: "not-requested" },
           video: {
             evidence: "The user explicitly requested MP4 delivery.",
             mode: "user-requested",
@@ -326,6 +359,7 @@ describe("Toolcraft explicit output export intent", () => {
             evidence: "The user explicitly requested no downloadable artifacts.",
             mode: "user-removed",
           },
+          svg: { mode: "not-requested" },
           video: { mode: "not-requested" },
         },
         schema: makeExportSchema(),
@@ -333,10 +367,48 @@ describe("Toolcraft explicit output export intent", () => {
     ).toEqual([]);
   });
 
+  it("accepts explicit editable SVG-only delivery without inventing a settings section", () => {
+    expect(
+      getExplicitExportErrors({
+        intent: {
+          image: {
+            evidence: "The user requested SVG instead of image export.",
+            mode: "user-removed",
+          },
+          svg: {
+            evidence: "The user explicitly requested editable SVG delivery.",
+            mode: "user-requested",
+          },
+          video: { mode: "not-requested" },
+        },
+        schema: makeExportSchema({ svgAction: true }),
+      }),
+    ).toEqual([]);
+  });
+
+  it("requires the typed SVG action when SVG delivery was requested", () => {
+    expect(
+      getExplicitExportErrors({
+        intent: {
+          image: { mode: "toolcraft-default" },
+          svg: {
+            evidence: "The user explicitly requested editable SVG delivery.",
+            mode: "user-requested",
+          },
+          video: { mode: "not-requested" },
+        },
+        schema: makeExportSchema({ imageAction: true, imageSection: true }),
+      }),
+    ).toContain(
+      'SVG export intent "user-requested" requires an export-svg panel action.',
+    );
+  });
+
   it("does not infer video delivery from an enabled playback timeline", () => {
     const errors = getExplicitExportErrors({
       intent: {
         image: { mode: "toolcraft-default" },
+        svg: { mode: "not-requested" },
         video: { mode: "not-requested" },
       },
       schema: makeExportSchema({
@@ -356,6 +428,7 @@ describe("Toolcraft explicit output export intent", () => {
       getExplicitExportErrors({
         intent: {
           image: { mode: "toolcraft-default" },
+          svg: { mode: "not-requested" },
           video: {
             evidence: "The user explicitly requested video delivery.",
             mode: "user-requested",
@@ -377,6 +450,7 @@ describe("Toolcraft explicit output export intent", () => {
     });
 
     expect(facts.hasImageExportAction).toBe(false);
+    expect(facts.hasSvgExportAction).toBe(false);
     expect(facts.hasVideoExportAction).toBe(false);
     expect(facts.imageExportSectionIndex).toBeGreaterThanOrEqual(0);
     expect(facts.finalExportSettingsIndex).toBe(-1);

@@ -2,10 +2,12 @@ import path from "node:path";
 
 import { collectToolcraftFrameworkOwnedLocalPaths } from "./toolcraft-source-ownership.mjs";
 import {
+  TOOLCRAFT_VITEST_RUNTIME_ACCEPTANCE_SELECTION_ENV,
   TOOLCRAFT_VITEST_RUNTIME_MARKER_FILE_NAMES,
   TOOLCRAFT_VITEST_RUNTIME_MARKER_TEST_NAME,
   evaluateToolcraftVitestRuntimeEvidence,
   parseToolcraftVitestRuntimeRequirements,
+  selectToolcraftVitestRuntimeRequirements,
 } from "./toolcraft-vitest-runtime-contract.mjs";
 
 function normalizeModulePath(moduleId) {
@@ -59,13 +61,22 @@ export default class ToolcraftVitestRuntimeEvidenceReporter {
       );
     }
 
-    const requirements = marker
+    const publishedRequirements = marker
       .annotations()
       .map(parseToolcraftVitestRuntimeRequirements)
       .find(Boolean);
-    if (!requirements) {
+    if (!publishedRequirements) {
       throw new Error(
         "Toolcraft automated runtime marker did not publish valid requirements.",
+      );
+    }
+    const requirements = selectToolcraftVitestRuntimeRequirements(
+      publishedRequirements,
+      process.env[TOOLCRAFT_VITEST_RUNTIME_ACCEPTANCE_SELECTION_ENV],
+    );
+    if (requirements.length === 0) {
+      throw new Error(
+        "Toolcraft automated runtime coverage must select at least one runtime requirement.",
       );
     }
 

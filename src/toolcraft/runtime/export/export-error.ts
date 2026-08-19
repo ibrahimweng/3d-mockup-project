@@ -8,6 +8,11 @@ export type ToolcraftArtifactExportFailure = Readonly<{
     | "invalid-export-setting"
     | "product-frame-render-failed"
     | "runtime-scene-render-failed"
+    | "svg-content-empty"
+    | "svg-content-invalid"
+    | "svg-document-invalid"
+    | "svg-render-failed"
+    | "svg-serialization-failed"
     | "video-artifact-too-large"
     | "video-encode-failed"
     | "video-encoder-unavailable";

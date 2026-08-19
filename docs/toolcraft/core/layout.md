@@ -61,6 +61,8 @@ Read this module before changing sections, labels, helper icons, inline rows, di
 - Do not add helper icons to obvious homogeneous groups when the section title and label already explain the control.
 - In toggle components, do not prefix labels with `Enable`; the switch already communicates on/off.
 - When a section title supplies the context, remove repeated nouns from nearby labels. Runtime Setup is the exception for its normalized output pair: the switch is `Background` and the color below it is `Background color`.
+- A separately rendered visible field label must not normalize to the same text as its section title. Use `label: false` when the section supplies the complete visible context, or use a more specific label when the control represents a distinct setting.
+- `tabs` keep their schema label as an accessible tab-list name and do not render it as a separate visible field label, so matching the section title is valid for tabs.
 
 ## Inline Rows
 
@@ -89,9 +91,12 @@ Read this module before changing sections, labels, helper icons, inline rows, di
 - Keep color inside the entity section when it configures the same entity as nearby controls.
 - Use a standalone color section only when color is the whole semantic section.
 - Standalone color section titles must describe product role. Never create a section titled `Color` or `Colors`.
-- Omit per-item labels such as `Color 1`, `Color 2`, or `Color 3` when colors only add variety to one shared palette/color bank.
+- A section with multiple sibling `color` or `colorOpacity` controls must not use sequential per-item labels such as `Color 1`, `Color 2`, or `Color 3`, regardless of target spelling, section title, or `semanticGroup`.
 - Keep visible labels when each color edits a distinct user-facing entity or role.
 - Apply label visibility to the whole semantic color group; do not mix labeled and unlabeled items inside one bank.
+- Matching control type and schema adjacency never prove that colors belong to one bank.
+- A section containing only color fields is one implicit color bank. In a mixed section with two or more plain `color` controls, declare `semanticGroup` on every plain color; use the same group only for colors that form one product-meaning row.
+- Runtime pairs only adjacent plain colors with the same semantic group. Conditional controls are filtered before rows are built, so an inactive color never pulls an unrelated visible color into its row.
 - Multiple related plain colors render at most two per row.
 - An odd trailing plain `color` keeps the same half-width footprint instead of stretching to full width.
 - If any color has opacity, keep it stacked instead of placing it in a two-column row.

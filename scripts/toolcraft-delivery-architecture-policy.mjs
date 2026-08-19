@@ -54,7 +54,6 @@ const defaultDirectionRules = Object.freeze([
       "toolcraft-delivery-anchor.mjs",
       "toolcraft-delivery-lifecycle.mjs",
       "toolcraft-delivery-receipt.mjs",
-      "toolcraft-verification-impact.mjs",
     ],
     from: "toolcraft-delivery-executor.mjs",
   },

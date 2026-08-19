@@ -1,6 +1,6 @@
 # Toolcraft Workflow
 
-<!-- toolcraft-performance-lifecycle: first-delivery=functional; later-delivery=functional-targeted; complaint=one-authority-targeted-performance-iteration; full-audit=explicit-only -->
+<!-- toolcraft-performance-lifecycle: first-delivery=functional-complete; later-edits=focused-only; complaint=one-authority-targeted-performance-iteration; full-audit=explicit-only -->
 <!-- toolcraft-performance-iteration: authority=exact-request-evidence+canonical-path-ids; fixture=reachable-development; after-pass=return-app-to-user+stop -->
 <!-- toolcraft-performance-full-authority: automatic=forbidden; recommendation=two-compatible-iterations-or-broad-unlocalizable-problem; command=pnpm verify:perf; authority=explicit-user-request-or-accepted-offer -->
 <!-- toolcraft-performance-routing: localized=agent-targeted; ambiguous=one-user-facing-choice; broad=offer-targeted-or-full; full=explicit-only -->
@@ -18,11 +18,11 @@ Before planning or editing app code, runtime code, controls, canvas, panels, ren
    - **Runtime/template source**: use root `AGENTS.md` and runtime contracts.
 3. Classify the task type.
 4. Read the task-specific docs below.
-5. Record the coherent user-visible delivery batch and its focused development checks before implementation.
+5. Record whether this is first product delivery or later feature work, plus its focused development checks, before implementation.
 
 Do not edit implementation files until this preflight is complete.
 
-Renderer and performance work also completes this pre-code sequence: reachable controls and inputs; workload dimensions and enforced boundaries; pass cost, frequency, lifecycle, and invalidation; render-plan assessment and protected kernel benchmark when required; derived paths and combined fixtures. Keep `src/app/app-verification-impact.json` current while implementing. Development uses impact-derived functional and browser checks without minting delivery evidence. First and later functional delivery run no measured performance; only exact request authority creates one targeted iteration. Full certification is a separate operator/CI action described in the canonical performance docs.
+Renderer and performance work also completes this pre-code sequence: reachable controls and inputs; workload dimensions and enforced boundaries; pass cost, frequency, lifecycle, and invalidation; render-plan assessment and protected kernel benchmark when required; derived paths and combined fixtures. Development uses feature-focused functional and browser checks without minting delivery evidence. First delivery runs no measured performance; only exact request authority creates one targeted iteration. Full certification is a separate operator/CI action described in the canonical performance docs.
 
 ## Local Contract Authority
 
@@ -64,14 +64,14 @@ For product app work, update `docs/toolcraft/agent-worklog.md` before reporting 
   - decision;
   - alternatives rejected;
   - state/output mapping from controls, commands, timeline, layers, media, or renderer to the visible product;
-  - one bare-delivery verification narrative;
+  - first-delivery proof or later focused-check narrative;
   - risks or follow-ups.
 - for localized performance work, or a post-clarification targeted choice, an exact request quote and the canonical affected performance path IDs; classifier output establishes complaint authority only, and unresolved localization records neither performance-iteration intent nor canonical path authority regardless of classifier result.
 - updated high-level decisions for renderer, view interaction, interaction ownership, timeline, layers, controls, export, and performance when those choices change.
 
 If the folder is still the neutral starter, do not invent product decisions. Once it becomes a product, switch the worklog to product mode and keep it concrete.
 
-Protected receipts, not the worklog, own changed files, the derived plan, executed checks, reports, measurements, and pass/fail evidence. Each Decision Trail entry mentions only that one bare `npm run verify:delivery` will derive and run the protected proof.
+Protected receipts own first-delivery and performance proof. The worklog records which focused tests and browser checks were selected for later edits; those edits do not create another functional receipt.
 
 ## Runtime Boundary
 
@@ -92,26 +92,26 @@ Browser verification is outcome-based. Protected helpers attach versioned eviden
 The normal product loop is:
 
 ```text
-assemble/change
+assemble first product
 → focused functional feedback
-→ one coherent delivery boundary
-→ protected functional delivery
+→ one protected initial delivery
+→ later edits with feature-focused checks only
 → user evaluation
 ```
 
-Use the smallest focused unit and browser checks while implementation is changing. Do not rerun the aggregate, export, or performance matrix after every edit. At the coherent delivery boundary, run one bare `npm run verify:delivery` and use the automatic sequence:
+Use the smallest focused unit and browser checks while implementation is changing. Do not rerun the aggregate, export, or performance matrix after edits. Use this automatic sequence:
 
 1. **First product delivery:** bare `npm run verify:delivery` proves complete product contracts, performs one production build, runs full functional acceptance, and runs no measured performance.
-2. **Later functional-targeted delivery:** bare `npm run verify:delivery` compares the immediate previous and current semantic functional proof models. It selects exact changed acceptance contracts, their direct owners and domains, and tests reached through the affected product-unit dependency graph.
-3. **Localized or clarified targeted work:** only a localized complaint or a post-clarification targeted choice records domain authority in the worklog—an exact request quote plus canonical affected path IDs—and runs one bare `npm run verify:delivery`. It executes one targeted iteration against the reachable development fixture, returns the verified app, and waits for user evaluation. Classifier output alone never localizes a path; unresolved localization creates neither performance-iteration intent nor canonical path authority, whether classification returned high-confidence `performance-iteration` or `needs-agent-judgment`.
-4. **Full audit:** only an explicit operator request or accepted offer authorizes `npm run verify:perf`. It performs one fresh build and the complete maximum-fixture performance matrix without advancing the delivery anchor.
+2. **Later ordinary edits:** run the exact unit/component test for the changed implementation, then `npm run test:feature -- <acceptance-id>`. The feature command resolves current product acceptance only. A leaf ID runs one browser scenario; a finite selector automatically includes acceptance peers whose applicability cases depend on it. Multiple changed behaviors use multiple explicit IDs. Use `npm run test:feature -- --all` only when a cross-cutting functional edit cannot be honestly bounded; `--all` still means all product acceptance, not all Playwright tests. The command runs current source through the development server and never runs build, delivery, export matrices, framework self-tests, or measured performance. Commit, push, deploy, preview, steering, and fixes do not authorize aggregate proof. A repeated bare `npm run verify:delivery` is a protected no-op that exits before inventory, build, tests, export, and performance work and preserves the initial receipt byte-for-byte.
+3. **Localized or clarified targeted performance work:** only a localized complaint or a post-clarification targeted choice records domain authority in the worklog—an exact request quote plus canonical affected path IDs—and runs one bare `npm run verify:delivery`. It executes one targeted iteration against the reachable development fixture, returns the verified app, and waits for user evaluation. Classifier output alone never localizes a path; unresolved localization creates neither performance-iteration intent nor canonical path authority, whether classification returned high-confidence `performance-iteration` or `needs-agent-judgment`.
+4. **Full audit:** only an explicit operator request or accepted offer authorizes `npm run verify:perf`. It performs one fresh build and the complete maximum-fixture performance matrix without replacing the initial delivery receipt.
 
 Performance authority and localization are separate decisions. Classifier output establishes complaint authority only and never path localization. A localized complaint lets the agent select the affected canonical paths and run one targeted iteration without asking the user. For an ambiguous complaint, ask one user-facing question that names the visible operation and offers targeted diagnosis or a complete performance review; never ask the user to choose internal path IDs, and record no performance-iteration intent or canonical path authority before the answer. For a broad or honestly unlocalizable problem, the agent may recommend the complete performance review in that single targeted/full choice, but the user still chooses. A direct request for the complete performance review runs `npm run verify:perf` without another clarification.
 
 Store agent-produced browser diagnostics under `.toolcraft/browser-artifacts/`. Browser integrations may instead use their external tool-owned storage; diagnostic files never belong in product source.
 
-The unchanged `sourceHash` fast path does not collect the catalog, dependency graph, or functional proof model and does not execute proof. For a changed source, the current catalog, input roles, ownership inventory, and semantic model are collected once and remain the immutable basis for that delivery plan. `workflow-observation.md` is a post-delivery summary, not execution authority, so it stays outside this hash; `agent-worklog.md` remains included.
+The proven-product phase guard runs before current-source inventory, integrity, build, tests, or semantic proof collection. The initial receipt remains the durable first-version identity even after later source edits. `workflow-observation.md` is a post-delivery summary, not execution authority; `agent-worklog.md` remains part of first-delivery inputs.
 
 After two consecutive compatible targeted iterations, offer the slower full audit if the user remains unsatisfied. A complaint, filename, or touched subsystem never authorizes it. Canonical classification details, failure behavior, and evidence wording live in `core/performance.md` and `performance.md`.
 
-The app is not complete when required checks are failed, incomplete, pending, blocked, or listed as skipped. Resolve benchmark requirements with the protected internal kernel check before accepting the renderer. The delivery runner executes integrity and lifecycle-specific proof atomically, binds evidence to current source, and advances the delivery anchor only after success. Product prose and command arguments cannot select or broaden that proof.
+The first product version is not complete when its required checks are failed, incomplete, pending, blocked, or listed as skipped. Later work is not complete until its directly relevant focused checks pass. Resolve benchmark requirements with the protected internal kernel check before accepting the renderer. The delivery runner executes initial or authority-backed performance proof atomically; ordinary later edits do not advance or replace the initial receipt. Product prose and command arguments cannot select or broaden performance proof.

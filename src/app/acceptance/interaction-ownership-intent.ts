@@ -14,7 +14,7 @@ export type ToolcraftInteractionEvidenceSource =
   | "usability-analysis"
   | "user-request";
 
-export type ToolcraftInteractionOwnershipEntry = {
+type ToolcraftInteractionOwnershipBase = {
   alternative: {
     reason: string;
     surface: ToolcraftInteractionSurface;
@@ -29,3 +29,21 @@ export type ToolcraftInteractionOwnershipEntry = {
   surface: ToolcraftInteractionSurface;
   target: string;
 };
+
+export type ToolcraftInteractionOwnershipEntry =
+  | (ToolcraftInteractionOwnershipBase & {
+      capability: "precise-value-entry" | "property-edit";
+      selectionScope:
+        | Readonly<{ mode: "global" }>
+        | Readonly<{
+            mode: "selected-entity";
+            selectionInteractionId: string;
+          }>;
+    })
+  | (ToolcraftInteractionOwnershipBase & {
+      capability: Exclude<
+        ToolcraftInteractionCapability,
+        "precise-value-entry" | "property-edit"
+      >;
+      selectionScope?: never;
+    });

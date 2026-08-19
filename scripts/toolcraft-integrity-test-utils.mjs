@@ -9,7 +9,7 @@ import {
 } from "./toolcraft-integrity-policy.mjs";
 
 const fixtureManifestSignature =
-  "qU2Tc5z8NqfzbGr7ZdcGhKtt6eLBkw+kJMvmTNq5cE3andSTf/tF3SUdwpNJ4nNSiSHn/x6FcP0/iKW98nEWDg==";
+  "KwSG36fxNC20k9czN8i/613IjmdGNj7SJXOdWjSXRlWIQwddFrC6lWf9moWCAjDP4bxke6j6pBLkdPt/xjopDw==";
 const runtimeSource = "export const runtime = true;\n";
 
 const sha256 = (value) =>

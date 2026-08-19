@@ -1,6 +1,6 @@
 # Setup, Background, And Export
 
-Read this module before changing Setup, canvas sizing, background, image export, video export, sticky actions, render scale, or timeline visibility.
+Read this module before changing Setup, canvas sizing, background, image export, SVG export, video export, sticky actions, render scale, or timeline visibility.
 
 ## Runtime Setup
 
@@ -24,7 +24,7 @@ Read this module before changing Setup, canvas sizing, background, image export,
 - Runtime aspect presets apply canonical canvas sizes; `16:9` is `1920x1080`.
 - A prompt-provided, reference, fixed-format, or base/default size is only the initial `canvas.size`.
 - Fixed/reference/base dimensions are not reasons to hide `Aspect ratio`, `Canvas width`, or `Canvas height`.
-- Manual Canvas width/height edits keep the typed dimension, keep the other dimension unchanged, switch Aspect ratio to Custom, and show the reduced current ratio in the custom ratio inputs.
+- Manual Canvas width/height edits keep the typed dimension, keep the other dimension unchanged, switch Aspect ratio to Custom, and store the reduced current ratio in runtime state. The Aspect ratio control shows `Custom` without a second numeric pair; `Canvas width` and `Canvas height` are the sole custom dimension editors.
 
 ## Infinity Canvas
 
@@ -35,13 +35,13 @@ Read this module before changing Setup, canvas sizing, background, image export,
   bounded scene geometry may use `ToolcraftAppComposition.infiniteCanvasContent`.
   Runtime mounts it only in Infinity mode, below the transformed product world,
   across the full viewport, with pointer input disabled. It does not pan, zoom,
-  contribute to `sceneBoundsProvider`, or enter image/video export.
+  contribute to `sceneBoundsProvider`, or enter image/SVG/video export.
 - The last finite `canvas.size` remains dormant and immutable while Infinity canvas is on. Turning it off restores that exact size and centers the finite artboard; reset, undo/redo, persistence, and settings transfer preserve the same canonical `canvas.mode` behavior. Fixed proof compares exact artboard pixels and width/height control values before Infinity, after restoration, and after redo.
 - Runtime image and model assets keep explicit center-anchored world frames. Zoom, pan, radar, and model orientation change presentation, not scene geometry or export bounds.
 - Product `canvasContent` and custom renderer output declare one direct `ToolcraftAppComposition.sceneBoundsProvider`. It returns product world-space rectangles for the supplied exact frame state; do not use a registry, DOM measurement, or app-authored time-range envelope.
 - Runtime resolves that provider for the live committed state and positions one product scene surface at the exact union. Product output fills that surface; it does not create another absolute wrapper or reuse dormant finite `canvas.size` in infinite mode.
 - Canvas 2D, WebGL, and WebGPU renderers call `useToolcraftProductSceneFrame()` inside `canvasContent` and use its rect for backing dimensions plus world-to-local translation. The hook reports finite, infinite, empty, or unavailable explicitly; empty/unavailable infinite frames do not silently render through finite fallback geometry.
-- Infinite PNG export crops to the outward-rounded union of visible product, image, and model frames. Hidden or unavailable layers, runtime media suppressed by the composition, and editor-only handles or gizmos are excluded.
+- Infinite PNG and SVG export crop to the outward-rounded union of visible product, image, and model frames. Hidden or unavailable layers, runtime media suppressed by the composition, and editor-only handles or gizmos are excluded. SVG still requires the product to author real vector content; runtime media/model pixels are not silently traced or wrapped in SVG.
 - Prove unavailable-image exclusion with `createToolcraftUnavailableImageResourceFixture` and `expectToolcraftInfinityCanvasUnavailableImageExportEvidence`; product tests never mutate storage/state or call the reserved bridge, and evidence publishes only after deterministic cleanup restores the ready resource.
 - Infinite video export asks the provider for every state in the runtime-owned frame schedule, unions those bounds once, and uses the result for every encoded frame, preventing frame-to-frame output size changes.
 - Finite-mode export remains the full finite canvas and does not call the product bounds provider.
@@ -80,6 +80,7 @@ Read this module before changing Setup, canvas sizing, background, image export,
 - Do not hardcode a configurable background in CSS, Canvas `fillStyle`, or WebGL clear color.
 - Live preview calls `shouldIncludeToolcraftPreviewBackground(state)` and hides only the bounded product-rendered background when Background is off or Infinity canvas is on. In Infinity mode, the runtime viewport—not the product renderer—uses the selected Background color.
 - Runtime image export reads Background directly: PNG can be transparent, while JPG remains opaque.
+- Runtime SVG export reads Background directly: enabled output gets one runtime-owned vector background rectangle; disabled output remains transparent.
 - Runtime video export keeps the selected background even when Background is off.
 
 ## Artifact Export Intent
@@ -87,21 +88,24 @@ Read this module before changing Setup, canvas sizing, background, image export,
 Use this sequence as the single authority for choosing product artifact delivery:
 
 1. Start every product with image export.
-2. Add video export only when the user explicitly requests video delivery.
-3. Do not infer video from animation, playback, keyframes, or timeline.
-4. Keep image with video unless the user explicitly requests removal.
-5. Record in `productReadiness.exportIntent`.
+2. Add SVG export only when the user explicitly requests SVG delivery.
+3. Add video export only when the user explicitly requests video delivery.
+4. Do not infer SVG from an SVG preview renderer, or video from animation, playback, keyframes, or timeline.
+5. Keep image with requested SVG/video unless the user explicitly requests image removal.
+6. Record all three decisions in `productReadiness.exportIntent`.
 
-Product-mode readiness requires both discriminated decisions. Image uses `toolcraft-default`, `user-requested`, or `user-removed`: `user-requested` requires non-empty user-request evidence, and `user-removed` requires non-empty explicit user-removal evidence. Video uses `not-requested` or `user-requested`; `user-requested` requires non-empty explicit user-request evidence. Do not add optional modes, legacy fallbacks, or schema-derived inference. Resolved intent must correspond exactly to runtime-owned schema actions, settings sections, and artifact acceptance:
+Product-mode readiness requires all three discriminated decisions. Image uses `toolcraft-default`, `user-requested`, or `user-removed`: `user-requested` requires non-empty user-request evidence, and `user-removed` requires non-empty explicit user-removal evidence. SVG and video each use `not-requested` or `user-requested`; `user-requested` requires non-empty explicit user-request evidence. Do not add optional modes, legacy fallbacks, or schema-derived inference.
+
+Image/video settings keep their existing base layout:
 
 | Resolved delivery | Settings layout | Sticky export actions | Artifact acceptance |
 | --- | --- | --- | --- |
 | Image only | `Image Export` directly above sticky actions | `Export PNG` primary | Complete image coverage only |
 | Image and video | `Image Export` immediately before `Video Export`; `Video Export` directly above sticky actions | `Export PNG` secondary, `Export Video` primary | Complete image and video coverage |
 | Video only | `Video Export` directly above sticky actions | `Export Video` primary | Complete video coverage only |
-| Explicit no-export | No image or video settings section | No image or video export action | No image or video artifact row |
+| Explicit no image/video | No image or video settings section | No image or video export action | No image or video artifact row |
 
-Video-only requires non-empty evidence for both the explicit video request and explicit image removal. Explicit no-export requires non-empty image-removal evidence and video `not-requested`.
+SVG is an orthogonal enabled capability: add one typed `Export SVG` action and complete SVG artifact row, but no SVG settings section. It joins the existing sticky actions without changing Image Export/Video Export adjacency. SVG-only requires explicit SVG request evidence plus explicit image removal and video `not-requested`. Explicit no-export requires non-empty image-removal evidence with SVG/video both `not-requested`.
 
 ## Image Export
 
@@ -131,10 +135,36 @@ Video-only requires non-empty evidence for both the explicit video request and e
 - Product code must not instantiate `MediaRecorder` or `VideoEncoder`, call `canvas.captureStream()`, import `mediabunny`, or provide a wall-clock fallback.
 - Protected browser acceptance decodes representative video frames, enumerates actual encoded packet timings, and proves dimensions, duration, cadence, background, and changing product pixels before publishing evidence.
 
+## SVG Export
+
+- Only products with SVG `user-requested` intent and non-empty explicit request evidence expose `Export SVG`.
+- SVG means a standalone, self-contained, editable vector artifact. Raster-in-SVG (`image`, data URLs), `foreignObject`, scripts, event handlers, animation elements, external resources, and external `url(...)` references are rejected.
+- SVG has no export settings section. Runtime derives `width`, `height`, and `viewBox` from the same finite or Infinity scene frame used by artifact export.
+- Use a typed `export-svg` sticky action and provide `ToolcraftAppComposition.svgExportRenderer`. The product callback appends namespace-aware vector nodes only to the supplied detached group:
+
+```ts
+export const svgExportRenderer = {
+  baseFileName: "column-graph",
+  renderFrame: ({ container, frame, state }) => {
+    const rect = container.ownerDocument.createElementNS("http://www.w3.org/2000/svg", "rect");
+    rect.setAttribute("data-column-track", "true");
+    rect.setAttribute("x", String(frame.x)); rect.setAttribute("y", String(frame.y));
+    rect.setAttribute("width", String(frame.width));
+    rect.setAttribute("height", String(frame.height));
+    rect.setAttribute("fill", String(state.values["appearance.foreground"]));
+    container.append(rect);
+  },
+} satisfies ToolcraftProductSvgExportRenderer;
+```
+
+- Product code never receives the final `<svg>` root and never serializes XML, constructs the Blob, opens a file picker, creates an object URL, or downloads the artifact. Runtime owns root/frame/background assembly, strict validation and reparse, serialization, progress, typed failures, and `.svg` download.
+- Canvas 2D, WebGL, WebGPU, photos, videos, and models are not automatically vectorized. If the requested product output cannot be represented as vector geometry/text, record the incompatibility instead of emitting a fake SVG.
+- Acceptance declares `all-required-svg-export-behavior` and uses `expectToolcraftSvgExportArtifact` on the real Playwright `Download`. The protected recipe verifies the exact downloaded bytes, `.svg` filename, strict XML/namespace, dimensions/viewBox, vector-only self-containment, native decode, SHA-256 hash, and non-empty exact product element expectations before attaching `svg-export-artifact` evidence. Generic exported-artifact evidence cannot satisfy this requirement.
+
 ## Sticky Product Actions
 
-- Export actions in sticky `panelActions` match the resolved artifact intent exactly. Explicit no-export products have no image or video export action.
+- Export actions in sticky `panelActions` match the resolved artifact intent exactly. Explicit no-export products have no image, SVG, or video export action.
 - Clipboard copy may be an additional product action, but it never changes or substitutes for the recorded artifact intent.
-- Export PNG and Export Video use `icon: "upload-simple"` to match the runtime `Export Settings` action.
+- Export PNG, Export SVG, and Export Video use `icon: "upload-simple"` to match the runtime `Export Settings` action.
 - Runtime export actions own their real Promise and report render/encode/download progress through the sticky footer indicator.
 - Async non-export download/copy/generate/apply handlers return the real Promise from `onPanelAction` and use `reportProgress(0..1)` when determinate progress is available.

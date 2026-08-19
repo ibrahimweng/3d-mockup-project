@@ -1,34 +1,26 @@
 import type {
   ResolvedToolcraftAppSchema,
-  ToolcraftActionSchema,
+  ToolcraftArtifactExportActionRole,
 } from "@/toolcraft/runtime";
+import { getToolcraftArtifactExportActions } from "@/toolcraft/runtime";
 
-import { getControlActions } from "./actions";
-
-function actionLooksLikePngExport(action: ToolcraftActionSchema | string): boolean {
-  return typeof action !== "string" && action.role === "export-image";
-}
-
-function actionLooksLikeVideoExport(action: ToolcraftActionSchema | string): boolean {
-  return typeof action !== "string" && action.role === "export-video";
+function schemaHasExportPanelAction(
+  schema: ResolvedToolcraftAppSchema,
+  role: ToolcraftArtifactExportActionRole,
+): boolean {
+  return getToolcraftArtifactExportActions(schema).some(
+    (action) => action.role === role,
+  );
 }
 
 export function schemaHasPngExportPanelAction(schema: ResolvedToolcraftAppSchema): boolean {
-  return (schema.panels.controls?.sections ?? []).some((section) =>
-    Object.values(section.controls).some(
-      (control) =>
-        control.type === "panelActions" &&
-        getControlActions(control).some(actionLooksLikePngExport),
-    ),
-  );
+  return schemaHasExportPanelAction(schema, "export-image");
+}
+
+export function schemaHasSvgExportPanelAction(schema: ResolvedToolcraftAppSchema): boolean {
+  return schemaHasExportPanelAction(schema, "export-svg");
 }
 
 export function schemaHasVideoExportPanelAction(schema: ResolvedToolcraftAppSchema): boolean {
-  return (schema.panels.controls?.sections ?? []).some((section) =>
-    Object.values(section.controls).some(
-      (control) =>
-        control.type === "panelActions" &&
-        getControlActions(control).some(actionLooksLikeVideoExport),
-    ),
-  );
+  return schemaHasExportPanelAction(schema, "export-video");
 }

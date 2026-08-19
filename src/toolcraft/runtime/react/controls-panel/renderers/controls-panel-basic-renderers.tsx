@@ -40,7 +40,7 @@ const canvasAspectRatioOptions = [
     label: preset.value,
     value: preset.value,
   })),
-  { label: "Custom...", value: "custom" },
+  { label: "Custom", value: "custom" },
 ] as const;
 
 export type BasicControlCommit = (
@@ -110,64 +110,14 @@ function CanvasAspectRatioControl({
     }
   }
 
-  function updateCustomDimension(
-    dimension: "height" | "width",
-    nextValue: string,
-    meta?: ControlChangeMeta,
-  ): void {
-    const numberValue = Number.parseFloat(nextValue);
-
-    if (!Number.isFinite(numberValue) || numberValue <= 0) {
-      return;
-    }
-
-    const width =
-      dimension === "width" ? Math.max(1, Math.round(numberValue)) : ratio.width;
-    const height =
-      dimension === "height" ? Math.max(1, Math.round(numberValue)) : ratio.height;
-
-    commitRatio(
-      {
-        height,
-        mode: "custom",
-        value: `${width}:${height}`,
-        width,
-      },
-      meta,
-    );
-  }
-
   return (
-    <div className="min-w-0 space-y-2" data-slot="canvas-aspect-ratio-control">
+    <div className="min-w-0" data-slot="canvas-aspect-ratio-control">
       <Select
         name={name}
         onValueChange={updatePreset}
         options={canvasAspectRatioOptions}
         value={selectedValue}
       />
-      {ratio.mode === "custom" ? (
-        <TextInput
-          inputs={[
-            {
-              commitOnBlur: true,
-              defaultValue: String(ratio.width),
-              name: "Width",
-              onValueChange: (nextValue, meta) =>
-                updateCustomDimension("width", nextValue, meta),
-              value: String(ratio.width),
-            },
-            {
-              commitOnBlur: true,
-              defaultValue: String(ratio.height),
-              name: "Height",
-              onValueChange: (nextValue, meta) =>
-                updateCustomDimension("height", nextValue, meta),
-              value: String(ratio.height),
-            },
-          ]}
-          inputsPerRow={2}
-        />
-      ) : null}
     </div>
   );
 }

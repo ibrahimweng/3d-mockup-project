@@ -21,9 +21,6 @@ import {
   validateToolcraftPerformanceCoverage,
 } from "@/toolcraft/runtime";
 import {
-  validateToolcraftCurrentPerformanceImpactInventory,
-} from "../../scripts/toolcraft-verification-receipt.mjs";
-import {
   createToolcraftScriptLineBudgetPolicy,
   getToolcraftScriptProductionEntryPaths,
   toolcraftScriptSourceExtensions,
@@ -146,6 +143,9 @@ function collectPerformanceSpecFacts(source: string, fileName: string) {
   });
 }
 
+// Hang-only ceiling: functional gate duration is never product performance evidence.
+const TOOLCRAFT_FUNCTIONAL_GATE_TIMEOUT_MS = 60_000;
+
 describe("Toolcraft starter performance gates", () => {
   it(
     "keeps generated verification scripts within shared recursive budgets",
@@ -153,7 +153,7 @@ describe("Toolcraft starter performance gates", () => {
       const result = await evaluateGeneratedScriptBudgets(projectDir);
       expect(result.lineBudgetViolations).toEqual([]);
     },
-    15_000,
+    TOOLCRAFT_FUNCTIONAL_GATE_TIMEOUT_MS,
   );
 
   it("classifies every script extension and production-looking test by reachability", async () => {
@@ -355,13 +355,27 @@ describe("Toolcraft starter performance gates", () => {
     expect(playwrightConfigForbidsFocusedTests()).toBe(true);
   });
 
+  it("keeps later feature verification product-only and outside proof authority", () => {
+    const source = readFileSync(
+      join(projectDir, "scripts/run-feature-verification.mjs"),
+      "utf8",
+    );
+
+    expect(source).toContain("Promise.all");
+    expect(source).toContain("resolveToolcraftPlaywrightTestTitles");
+    expect(source).toContain("TOOLCRAFT_BROWSER_SERVER_MODE: \"dev\"");
+    expect(source).not.toMatch(
+      /executeToolcraftDeliveryLifecycle|measureToolcraftPerformanceCheckpoint|collectToolcraftVerificationInputs/iu,
+    );
+  });
+
   it("keeps verification lifecycle authority in the runtime contract", () => {
     expect(appPerformance).not.toHaveProperty("browserCheckPolicy");
     expect(TOOLCRAFT_PERFORMANCE_VERIFICATION_LIFECYCLE).toEqual({
       delivery: {
         command: "verify:delivery",
-        modes: ["functional", "performance-iteration"],
-        selectors: "automatic",
+        modes: ["initial-functional", "performance-iteration"],
+        selectors: "initial-complete-or-authority-exact",
       },
       fullPerformance: {
         command: "verify:perf",
@@ -378,18 +392,6 @@ describe("Toolcraft starter performance gates", () => {
         TOOLCRAFT_FUNCTIONAL_PERFORMANCE_COVERAGE_POLICY,
       ),
     ).toEqual([]);
-  });
-
-  it("maps every product production module to current renderer pass ownership", async () => {
-    const knownPassIds = (appPerformance.rendererPipeline?.passes ?? []).map(
-      ({ id }) => id,
-    );
-    await expect(
-      validateToolcraftCurrentPerformanceImpactInventory({
-        knownPassIds,
-        rootDir: projectDir,
-      }),
-    ).resolves.toBeDefined();
   });
 
   it("keeps unresolved kernel decisions pending during functional delivery", () => {

@@ -7,6 +7,7 @@ export type ToolcraftArtifactFileExtension =
   | ".jpg"
   | ".mp4"
   | ".png"
+  | ".svg"
   | ".webm";
 
 type ToolcraftDownloadAnchor = {

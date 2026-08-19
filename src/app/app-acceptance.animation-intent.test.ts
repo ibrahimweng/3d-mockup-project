@@ -253,6 +253,7 @@ describe("starter acceptance animation intent contract", () => {
             reason: "The shimmer is decorative self-running output and does not expose product time transport.",
           },
           mode: "new-toolcraft-app",
+          referenceInputs: [],
         },
       }),
     ).toEqual([]);
@@ -351,6 +352,7 @@ describe("starter acceptance animation intent contract", () => {
             reason: "The shader is decorative self-running output with no transport controls.",
           },
           mode: "new-toolcraft-app",
+          referenceInputs: [],
         },
       }),
     ).toContain(
@@ -377,6 +379,7 @@ describe("starter acceptance animation intent contract", () => {
             mode: "timeline-keyframes",
           },
           mode: "new-toolcraft-app",
+          referenceInputs: [],
         },
       }),
     ).toContain(

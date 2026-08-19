@@ -6,6 +6,7 @@ import {
   ToolcraftArtifactExportError,
 } from "./export-error";
 import type { ToolcraftProductExportFrameRenderer } from "./product-export-renderer";
+import { getToolcraftArtifactTimelineProgress } from "./artifact-frame-state";
 
 export type ToolcraftArtifactFrameRenderRequest = Readonly<{
   backgroundColor: string;
@@ -22,20 +23,6 @@ export type ToolcraftArtifactFrameRenderRequest = Readonly<{
   rendererPipeline: ToolcraftRendererPipelineClient | null;
   state: ToolcraftState;
 }>;
-
-function getTimelineProgress(state: ToolcraftState): number {
-  if (state.timeline.durationSeconds <= 0) {
-    return 0;
-  }
-
-  return Math.max(
-    0,
-    Math.min(
-      1,
-      state.timeline.currentTimeSeconds / state.timeline.durationSeconds,
-    ),
-  );
-}
 
 export async function renderToolcraftArtifactFrame(
   request: ToolcraftArtifactFrameRenderRequest,
@@ -83,7 +70,7 @@ export async function renderToolcraftArtifactFrame(
       rendererPipeline: request.rendererPipeline,
       state: request.state,
       timeSeconds: request.state.timeline.currentTimeSeconds,
-      timelineProgress: getTimelineProgress(request.state),
+      timelineProgress: getToolcraftArtifactTimelineProgress(request.state),
     });
   } catch (error) {
     throw normalizeToolcraftExportError(error, {

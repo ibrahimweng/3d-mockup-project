@@ -5,21 +5,6 @@ import {
 import type { ResolvedToolcraftAppSchema } from "../schema/types";
 import type { ToolcraftState } from "./types";
 
-function getToolcraftColorHex(value: unknown): string | undefined {
-  const candidate =
-    typeof value === "string"
-      ? value
-      : value !== null &&
-          typeof value === "object" &&
-          "hex" in value &&
-          typeof value.hex === "string"
-        ? value.hex
-        : undefined;
-  const normalized = candidate?.trim();
-
-  return normalized ? normalized : undefined;
-}
-
 export function hasToolcraftRuntimeSetupBackground(
   schema: ResolvedToolcraftAppSchema,
 ): boolean {
@@ -75,5 +60,5 @@ export function getToolcraftRuntimeBackgroundColor(
     ? state.values[background.color.target] ?? background.color.defaultValue
     : undefined;
 
-  return getToolcraftColorHex(value);
+  return typeof value === "string" ? value : undefined;
 }

@@ -52,6 +52,7 @@ describe("starter acceptance control label context contract", () => {
             reason: "The motion speed is a decorative self-running effect and does not expose product time transport.",
           },
           mode: "new-toolcraft-app",
+          referenceInputs: [],
         },
       }),
     ).toEqual([]);

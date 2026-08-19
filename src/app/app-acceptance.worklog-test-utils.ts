@@ -13,6 +13,9 @@ import {
 import {
   TOOLCRAFT_DELIVERY_VERIFICATION_COMMAND,
 } from "../../scripts/toolcraft-performance-authority-policy.mjs";
+import type {
+  ToolcraftMotionReferenceTimingMode,
+} from "./acceptance/types";
 
 const appDir = dirname(fileURLToPath(import.meta.url));
 const projectDir = join(appDir, "../..");
@@ -92,10 +95,21 @@ export type AgentWorklogFixtureOptions = {
   trailHeading?: string;
   verificationLines?: readonly string[];
 };
+export type WorklogMotionReference = Readonly<{
+  contactSheetPath: string;
+  referenceId: string;
+  requiresRealTimeReview: boolean;
+  requiresSlowedReview: boolean;
+  sourceSha256: string;
+  studyId: string;
+  timingMode: ToolcraftMotionReferenceTimingMode;
+}>;
 const worklogVideoReferencePattern =
   /\b(?:source\/reference checked|source reviewed|reference inputs):[^\n]*(?:reference\s+(?:video|gif)|screen\s*recording|contact[-\s]*sheet|storyboard|frame[-\s]*by[-\s]*frame|extracted[-\s]*frames?|cleanshot|ffprobe|[^\s]+\.(?:mp4|mov|webm|gif))\b/i;
-const worklogVideoReferenceStudyPattern =
-  /\b(video reference study|storyboard|frame[-\s]*by[-\s]*frame|transition analysis|frame[-\s]*to[-\s]*frame|contact[-\s]*sheet|extracted frames?)\b/i;
+const motionReferenceRecordPattern =
+  /^\s*[-*]\s+Motion reference study:\s*(?<fields>\S.*)$/iu;
+const motionReferenceFieldPattern =
+  /\b(?<name>referenceId|studyId|sourceSha256|timingMode|contactSheetPath|review)=(?<value>[^;]+?)(?=;\s*|$)/giu;
 export function readToolcraftDoc(relativePath: string): string {
   return readFileSync(join(projectDir, "docs/toolcraft", relativePath), "utf8");
 }
@@ -252,8 +266,96 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-export function getAgentWorklogValidationErrors(source: string): string[] {
+type MotionReferenceRecord = Readonly<{
+  contactSheetPath?: string;
+  referenceId?: string;
+  review?: string;
+  sourceSha256?: string;
+  studyId?: string;
+  timingMode?: string;
+}>;
+
+function getAuthoritativeWorklogSource(source: string): string {
+  return requiredAgentWorklogSections
+    .map((section) => getMarkdownSectionBody(source, section))
+    .join("\n");
+}
+
+function getMotionReferenceRecords(
+  authoritativeSource: string,
+): readonly MotionReferenceRecord[] {
+  return authoritativeSource.split(/\r?\n/u).flatMap((line) => {
+    const recordMatch = motionReferenceRecordPattern.exec(line);
+    if (!recordMatch?.groups?.fields) return [];
+
+    const fields: Record<string, string> = {};
+    for (const match of recordMatch.groups.fields.matchAll(
+      motionReferenceFieldPattern,
+    )) {
+      if (!match.groups) continue;
+      fields[match.groups.name] = match.groups.value
+        .trim()
+        .replace(/[.]$/u, "");
+    }
+    return [fields];
+  });
+}
+
+function recordMatchesMotionReference(
+  record: MotionReferenceRecord,
+  motionReference: WorklogMotionReference,
+): boolean {
+  if (
+    record.contactSheetPath !== motionReference.contactSheetPath ||
+    record.referenceId !== motionReference.referenceId ||
+    record.sourceSha256 !== motionReference.sourceSha256 ||
+    record.studyId !== motionReference.studyId ||
+    record.timingMode !== motionReference.timingMode
+  ) {
+    return false;
+  }
+
+  const reviewModes = new Set(
+    (record.review ?? "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
+  );
+  if (motionReference.timingMode === "ordinal") {
+    return (
+      reviewModes.has("ordered-frames") &&
+      !reviewModes.has("real-time") &&
+      !reviewModes.has("slowed")
+    );
+  }
+  if (
+    (motionReference.timingMode === "seconds" ||
+      motionReference.requiresRealTimeReview) &&
+    !reviewModes.has("real-time")
+  ) {
+    return false;
+  }
+  return (
+    !motionReference.requiresSlowedReview || reviewModes.has("slowed")
+  );
+}
+
+function describeRequiredReview(motionReference: WorklogMotionReference): string {
+  if (motionReference.timingMode === "ordinal") return "ordered-frames";
+  return motionReference.requiresSlowedReview
+    ? "real-time,slowed"
+    : "real-time";
+}
+
+export function getAgentWorklogValidationErrors(
+  source: string,
+  options: Readonly<{
+    motionReferences?: readonly WorklogMotionReference[];
+  }> = {},
+): string[] {
   const errors: string[] = [];
+  const motionReferences = options.motionReferences ?? [];
+  const authoritativeSource = getAuthoritativeWorklogSource(source);
 
   for (const section of requiredAgentWorklogSections) {
     if (!getMarkdownSectionBody(source, section)) {
@@ -315,11 +417,25 @@ export function getAgentWorklogValidationErrors(source: string): string[] {
   }
 
   if (
-    worklogVideoReferencePattern.test(source) &&
-    !worklogVideoReferenceStudyPattern.test(source)
+    worklogVideoReferencePattern.test(authoritativeSource) &&
+    motionReferences.length === 0
   ) {
     errors.push(
-      "agent-worklog.md cites a video reference, screen recording, GIF, extracted frames, or contact sheet; record a Video Reference Study with storyboard frames and frame-to-frame transition analysis.",
+      "agent-worklog.md cites a video reference, screen recording, GIF, extracted frames, or contact sheet, but appTransferMode.referenceInputs registers no motion reference input.",
+    );
+  }
+
+  const motionReferenceRecords = getMotionReferenceRecords(authoritativeSource);
+  for (const motionReference of motionReferences) {
+    if (
+      motionReferenceRecords.some((record) =>
+        recordMatchesMotionReference(record, motionReference),
+      )
+    ) {
+      continue;
+    }
+    errors.push(
+      `agent-worklog.md motion reference study "${motionReference.studyId}" for reference "${motionReference.referenceId}" must include one exact "Motion reference study:" record with referenceId=${motionReference.referenceId}; studyId=${motionReference.studyId}; sourceSha256=${motionReference.sourceSha256}; timingMode=${motionReference.timingMode}; contactSheetPath=${motionReference.contactSheetPath}; review=${describeRequiredReview(motionReference)}.`,
     );
   }
 

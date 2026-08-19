@@ -8,7 +8,11 @@ export function getToolcraftOutputExportLayoutErrors({
   delivery: ToolcraftArtifactExportDelivery;
   facts: ToolcraftOutputExportFacts;
 }): string[] {
-  if (!delivery.imageEnabled && !delivery.videoEnabled) {
+  if (
+    !delivery.imageEnabled &&
+    !delivery.svgEnabled &&
+    !delivery.videoEnabled
+  ) {
     return [];
   }
 

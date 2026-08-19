@@ -1,6 +1,9 @@
 import type { ToolcraftControlSchema } from "@/toolcraft/runtime";
 
-import { getControlLabelText } from "./controls";
+import {
+  getControlLabelText,
+  hasVisibleControlLabel,
+} from "./controls";
 import {
   getToolcraftLooseTargetPrefix,
   getToolcraftTargetParts,
@@ -155,6 +158,32 @@ export function getToolcraftFontPickerOwnedTypographyPart(
   }
 
   return undefined;
+}
+
+export function getToolcraftDuplicateSectionTitleLabelError({
+  control,
+  controlId,
+  sectionLabel,
+  sectionTitle,
+}: {
+  control: ToolcraftControlSchema;
+  controlId: string;
+  sectionLabel: string;
+  sectionTitle: string | undefined;
+}): string | undefined {
+  if (
+    control.type === "tabs" ||
+    !sectionTitle ||
+    !hasVisibleControlLabel(control) ||
+    normalizeToolcraftSemanticText(getControlLabelText(control)) !==
+      normalizeToolcraftSemanticText(sectionTitle)
+  ) {
+    return undefined;
+  }
+
+  const label = getControlLabelText(control).trim();
+
+  return `${sectionLabel} / ${controlId} visible label "${label}" duplicates section title "${sectionTitle}". Set label: false when the section supplies the complete visible context, or use a more specific label for a distinct setting.`;
 }
 
 export function getToolcraftGenericControlLabelError({

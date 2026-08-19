@@ -81,8 +81,7 @@ function createDependencyFixture() {
   };
 }
 
-for (const fixture of ["functional-initial", "functional-changed",
-  "performance-iteration"]) {
+for (const fixture of ["functional-initial", "performance-iteration"]) {
   test(`accepts exact ${fixture} execution evidence`, () => {
     const { plan, result } = createPlanReceiptFixture(fixture);
     assert.equal(
@@ -242,7 +241,7 @@ test("rejects unknown browser step evidence", () => {
 });
 
 test("rejects source and final inventory mismatch deterministically", () => {
-  const { plan, result } = createPlanReceiptFixture("functional-changed");
+  const { plan, result } = createPlanReceiptFixture("functional-initial");
   assert.equal(
     getToolcraftExecutionEvidenceError({
       evidence: result.evidence,

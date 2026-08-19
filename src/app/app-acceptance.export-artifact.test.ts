@@ -4,7 +4,9 @@ import { describe, expect, it } from "vitest";
 import { getToolcraftExportArtifactCoverageErrors } from "./acceptance/export-artifact-coverage";
 import type { ToolcraftComponentAcceptance } from "./acceptance/types";
 
-function createSchema(roles: readonly ("export-image" | "export-video")[]) {
+function createSchema(
+  roles: readonly ("export-image" | "export-svg" | "export-video")[],
+) {
   return defineToolcraft({
     canvas: { enabled: true },
     panels: {
@@ -14,9 +16,19 @@ function createSchema(roles: readonly ("export-image" | "export-video")[]) {
             controls: {
               output: {
                 actions: roles.map((role) => ({
-                  label: role === "export-image" ? "Export Image" : "Export Video",
+                  label:
+                    role === "export-image"
+                      ? "Export Image"
+                      : role === "export-svg"
+                        ? "Export SVG"
+                        : "Export Video",
                   role,
-                  value: role === "export-image" ? "export.image" : "export.video",
+                  value:
+                    role === "export-image"
+                      ? "export.image"
+                      : role === "export-svg"
+                        ? "export.svg"
+                        : "export.video",
                 })),
                 target: "actions.output",
                 type: "panelActions",
@@ -90,6 +102,65 @@ describe("Toolcraft export artifact acceptance", () => {
       expect.stringContaining("without a matching typed export action"),
       expect.stringContaining("all-required-video-export-behavior"),
     ]);
+  });
+
+  it("requires exact SVG exported-bytes coverage for a typed SVG action", () => {
+    const schema = createSchema(["export-svg"]);
+
+    expect(
+      getToolcraftExportArtifactCoverageErrors({
+        acceptance: [
+          createAcceptance({
+            actionCoverage: ["export.svg"],
+            exportArtifactCoverage: "all-required-svg-export-behavior",
+          }),
+        ],
+        schema,
+      }),
+    ).toEqual([]);
+    expect(
+      getToolcraftExportArtifactCoverageErrors({
+        acceptance: [
+          createAcceptance({
+            actionCoverage: ["export.svg"],
+            exportArtifactCoverage: "all-required-image-export-behavior",
+          }),
+        ],
+        schema,
+      }),
+    ).toEqual([
+      expect.stringContaining("without a matching typed export action"),
+      expect.stringContaining("all-required-svg-export-behavior"),
+    ]);
+  });
+
+  it("rejects typed export roles outside sticky panelActions", () => {
+    const schema = defineToolcraft({
+      canvas: { enabled: true },
+      panels: {
+        controls: {
+          sections: [
+            {
+              controls: {
+                local: {
+                  actions: [{ role: "export-svg", value: "export.svg" }],
+                  target: "local.actions",
+                  type: "actions",
+                },
+              },
+              id: "local",
+            },
+          ],
+          title: "Controls",
+        },
+      },
+    });
+
+    expect(
+      getToolcraftExportArtifactCoverageErrors({ acceptance: [], schema }),
+    ).toContain(
+      'Typed export-svg action "export.svg" must be declared in sticky panelActions.',
+    );
   });
 
   it("requires exported bytes plus automated browser proof", () => {

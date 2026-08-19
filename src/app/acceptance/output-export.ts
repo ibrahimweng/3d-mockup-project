@@ -7,6 +7,7 @@ import {
 } from "./output-background-rules";
 import {
   schemaHasPngExportPanelAction,
+  schemaHasSvgExportPanelAction,
   schemaHasVideoExportPanelAction,
 } from "./output-export-actions";
 import { getToolcraftOutputExportLayoutErrors } from "./output-export-layout-rules";
@@ -23,6 +24,7 @@ import type {
 export {
   isOutputBackgroundToggleControl,
   schemaHasPngExportPanelAction,
+  schemaHasSvgExportPanelAction,
   schemaHasVideoExportPanelAction,
 };
 
@@ -50,6 +52,7 @@ export function getToolcraftOutputExportErrors({
     validateToolcraftArtifactExportIntentCorrespondence({
       hasImageExportAction: facts.hasImageExportAction,
       hasImageExportSection: facts.imageExportSection !== undefined,
+      hasSvgExportAction: facts.hasSvgExportAction,
       hasVideoExportAction: facts.hasVideoExportAction,
       hasVideoExportSection: facts.videoExportSection !== undefined,
       intent: productReadiness.exportIntent,
@@ -59,7 +62,7 @@ export function getToolcraftOutputExportErrors({
     ...intentErrors,
     ...(delivery.imageEnabled ? getToolcraftImageExportErrors(facts) : []),
     ...(delivery.videoEnabled ? getToolcraftVideoExportErrors(facts) : []),
-    ...(delivery.imageEnabled || delivery.videoEnabled
+    ...(delivery.imageEnabled || delivery.svgEnabled || delivery.videoEnabled
       ? getToolcraftOutputBackgroundErrors({ controls, facts })
       : []),
     ...getToolcraftOutputExportLayoutErrors({ delivery, facts }),

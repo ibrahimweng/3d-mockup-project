@@ -78,40 +78,6 @@ export function createDeliveryFixture(
     "export const performance = true;\n",
   );
   writeFileSync(
-    path.join(rootDir, "src", "app", "app-verification-impact.json"),
-    `${JSON.stringify({
-      owners: [
-        {
-          acceptanceIds: ["persistence.reload"],
-          kind: "functional",
-          path: "src/app/app-composition.tsx",
-        },
-        {
-          acceptanceIds: ["persistence.reload"],
-          kind: "functional",
-          path: "src/app/app-schema.ts",
-        },
-        {
-          acceptanceIds: ["persistence.reload"],
-          kind: "functional",
-          path: "src/app.ts",
-        },
-        {
-          acceptanceIds: ["persistence.reload"],
-          kind: "performance",
-          passIds: ["composite"],
-          path: "src/app/renderer.ts",
-        },
-        {
-          acceptanceIds: ["persistence.reload"],
-          kind: "functional",
-          path: "src/app/schema.ts",
-        },
-      ],
-      version: 3,
-    })}\n`,
-  );
-  writeFileSync(
     path.join(rootDir, "scripts", "record-delivery-event.mjs"),
     [
       'import { appendFile, mkdir } from "node:fs/promises";',

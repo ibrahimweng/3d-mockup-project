@@ -22,7 +22,6 @@ import {
   createToolcraftDeliveryReceipt,
 } from "./toolcraft-delivery-receipt.mjs";
 import {
-  createInventory,
   createFunctionalProofModelFixture,
   createPlanReceiptFixture,
 } from "./toolcraft-delivery-receipt-test-helpers.mjs";
@@ -43,32 +42,6 @@ function deepFreeze(value) {
   return value;
 }
 
-function createStateFixtures() {
-  const changedFixture = createPlanReceiptFixture("functional-changed");
-  const comparisonInventory =
-    changedFixture.plan.basis.comparisonInventory;
-  const initialFixture = createPlanReceiptFixture("functional-initial");
-  const previousPlan = deepFreeze({
-    ...initialFixture.plan,
-    sourceHash: comparisonInventory.sourceHash,
-  });
-  const previousReceipt = createToolcraftDeliveryReceipt({
-    functionalProofModel: initialFixture.functionalProofModel,
-    plan: previousPlan,
-    result: {
-      ...initialFixture.result,
-      finalInventory: comparisonInventory,
-    },
-  });
-  return {
-    changedFixture,
-    changedReceipt: createToolcraftDeliveryReceipt(changedFixture),
-    initialFixture,
-    initialReceipt: createToolcraftDeliveryReceipt(initialFixture),
-    previousReceipt,
-  };
-}
-
 async function executeInitialFixture(rootDir) {
   const finalInventory =
     await collectToolcraftVerificationInputs(rootDir);
@@ -76,6 +49,7 @@ async function executeInitialFixture(rootDir) {
     { kind: "docs" },
     { kind: "code-health" },
     {
+      acceptanceIds: null,
       files: ["src/app/schema.test.ts"],
       kind: "product-tests",
     },
@@ -117,7 +91,8 @@ async function executeInitialFixture(rootDir) {
 }
 
 test("genuinely absent previous receipt permits an initial basis", async () => {
-  const { initialFixture, initialReceipt } = createStateFixtures();
+  const initialFixture = createPlanReceiptFixture("functional-initial");
+  const initialReceipt = createToolcraftDeliveryReceipt(initialFixture);
   await assert.doesNotReject(assertDeliveryCheckpointState({
     deliveryReceipt: initialReceipt,
     finalInventory: initialFixture.result.finalInventory,
@@ -181,18 +156,16 @@ test("real initial functional delivery commits only without a predecessor", asyn
 });
 
 test("present malformed, unsupported, and legacy receipts fail closed", async () => {
-  const {
-    initialFixture,
-    initialReceipt,
-    previousReceipt,
-  } = createStateFixtures();
+  const initialFixture = createPlanReceiptFixture("functional-initial");
+  const initialReceipt = createToolcraftDeliveryReceipt(initialFixture);
+  const previousReceipt = initialReceipt;
   const legacyPlan = deepFreeze({
     ...previousReceipt.plan,
     kind: "legacy-delivery",
   });
   for (const [previousDeliveryReceipt, expected] of [
-    [{ version: 5 }, /unsupported version/iu],
     [{ version: 6 }, /unsupported version/iu],
+    [{ version: 7 }, /unsupported version/iu],
     [{ ...previousReceipt, plan: legacyPlan }, /delivery plan is malformed/iu],
   ]) {
     await assert.rejects(
@@ -210,70 +183,37 @@ test("present malformed, unsupported, and legacy receipts fail closed", async ()
   }
 });
 
-test("a valid current previous receipt requires an exact changed basis", async () => {
-  const {
-    changedFixture,
-    changedReceipt,
-    initialFixture,
-    initialReceipt,
-    previousReceipt,
-  } = createStateFixtures();
+test("targeted performance basis must match the initial proof identity", async () => {
+  const initialFixture = createPlanReceiptFixture("functional-initial");
+  const initialReceipt = createToolcraftDeliveryReceipt(initialFixture);
+  const targetedFixture = createPlanReceiptFixture("performance-iteration");
+  const targetedPlan = deepFreeze({
+    ...targetedFixture.plan,
+    basis: {
+      ...targetedFixture.plan.basis,
+      initialFunctionalProofModelHash:
+        initialReceipt.functionalProofModelHash,
+      initialSourceHash: initialReceipt.sourceHash,
+    },
+  });
+  const targetedReceipt = createToolcraftDeliveryReceipt({
+    ...targetedFixture,
+    plan: targetedPlan,
+  });
   await assert.doesNotReject(assertDeliveryCheckpointState({
-    deliveryReceipt: changedReceipt,
-    finalInventory: changedFixture.result.finalInventory,
-    previousDeliveryReceipt: previousReceipt,
+    deliveryReceipt: targetedReceipt,
+    finalInventory: targetedFixture.result.finalInventory,
+    previousDeliveryReceipt: initialReceipt,
   }));
   await assert.rejects(
     assertDeliveryCheckpointState({
-      deliveryReceipt: initialReceipt,
-      finalInventory: initialFixture.result.finalInventory,
-      previousDeliveryReceipt: previousReceipt,
+      deliveryReceipt: targetedReceipt,
+      finalInventory: targetedFixture.result.finalInventory,
+      previousDeliveryReceipt: {
+        ...initialReceipt,
+        sourceHash: hash("9"),
+      },
     }),
-    /initial delivery basis requires no previous/iu,
-  );
-
-  const mismatchedComparison = createInventory({
-    "src/app/app-schema.ts": hash("9"),
-  });
-  const mismatchedPlan = deepFreeze({
-    ...changedFixture.plan,
-    basis: {
-      ...changedFixture.plan.basis,
-      comparisonInventory: mismatchedComparison,
-    },
-  });
-  const mismatchedReceipt = createToolcraftDeliveryReceipt({
-    functionalProofModel: changedFixture.functionalProofModel,
-    plan: mismatchedPlan,
-    result: changedFixture.result,
-  });
-  await assert.rejects(
-    assertDeliveryCheckpointState({
-      deliveryReceipt: mismatchedReceipt,
-      finalInventory: changedFixture.result.finalInventory,
-      previousDeliveryReceipt: previousReceipt,
-    }),
-    /changed delivery basis must match/iu,
-  );
-
-  const wrongPreviousModelPlan = deepFreeze({
-    ...changedFixture.plan,
-    basis: {
-      ...changedFixture.plan.basis,
-      comparisonFunctionalProofModelHash: hash("f"),
-    },
-  });
-  const wrongPreviousModelReceipt = createToolcraftDeliveryReceipt({
-    functionalProofModel: changedFixture.functionalProofModel,
-    plan: wrongPreviousModelPlan,
-    result: changedFixture.result,
-  });
-  await assert.rejects(
-    assertDeliveryCheckpointState({
-      deliveryReceipt: wrongPreviousModelReceipt,
-      finalInventory: changedFixture.result.finalInventory,
-      previousDeliveryReceipt: previousReceipt,
-    }),
-    /previous functional proof model|immediately previous/iu,
+    /source|inventory|plan/iu,
   );
 });

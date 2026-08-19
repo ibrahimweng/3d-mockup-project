@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { runToolcraftDeliveryVerification } from "./run-delivery-verification.mjs";
 import {
+  TOOLCRAFT_INITIAL_PROOF_ALREADY_COMPLETE,
   executeToolcraftDeliveryLifecycleCore,
 } from "./toolcraft-delivery-lifecycle.mjs";
 import {
@@ -12,35 +13,31 @@ import {
   removeDeliveryFixture,
 } from "./run-delivery-verification-test-helpers.mjs";
 
-test("no-delta delivery returns the exact previous receipt before expensive work", async () => {
-  const previousReceipt = Object.freeze({ kind: "previous-receipt" });
-  const currentInventory = Object.freeze({
-    entries: Object.freeze([]),
-    sourceHash: "a".repeat(64),
-  });
+test("proven product returns before all delivery proof work", async () => {
   const calls = {
     anchorReads: 0,
-    commit: 0,
-    functionalContexts: 0,
-    integrity: 0,
-    inventories: 0,
-    planner: 0,
-    proofExecutions: 0,
+    performanceAuthorityReads: 0,
   };
   const dependencies = Object.freeze({
     collectInventory: async () => {
-      calls.inventories += 1;
-      return currentInventory;
+      throw new Error("inventory must not be collected");
     },
     collectFunctionalContext: async () => {
-      calls.functionalContexts += 1;
       throw new Error("functional context must not be collected");
     },
-    commit: async () => { calls.commit += 1; },
-    createPlan: () => { calls.planner += 1; },
+    commit: async () => {
+      throw new Error("checkpoint must not be committed");
+    },
+    createPlan: () => {
+      throw new Error("plan must not be created");
+    },
     createReceipt: () => { throw new Error("receipt must not be created"); },
-    evaluateIntegrity: async () => { calls.integrity += 1; },
-    executePlan: async () => { calls.proofExecutions += 1; },
+    evaluateIntegrity: async () => {
+      throw new Error("integrity must not be evaluated");
+    },
+    executePlan: async () => {
+      throw new Error("proof must not execute");
+    },
     formatEscalationRecommendation: () => "",
     getEscalationRecommendation: () => null,
     loadPlanningInputs: async () => {
@@ -49,27 +46,134 @@ test("no-delta delivery returns the exact previous receipt before expensive work
     readDeliveryAnchor: async () => {
       calls.anchorReads += 1;
       return {
-        anchor: { sourceHash: currentInventory.sourceHash },
-        receipt: previousReceipt,
+        anchor: Object.freeze({ sourceHash: "a".repeat(64) }),
+        receipt: Object.freeze({ kind: "initial-delivery-receipt" }),
       };
+    },
+    readPerformanceAuthority: async () => {
+      calls.performanceAuthorityReads += 1;
+      return null;
     },
   });
 
-  const receipt = await executeToolcraftDeliveryLifecycleCore({
-    dependencies,
-    projectDir: "/tmp/toolcraft-no-delta",
+  const result = await executeToolcraftDeliveryLifecycleCore({
+    dependencies, projectDir: "/tmp/toolcraft-proven-product",
   });
 
-  assert.equal(receipt, previousReceipt);
+  assert.equal(result, TOOLCRAFT_INITIAL_PROOF_ALREADY_COMPLETE);
+  assert.equal(Object.isFrozen(result), true);
   assert.deepEqual(calls, {
     anchorReads: 1,
-    commit: 0,
-    functionalContexts: 0,
-    integrity: 0,
-    inventories: 1,
-    planner: 0,
-    proofExecutions: 0,
+    performanceAuthorityReads: 1,
   });
+});
+
+test("consumed performance authority returns before all delivery proof work", async () => {
+  const authority = Object.freeze({ hash: "b".repeat(64) });
+  const dependencies = Object.freeze({
+    collectInventory: async () => {
+      throw new Error("inventory must not be collected");
+    },
+    readDeliveryAnchor: async () => ({
+      anchor: Object.freeze({
+        lifecycle: Object.freeze({
+          consumedPerformanceRequestAuthorityHashes: Object.freeze([
+            authority.hash,
+          ]),
+          performanceEscalationOffered: false,
+        }),
+      }),
+      receipt: Object.freeze({ kind: "initial-delivery-receipt" }),
+    }),
+    readPerformanceAuthority: async () => authority,
+  });
+
+  const result = await executeToolcraftDeliveryLifecycleCore({
+    dependencies,
+    projectDir: "/tmp/toolcraft-consumed-performance-authority",
+  });
+
+  assert.equal(result, TOOLCRAFT_INITIAL_PROOF_ALREADY_COMPLETE);
+});
+
+test("missing initial proof still executes the complete delivery lifecycle", async () => {
+  const calls = [];
+  const receipt = Object.freeze({ kind: "initial-delivery-receipt" });
+  const functionalContext = Object.freeze({
+    currentFunctionalProofModel: Object.freeze({ kind: "model" }),
+  });
+  const dependencies = Object.freeze({
+    collectInventory: async () => {
+      calls.push("inventory");
+      return Object.freeze({ entries: Object.freeze([]), sourceHash: "a".repeat(64) });
+    },
+    collectFunctionalContext: async () => {
+      calls.push("functional-context");
+      return functionalContext;
+    },
+    commit: async () => { calls.push("commit"); },
+    createPlan: () => {
+      calls.push("plan");
+      return Object.freeze({ kind: "functional" });
+    },
+    createReceipt: () => {
+      calls.push("receipt");
+      return receipt;
+    },
+    evaluateIntegrity: async () => {
+      calls.push("integrity");
+      return Object.freeze({ manifestHash: "b".repeat(64) });
+    },
+    executePlan: async () => {
+      calls.push("execute");
+      return Object.freeze({ finalInventory: Object.freeze({}) });
+    },
+    formatEscalationRecommendation: () => "",
+    getEscalationRecommendation: () => null,
+    loadPlanningInputs: async ({ authority }) => {
+      calls.push("planning-inputs");
+      assert.equal(authority, null);
+      return Object.freeze({ kind: "inputs" });
+    },
+    readDeliveryAnchor: async () => {
+      calls.push("anchor");
+      return Object.freeze({ missing: true });
+    },
+    readPerformanceAuthority: async () => {
+      calls.push("performance-authority");
+      return null;
+    },
+  });
+
+  const result = await executeToolcraftDeliveryLifecycleCore({
+    dependencies, projectDir: "/tmp/toolcraft-unproven-product",
+  });
+
+  assert.equal(result, receipt);
+  assert.deepEqual(calls, [
+    "anchor",
+    "performance-authority",
+    "inventory",
+    "integrity",
+    "functional-context",
+    "planning-inputs",
+    "plan",
+    "execute",
+    "receipt",
+    "commit",
+  ]);
+});
+
+test("malformed initial proof fails closed before phase resolution", async () => {
+  await assert.rejects(
+    executeToolcraftDeliveryLifecycleCore({
+      dependencies: Object.freeze({
+        readDeliveryAnchor: async () => ({ error: "malformed checkpoint" }),
+      }),
+      projectDir: "/tmp/toolcraft-malformed-product",
+    }),
+    /malformed checkpoint/u,
+  );
 });
 
 test("public delivery accepts only an optional package-manager separator", async (t) => {

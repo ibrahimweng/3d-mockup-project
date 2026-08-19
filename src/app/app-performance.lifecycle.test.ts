@@ -12,8 +12,8 @@ import { projectDir } from "./app-performance-test-utils";
 
 const expectedRequiredPackageScriptNames = [
   "ai:check", "build", "dev", "dev:restart", "docs:check", "preview",
-  "preview:restart", "test", "test:browser", "typecheck", "verify:delivery",
-  "verify:kernel", "verify:perf", "verify:receipt",
+  "preview:restart", "reference:study", "test", "test:browser", "test:feature", "typecheck",
+  "verify:delivery", "verify:kernel", "verify:perf", "verify:receipt",
 ] as const;
 
 describe("Toolcraft starter performance lifecycle", () => {
@@ -59,6 +59,20 @@ describe("Toolcraft starter performance lifecycle", () => {
       'playwright install chromium && playwright test --grep-invert "browser perf:|toolcraft kernel:"',
     );
     expect(packageJson.scripts?.["test:browser:perf"]).toBeUndefined();
+    expect(packageJson.scripts?.["test:feature"]).toBe(
+      "node scripts/run-feature-verification.mjs",
+    );
+    const featureRunner = readFileSync(
+      join(projectDir, "scripts/run-feature-verification.mjs"),
+      "utf8",
+    );
+    expect(featureRunner).toContain(
+      "toolcraft-feature-verification-reporter.ts",
+    );
+    expect(featureRunner).toContain("--workers=1");
+    expect(featureRunner).not.toMatch(
+      /runToolcraftProofPackageScript|verify:delivery|verify:perf|test:browser/iu,
+    );
     const performanceRunner = readFileSync(
       join(projectDir, "scripts/run-browser-performance.mjs"),
       "utf8",
@@ -161,12 +175,12 @@ describe("Toolcraft starter performance lifecycle", () => {
 
     for (const { relativePath, source } of docSources) {
       expect(source, relativePath).toMatch(/first (?:product )?delivery/i);
-      expect(source, relativePath).toMatch(/later[^\n]{0,40}delivery/i);
+      expect(source, relativePath).toMatch(/later[^\n]{0,60}(?:edits|feature work)/i);
       expect(source, relativePath).toMatch(
         /(?:performance complaint|localized complaint)/i,
       );
       expect(source, relativePath).toMatch(
-        /(?:full audit|complete (?:performance )?(?:audit|review))/i,
+        /(?:full[- ]audit|complete (?:performance )?(?:audit|review))/i,
       );
       expect(source, relativePath).toContain(
         TOOLCRAFT_DELIVERY_VERIFICATION_COMMAND,
@@ -241,14 +255,16 @@ describe("Toolcraft starter performance lifecycle", () => {
     expect(documentation).toMatch(
       /first product delivery[^\n]*full functional acceptance[^\n]*no measured performance/i,
     );
-    expect(documentation).toMatch(/later delivery[^\n]*functional-targeted/i);
+    expect(documentation).toMatch(
+      /later(?: ordinary)? edits[^\n]*(?:focused|directly relevant|feature-focused)/i,
+    );
     expect(documentation).toMatch(
       /complaint[^\n]*one-authority-targeted-performance-iteration/i,
     );
     expect(documentation).toMatch(/full-performance/i);
     expect(documentation).toMatch(/needs-agent-judgment/i);
     expect(documentation).toMatch(
-      /later[^\n]{0,40}delivery[^\n]*(?:same )?bare command[^\n]*exact ownership/i,
+      /repeated bare command[^\n]*protected no-op/i,
     );
     expect(documentation).not.toMatch(
       /first stable[^\n]*(?:full performance|full checkpoint|baseline)/i,

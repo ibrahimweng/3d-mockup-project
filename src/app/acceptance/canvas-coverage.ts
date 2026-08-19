@@ -5,6 +5,7 @@ export type ToolcraftCanvasSizingCoverage =
 export type ToolcraftInfinityCanvasCoverage =
   | "mode-and-restoration"
   | "scene-bounds-image-export"
+  | "scene-bounds-svg-export"
   | "scene-bounds-video-export";
 
 export type ToolcraftRenderScaleState =

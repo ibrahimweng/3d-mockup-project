@@ -10,45 +10,50 @@ import type { ToolcraftArtifactExportIntent } from "./acceptance/types";
 const deliveryCases: readonly Readonly<{
   expected: Readonly<{
     imageEnabled: boolean;
+    svgEnabled: boolean;
     videoEnabled: boolean;
   }>;
   intent: ToolcraftArtifactExportIntent;
   name: string;
 }>[] = [
   {
-    expected: { imageEnabled: true, videoEnabled: false },
+    expected: { imageEnabled: true, svgEnabled: false, videoEnabled: false },
     intent: {
       image: { mode: "toolcraft-default" },
+      svg: { mode: "not-requested" },
       video: { mode: "not-requested" },
     },
     name: "enables default image export without unrequested video export",
   },
   {
-    expected: { imageEnabled: true, videoEnabled: false },
+    expected: { imageEnabled: true, svgEnabled: false, videoEnabled: false },
     intent: {
       image: {
         evidence: "The user explicitly requested PNG delivery.",
         mode: "user-requested",
       },
+      svg: { mode: "not-requested" },
       video: { mode: "not-requested" },
     },
     name: "enables explicitly requested image export",
   },
   {
-    expected: { imageEnabled: false, videoEnabled: false },
+    expected: { imageEnabled: false, svgEnabled: false, videoEnabled: false },
     intent: {
       image: {
         evidence: "The user explicitly requested no image export.",
         mode: "user-removed",
       },
+      svg: { mode: "not-requested" },
       video: { mode: "not-requested" },
     },
     name: "disables explicitly removed image export",
   },
   {
-    expected: { imageEnabled: true, videoEnabled: true },
+    expected: { imageEnabled: true, svgEnabled: false, videoEnabled: true },
     intent: {
       image: { mode: "toolcraft-default" },
+      svg: { mode: "not-requested" },
       video: {
         evidence: "The user explicitly requested MP4 delivery.",
         mode: "user-requested",
@@ -57,12 +62,13 @@ const deliveryCases: readonly Readonly<{
     name: "enables explicitly requested video export",
   },
   {
-    expected: { imageEnabled: true, videoEnabled: true },
+    expected: { imageEnabled: true, svgEnabled: false, videoEnabled: true },
     intent: {
       image: {
         evidence: "The user explicitly requested PNG delivery.",
         mode: "user-requested",
       },
+      svg: { mode: "not-requested" },
       video: {
         evidence: "The user explicitly requested MP4 delivery.",
         mode: "user-requested",
@@ -71,18 +77,34 @@ const deliveryCases: readonly Readonly<{
     name: "enables explicitly requested image and video export",
   },
   {
-    expected: { imageEnabled: false, videoEnabled: true },
+    expected: { imageEnabled: false, svgEnabled: false, videoEnabled: true },
     intent: {
       image: {
         evidence: "The user explicitly requested no image export.",
         mode: "user-removed",
       },
+      svg: { mode: "not-requested" },
       video: {
         evidence: "The user explicitly requested MP4 delivery.",
         mode: "user-requested",
       },
     },
     name: "keeps requested video export when image export is removed",
+  },
+  {
+    expected: { imageEnabled: false, svgEnabled: true, videoEnabled: false },
+    intent: {
+      image: {
+        evidence: "The user explicitly requested SVG instead of image export.",
+        mode: "user-removed",
+      },
+      svg: {
+        evidence: "The user explicitly requested editable SVG delivery.",
+        mode: "user-requested",
+      },
+      video: { mode: "not-requested" },
+    },
+    name: "enables requested SVG without retaining default image export",
   },
 ];
 
@@ -95,6 +117,7 @@ const evidenceCases: readonly Readonly<{
     expected: [],
     intent: {
       image: { mode: "toolcraft-default" },
+      svg: { mode: "not-requested" },
       video: { mode: "not-requested" },
     },
     name: "accepts default image and not-requested video modes",
@@ -106,6 +129,7 @@ const evidenceCases: readonly Readonly<{
         evidence: "The user explicitly requested PNG delivery.",
         mode: "user-requested",
       },
+      svg: { mode: "not-requested" },
       video: { mode: "not-requested" },
     },
     name: "accepts nonblank requested image evidence",
@@ -117,6 +141,7 @@ const evidenceCases: readonly Readonly<{
         evidence: "The user explicitly requested no image export.",
         mode: "user-removed",
       },
+      svg: { mode: "not-requested" },
       video: { mode: "not-requested" },
     },
     name: "accepts nonblank image removal evidence",
@@ -125,6 +150,7 @@ const evidenceCases: readonly Readonly<{
     expected: [],
     intent: {
       image: { mode: "toolcraft-default" },
+      svg: { mode: "not-requested" },
       video: {
         evidence: "The user explicitly requested MP4 delivery.",
         mode: "user-requested",
@@ -138,6 +164,7 @@ const evidenceCases: readonly Readonly<{
     ],
     intent: {
       image: { evidence: " \n\t ", mode: "user-removed" },
+      svg: { mode: "not-requested" },
       video: { mode: "not-requested" },
     },
     name: "rejects blank image removal evidence",
@@ -148,6 +175,7 @@ const evidenceCases: readonly Readonly<{
     ],
     intent: {
       image: { evidence: "   ", mode: "user-requested" },
+      svg: { mode: "not-requested" },
       video: { mode: "not-requested" },
     },
     name: "rejects blank requested image evidence",
@@ -158,9 +186,21 @@ const evidenceCases: readonly Readonly<{
     ],
     intent: {
       image: { mode: "toolcraft-default" },
+      svg: { mode: "not-requested" },
       video: { evidence: "\t", mode: "user-requested" },
     },
     name: "rejects blank requested video evidence",
+  },
+  {
+    expected: [
+      "SVG export user-requested intent requires non-empty evidence.",
+    ],
+    intent: {
+      image: { mode: "toolcraft-default" },
+      svg: { evidence: "\t", mode: "user-requested" },
+      video: { mode: "not-requested" },
+    },
+    name: "rejects blank requested SVG evidence",
   },
   {
     expected: [
@@ -169,6 +209,7 @@ const evidenceCases: readonly Readonly<{
     ],
     intent: {
       image: { evidence: " ", mode: "user-removed" },
+      svg: { mode: "not-requested" },
       video: { evidence: "\n", mode: "user-requested" },
     },
     name: "aggregates blank image and video evidence errors",
@@ -194,15 +235,17 @@ describe("Toolcraft artifact export intent", () => {
       validateToolcraftArtifactExportIntentCorrespondence({
         hasImageExportAction: false,
         hasImageExportSection: false,
+        hasSvgExportAction: false,
         hasVideoExportAction: true,
         hasVideoExportSection: true,
         intent: {
           image: { mode: "toolcraft-default" },
+          svg: { mode: "not-requested" },
           video: { mode: "not-requested" },
         },
       }),
     ).toEqual({
-      delivery: { imageEnabled: true, videoEnabled: false },
+      delivery: { imageEnabled: true, svgEnabled: false, videoEnabled: false },
       errors: [
         'Image export intent "toolcraft-default" requires an export-image panel action.',
         'Image export intent "toolcraft-default" requires an "Image Export" section.',
@@ -217,15 +260,17 @@ describe("Toolcraft artifact export intent", () => {
       validateToolcraftArtifactExportIntentCorrespondence({
         hasImageExportAction: true,
         hasImageExportSection: true,
+        hasSvgExportAction: false,
         hasVideoExportAction: false,
         hasVideoExportSection: false,
         intent: {
           image: { evidence: "  ", mode: "user-removed" },
+          svg: { mode: "not-requested" },
           video: { evidence: "\t", mode: "user-requested" },
         },
       }),
     ).toEqual({
-      delivery: { imageEnabled: false, videoEnabled: true },
+      delivery: { imageEnabled: false, svgEnabled: false, videoEnabled: true },
       errors: [
         "Image export user-removed intent requires non-empty evidence.",
         "Video export user-requested intent requires non-empty evidence.",
@@ -233,6 +278,34 @@ describe("Toolcraft artifact export intent", () => {
         'Image export intent "user-removed" must not have an "Image Export" section.',
         'Video export intent "user-requested" requires an export-video panel action.',
         'Video export intent "user-requested" requires a "Video Export" section.',
+      ],
+    });
+  });
+
+  it("requires requested SVG to correspond to one typed action without a settings section", () => {
+    expect(
+      validateToolcraftArtifactExportIntentCorrespondence({
+        hasImageExportAction: false,
+        hasImageExportSection: false,
+        hasSvgExportAction: false,
+        hasVideoExportAction: false,
+        hasVideoExportSection: false,
+        intent: {
+          image: {
+            evidence: "The user requested SVG only.",
+            mode: "user-removed",
+          },
+          svg: {
+            evidence: "The user requested editable SVG.",
+            mode: "user-requested",
+          },
+          video: { mode: "not-requested" },
+        },
+      }),
+    ).toEqual({
+      delivery: { imageEnabled: false, svgEnabled: true, videoEnabled: false },
+      errors: [
+        'SVG export intent "user-requested" requires an export-svg panel action.',
       ],
     });
   });

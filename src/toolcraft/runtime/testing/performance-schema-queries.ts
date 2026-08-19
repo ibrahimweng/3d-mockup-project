@@ -2,6 +2,7 @@ import type {
   ResolvedToolcraftAppSchema,
   ToolcraftControlSchema,
 } from "../schema/types";
+import { TOOLCRAFT_ARTIFACT_EXPORT_ACTION_ROLES } from "../schema/artifact-export-actions";
 import type { ToolcraftPerformanceValueSet } from "./performance-types";
 
 export function getAllSchemaControls(
@@ -122,8 +123,7 @@ function normalizeActionReference(value: string | undefined): string {
 const outputDeliveryActionRoles = new Set([
   "copy-output",
   "download-output",
-  "export-image",
-  "export-video",
+  ...TOOLCRAFT_ARTIFACT_EXPORT_ACTION_ROLES,
 ]);
 
 function isOutputDeliveryAction(

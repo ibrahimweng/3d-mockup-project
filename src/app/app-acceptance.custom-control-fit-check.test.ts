@@ -82,7 +82,7 @@ describe("starter acceptance custom control built-in fit contract", () => {
               controls: {
                 shapeButtons: {
                   defaultValue: "rect",
-                  label: "Shape",
+                  label: false,
                   orderRole: "style",
                   target: "shape.kind",
                   type: "shapeButtons",

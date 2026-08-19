@@ -11,6 +11,7 @@ import type { ToolcraftProductReadiness } from "./acceptance/types";
 const infinityProductReadiness: ToolcraftProductReadiness = {
   exportIntent: {
     image: { mode: "toolcraft-default" },
+    svg: { mode: "not-requested" },
     video: { mode: "not-requested" },
   },
   interactionOwnership: [],
@@ -28,6 +29,7 @@ const infinityVideoProductReadiness: ToolcraftProductReadiness = {
   ...infinityProductReadiness,
   exportIntent: {
     image: { mode: "toolcraft-default" },
+    svg: { mode: "not-requested" },
     video: {
       evidence: "The Infinity canvas fixture explicitly exercises video export bounds.",
       mode: "user-requested",

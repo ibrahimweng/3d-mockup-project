@@ -18,23 +18,12 @@ import type {
 } from "./toolcraft-functional-proof-model.mjs";
 
 const files = [{ path: "src/app/app-schema.ts", sha256: "a".repeat(64) }];
-const comparisonFiles = [
-  { path: "src/app/app-schema.ts", sha256: "b".repeat(64) },
-];
 const lifecycle: ToolcraftDeliveryLifecycleState = {
   consumedPerformanceRequestAuthorityHashes: ["e".repeat(64)],
   performanceEscalationOffered: true,
 };
 const plan: ToolcraftDeliveryPlan = {
-  basis: {
-    changedFiles: ["src/app/app-schema.ts"],
-    comparisonFunctionalProofModelHash: "f".repeat(64),
-    comparisonInventory: {
-      entries: comparisonFiles,
-      sourceHash: "b".repeat(64),
-    },
-    kind: "changed",
-  },
+  basis: { kind: "initial" },
   functionalProofModelHash: "f".repeat(64),
   kind: "functional",
   lifecycle,
@@ -53,12 +42,7 @@ const functionalProofModel: ToolcraftFunctionalProofModel = {
     file: "app-controls.spec.ts",
     testName: "browser: focused acceptance",
   }],
-  owners: [{
-    acceptanceIds: ["canvas.focused"],
-    kind: "functional",
-    path: "src/app/app-schema.ts",
-  }],
-  version: 1,
+  version: 2,
 };
 const receipt: ToolcraftDeliveryReceipt = {
   completedAt: "2026-07-24T00:00:00.000Z",
@@ -70,11 +54,11 @@ const receipt: ToolcraftDeliveryReceipt = {
   manifestHash: plan.manifestHash,
   plan,
   planHash: "d".repeat(64),
-  planVersion: 4,
+  planVersion: 6,
   runner: "protected-delivery",
   sourceHash: plan.sourceHash,
   status: "passed",
-  version: 7,
+  version: 8,
 };
 
 const withLegacyMode = { ...receipt, mode: "ordinary" as const };
@@ -88,10 +72,10 @@ const withBaseline = {
 // @ts-expect-error Current delivery receipts cannot carry baseline linkage.
 const invalidBaseline: ToolcraftDeliveryReceipt = withBaseline;
 const withOldPlanVersion = { ...receipt, planVersion: 1 as const };
-// @ts-expect-error Current delivery receipts require plan version 4.
+// @ts-expect-error Current delivery receipts require plan version 6.
 const invalidPlanVersion: ToolcraftDeliveryReceipt = withOldPlanVersion;
-const withOldReceiptVersion = { ...receipt, version: 6 as const };
-// @ts-expect-error Current delivery receipts require receipt version 7.
+const withOldReceiptVersion = { ...receipt, version: 7 as const };
+// @ts-expect-error Current delivery receipts require receipt version 8.
 const invalidReceiptVersion: ToolcraftDeliveryReceipt = withOldReceiptVersion;
 const { functionalProofModel: _model, ...withoutModel } = receipt;
 // @ts-expect-error Current delivery receipts require the canonical proof model.
@@ -114,6 +98,11 @@ const invalidFunctional: FunctionalDeliveryPlan = {
 };
 const invalidIteration: PerformanceIterationPlan = {
   ...plan,
+  basis: {
+    initialFunctionalProofModelHash: "f".repeat(64),
+    initialSourceHash: "a".repeat(64),
+    kind: "performance-request",
+  },
   kind: "performance-iteration",
   performanceComparison: { kind: "none" },
   requestAuthorityHash: "e".repeat(64),
@@ -129,14 +118,17 @@ const initialPerformanceCandidate = {
   performanceComparison: { kind: "none" as const },
   requestAuthorityHash: "e".repeat(64),
   sourceHash: "a".repeat(64),
-  steps: [{
-    kind: "browser-performance" as const,
-    passIds: ["preview"],
-    pathIds: ["path"],
-    testNames: ["browser perf: path"],
-  }] as const,
+  steps: [
+    { kind: "build" as const },
+    {
+      kind: "browser-performance" as const,
+      passIds: ["preview"],
+      pathIds: ["path"],
+      testNames: ["browser perf: path"],
+    },
+  ] as const,
 };
-// @ts-expect-error Performance iterations require a changed delivery basis.
+// @ts-expect-error Performance iterations require a performance-request basis.
 const invalidInitialIteration: PerformanceIterationPlan =
   initialPerformanceCandidate;
 // @ts-expect-error Lifecycle authority history is immutable.

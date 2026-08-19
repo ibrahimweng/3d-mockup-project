@@ -19,12 +19,13 @@ export const TOOLCRAFT_INPUT_COMPONENT_CONTRACTS = {
         "AspectRatio belongs to the mandatory runtime Setup block before Canvas width and Canvas height.",
       ],
       requiredAcceptance: [
-        "Prove presets resize the current canvas and custom dimensions report the current reduced ratio.",
+        "Prove presets resize the current canvas and manual dimensions select Custom, retain the reduced ratio in state, and do not render duplicate ratio dimension fields.",
       ],
     }),
     aiUsageRules: [
       "AspectRatio is runtime-owned Setup UI and is not authored as a product control.",
       "Manual canvas dimension edits switch the value to Custom without changing the other dimension.",
+      "Custom keeps its reduced ratio in runtime state while Canvas width and Canvas height remain the sole numeric editors.",
     ],
   },
   slider: {

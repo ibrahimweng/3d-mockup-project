@@ -10,7 +10,6 @@ export const canonicalDeliveryModules = freeze([
   "toolcraft-delivery-anchor.mjs",
   "toolcraft-plan-execution-authority.mjs",
   "toolcraft-proof-process.mjs",
-  "toolcraft-verification-impact.mjs",
 ]);
 
 export const obsoleteDeliveryBasenames = freeze([
@@ -80,7 +79,4 @@ export const deliveryBehaviorModules = freeze([
   "toolcraft-typescript-analysis.mjs",
   "toolcraft-typescript-callables.mjs",
   "toolcraft-typescript-module-shape.mjs",
-  "toolcraft-verification-impact.mjs",
-  "toolcraft-verification-impact-inventory.mjs",
-  "toolcraft-verification-input-roles.mjs",
 ]);

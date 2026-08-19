@@ -20,25 +20,24 @@ type Contracts = {
   "scene-load": ToolcraftRendererPipelinePassContract<
     SceneResources,
     SceneResources,
-    readonly [string, string]
+    readonly [string, string, string]
   >;
 };
 
 /**
  * Three passes, and only one of them runs per frame.
  *
- * This replaced a progressive path tracer, and the difference is the whole
- * point of the rewrite: there is no accumulator, no sample budget, and no
- * convergence to restart. Orbiting the camera invalidates exactly one constant-
- * cost raster pass, so interaction is free and an idle scene does no work at
- * all. The environment is convolved once at load and then simply sampled.
+ * There is no accumulator, no sample budget, and no convergence to restart.
+ * Orbiting the camera invalidates exactly one constant-cost raster pass, so
+ * interaction is free and an idle scene does no work at all. The environment is
+ * convolved once at load and then simply sampled.
  */
 export const rendererPipeline = registerToolcraftRendererPipeline<Contracts>()({
   interactionInvalidation: [
     {
       interaction: "initial-render",
       invalidates: ["scene-load", "artwork-texture", "raster-frame"],
-      targets: [],
+      targets: ["device.model", "studio.environment", "camera.orbit"],
     },
     {
       interaction: "media-import",
@@ -49,31 +48,21 @@ export const rendererPipeline = registerToolcraftRendererPipeline<Contracts>()({
       targets: ["artwork.image"],
     },
     {
-      // The environment is the lighting model, so changing it is the one
-      // control that genuinely rebuilds the scene.
+      // The device is a different GLB and the environment is the lighting
+      // model, so these are the controls that genuinely rebuild the scene.
       interaction: "control-change",
       invalidates: ["scene-load", "raster-frame"],
-      targets: ["studio.environment", "export.includeBackground"],
+      targets: [
+        "device.model",
+        "studio.environment",
+        "export.includeBackground",
+      ],
     },
     {
       interaction: "control-drag",
       invalidates: ["raster-frame"],
       mustNotInvalidate: ["scene-load", "artwork-texture"],
-      targets: ["camera.focalLength", "scene.background"],
-    },
-    {
-      // The reason this renderer exists: orbiting costs one raster pass and
-      // touches nothing retained.
-      interaction: "viewport-drag",
-      invalidates: ["raster-frame"],
-      mustNotInvalidate: ["scene-load", "artwork-texture"],
-      targets: ["camera.orbit"],
-    },
-    {
-      interaction: "viewport-zoom",
-      invalidates: ["raster-frame"],
-      mustNotInvalidate: ["scene-load", "artwork-texture"],
-      targets: ["camera.orbit"],
+      targets: ["camera.focalLength", "camera.orbit", "scene.background"],
     },
     {
       interaction: "export",
@@ -86,16 +75,24 @@ export const rendererPipeline = registerToolcraftRendererPipeline<Contracts>()({
     {
       // Model plus environment. The GLB is decoded once and the equirectangular
       // map is convolved into roughness mips once; both are retained for the
-      // renderer's lifetime.
-      cacheKey: ["environment", "showGround"],
+      // renderer's lifetime and rebuilt only when the device changes.
+      cacheKey: ["device", "environment", "showGround"],
       cost: {
         dimensions: [],
         frequency: "once",
         relationship: "constant",
       },
       id: "scene-load",
-      inputs: ["studio.environment", "export.includeBackground"],
-      invalidatedBy: ["studio.environment", "export.includeBackground"],
+      inputs: [
+        "device.model",
+        "studio.environment",
+        "export.includeBackground",
+      ],
+      invalidatedBy: [
+        "device.model",
+        "studio.environment",
+        "export.includeBackground",
+      ],
       kind: "decode",
       lifecycle: { cache: "retained-resource", resourceScope: "renderer" },
       output: "intermediate",
@@ -138,5 +135,5 @@ export const rendererPipeline = registerToolcraftRendererPipeline<Contracts>()({
       runsOn: "gpu",
     },
   ],
-  runtimeId: "plinth-raster",
+  runtimeId: "mockup-studio-raster",
 });

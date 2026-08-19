@@ -58,7 +58,7 @@ export const TOOLCRAFT_DECISION_CONTRACT = [
     area: "runtime-shell",
     currentConstraint: "Apps must assemble through defineToolcraft and ToolcraftApp.",
     desiredBehavior:
-      "Generated apps use the Toolcraft runtime shell and keep product-specific rendering inside supported extension points: schema controls, bounded canvasContent product output, editor-only full-viewport infiniteCanvasContent product output, controlRenderers for true custom controls, one shared ToolcraftAppComposition.exportRenderer for typed image/video actions, ToolcraftApp onPanelAction for non-export product actions, and runtime commands. App-specific code must not import or render low-level runtime surfaces or built-in control components directly, instantiate encoders, or own artifact download mechanics.",
+      "Generated apps use the Toolcraft runtime shell and keep product-specific rendering inside supported extension points: schema controls, bounded canvasContent product output, editor-only full-viewport infiniteCanvasContent product output, controlRenderers for true custom controls, ToolcraftAppComposition.exportRenderer for typed image/video actions, svgExportRenderer for typed SVG, ToolcraftApp onPanelAction for non-export product actions, and runtime commands. App-specific code must not import or render low-level runtime surfaces or built-in control components directly, serialize artifacts, instantiate encoders, or own artifact download mechanics.",
     enforcement: [
       "cli-integrity-check",
       "acceptance-validator",
@@ -169,7 +169,7 @@ export const TOOLCRAFT_DECISION_CONTRACT = [
     currentConstraint:
       "Once layers are enabled, selection, visibility, reorder, grouping, media lifecycle, and selected-layer controls must work through the real LayersPanel UI.",
     desiredBehavior:
-      "Layer-enabled apps prove real layer interactions and product output changes instead of dispatching layer commands directly in browser tests.",
+      "Layer-enabled apps prove real layer interactions and product output changes instead of dispatching layer commands directly in browser tests. Every selectedLayer.* property uses the same protected two-entity isolation recipe as app-owned selected-entity properties: editing either selected entity changes only that entity while preserving the comparison entity.",
     enforcement: ["acceptance-validator", "browser-helper", "performance-validator"],
     id: "layers-enabled-behavior",
     level: "invariant",
@@ -217,7 +217,7 @@ export const TOOLCRAFT_DECISION_CONTRACT = [
     currentConstraint:
       "Product artifact delivery must match the required productReadiness.exportIntent declaration.",
     desiredBehavior:
-      'Every product declares productReadiness.exportIntent. Image export starts as the Toolcraft default and is removed only with explicit user-removal evidence; video export requires explicit user request evidence. Animation, playback, keyframes, or timeline presence never changes artifact delivery intent. Resolved intent capabilities correspond exactly to schema actions, settings sections, and acceptance coverage: image-only, image-plus-video, video-only, and explicit no-export products expose only the runtime-owned artifact surfaces their intent enables. Product apps declare the standard background pair and runtime places it in Setup: Background beside Infinity canvas, Color below, and Timeline last. One shared product exportRenderer draws deterministic scene-coordinate frames for enabled artifact types; runtime owns settings, scene crop, PNG/JPEG/video background semantics, visible runtime media/model composition, exact timestamped encoding, download, progress, and typed failures.',
+      'Every product declares productReadiness.exportIntent. Image export starts as the Toolcraft default and is removed only with explicit user-removal evidence; SVG and video require explicit user request evidence. Animation, playback, keyframes, or timeline presence never changes artifact delivery intent. Resolved intent capabilities correspond exactly to typed schema actions, applicable settings sections, and artifact-specific acceptance coverage. SVG means self-contained editable vector geometry/text and never permits raster bytes wrapped in SVG. Product apps declare the standard background pair and runtime places it in Setup: Background beside Infinity canvas, Color below, and Timeline last. Product code uses exportRenderer for deterministic image/video pixels and svgExportRenderer for namespace-aware vector nodes; runtime owns settings, scene crop/frame, background, visible runtime media/model composition, validation, encoding/serialization, download, progress, and typed failures.',
     enforcement: ["acceptance-validator", "performance-validator", "browser-helper", "starter-agents"],
     id: "output-export-required",
     level: "invariant",
@@ -326,7 +326,7 @@ export const TOOLCRAFT_DECISION_CONTRACT = [
     currentConstraint:
       "Video, GIF, and screen-recording references are often treated as static visual inspiration or summarized from a few frames.",
     desiredBehavior:
-      "Whenever a supplied reference is a video, GIF, screen recording, contact sheet, or extracted frame sequence, the agent studies it as behavioral evidence before implementation: extract or inspect a storyboard, record timecoded frame observations, compare frame-to-frame transitions, decompose changing entities and state into product behavior, and map those observed behaviors to acceptance rows. This applies to new Toolcraft apps and reference-runtime-clone work; it is independent from loop duration or timeline choice.",
+      "Whenever a supplied reference is a video, GIF, screen recording, contact sheet, or extracted frame sequence, the agent registers a typed referenceInputs item before implementation. Protected preprocessing performs one full source scan, produces a dense 12 FPS review with bounded partitions, and stores content-addressed evidence. The agent covers complete contiguous phases, classifies every detected event, decomposes product behaviors, and maps each behavior bidirectionally to observable acceptance rows plus browser reference-parity coverage. A no-reference product declares referenceInputs: [] and runs no preprocessing.",
     enforcement: ["acceptance-validator", "browser-helper", "docs", "starter-agents"],
     id: "video-reference-analysis",
     level: "invariant",

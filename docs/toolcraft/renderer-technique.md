@@ -14,7 +14,7 @@ Use the same producer order for every custom renderer:
 4. Run `assessToolcraftRenderPlan`; resolve errors and run protected `pnpm verify:kernel` only when the assessment requires candidate evidence.
 5. Derive canonical paths and compile combined fixtures through their adapters.
 6. Implement the selected renderer and run targeted checks for the paths being developed.
-7. Run lifecycle-appropriate delivery proof: full functional acceptance with no measured performance for first product delivery, exact ownership-derived functional checks for later work, or one targeted iteration for a performance complaint. Full certification is a separate operator/CI command.
+7. Run lifecycle-appropriate proof: full functional acceptance with no measured performance for first product delivery, feature-focused tests only for later ordinary edits, or one targeted iteration for a performance complaint. Full certification is a separate operator/CI command.
 
 Do not write renderer code before the envelope, `rendererTechnique`, pipeline, and assessment exist.
 
@@ -114,7 +114,7 @@ The `mount*` and error functions above stand for product renderer integration on
 
 The presentation lease is keyed by canonical document reference and shares immutable geometry/material/texture GPU resources across preview and export while cloning only scene roots. Replacement, delete/reset, failed creation, release, and provider unmount dispose ownership deterministically. The original uploaded folder/ZIP remains immutable durable source; display fit and camera pose live outside the leased root.
 
-The runtime presents structurally valid analyzing or repairing geometry at `0.4` opacity and committed clean/fixed geometry at `1`. Export is always `1`. Runtime image/video export composites visible committed model layers before awaiting the product's shared `ToolcraftAppComposition.exportRenderer` frame. Runtime owns the presentation binding, pose, scene frame, dimensions, pixel ratio, encoding, and download; product code does not call model compositors or construct a parallel export host.
+The runtime presents structurally valid analyzing or repairing geometry at `0.4` opacity and committed clean/fixed geometry at `1`. Export is always `1`. Runtime image/video export composites visible committed model layers before awaiting the product's shared `ToolcraftAppComposition.exportRenderer` frame. Models are not silently traced for SVG; explicit SVG delivery requires product-authored editable vector content through `svgExportRenderer`. Runtime owns presentation binding, pose, scene frame, dimensions, pixel ratio, validation/encoding, and download; product code does not call model compositors or construct a parallel export host.
 
 When `viewInteraction.mode` is `orbit`, schema `orientationGizmo`, direct model drag, preview rendering, hit testing, reset/history, and export share every declared orientation pose target. The product renderer supplies geometry-aware `hitTest`; Toolcraft owns gesture scheduling and history through `useToolcraftModelOrbitInteraction`.
 

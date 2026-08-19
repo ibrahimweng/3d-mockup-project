@@ -1,11 +1,15 @@
 import { defineToolcraft } from "@/toolcraft/runtime";
 
-import { ENVIRONMENT_OPTIONS, FIT_OPTIONS } from "./product-domain";
+import { appIdentity } from "./app-identity";
+import {
+  DEFAULT_DEVICE,
+  DEFAULT_FINISH,
+  DEVICE_OPTIONS,
+  ENVIRONMENT_OPTIONS,
+  FINISH_OPTIONS,
+  FIT_OPTIONS,
+} from "./product-domain";
 
-// `identity` is intentionally omitted. The signed starter ships an
-// `app-identity.ts` naming the app this folder was generated from, and that
-// file is covered by the integrity manifest, so it cannot be renamed here. The
-// runtime falls back to the controls title, which resolves the id `plinth`.
 export const appSchema = defineToolcraft({
   canvas: {
     enabled: true,
@@ -14,9 +18,42 @@ export const appSchema = defineToolcraft({
     sizing: { mode: "editable-output" },
     upload: true,
   },
+  identity: appIdentity,
   panels: {
     controls: {
       sections: [
+        {
+          controls: {
+            model: {
+              applicability: { mode: "always" },
+              defaultValue: DEFAULT_DEVICE,
+              description:
+                "Which product the screenshot is shown on. Each is a separate model, so switching reloads the scene and reframes the camera around the new subject.",
+              label: false,
+              options: DEVICE_OPTIONS,
+              performanceReason:
+                "Switching device decodes a different GLB once and reframes the camera; frames themselves stay one constant-cost raster pass.",
+              performanceRole: "responsiveness",
+              target: "device.model",
+              type: "select",
+            },
+            finish: {
+              applicability: { mode: "always" },
+              defaultValue: DEFAULT_FINISH,
+              description:
+                "Repaints the device's own body materials. Natural is the model exactly as its author built it; the rest keep the same brushed or polished surface and change only its colour.",
+              label: "Finish",
+              options: FINISH_OPTIONS,
+              performanceReason:
+                "A finish rewrites base colours on the loaded model; it does not re-decode geometry or re-convolve the environment.",
+              performanceRole: "responsiveness",
+              target: "device.finish",
+              type: "select",
+            },
+          },
+          id: "device",
+          title: "Device",
+        },
         {
           controls: {
             image: {
@@ -25,8 +62,8 @@ export const appSchema = defineToolcraft({
               assetKind: "image",
               defaultValue: null,
               description:
-                "Shown on the phone's display. A portrait image matching the screen's proportions fills it exactly.",
-              label: "Screenshot",
+                "Shown on the device's display. An image matching the screen's proportions fills it exactly.",
+              label: false,
               multiple: false,
               performanceReason:
                 "The screenshot is decoded once into a texture and swapped onto the display material; it does not affect per-frame cost.",
@@ -34,52 +71,24 @@ export const appSchema = defineToolcraft({
               target: "artwork.image",
               type: "fileDrop",
             },
-            fit: {
-              applicability: { mode: "always" },
-              defaultValue: "fill",
-              description:
-                "Fit shows the whole image and leaves margins. Fill covers the screen and crops. Stretch distorts to fit exactly.",
-              label: "Fit mode",
-              options: FIT_OPTIONS,
-              performanceReason:
-                "Fit recomputes the display texture's repeat and offset; no geometry or lighting is rebuilt.",
-              performanceRole: "responsiveness",
-              target: "artwork.fit",
-              type: "segmented",
-            },
             offset: {
               applicability: { mode: "always" },
               defaultValue: { x: 0.5, y: 0.5 },
               description:
                 "Slides the image behind the screen. Only has an effect once the image is larger than the display and something is being cropped.",
-              label: "Screen position",
+              label: "Position",
               performanceReason:
                 "Position writes the display texture's offset and redraws one frame.",
               performanceRole: "responsiveness",
               target: "artwork.offset",
               type: "vector",
             },
-            scale: {
-              applicability: { mode: "always" },
-              defaultValue: 100,
-              label: "Screen scale",
-              max: 300,
-              min: 25,
-              performanceReason:
-                "Scale writes the display texture's repeat and redraws one frame.",
-              performanceRole: "responsiveness",
-              sliderValueKind: "continuous",
-              step: 1,
-              target: "artwork.scale",
-              type: "slider",
-              unit: "%",
-            },
             stretch: {
               applicability: { mode: "always" },
               defaultValue: { x: 0.5, y: 0.5 },
               description:
                 "Independent width and height. Centre is unstretched; moving an axis squashes or extends the image along it.",
-              label: "Screen stretch",
+              label: "Stretch",
               performanceReason:
                 "Stretch writes the display texture's repeat and redraws one frame.",
               performanceRole: "responsiveness",
@@ -92,11 +101,45 @@ export const appSchema = defineToolcraft({
         },
         {
           controls: {
+            fit: {
+              applicability: { mode: "always" },
+              defaultValue: "fill",
+              description:
+                "Fit shows the whole image and leaves margins. Fill covers the screen and crops. Stretch distorts to fit exactly.",
+              label: "Mode",
+              options: FIT_OPTIONS,
+              performanceReason:
+                "Fit recomputes the display texture's repeat and offset; no geometry or lighting is rebuilt.",
+              performanceRole: "responsiveness",
+              target: "artwork.fit",
+              type: "segmented",
+            },
+            scale: {
+              applicability: { mode: "always" },
+              defaultValue: 100,
+              label: "Scale",
+              max: 300,
+              min: 25,
+              performanceReason:
+                "Scale writes the display texture's repeat and redraws one frame.",
+              performanceRole: "responsiveness",
+              sliderValueKind: "continuous",
+              step: 1,
+              target: "artwork.scale",
+              type: "slider",
+              unit: "%",
+            },
+          },
+          id: "screen-fit",
+          title: "Screen fit",
+        },
+        {
+          controls: {
             environment: {
               applicability: { mode: "always" },
               defaultValue: "studio-soft",
               description:
-                "The captured studio the phone is lit by and reflects. This is the whole lighting model — there are no separate lights to place.",
+                "The captured studio the device is lit by and reflects. This is the whole lighting model — there are no separate lights to place.",
               label: "Environment",
               options: ENVIRONMENT_OPTIONS,
               performanceReason:
@@ -105,9 +148,110 @@ export const appSchema = defineToolcraft({
               target: "studio.environment",
               type: "select",
             },
+            intensity: {
+              applicability: { mode: "always" },
+              defaultValue: 100,
+              description:
+                "How strongly the captured studio itself lights the device. Lower it to let the placed lights below do more of the work.",
+              label: "Environment",
+              max: 300,
+              min: 0,
+              performanceReason:
+                "Environment intensity is one scene-level scalar; the convolved texture is reused.",
+              performanceRole: "responsiveness",
+              sliderValueKind: "continuous",
+              step: 5,
+              target: "studio.intensity",
+              type: "slider",
+              unit: "%",
+            },
           },
           id: "studio",
           title: "Studio",
+        },
+        {
+          controls: {
+            keyIntensity: {
+              applicability: { mode: "always" },
+              defaultValue: 110,
+              description:
+                "The one shadow-casting light. A second caster reads as two suns, which is what gives a render away.",
+              label: "Key",
+              max: 400,
+              min: 0,
+              performanceReason:
+                "Light intensity is a uniform; the shadow map is already allocated.",
+              performanceRole: "responsiveness",
+              sliderValueKind: "continuous",
+              step: 5,
+              target: "light.keyIntensity",
+              type: "slider",
+              unit: "%",
+            },
+            keyColor: {
+              applicability: { mode: "always" },
+              defaultValue: "#FFFFFF",
+              description:
+                "Warm the key towards tungsten or cool it towards daylight to sit the device in a room.",
+              label: "Key color",
+              performanceReason: "The key's colour is one uniform.",
+              performanceRole: "responsiveness",
+              target: "light.keyColor",
+              type: "color",
+            },
+            fill: {
+              applicability: { mode: "always" },
+              defaultValue: 30,
+              description:
+                "Bounce from below, lifting the shadow side. It casts nothing, because bounce has no edge.",
+              label: "Fill",
+              max: 200,
+              min: 0,
+              performanceReason: "Fill is a hemisphere light with no shadow map.",
+              performanceRole: "responsiveness",
+              sliderValueKind: "continuous",
+              step: 5,
+              target: "light.fill",
+              type: "slider",
+              unit: "%",
+            },
+            rim: {
+              applicability: { mode: "always" },
+              defaultValue: 0,
+              description:
+                "A hard edge from behind that separates the device from the backdrop.",
+              label: "Rim",
+              max: 400,
+              min: 0,
+              performanceReason: "Rim is a second directional light with no shadow map.",
+              performanceRole: "responsiveness",
+              sliderValueKind: "continuous",
+              step: 5,
+              target: "light.rim",
+              type: "slider",
+              unit: "%",
+            },
+          },
+          id: "lights",
+          title: "Lights",
+        },
+        {
+          controls: {
+            keyDirection: {
+              applicability: { mode: "always" },
+              defaultValue: { x: 0.5, y: 0.5 },
+              description:
+                "Where the key sits relative to the camera. Centre is straight on; move it off centre to rake the light across the device and lengthen the shadow.",
+              label: false,
+              performanceReason:
+                "Moving the key repositions one light and redraws a frame.",
+              performanceRole: "responsiveness",
+              target: "light.keyDirection",
+              type: "vector",
+            },
+          },
+          id: "key-light-direction",
+          title: "Key light direction",
         },
         {
           controls: {
@@ -115,7 +259,7 @@ export const appSchema = defineToolcraft({
               applicability: { mode: "always" },
               defaultValue: 85,
               description:
-                "Full-frame equivalent. Longer lenses flatten perspective the way product photography does; wider ones exaggerate the phone's depth.",
+                "Full-frame equivalent. Longer lenses flatten perspective the way product photography does; wider ones exaggerate the device's depth.",
               label: "Focal length",
               max: 200,
               min: 24,
@@ -206,7 +350,11 @@ export const appSchema = defineToolcraft({
           },
           id: "image-export",
           layoutGroups: [
-            { columns: 2, controls: ["format", "resolution"], layout: "inline" },
+            {
+              columns: 2,
+              controls: ["format", "resolution"],
+              layout: "inline",
+            },
           ],
           title: "Image Export",
         },
@@ -231,7 +379,7 @@ export const appSchema = defineToolcraft({
           title: "Deliver",
         },
       ],
-      title: "Plinth",
+      title: "Mockup Studio",
     },
   },
   toolbar: {
