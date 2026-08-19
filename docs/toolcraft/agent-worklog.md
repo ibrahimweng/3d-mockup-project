@@ -161,6 +161,12 @@ The quoted evidence must be an exact nontrivial raw substring of `Request` with 
 - Reason: The settings object is rebuilt on every store change, and during a drag that is every pointer move, so a rotation was repainting every material in the model, replacing the whole light rig and rebuilding the ground sixty times a second. None of it had changed.
 - Evidence: `lastLiveKey` in `src/app/render/raster-renderer.ts`.
 
+### Adaptive resolution
+
+- Decision: Frames are timed during a drag and the preview's pixel ratio moves toward whatever the machine can hold, between full and 0.75.
+- Reason: A fixed resolution has to be chosen for hardware nobody knows in advance. Two rounds of fixed reductions did not resolve the report, and this environment cannot reproduce it: it renders through SwiftShader, draws roughly one frame every five seconds under load, and floors every per-device measurement at the same 33ms, so no fixed number chosen here can be trusted to suit a real GPU. Letting the running machine choose removes the guess.
+- Evidence: `foldFrameGap` in `src/app/adaptive-quality.ts` is a pure function over frame gaps, verified in `adaptive-quality.test.ts` against synthetic timings — it converges to the floor under sustained slowness, climbs back to full when frames come in fast, ignores a single hitch, and discards gaps long enough to be a paused hand. Convergence is proven by test rather than in a browser, because a browser slow enough to need it is too slow to demonstrate it.
+
 ## Verification
 
 - `npm run typecheck` passes.

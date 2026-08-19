@@ -11,6 +11,7 @@ import {
 } from "@/toolcraft/runtime/react";
 
 import { forgetArtworkUrl, publishArtworkUrl } from "./artwork-store";
+import { useAdaptiveQuality } from "./adaptive-quality";
 import { useDesignDrag } from "./design-drag";
 import { useViewOrbit } from "./view-orbit";
 import { useViewPan } from "./view-pan";
@@ -37,6 +38,11 @@ export function MockupPreview(): React.ReactElement {
   // closely while the scene is in motion, and the alternative is a sharp
   // picture that arrives after the pointer has already moved on.
   const [interacting, setInteracting] = React.useState(false);
+  // The frame loop is created once, so it reads the flag through a ref rather
+  // than closing over a value that would be stale by the first frame.
+  const interactingRef = React.useRef(false);
+  interactingRef.current = interacting;
+  const quality = useAdaptiveQuality();
 
   const values = useToolcraftEvaluatedValues();
   const frame = useToolcraftProductSceneFrame();
@@ -66,7 +72,9 @@ export function MockupPreview(): React.ReactElement {
   React.useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
-    const renderer = new RasterRenderer(canvas);
+    const renderer = new RasterRenderer(canvas, {
+      antialias: (window.devicePixelRatio || 1) < 2,
+    });
     // A studio swapped in place changes the lighting without rebuilding the
     // scene, so the frame has to be invalidated when it finishes convolving.
     renderer.onEnvironmentReady = () => {
@@ -181,16 +189,20 @@ export function MockupPreview(): React.ReactElement {
   const pixelRatio = React.useMemo(() => {
     const display = Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO);
     const still = Math.min(display, Math.max(1, renderScale));
-    return interacting ? Math.max(1, still * INTERACTION_PIXEL_SCALE) : still;
-  }, [interacting, renderScale]);
+    if (!interacting) return still;
+    // Whatever the machine turns out to be able to hold, on top of the fixed
+    // drop that applies to every machine.
+    return Math.max(0.75, still * INTERACTION_PIXEL_SCALE * quality.scale);
+  }, [interacting, quality.scale, renderScale]);
 
+  // Deliberately not keyed on the pose. The camera has its own effect above,
+  // and resizing is the one operation that must not run per pointer move.
   React.useEffect(() => {
     const renderer = rendererRef.current;
     if (!renderer || width <= 0 || height <= 0) return;
     renderer.setSize(width, height, pixelRatio);
-    renderer.setPose(pose);
     dirtyRef.current = true;
-  }, [height, pixelRatio, pose, sceneVersion, width]);
+  }, [height, pixelRatio, sceneVersion, width]);
 
   // The runtime's own model orbit still backs this up for a press that reaches
   // it, and it declines a hit that landed on a display so the design drag can
@@ -228,6 +240,7 @@ export function MockupPreview(): React.ReactElement {
     () => ({
       onPointerCancel: (event: React.PointerEvent<HTMLCanvasElement>) => {
         setInteracting(false);
+        quality.reset();
         if (viewPan.onPointerCancel(event)) return;
         if (designDrag.onPointerCancel(event)) return;
         if (viewOrbit.onPointerCancel(event)) return;
@@ -252,28 +265,34 @@ export function MockupPreview(): React.ReactElement {
       },
       onPointerUp: (event: React.PointerEvent<HTMLCanvasElement>) => {
         setInteracting(false);
+        quality.reset();
         if (viewPan.onPointerUp(event)) return;
         if (designDrag.onPointerUp(event)) return;
         if (viewOrbit.onPointerUp(event)) return;
         orbitHandlers.onPointerUp?.(event);
       },
     }),
-    [designDrag, orbitHandlers, viewOrbit, viewPan],
+    [designDrag, orbitHandlers, quality, viewOrbit, viewPan],
   );
 
   React.useEffect(() => {
     let handle = 0;
-    const tick = () => {
+    const tick = (now: number) => {
       handle = requestAnimationFrame(tick);
       if (!dirtyRef.current) return;
       const renderer = rendererRef.current;
       if (!renderer?.ready) return;
       dirtyRef.current = false;
       renderer.render();
+      // Only a drag is timed. A frame drawn because a slider moved says
+      // nothing about whether the machine can hold a rotation.
+      // Only a drag is timed. A frame drawn because a slider moved says
+      // nothing about whether the machine can hold a rotation.
+      if (interactingRef.current) quality.sample(now);
     };
     handle = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(handle);
-  }, []);
+  }, [quality]);
 
   return (
     <canvas

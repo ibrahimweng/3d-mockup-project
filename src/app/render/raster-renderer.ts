@@ -44,6 +44,8 @@ export class RasterRenderer {
   // still adopts the correct aspect. Without this the camera keeps its
   // constructor default of 1 and renders a tall phone square.
   private viewport = { height: 0, width: 0 };
+  private pixelRatio = 0;
+  private pose: Pose | null = null;
   private lastEnvironment = "";
   private lastLiveKey = "";
   /** Called when a swapped-in studio has finished convolving. */
@@ -51,10 +53,16 @@ export class RasterRenderer {
 
   readonly renderer: THREE.WebGLRenderer;
 
-  constructor(canvas: HTMLCanvasElement) {
+  constructor(canvas: HTMLCanvasElement, options?: { antialias?: boolean }) {
     this.renderer = new THREE.WebGLRenderer({
       alpha: true,
-      antialias: true,
+      // Multisampling resolves edges by shading several samples per pixel, so
+      // it multiplies the most expensive part of the frame. Drawing at two
+      // device pixels per CSS pixel already resolves them by supersampling,
+      // and paying for both is the difference between six and twenty-three
+      // million samples a frame for an edge nobody can tell apart. It stays on
+      // where there is no supersampling to lean on.
+      antialias: options?.antialias ?? true,
       canvas,
     });
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -195,6 +203,9 @@ export class RasterRenderer {
    * focal length — and at any size, from a watch to a laptop.
    */
   setPose(pose: Pose): void {
+    // Remembered because the framing distance is derived from the viewport
+    // aspect, so a resize has to re-derive it from the pose already in force.
+    this.pose = pose;
     const built = this.built;
     const settings = this.settings;
     if (!built || !settings) return;
@@ -224,9 +235,28 @@ export class RasterRenderer {
     built.camera.updateProjectionMatrix();
   }
 
+  /**
+   * Resize the drawing buffer, and only actually do it when it changed.
+   *
+   * `WebGLRenderer.setSize` assigns to `canvas.width` and `canvas.height`, and
+   * the HTML spec says assigning those reallocates and clears the drawing
+   * buffer whether or not the value differs. With multisampling and a depth
+   * attachment on a retina-sized canvas that is the most expensive single
+   * thing this renderer can be asked to do, and it stalls the pipeline. Called
+   * once per pointer move — which is what a rotation used to do — it costs far
+   * more than drawing the frame.
+   */
   setSize(width: number, height: number, pixelRatio: number): void {
     if (this.disposed || width <= 0 || height <= 0) return;
+    if (
+      width === this.viewport.width &&
+      height === this.viewport.height &&
+      pixelRatio === this.pixelRatio
+    ) {
+      return;
+    }
     this.viewport = { height, width };
+    this.pixelRatio = pixelRatio;
     this.renderer.setPixelRatio(pixelRatio);
     this.renderer.setSize(width, height, false);
     this.applyViewport();
@@ -237,6 +267,9 @@ export class RasterRenderer {
     if (!this.built || width <= 0 || height <= 0) return;
     this.built.camera.aspect = width / height;
     this.built.camera.updateProjectionMatrix();
+    // A narrower viewport needs the camera further back to keep the device in
+    // frame, so the pose is re-derived against the new aspect.
+    if (this.pose) this.setPose(this.pose);
   }
 
   /** Is the device under this client point? Misses fall through to viewport pan. */
