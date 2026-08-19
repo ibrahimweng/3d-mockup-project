@@ -925,11 +925,11 @@ export const appAcceptance: readonly ToolcraftComponentAcceptance[] = [
     automatedTestName: "render scale keeps the selected backing resolution",
     browser: true,
     browserTestName:
-      "browser: the WebGL backing matches CSS size times device pixel ratio times the selected scale",
+      "browser: the WebGL backing follows the selected scale up to the preview ceiling",
     componentType: "canvas",
     evidence: "viewport-side-effect",
     expectedObservable:
-      "While rotating and while idle, the canvas backing equals its CSS size multiplied by devicePixelRatio and the selected Resolution scale, and the visible CSS size does not change.",
+      "Raising Resolution scale raises the canvas backing to match, up to a ceiling of two device pixels per CSS pixel, and the visible CSS size never changes. The ceiling is the preview's own: multiplying the scale by the display's ratio on top of it would draw sixteen times the pixels the box can show. While rotating the backing may fall below the selection and climbs back once frames stop arriving late.",
     fixture: "the default device at the default canvas size",
     id: "canvas.render-scale.backing",
     kind: "runtime",

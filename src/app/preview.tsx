@@ -185,19 +185,25 @@ export function MockupPreview(): React.ReactElement {
   /**
    * Device pixels per CSS pixel to draw the preview at.
    *
-   * This used to be `devicePixelRatio * renderScale`, which on any retina
+   * This used to be `devicePixelRatio * renderScale`, which on a retina
    * display meant four device pixels per CSS pixel — sixteen times the pixel
    * count of the box it is shown in, and 23 megapixels a frame for a preview
-   * 1080 wide. None of it was visible: a display cannot show more than its own
-   * pixel ratio, and export does not go through this canvas at all, it builds
-   * its own renderer at the requested size. So the scale is a ceiling on the
-   * display's ratio rather than a multiplier on top of it, and dragging drops
-   * further still, because a frame that arrives late is worse than a frame
-   * that is slightly soft.
+   * 1080 wide. Export does not come through this canvas at all; it builds its
+   * own renderer at the requested size. So the scale became a ceiling rather
+   * than a multiplier on top of the display's own ratio.
+   *
+   * It is a ceiling on the total, not a clamp to the display, and the
+   * difference matters: drawing above the display's ratio and letting the
+   * browser resolve it down is supersampling, which is real added sharpness on
+   * any screen. Clamping to the display threw that away, and on an ordinary
+   * one-to-one monitor it collapsed the whole control — every setting produced
+   * the same picture.
+   *
+   * Dragging drops further still, because a frame that arrives late is worse
+   * than a frame that is slightly soft.
    */
   const pixelRatio = React.useMemo(() => {
-    const display = Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO);
-    const still = Math.min(display, Math.max(1, renderScale));
+    const still = Math.min(MAX_PIXEL_RATIO, Math.max(1, renderScale));
     // Full sharpness is the default, dragging included. There used to be a
     // flat reduction on every drag, which cost every machine detail whether or
     // not it needed to and made the preview look soft to anyone judging the

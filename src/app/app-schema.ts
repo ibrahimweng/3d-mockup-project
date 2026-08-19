@@ -168,7 +168,7 @@ export const appSchema = defineToolcraft({
             },
             intensity: {
               applicability: { mode: "always" },
-              defaultValue: 100,
+              defaultValue: 80,
               description:
                 "How strongly the captured studio itself lights the device. Lower it to let the placed lights below do more of the work.",
               label: "Environment",
@@ -191,7 +191,7 @@ export const appSchema = defineToolcraft({
           controls: {
             keyIntensity: {
               applicability: { mode: "always" },
-              defaultValue: 110,
+              defaultValue: 95,
               description:
                 "The one shadow-casting light. A second caster reads as two suns, which is what gives a render away.",
               label: "Key",
@@ -219,7 +219,7 @@ export const appSchema = defineToolcraft({
             },
             fill: {
               applicability: { mode: "always" },
-              defaultValue: 30,
+              defaultValue: 10,
               description:
                 "Bounce from below, lifting the shadow side. It casts nothing, because bounce has no edge.",
               label: "Fill",
@@ -235,7 +235,7 @@ export const appSchema = defineToolcraft({
             },
             rim: {
               applicability: { mode: "always" },
-              defaultValue: 0,
+              defaultValue: 85,
               description:
                 "A hard edge from behind that separates the device from the backdrop.",
               label: "Rim",
@@ -287,7 +287,7 @@ export const appSchema = defineToolcraft({
           controls: {
             keyDirection: {
               applicability: { mode: "always" },
-              defaultValue: { x: 0.5, y: 0.5 },
+              defaultValue: { x: 0.72, y: 0.24 },
               description:
                 "Where the key sits relative to the camera. Centre is straight on; move it off centre to rake the light across the device and lengthen the shadow.",
               label: false,
@@ -322,7 +322,7 @@ export const appSchema = defineToolcraft({
             },
             orbit: {
               applicability: { mode: "always" },
-              defaultValue: { position: [0.3, 0.2, 1], up: [0, 1, 0] },
+              defaultValue: { position: [-0.36, 0.14, 1], up: [0, 1, 0] },
               keyframeable: false,
               label: false,
               performanceReason:
@@ -401,7 +401,7 @@ export const appSchema = defineToolcraft({
                 all: [{ equals: true, target: "export.includeBackground" }],
                 mode: "conditional",
               },
-              defaultValue: 100,
+              defaultValue: 6,
               description:
                 "How much of the captured room the floor picks up. The device wants a bright capture to read as metal, but the floor is large and seen edge-on, where every surface returns most of what falls on it — so the same capture that flatters the device washes the floor to grey. Lower this to keep a dark floor dark without dimming the device.",
               label: "Room light",
@@ -420,7 +420,7 @@ export const appSchema = defineToolcraft({
                 all: [{ equals: true, target: "export.includeBackground" }],
                 mode: "conditional",
               },
-              defaultValue: 0,
+              defaultValue: 40,
               description:
                 "How much of the device the floor carries back. The device is drawn a second time beneath the floor and fades with distance, which is what a polished surface does.",
               label: "Reflection",
@@ -440,7 +440,7 @@ export const appSchema = defineToolcraft({
                 all: [{ equals: true, target: "export.includeBackground" }],
                 mode: "conditional",
               },
-              defaultValue: 92,
+              defaultValue: 88,
               description:
                 "Floor finish, from polished to matte. A polished floor mirrors the captured room as well as the device.",
               label: "Roughness",
@@ -465,7 +465,7 @@ export const appSchema = defineToolcraft({
                 all: [{ equals: true, target: "export.includeBackground" }],
                 mode: "conditional",
               },
-              defaultValue: "#0d0d10",
+              defaultValue: "#000000",
               label: "Background color",
               performanceReason:
                 "The ground colour is one material uniform and repaints instantly.",

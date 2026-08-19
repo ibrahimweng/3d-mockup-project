@@ -545,6 +545,13 @@ function createSweepGeometry(
  * device stands in a pane and the shadows fall beside it. A bar across the
  * product is a defect however well it reads on the floor.
  */
+/** Half the width of a cut-out, which is how much depth map it needs. */
+function patternReach(pattern: LightPatternId, radius: number): number {
+  if (pattern === "window") return 3.8 * radius;
+  if (pattern === "blinds") return 9 * radius;
+  return 0;
+}
+
 function createPatternGeometry(
   pattern: LightPatternId,
   radius: number,
@@ -1061,6 +1068,8 @@ export async function buildDeviceScene(options: {
   let sweepSurface: THREE.MeshStandardMaterial | null = null;
   let sweepGeometry: THREE.BufferGeometry | null = null;
   let sweepHeight = 0;
+  /** The shape the current strip was cut to, so it is not recut for nothing. */
+  let sweepShape = "";
   let sweepLight: THREE.PointLight | null = null;
 
   {
@@ -1115,7 +1124,13 @@ export async function buildDeviceScene(options: {
     sweepHeight = height;
     sweepMesh.visible = groundVisible && height > 0;
 
-    if (height > 0) {
+    // Everything the scene can absorb comes through here, so this runs when a
+    // light moves as much as when the paper does. Recutting the strip either
+    // way would throw away a vertex buffer and upload another one on every
+    // frame of a drag that had nothing to do with the backdrop.
+    const shape = `${height}/${curve}`;
+    if (height > 0 && shape !== sweepShape) {
+      sweepShape = shape;
       sweepGeometry?.dispose();
       sweepGeometry = createSweepGeometry(
         sphere.radius * 40,
@@ -1309,6 +1324,9 @@ export async function buildDeviceScene(options: {
   };
   applyShadowEdge(options.lighting.shadowSoftness);
 
+  /** How far the current cut-out reaches, so the depth map can cover it. */
+  let patternExtent = 0;
+
   /**
    * Size the depth map's view to the shadow the key is about to throw.
    *
@@ -1332,7 +1350,12 @@ export async function buildDeviceScene(options: {
         : sphere.radius * 9;
     const extent = Math.min(
       sphere.radius * 9,
-      sphere.radius * 2.2 + Math.max(0, reach),
+      // Whichever is larger: enough room for the shadow the device throws, or
+      // enough to see the whole gobo. A cut-out reaching past the edge of the
+      // depth map is a cut-out whose outer bars quietly stop casting — with
+      // the key high and straight on, that is the window frame gone and only
+      // the glazing bars left.
+      Math.max(sphere.radius * 2.2 + Math.max(0, reach), patternExtent),
     );
     key.shadow.camera.left = -extent;
     key.shadow.camera.right = extent;
@@ -1342,7 +1365,6 @@ export async function buildDeviceScene(options: {
   };
   key.shadow.camera.near = sphere.radius * 0.2;
   key.shadow.camera.far = sphere.radius * 12;
-  frameShadow(key.position);
   scene.add(key);
 
   /**
@@ -1364,14 +1386,18 @@ export async function buildDeviceScene(options: {
     // time three has flipped sides for it, so both sides have to count.
     side: THREE.DoubleSide,
   });
-  const patternMesh = new THREE.Mesh(new THREE.BufferGeometry(), patternSurface);
+  // What the mesh holds when there is no pattern. One of them, kept, because
+  // a mesh always needs some geometry and minting a fresh empty one every time
+  // the lights move leaves a trail of them behind.
+  const noPattern = new THREE.BufferGeometry();
+  const patternMesh = new THREE.Mesh(noPattern, patternSurface);
   patternMesh.castShadow = true;
   patternMesh.receiveShadow = false;
   patternMesh.visible = false;
   scene.add(patternMesh);
   let patternGeometry: THREE.BufferGeometry | null = null;
-  let patternId: LightPatternId = "none";
-  disposables.push(patternSurface, {
+  let patternId: LightPatternId | null = null;
+  disposables.push(patternSurface, noPattern, {
     dispose: () => patternGeometry?.dispose(),
   });
 
@@ -1384,12 +1410,16 @@ export async function buildDeviceScene(options: {
    * inside the depth map's near plane and out of the device.
    */
   const applyPattern = (next: LightPatternId): void => {
-    if (next !== patternId || !patternGeometry) {
+    if (next !== patternId) {
       patternId = next;
       patternGeometry?.dispose();
       patternGeometry = createPatternGeometry(next, sphere.radius);
-      patternMesh.geometry = patternGeometry ?? new THREE.BufferGeometry();
+      patternMesh.geometry = patternGeometry ?? noPattern;
+      patternExtent = patternGeometry ? patternReach(next, sphere.radius) : 0;
     }
+    // The framing depends on the cut-out, so it is settled here rather than
+    // wherever the key happened to move last.
+    frameShadow(key.position);
     patternMesh.visible = patternGeometry !== null;
     if (!patternMesh.visible) return;
     patternMesh.position
@@ -1426,19 +1456,32 @@ export async function buildDeviceScene(options: {
     options.device.screenAspect ??
     measureScreenAspect(subject, screenMaterials, 9 / 19.5);
 
-  const screenMeshes: THREE.Mesh[] = [];
-  subject.traverse((object) => {
-    if (
-      object instanceof THREE.Mesh &&
-      object.visible &&
-      screenMaterials.includes(object.material as THREE.MeshStandardMaterial)
-    ) {
-      screenMeshes.push(object);
-    }
-  });
+  const findScreenMeshes = (root: THREE.Object3D): THREE.Mesh[] => {
+    const found: THREE.Mesh[] = [];
+    root.traverse((object) => {
+      if (
+        object instanceof THREE.Mesh &&
+        object.visible &&
+        screenMaterials.includes(object.material as THREE.MeshStandardMaterial)
+      ) {
+        found.push(object);
+      }
+    });
+    return found;
+  };
+  const screenMeshes = findScreenMeshes(subject);
 
   // After the meshes are known and before anything samples them.
-  if (options.device.screenUnwrap) unwrapScreen(screenMeshes);
+  //
+  // The reflection is included, and has to be. It was cloned from the device
+  // before this ran, and `Object3D.clone` shares geometry rather than copying
+  // it — so rebuilding the unwrap on the device alone leaves the reflected
+  // panel still holding the atlas coordinates the file shipped with, and the
+  // artwork in the reflection lands squeezed into a corner of it. The two
+  // panels have the same local positions, so they rebuild to the same map.
+  if (options.device.screenUnwrap) {
+    unwrapScreen([...screenMeshes, ...findScreenMeshes(mirror)]);
+  }
 
   const slack: ScreenSlack = { x: 0, y: 0 };
 
@@ -1504,7 +1547,6 @@ export async function buildDeviceScene(options: {
       key.intensity = next.keyIntensity;
       key.color.set(next.keyColor);
       key.position.copy(placeKey(next.keyDirection));
-      frameShadow(key.position);
       applyPattern(next.pattern);
       fill.intensity = next.fillIntensity;
       rim.intensity = next.rimIntensity;

@@ -78,7 +78,7 @@ export const SCENE_PRESETS: Readonly<Record<ScenePresetId, ScenePreset>> = {
     // with none of the gradient that makes aluminium look like aluminium.
     environment: "studio-soft",
     environmentIntensity: 80,
-    fill: 12,
+    fill: 10,
     // The floor is told to ignore almost all of that bright capture. It is a
     // very large plane and most of it is seen at a grazing angle, where even a
     // black dielectric reflects nearly everything — left alone it comes out a
