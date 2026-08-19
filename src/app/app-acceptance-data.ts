@@ -318,13 +318,14 @@ export const appControlSectionInventory: readonly ToolcraftControlSectionInvento
       entity: "Lights",
       entityId: "lights",
       groupingReason:
-        "Key, fill and rim are one placed rig sitting on top of the captured studio; each is only meaningful relative to the other two, and all four controls are grouped-layout.",
+        "Key, fill and rim are one placed rig sitting on top of the captured studio, and the shadow's edge is the size of the key stated the only way a directional light can state it; each is only meaningful relative to the others, and all five controls are grouped-layout.",
       id: "lights",
       targets: [
         "light.keyIntensity",
         "light.keyColor",
         "light.fill",
         "light.rim",
+        "light.shadowSoftness",
       ],
       title: "Lights",
     },
@@ -519,6 +520,22 @@ export const appAcceptance: readonly ToolcraftComponentAcceptance[] = [
   },
   {
     automated: true,
+    automatedTestName: "shadow softness changes how far the shadow edge fades",
+    browser: true,
+    browserTestName:
+      "browser: lowering shadow softness sharpens the edge of the device's shadow",
+    componentType: "slider",
+    evidence: "rendered-pixels",
+    expectedObservable:
+      "Lowering Shadow softness draws the device's shadow with a hard edge that turns from dark to background over a few pixels; raising it spreads that transition across a wide, even gradient with no edge to find.",
+    fixture: "any device casting a shadow on a visible background",
+    id: "light.shadowSoftness.edge",
+    kind: "control",
+    target: "light.shadowSoftness",
+    userAction: "Drag the Lights shadow softness slider from 0 to 100.",
+  },
+  {
+    automated: true,
     automatedTestName: "sweep height raises a backdrop behind the device",
     browser: true,
     browserTestName:
@@ -554,16 +571,16 @@ export const appAcceptance: readonly ToolcraftComponentAcceptance[] = [
     automatedTestName: "sweep light graduates the backdrop from the floor up",
     browser: true,
     browserTestName:
-      "browser: raising sweep light brightens the foot of the backdrop and falls away up it",
+      "browser: raising backdrop light graduates the backdrop instead of leaving it flat",
     componentType: "slider",
     evidence: "rendered-pixels",
     expectedObservable:
-      "With a sweep raised, raising Sweep light puts a pool of brightness on the backdrop behind the device that fades as it climbs, so the backdrop stops being one flat tone; the device itself barely changes, because the lamp faces the paper.",
+      "Raising Backdrop light puts a pool of brightness on the backdrop that fades with distance from it, so the backdrop stops being one flat tone — up the sweep when one is raised, and outwards across the floor when none is. The device itself barely changes, because the lamp faces the backdrop.",
     fixture: "any device on a visible background",
     id: "backdrop.light.graduates",
     kind: "control",
     target: "backdrop.light",
-    userAction: "Raise Sweep height, then drag Sweep light from 0 to 100.",
+    userAction: "Drag the Backdrop light slider from 0 to 100, with and without a sweep raised.",
   },
   {
     automated: true,

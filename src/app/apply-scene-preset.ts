@@ -55,6 +55,7 @@ export function useScenePreset(): void {
       ["light.keyDirection", preset.keyDirection],
       ["light.fill", preset.fill],
       ["light.rim", preset.rim],
+      ["light.shadowSoftness", preset.shadowSoftness],
       ["camera.focalLength", preset.focalLength],
       ["camera.orbit", preset.pose],
     ];

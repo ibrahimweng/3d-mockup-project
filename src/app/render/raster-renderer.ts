@@ -73,9 +73,12 @@ export class RasterRenderer {
     });
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.shadowMap.enabled = true;
-    // Soft percentage-closer filtering. The shadow exists to ground the device,
-    // and a hard-edged one reads as a cutout pasted onto the backdrop.
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // Percentage-closer filtering, which is the only path in this version of
+    // three that reads the shadow's blur radius at all: `PCFSoftShadowMap` is
+    // absent from its define table and silently falls through to the
+    // unfiltered one, which is how a rig built around a soft key was drawing a
+    // stair-stepped edge and ignoring every attempt to change it.
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     // The shadow depends on the light and the object, not on where the camera
     // is looking from. Left on automatic, three.js redraws the whole scene into
     // a 2048-square depth map on every frame, so an orbit — which moves neither

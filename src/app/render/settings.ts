@@ -92,6 +92,7 @@ export function readRasterSettings(
       keyDirection: signedVec(values, "light.keyDirection"),
       keyIntensity: num(values, "light.keyIntensity", 110) / 100,
       rimIntensity: num(values, "light.rim", 0) / 100,
+      shadowSoftness: num(values, "light.shadowSoftness", 34) / 100,
     },
     showBackground: values["export.includeBackground"] !== false,
   };

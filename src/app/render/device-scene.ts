@@ -28,15 +28,6 @@ import type { DeviceDefinition, FinishId } from "../product-domain";
  * does. A polished one also carries the device's reflection, which is most of
  * what makes the references read as photographs rather than renders.
  */
-/**
- * The layer the backdrop is on, so one light can be aimed at it alone.
- *
- * Objects keep their default layer as well, so every other light still reaches
- * them and the camera still draws them; this only adds a channel that the
- * sweep lamp is the sole occupant of.
- */
-const SWEEP_LAYER = 3;
-
 export type SweepSettings = {
   /**
    * How wide the cove is, 0 a corner and 1 a broad cyclorama.
@@ -411,6 +402,16 @@ export type LightingSettings = {
   keyDirection: { x: number; y: number };
   /** A hard edge light behind the device, separating it from the ground. */
   rimIntensity: number;
+  /**
+   * How wide the key's shadow spreads, 0 for a cut edge and 1 for a haze.
+   *
+   * This is the size of the light source, expressed as its only visible
+   * consequence. A bare bulb is a point and throws an edge you could cut round;
+   * a metre-square softbox throws one that takes a hand's width to fade. Every
+   * light in this rig is directional, which means infinitely far away and
+   * infinitely small, so the shadow is where its apparent size has to be told.
+   */
+  shadowSoftness: number;
 };
 
 /**
@@ -1002,21 +1003,14 @@ export async function buildDeviceScene(options: {
     const lamp = new THREE.PointLight(0xffffff, 0, 0, 2);
     lamp.castShadow = false;
     lamp.visible = false;
-    // Flagged off everything but the backdrop, which is what the equivalent
-    // light on a real set is: a head on the floor pointed at the paper, with a
-    // card beside it keeping it off the subject.
-    //
-    // Here it also has to be, because the reflection under the device is a
-    // mirrored copy lit by the same rig rather than a second render through a
-    // mirrored camera. The lights are not mirrored with it. For a directional
-    // light that is a difference nobody can see; for a lamp sitting a few
-    // centimetres from the upside-down device it is a floodlight in the floor.
-    lamp.layers.set(SWEEP_LAYER);
+    // It cannot be flagged off the device the way its equivalent on a real set
+    // would be. Layers look like the tool for that and are not: three tests a
+    // light's layers against the camera's, not against each object's, so a
+    // light moved onto a channel the camera does not draw is not restricted —
+    // it is switched off. Keeping it off the subject is therefore a matter of
+    // where it is put, which is what the placement below is for.
     scene.add(lamp);
     sweepLight = lamp;
-
-    mesh.layers.enable(SWEEP_LAYER);
-    groundMesh?.layers.enable(SWEEP_LAYER);
   }
 
   /**
@@ -1029,40 +1023,71 @@ export async function buildDeviceScene(options: {
   const applySweep = (sweep: SweepSettings): void => {
     if (!sweepMesh) return;
     const height = Math.max(0, Math.min(1, sweep.height));
-    sweepHeight = height;
-    sweepMesh.visible = groundVisible && height > 0;
-    if (height <= 0) return;
-
     const curve = Math.max(0, Math.min(1, sweep.curve));
     const standoff = sphere.radius * 2.5;
     const bend = sphere.radius * (0.4 + 7.6 * curve);
-    sweepGeometry?.dispose();
-    sweepGeometry = createSweepGeometry(
-      sphere.radius * 40,
-      // Far enough back to be out of the device's own contact shadow, close
-      // enough that the light reaching it is the light on the device.
-      standoff,
-      bend,
-      sphere.radius * 16 * height,
-    );
-    sweepMesh.geometry = sweepGeometry;
-    // The paper leaves the floor, so it starts where the floor is.
-    sweepMesh.position.y = groundY - sphere.radius * 0.0015;
+    sweepHeight = height;
+    sweepMesh.visible = groundVisible && height > 0;
+
+    if (height > 0) {
+      sweepGeometry?.dispose();
+      sweepGeometry = createSweepGeometry(
+        sphere.radius * 40,
+        // Far enough back to be out of the device's own contact shadow, close
+        // enough that the light reaching it is the light on the device.
+        standoff,
+        bend,
+        sphere.radius * 16 * height,
+      );
+      sweepMesh.geometry = sweepGeometry;
+      // The paper leaves the floor, so it starts where the floor is.
+      sweepMesh.position.y = groundY - sphere.radius * 0.0015;
+    }
 
     if (sweepLight) {
       const strength = Math.max(0, Math.min(1, sweep.light));
-      // Low and tucked into the bend, behind the device and hidden by it: a
-      // pool of light at the foot of the paper falling away upwards, which is
-      // the graduation this whole surface exists for.
-      sweepLight.position.set(
-        0,
-        groundY + sphere.radius * 0.35,
-        -standoff - bend * 0.12,
-      );
+      if (height > 0) {
+        // With paper up, the lamp goes where its equivalent goes on a real
+        // set: on the floor, tucked into the bend, hidden behind the subject,
+        // throwing a pool at the foot of the wall that falls away as it
+        // climbs. That gradient is what the sweep is prized for.
+        sweepLight.position.set(
+          0,
+          groundY + sphere.radius * 0.35,
+          -standoff - bend * 0.12,
+        );
+        // And it is given a range that runs out before it gets to the device.
+        // This is the card the gaffer puts beside it, done the only way this
+        // renderer offers: past this distance the light contributes nothing at
+        // all, so the subject is not touched by it and, more visibly, neither
+        // is the polished floor in front of it — where a lamp with unlimited
+        // range leaves its own reflection sitting under the device like a
+        // puddle nobody put there.
+        sweepLight.distance = standoff + bend * 0.12;
+      } else {
+        // With no paper there is nothing behind to wash, and the only surface
+        // left is the floor — so the lamp goes overhead instead and the pool
+        // lands around the device, falling to nothing at the edges of frame.
+        // Same light, same falloff, the one thing in the rig that has any.
+        //
+        // Here it is allowed to reach the device, because a light hanging over
+        // a subject and pooling on the floor around it is not a light that has
+        // gone wrong: it is what a spotlight is.
+        sweepLight.position.set(
+          0,
+          groundY + sphere.radius * 3.4,
+          -sphere.radius * 0.5,
+        );
+        sweepLight.distance = 0;
+      }
       // Falloff is by the square of the distance, so an intensity that suits a
-      // watch would be invisible on an iMac unless it grows with the set.
-      sweepLight.intensity = strength * 26 * sphere.radius * sphere.radius;
-      sweepLight.visible = sweepMesh.visible && strength > 0;
+      // watch would be invisible on an iMac unless it grows with the set. The
+      // tucked lamp is inches from what it lights and the overhead one is
+      // several radii above it, so the same slider has to mean different
+      // amounts of light in the two placements to arrive at the same strength.
+      const reach = height > 0 ? 30 : 42;
+      sweepLight.intensity = strength * reach * sphere.radius * sphere.radius;
+      sweepLight.visible = groundVisible && strength > 0;
     }
   };
 
@@ -1173,19 +1198,65 @@ export async function buildDeviceScene(options: {
     .multiplyScalar(sphere.radius * 4)
     .add(new THREE.Vector3(0, sphere.radius * 2, 0));
   key.castShadow = true;
-  // 1024 is plenty for a contact shadow that is deliberately soft: the blur
-  // radius below throws away the extra detail a larger map would carry, and
-  // the map is redrawn from the whole scene whenever it is invalidated.
-  key.shadow.mapSize.set(1024, 1024);
-  key.shadow.radius = 4;
   key.shadow.bias = -0.0006;
-  const extent = sphere.radius * 2.2;
-  key.shadow.camera.left = -extent;
-  key.shadow.camera.right = extent;
-  key.shadow.camera.top = extent;
-  key.shadow.camera.bottom = -extent;
+  /**
+   * Set the shadow's edge, and give it enough map to be worth setting.
+   *
+   * Softness is a blur radius measured in shadow-map texels, so the two have
+   * to move together: a crisp edge asks the map for detail a blurred one threw
+   * away, and reading it off 1024 texels spread across the whole subject
+   * returns a staircase rather than an edge. Doubling the map is only paid for
+   * when the shadow is crisp enough to show it, and only when the map is
+   * redrawn — which is on change, not on every frame.
+   */
+  const applyShadowEdge = (softness: number): void => {
+    const amount = Math.max(0, Math.min(1, softness));
+    key.shadow.radius = 0.35 + 11 * amount;
+    const wanted = amount < 0.35 ? 2048 : 1024;
+    if (key.shadow.mapSize.x !== wanted) {
+      key.shadow.mapSize.set(wanted, wanted);
+      // three allocates the depth target from mapSize on first use and never
+      // looks again, so the old one has to go for a new size to take.
+      key.shadow.map?.dispose();
+      key.shadow.map = null;
+    }
+  };
+  applyShadowEdge(options.lighting.shadowSoftness);
+
+  /**
+   * Size the depth map's view to the shadow the key is about to throw.
+   *
+   * A fixed box works only while the key stays overhead. Rake it towards the
+   * horizon and the shadow lengthens without limit — the flatter the light, the
+   * further it reaches — and anything past the box is simply not drawn, which
+   * shows up as the shadow stopping dead along a straight line in the middle of
+   * the floor. The box therefore follows the light: a shadow of something one
+   * radius tall reaches horizontal-over-height radii along the ground, and that
+   * is exactly how much room it needs.
+   *
+   * The cap is there because a light approaching the horizon asks for a box
+   * approaching infinity, and past a point the map is spread so thin the shadow
+   * it draws is worse than the one it clipped.
+   */
+  const frameShadow = (position: THREE.Vector3): void => {
+    const horizontal = Math.hypot(position.x, position.z);
+    const reach =
+      position.y > 1e-3
+        ? (sphere.radius * horizontal) / position.y
+        : sphere.radius * 9;
+    const extent = Math.min(
+      sphere.radius * 9,
+      sphere.radius * 2.2 + Math.max(0, reach),
+    );
+    key.shadow.camera.left = -extent;
+    key.shadow.camera.right = extent;
+    key.shadow.camera.top = extent;
+    key.shadow.camera.bottom = -extent;
+    key.shadow.camera.updateProjectionMatrix();
+  };
   key.shadow.camera.near = sphere.radius * 0.2;
   key.shadow.camera.far = sphere.radius * 12;
+  frameShadow(key.position);
   scene.add(key);
 
   // Fill and rim are always present and driven by intensity alone, so changing
@@ -1277,7 +1348,9 @@ export async function buildDeviceScene(options: {
       // colour, and it goes when the backdrop does — there is no catching a
       // shadow on a wall the device is not near.
       if (sweepMesh) sweepMesh.visible = visible && sweepHeight > 0;
-      if (sweepLight) sweepLight.visible = (sweepMesh?.visible ?? false) && sweepLight.intensity > 0;
+      // The lamp goes with the backdrop, not with the paper: with no sweep up
+      // it is still lighting the floor, which is backdrop enough.
+      if (sweepLight) sweepLight.visible = visible && sweepLight.intensity > 0;
       sweepSurface?.color.set(color);
       // The reflection lives on the backdrop, so it goes when the backdrop
       // does: there is nothing for it to be seen through.
@@ -1290,8 +1363,10 @@ export async function buildDeviceScene(options: {
       key.intensity = next.keyIntensity;
       key.color.set(next.keyColor);
       key.position.copy(placeKey(next.keyDirection));
+      frameShadow(key.position);
       fill.intensity = next.fillIntensity;
       rim.intensity = next.rimIntensity;
+      applyShadowEdge(next.shadowSoftness);
       rim.position.set(
         -next.keyDirection.x * sphere.radius * 3,
         sphere.radius * 1.5,
