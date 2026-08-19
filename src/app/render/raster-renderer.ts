@@ -8,6 +8,7 @@ import {
   type FloorSettings,
   type LightingSettings,
   type ScreenTransform,
+  type SweepSettings,
 } from "./device-scene";
 
 type Pose = Readonly<{
@@ -25,6 +26,7 @@ export type RasterSettings = {
   focalLength: number;
   lighting: LightingSettings;
   showBackground: boolean;
+  sweep: SweepSettings;
 };
 
 /**
@@ -132,6 +134,7 @@ export class RasterRenderer {
       lighting: settings.lighting,
       renderer: this.renderer,
       showGround: settings.showBackground,
+      sweep: settings.sweep,
     })
       .then((scene) => {
         if (this.disposed) {
@@ -197,6 +200,7 @@ export class RasterRenderer {
       settings.floor,
       settings.lighting,
       settings.showBackground,
+      settings.sweep,
     ]);
     if (key === this.lastLiveKey) return;
     this.lastLiveKey = key;
@@ -204,6 +208,7 @@ export class RasterRenderer {
     this.applyEnvironment(built, settings.environment);
     built.setFinish(readFinishId(settings.finish));
     built.setLighting(settings.lighting);
+    built.setSweep(settings.sweep);
     built.setGround(settings.showBackground, settings.backgroundColor);
     built.setFloor(settings.floor);
     // Colour, lights and the ground plane all feed the depth map.

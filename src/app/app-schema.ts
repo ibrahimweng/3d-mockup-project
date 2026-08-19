@@ -303,6 +303,65 @@ export const appSchema = defineToolcraft({
         },
         {
           controls: {
+            height: {
+              applicability: {
+                all: [{ equals: true, target: "export.includeBackground" }],
+                mode: "conditional",
+              },
+              defaultValue: 0,
+              description:
+                "How far the backdrop rises behind the device. At zero there is a floor and nothing else, which is what a device floating in the dark wants. Raised, the floor curves up into a wall — the seamless paper a studio actually shoots against, which catches the key, graduates on its own and gives the device something to sit in front of.",
+              label: "Sweep height",
+              max: 100,
+              min: 0,
+              performanceReason:
+                "Rebuilds a hundred-vertex strip and draws it once.",
+              performanceRole: "responsiveness",
+              sliderValueKind: "continuous",
+              step: 2,
+              target: "backdrop.height",
+              type: "slider",
+              unit: "%",
+            },
+            curve: {
+              applicability: {
+                all: [{ equals: true, target: "export.includeBackground" }],
+                mode: "conditional",
+              },
+              defaultValue: 45,
+              description:
+                "How wide the bend is where the floor becomes the wall. A tight bend reads as a corner and puts a line across the frame; a broad one turns away from the light gradually, which is where the graduation from bright to dark comes from.",
+              label: "Sweep curve",
+              max: 100,
+              min: 0,
+              performanceReason:
+                "Rebuilds a hundred-vertex strip and draws it once.",
+              performanceRole: "responsiveness",
+              sliderValueKind: "continuous",
+              step: 2,
+              target: "backdrop.curve",
+              type: "slider",
+              unit: "%",
+            },
+            light: {
+              applicability: {
+                all: [{ equals: true, target: "export.includeBackground" }],
+                mode: "conditional",
+              },
+              defaultValue: 0,
+              description:
+                "A lamp at the foot of the sweep, lighting the paper rather than the device. It is the only light here that weakens with distance, so it is the only one that can graduate a backdrop from bright behind the device to dark at the top — the key and the fill arrive as parallel rays and leave a large wall one flat tone.",
+              label: "Sweep light",
+              max: 100,
+              min: 0,
+              performanceReason: "One more light in the same shader.",
+              performanceRole: "responsiveness",
+              sliderValueKind: "continuous",
+              step: 2,
+              target: "backdrop.light",
+              type: "slider",
+              unit: "%",
+            },
             environment: {
               applicability: {
                 all: [{ equals: true, target: "export.includeBackground" }],
@@ -362,8 +421,8 @@ export const appSchema = defineToolcraft({
               unit: "%",
             },
           },
-          id: "floor",
-          title: "Floor",
+          id: "backdrop",
+          title: "Backdrop",
         },
         {
           controls: {

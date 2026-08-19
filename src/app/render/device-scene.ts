@@ -28,6 +28,41 @@ import type { DeviceDefinition, FinishId } from "../product-domain";
  * does. A polished one also carries the device's reflection, which is most of
  * what makes the references read as photographs rather than renders.
  */
+/**
+ * The layer the backdrop is on, so one light can be aimed at it alone.
+ *
+ * Objects keep their default layer as well, so every other light still reaches
+ * them and the camera still draws them; this only adds a channel that the
+ * sweep lamp is the sole occupant of.
+ */
+const SWEEP_LAYER = 3;
+
+export type SweepSettings = {
+  /**
+   * How wide the cove is, 0 a corner and 1 a broad cyclorama.
+   *
+   * The bend is what makes a backdrop graduate. A surface curving away from
+   * the light turns a little further from it with every step up, so the tone
+   * falls off across the curve on its own — no painted gradient, and it takes
+   * a shadow and bounces onto the device while it is at it.
+   */
+  curve: number;
+  /** How far the sweep rises behind the device, 0 leaving a bare floor. */
+  height: number;
+  /**
+   * A lamp tucked into the cove, lighting the paper rather than the device.
+   *
+   * This is the one light in the rig with any falloff, and it is here because
+   * the graduation a backdrop is prized for cannot come from anywhere else.
+   * The key, the fill and the rim are all directional or hemispherical: they
+   * arrive as parallel rays with no notion of distance, so a large flat wall
+   * under them comes back one even tone however it is shaped. A photographer
+   * solves this exactly this way, with a small light on the floor behind the
+   * subject aimed at the paper.
+   */
+  light: number;
+};
+
 export type FloorSettings = {
   /**
    * How much of the captured room the floor picks up, 0 to 1.
@@ -189,6 +224,8 @@ export type DeviceScene = {
   setGround: (visible: boolean, color: string) => void;
   /** Change the floor's finish and how much reflection it carries. */
   setFloor: (floor: FloorSettings) => void;
+  /** Raise or lower the paper behind the device. */
+  setSweep: (sweep: SweepSettings) => void;
   /** Re-judge the reflection after the camera has been placed. */
   onCameraMoved: () => void;
   /** Swap the captured studio without rebuilding anything. */
@@ -402,6 +439,129 @@ function creaseNormals(root: THREE.Object3D, angleDegrees: number): void {
     done.set(object.geometry, creased);
     object.geometry = creased;
   });
+}
+
+/**
+ * The backdrop a studio actually has: floor, cove, wall, in one surface.
+ *
+ * Seamless paper rolls down a wall, bends, and runs out along the floor. There
+ * is no corner in it anywhere, which is the whole point — a corner would draw
+ * a line across the frame and the eye would read a room instead of a nowhere.
+ *
+ * The profile is drawn once in the plane facing the camera and extruded
+ * sideways, because that is what the paper is: one shape, dragged along the
+ * width of the set.
+ */
+function createSweepGeometry(
+  width: number,
+  standoff: number,
+  curve: number,
+  height: number,
+): THREE.BufferGeometry {
+  // Height above the floor and distance behind the device, walked from the
+  // point where the paper leaves the floor to the top of the wall.
+  const profile: [number, number][] = [];
+  const SEGMENTS = 24;
+  for (let index = 0; index <= SEGMENTS; index += 1) {
+    const angle = (Math.PI / 2) * (index / SEGMENTS);
+    profile.push([
+      curve * (1 - Math.cos(angle)),
+      -standoff - curve * Math.sin(angle),
+    ]);
+  }
+  // Above the cove the paper is vertical, and there is only something to add
+  // if it was asked to rise further than the bend already takes it.
+  if (height > curve) profile.push([height, -standoff - curve]);
+
+  // Texture coordinates run with distance along the profile rather than with
+  // the index, so the fade at the top is the same width of paper however many
+  // segments the curve happens to use.
+  let travelled = 0;
+  const travel = profile.map((point, index) => {
+    if (index > 0) {
+      const previous = profile[index - 1];
+      travelled += Math.hypot(point[0] - previous[0], point[1] - previous[1]);
+    }
+    return travelled;
+  });
+  const total = travel[travel.length - 1] || 1;
+
+  const half = width / 2;
+  const positions = new Float32Array(profile.length * 2 * 3);
+  const uvs = new Float32Array(profile.length * 2 * 2);
+  for (let index = 0; index < profile.length; index += 1) {
+    const [up, back] = profile[index];
+    for (let side = 0; side < 2; side += 1) {
+      const vertex = index * 2 + side;
+      positions[vertex * 3] = side === 0 ? -half : half;
+      positions[vertex * 3 + 1] = up;
+      positions[vertex * 3 + 2] = back;
+      uvs[vertex * 2] = side;
+      uvs[vertex * 2 + 1] = travel[index] / total;
+    }
+  }
+
+  const indices: number[] = [];
+  for (let index = 0; index < profile.length - 1; index += 1) {
+    const a = index * 2;
+    // Wound so the face the camera sees is the front one.
+    indices.push(a, a + 1, a + 3, a, a + 3, a + 2);
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute(
+    "position",
+    new THREE.BufferAttribute(positions, 3),
+  );
+  geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+/**
+ * Let the paper run out rather than stop.
+ *
+ * The sweep is built large enough to fill any sensible framing, but "any" is
+ * not "every" — someone will zoom out — and a backdrop that ends shows a lit
+ * edge against the void, which is the same tell the floor had. Softening the
+ * top and the two sides costs one small texture and means there is no framing
+ * that catches it.
+ */
+function createSweepFade(): THREE.Texture {
+  const size = 128;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d");
+  if (context) {
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, size, size);
+    // Read unflipped, the texture climbs the paper: the foot of the wall is at
+    // the top of the canvas and the top of the wall at the bottom of it.
+    const up = context.createLinearGradient(0, 0, 0, size);
+    up.addColorStop(0, "#ffffff");
+    up.addColorStop(0.82, "#ffffff");
+    up.addColorStop(1, "#000000");
+    context.fillStyle = up;
+    context.fillRect(0, 0, size, size);
+    // The sides are cut out of what is left, so a corner fades on both counts.
+    context.globalCompositeOperation = "multiply";
+    const across = context.createLinearGradient(0, 0, size, 0);
+    across.addColorStop(0, "#000000");
+    across.addColorStop(0.12, "#ffffff");
+    across.addColorStop(0.88, "#ffffff");
+    across.addColorStop(1, "#000000");
+    context.fillStyle = across;
+    context.fillRect(0, 0, size, size);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  // Textures are flipped on upload by default, which would put the fade at the
+  // foot of the paper rather than the top of it — the backdrop dissolving
+  // exactly where it has to be solid.
+  texture.flipY = false;
+  texture.needsUpdate = true;
+  return texture;
 }
 
 /**
@@ -654,6 +814,7 @@ export async function buildDeviceScene(options: {
   lighting: LightingSettings;
   renderer: THREE.WebGLRenderer;
   showGround: boolean;
+  sweep: SweepSettings;
 }): Promise<DeviceScene> {
   const scene = new THREE.Scene();
   const disposables: { dispose: () => void }[] = [];
@@ -797,6 +958,114 @@ export async function buildDeviceScene(options: {
     disposables.push(groundGeometry, groundMaterial, shadowMaterial);
   }
 
+  /**
+   * The sweep: the same paper as the floor, carrying on upwards.
+   *
+   * A separate mesh rather than one surface with the floor, because the floor
+   * has to be see-through in the middle — that is how the reflection under the
+   * device is seen — and the sweep must not be. Sharing a material would mean
+   * one alpha map doing two unrelated jobs on two parts of the same texture.
+   *
+   * It writes depth and draws first so the floor cannot paint over it: both
+   * are transparent, the floor runs on past the sweep underneath it, and
+   * without an order the far half of the floor would be laid across the wall.
+   */
+  let sweepMesh: THREE.Mesh | null = null;
+  let sweepSurface: THREE.MeshStandardMaterial | null = null;
+  let sweepGeometry: THREE.BufferGeometry | null = null;
+  let sweepHeight = 0;
+  let sweepLight: THREE.PointLight | null = null;
+
+  {
+    const fade = createSweepFade();
+    const material = new THREE.MeshStandardMaterial({
+      alphaMap: fade,
+      color: new THREE.Color(options.backgroundColor),
+      depthWrite: true,
+      side: THREE.DoubleSide,
+      transparent: true,
+    });
+    const mesh = new THREE.Mesh(new THREE.BufferGeometry(), material);
+    mesh.receiveShadow = true;
+    mesh.renderOrder = -1;
+    mesh.visible = false;
+    scene.add(mesh);
+    sweepMesh = mesh;
+    sweepSurface = material;
+    disposables.push(fade, material, {
+      dispose: () => sweepGeometry?.dispose(),
+    });
+
+    // Inverse-square falloff, which is the whole reason it is here, and no
+    // shadow: it exists to shape the paper, and a second set of shadows on the
+    // device would read as a room with two suns in it.
+    const lamp = new THREE.PointLight(0xffffff, 0, 0, 2);
+    lamp.castShadow = false;
+    lamp.visible = false;
+    // Flagged off everything but the backdrop, which is what the equivalent
+    // light on a real set is: a head on the floor pointed at the paper, with a
+    // card beside it keeping it off the subject.
+    //
+    // Here it also has to be, because the reflection under the device is a
+    // mirrored copy lit by the same rig rather than a second render through a
+    // mirrored camera. The lights are not mirrored with it. For a directional
+    // light that is a difference nobody can see; for a lamp sitting a few
+    // centimetres from the upside-down device it is a floodlight in the floor.
+    lamp.layers.set(SWEEP_LAYER);
+    scene.add(lamp);
+    sweepLight = lamp;
+
+    mesh.layers.enable(SWEEP_LAYER);
+    groundMesh?.layers.enable(SWEEP_LAYER);
+  }
+
+  /**
+   * Rebuild the paper at the height and bend asked for.
+   *
+   * The shape genuinely changes, so there is nothing to interpolate: this
+   * throws the old strip away and lays a new one. It is a hundred vertices, so
+   * doing that on every frame of a drag costs less than deciding not to.
+   */
+  const applySweep = (sweep: SweepSettings): void => {
+    if (!sweepMesh) return;
+    const height = Math.max(0, Math.min(1, sweep.height));
+    sweepHeight = height;
+    sweepMesh.visible = groundVisible && height > 0;
+    if (height <= 0) return;
+
+    const curve = Math.max(0, Math.min(1, sweep.curve));
+    const standoff = sphere.radius * 2.5;
+    const bend = sphere.radius * (0.4 + 7.6 * curve);
+    sweepGeometry?.dispose();
+    sweepGeometry = createSweepGeometry(
+      sphere.radius * 40,
+      // Far enough back to be out of the device's own contact shadow, close
+      // enough that the light reaching it is the light on the device.
+      standoff,
+      bend,
+      sphere.radius * 16 * height,
+    );
+    sweepMesh.geometry = sweepGeometry;
+    // The paper leaves the floor, so it starts where the floor is.
+    sweepMesh.position.y = groundY - sphere.radius * 0.0015;
+
+    if (sweepLight) {
+      const strength = Math.max(0, Math.min(1, sweep.light));
+      // Low and tucked into the bend, behind the device and hidden by it: a
+      // pool of light at the foot of the paper falling away upwards, which is
+      // the graduation this whole surface exists for.
+      sweepLight.position.set(
+        0,
+        groundY + sphere.radius * 0.35,
+        -standoff - bend * 0.12,
+      );
+      // Falloff is by the square of the distance, so an intensity that suits a
+      // watch would be invisible on an iMac unless it grows with the set.
+      sweepLight.intensity = strength * 26 * sphere.radius * sphere.radius;
+      sweepLight.visible = sweepMesh.visible && strength > 0;
+    }
+  };
+
   /** How much reflection the floor is currently letting through. */
   let floorReflection = 0;
   /** The floor's own share of the captured room, 0 to 1. */
@@ -816,15 +1085,19 @@ export async function buildDeviceScene(options: {
    * left it picks up.
    */
   const applyFloorEnvironment = (): void => {
-    if (!groundSurface) return;
     const map = scene.environment;
-    if (groundSurface.envMap !== map) {
-      groundSurface.envMap = map;
-      // Gaining or losing an environment map changes which shader the material
-      // compiles, which is the one case that needs more than a new uniform.
-      groundSurface.needsUpdate = true;
+    const share = floorEnvironment * scene.environmentIntensity;
+    for (const surface of [groundSurface, sweepSurface]) {
+      if (!surface) continue;
+      if (surface.envMap !== map) {
+        surface.envMap = map;
+        // Gaining or losing an environment map changes which shader the
+        // material compiles, which is the one case that needs more than a new
+        // uniform.
+        surface.needsUpdate = true;
+      }
+      surface.envMapIntensity = share;
     }
-    groundSurface.envMapIntensity = floorEnvironment * scene.environmentIntensity;
   };
 
   /**
@@ -848,7 +1121,13 @@ export async function buildDeviceScene(options: {
   const applyFloor = (floor: FloorSettings): void => {
     const next = Math.max(0, Math.min(1, floor.reflection));
     if (groundSurface) {
-      groundSurface.roughness = Math.max(0.02, Math.min(1, floor.roughness));
+      const roughness = Math.max(0.02, Math.min(1, floor.roughness));
+      groundSurface.roughness = roughness;
+      // The same finish on the sweep, because it is the same surface. Any
+      // difference between them draws a horizontal line across the frame where
+      // one meets the other, which is precisely the join a real backdrop
+      // exists to avoid.
+      if (sweepSurface) sweepSurface.roughness = roughness;
       floorEnvironment = Math.max(0, Math.min(2, floor.environment));
       applyFloorEnvironment();
       // The floor is see-through in two places whatever the reflection is
@@ -961,6 +1240,7 @@ export async function buildDeviceScene(options: {
   // After the camera exists, because whether the reflection is visible at all
   // depends on which side of the floor the camera is on.
   applyFloor(options.floor);
+  applySweep(options.sweep);
   disposables.push({ dispose: () => floorFade?.dispose() });
 
   const placeKey = (direction: { x: number; y: number }): THREE.Vector3 => {
@@ -983,6 +1263,7 @@ export async function buildDeviceScene(options: {
     },
     setFinish: (next) => applyFinish(baseColors, options.device, next),
     setFloor: applyFloor,
+    setSweep: applySweep,
     setGround: (visible, color) => {
       groundVisible = visible;
       // The plane stays; what it is made of is what changes. Hiding it would
@@ -992,6 +1273,12 @@ export async function buildDeviceScene(options: {
         groundMesh.material = visible ? groundSurface : shadowSurface;
       }
       groundSurface?.color.set(color);
+      // The sweep is the floor continuing, so it is the same paper in the same
+      // colour, and it goes when the backdrop does — there is no catching a
+      // shadow on a wall the device is not near.
+      if (sweepMesh) sweepMesh.visible = visible && sweepHeight > 0;
+      if (sweepLight) sweepLight.visible = (sweepMesh?.visible ?? false) && sweepLight.intensity > 0;
+      sweepSurface?.color.set(color);
       // The reflection lives on the backdrop, so it goes when the backdrop
       // does: there is nothing for it to be seen through.
       updateMirrorVisibility();

@@ -91,7 +91,7 @@ describe("appSchema", () => {
       "lights",
       "key-light-direction",
       "camera",
-      "floor",
+      "backdrop",
       "image-export",
     ]);
     expect(appSchema.panels.layers).toBeUndefined();

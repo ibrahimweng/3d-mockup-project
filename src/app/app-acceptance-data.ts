@@ -299,13 +299,20 @@ export const appControlSectionInventory: readonly ToolcraftControlSectionInvento
       title: "Studio",
     },
     {
-      entity: "Floor",
-      entityId: "floor",
+      entity: "Backdrop",
+      entityId: "backdrop",
       groupingReason:
-        "How much light the floor picks up, how much it reflects and how polished it is are one surface described three times; a reflection without a finish to carry it means nothing, and the room light sets the tone the other two are read against. All three are grouped-layout controls.",
-      id: "floor",
-      targets: ["floor.environment", "floor.reflection", "floor.roughness"],
-      title: "Floor",
+        "The floor and the sweep behind it are one piece of paper, so its shape and its finish belong together: how far it rises and how it bends decide what the light does to it, and how much room it picks up, how much it reflects and how polished it is decide what that light looks like. All five are grouped-layout sliders.",
+      id: "backdrop",
+      targets: [
+        "backdrop.height",
+        "backdrop.curve",
+        "backdrop.light",
+        "floor.environment",
+        "floor.reflection",
+        "floor.roughness",
+      ],
+      title: "Backdrop",
     },
     {
       entity: "Lights",
@@ -509,6 +516,54 @@ export const appAcceptance: readonly ToolcraftComponentAcceptance[] = [
     optionCoverage: "each-visible-item",
     target: "studio.preset",
     userAction: "Choose each Environment option and inspect the render.",
+  },
+  {
+    automated: true,
+    automatedTestName: "sweep height raises a backdrop behind the device",
+    browser: true,
+    browserTestName:
+      "browser: raising sweep height puts a lit backdrop behind the device",
+    componentType: "slider",
+    evidence: "rendered-pixels",
+    expectedObservable:
+      "Raising Sweep height replaces the empty space behind the device with a lit backdrop that curves up out of the floor and graduates from bright near the floor to dark at the top; returning it to zero leaves the floor alone against the background.",
+    fixture: "any device on a visible background",
+    id: "backdrop.height.raises",
+    kind: "control",
+    target: "backdrop.height",
+    userAction: "Drag the Backdrop sweep height slider from 0 to 100 and back.",
+  },
+  {
+    automated: true,
+    automatedTestName: "sweep curve changes where the floor becomes the wall",
+    browser: true,
+    browserTestName:
+      "browser: widening sweep curve moves the bend and softens the graduation",
+    componentType: "slider",
+    evidence: "rendered-pixels",
+    expectedObservable:
+      "With a sweep raised, lowering Curve pulls the bend into a tight corner with a visible line across it, and raising it spreads the bend into a broad cove whose tone falls off gradually up the backdrop.",
+    fixture: "any device on a visible background",
+    id: "backdrop.curve.bend",
+    kind: "control",
+    target: "backdrop.curve",
+    userAction: "Raise Sweep height, then drag Sweep curve across its range.",
+  },
+  {
+    automated: true,
+    automatedTestName: "sweep light graduates the backdrop from the floor up",
+    browser: true,
+    browserTestName:
+      "browser: raising sweep light brightens the foot of the backdrop and falls away up it",
+    componentType: "slider",
+    evidence: "rendered-pixels",
+    expectedObservable:
+      "With a sweep raised, raising Sweep light puts a pool of brightness on the backdrop behind the device that fades as it climbs, so the backdrop stops being one flat tone; the device itself barely changes, because the lamp faces the paper.",
+    fixture: "any device on a visible background",
+    id: "backdrop.light.graduates",
+    kind: "control",
+    target: "backdrop.light",
+    userAction: "Raise Sweep height, then drag Sweep light from 0 to 100.",
   },
   {
     automated: true,

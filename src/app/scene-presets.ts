@@ -17,6 +17,8 @@ import type { ToolcraftOrientationPose } from "@/toolcraft/runtime/react";
 
 export const SCENE_PRESET_OPTIONS = [
   { label: "Void", value: "void" },
+  { label: "Softbox", value: "softbox" },
+  { label: "Sweep", value: "sweep" },
 ] as const;
 
 export type ScenePresetId = (typeof SCENE_PRESET_OPTIONS)[number]["value"];
@@ -35,6 +37,12 @@ export type ScenePreset = {
   floorReflection: number;
   /** Floor finish, 0 polished to 100 matte. */
   floorRoughness: number;
+  /** How wide the bend is where the floor becomes the wall, 0 to 100. */
+  sweepCurve: number;
+  /** The lamp at the foot of the paper, 0 to 100. */
+  sweepLight: number;
+  /** How far the backdrop rises behind the device, 0 leaving a bare floor. */
+  sweepHeight: number;
   focalLength: number;
   label: string;
   /** Bounce, 0 to 400. */
@@ -93,6 +101,95 @@ export const SCENE_PRESETS: Readonly<Record<ScenePresetId, ScenePreset>> = {
     // because a metal has no diffuse response: past a point a rim stops being
     // an edge and becomes a second broad highlight washing the whole face.
     rim: 85,
+    // Nothing behind the device at all. A backdrop, however dark, is a surface
+    // that catches light and puts a tone in the frame, and the whole point of
+    // this one is that there is nothing back there to find.
+    sweepCurve: 45,
+    sweepHeight: 0,
+    sweepLight: 0,
+  },
+
+  softbox: {
+    // Light grey paper. Not white: white leaves nothing above the device for a
+    // highlight to be brighter than, and a polished case photographed against
+    // it comes back looking like a drawing of itself.
+    background: "#D2D3D5",
+    environment: "studio-soft",
+    // Driven hard, because in this one the room is most of the light. The rig
+    // shapes what the capture has already laid down rather than replacing it.
+    environmentIntensity: 130,
+    // The bounce a white studio does for free, and the reason this setup has
+    // almost no shadow to speak of.
+    fill: 65,
+    floorEnvironment: 100,
+    // A clean mirror under the device. It works here and not in Void because
+    // there is a lit backdrop for the floor to carry as well.
+    floorReflection: 58,
+    // Semi-gloss: sharp enough to return the device, rough enough that the
+    // reflection stays a reflection rather than a second device.
+    floorRoughness: 20,
+    // Long. A polished case shot straight on wants the near edges to stay
+    // where they are rather than flaring towards the corners.
+    focalLength: 105,
+    keyColor: "#FFFFFF",
+    // High and only just off centre, so the modelling is gentle and the
+    // reflection of the key clears the display.
+    keyDirection: { x: 0.6, y: 0.26 },
+    keyIntensity: 70,
+    label: "Softbox",
+    // Dead on, at the height of the device itself.
+    pose: { position: [0, 0.08, 1], up: [0, 1, 0] },
+    // Barely there. Against a light backdrop the device already separates by
+    // being darker than what is behind it, and a rim on top of that reads as
+    // a second light nobody placed.
+    rim: 20,
+    // A broad cove. The graduation is the look, and a wide bend is what makes
+    // the tone fall off over a long way instead of breaking at a corner.
+    sweepCurve: 78,
+    sweepHeight: 62,
+    // Barely on. This one wants an even wall; the lamp is here only to keep
+    // the top from going as flat as the middle.
+    sweepLight: 22,
+  },
+
+  sweep: {
+    // Near white, off just enough to hold a tone. A backdrop at pure white
+    // clips the moment any light reaches it and takes the graduation with it.
+    background: "#EDEDEA",
+    environment: "studio-soft",
+    environmentIntensity: 105,
+    fill: 45,
+    // Held well back, and this is the counter-intuitive number in the file.
+    // White paper under a bright room sits at the top of the range everywhere
+    // at once, and a surface already at its ceiling cannot graduate: the lamp
+    // below has nothing to lift. Dropping the room light is what buys the
+    // headroom the graduation is drawn in.
+    floorEnvironment: 30,
+    // No mirror. The shadow does the grounding here, and a reflection under a
+    // catalogue shot reads as a showroom floor rather than a table.
+    floorReflection: 0,
+    floorRoughness: 94,
+    // Wide enough to show the device in a space rather than isolated on it,
+    // which is what a landing-page shot is doing.
+    focalLength: 65,
+    keyColor: "#FFFFFF",
+    // From above and in front. Straighter than the others because the shadow
+    // is meant to sit under the device rather than rake away from it.
+    keyDirection: { x: 0.56, y: 0.2 },
+    keyIntensity: 95,
+    label: "Sweep",
+    // Eye level, a touch off axis so the device has some depth to it.
+    pose: { position: [0.2, 0.06, 1], up: [0, 1, 0] },
+    // Off. There is nothing to separate the device from: the backdrop is
+    // already brighter than anything on the device.
+    rim: 0,
+    // Tighter than the softbox and taller. The bend sits low and out of frame,
+    // so what is behind the device is an even wall rather than a curve.
+    sweepCurve: 34,
+    sweepHeight: 80,
+    // The graduation is the look here, so the lamp does real work: it is what
+    // puts the pool of light behind the device that the corners fall away from.
+    sweepLight: 90,
   },
 };
 

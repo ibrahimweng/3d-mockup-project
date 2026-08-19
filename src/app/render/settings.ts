@@ -79,6 +79,11 @@ export function readRasterSettings(
       roughness: num(values, "floor.roughness", 92) / 100,
     },
     focalLength: num(values, "camera.focalLength", 85),
+    sweep: {
+      curve: num(values, "backdrop.curve", 45) / 100,
+      height: num(values, "backdrop.height", 0) / 100,
+      light: num(values, "backdrop.light", 0) / 100,
+    },
     lighting: {
       environmentIntensity: num(values, "studio.intensity", 100) / 100,
       fillIntensity: num(values, "light.fill", 30) / 100,
