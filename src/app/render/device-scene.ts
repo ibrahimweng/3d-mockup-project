@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
@@ -27,6 +28,88 @@ export type ScreenTransform = {
   stretch: { x: number; y: number };
 };
 
+/**
+ * Parsed models, kept for the life of the page.
+ *
+ * Decoding a device is the single most expensive thing the app does — the
+ * largest is 21MB — and switching away and back used to pay it again. The
+ * parsed result is shared; every scene built from it clones the graph and its
+ * materials, so one device's finish never leaks into another's.
+ */
+const modelCache = new Map<string, Promise<GLTF>>();
+
+/**
+ * Convolved environments, per renderer.
+ *
+ * PMREM output is a render target belonging to one WebGL context, so preview
+ * and export cannot share it. Within one renderer, convolving the same studio
+ * twice is pure waste.
+ */
+const environmentCache = new WeakMap<
+  THREE.WebGLRenderer,
+  Map<string, THREE.Texture>
+>();
+
+function loadModel(url: string): Promise<GLTF> {
+  const cached = modelCache.get(url);
+  if (cached) return cached;
+  const pending = new GLTFLoader().loadAsync(url);
+  modelCache.set(url, pending);
+  // A failed load must not poison the cache, or the device can never load.
+  void pending.catch(() => modelCache.delete(url));
+  return pending;
+}
+
+export async function loadEnvironment(
+  renderer: THREE.WebGLRenderer,
+  url: string,
+): Promise<THREE.Texture> {
+  let perRenderer = environmentCache.get(renderer);
+  if (!perRenderer) {
+    perRenderer = new Map();
+    environmentCache.set(renderer, perRenderer);
+  }
+  const cached = perRenderer.get(url);
+  if (cached) return cached;
+
+  const equirectangular = await new RGBELoader().loadAsync(url);
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  pmrem.compileEquirectangularShader();
+  const environment = pmrem.fromEquirectangular(equirectangular).texture;
+  equirectangular.dispose();
+  pmrem.dispose();
+  perRenderer.set(url, environment);
+  return environment;
+}
+
+/**
+ * Clone a cached model for one scene.
+ *
+ * `Object3D.clone` shares materials by reference, which would make a finish or
+ * a screenshot applied to one instance appear on every other. Materials are
+ * cloned per scene; geometries and textures stay shared, because those are the
+ * expensive part and nothing here mutates them.
+ */
+function cloneForScene(source: THREE.Object3D): THREE.Object3D {
+  const clone = source.clone(true);
+  const byOriginal = new Map<THREE.Material, THREE.Material>();
+  const copy = (material: THREE.Material): THREE.Material => {
+    const existing = byOriginal.get(material);
+    if (existing) return existing;
+    const fresh = material.clone();
+    byOriginal.set(material, fresh);
+    return fresh;
+  };
+
+  clone.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    object.material = Array.isArray(object.material)
+      ? object.material.map(copy)
+      : copy(object.material);
+  });
+  return clone;
+}
+
 export type ScreenSlack = { x: number; y: number };
 
 export type DeviceScene = {
@@ -41,6 +124,14 @@ export type DeviceScene = {
   getScreenSlack: () => ScreenSlack;
   /** The display meshes, for hit testing the screen apart from the body. */
   screenMeshes: THREE.Mesh[];
+  /** Repaint the shell without rebuilding anything. */
+  setFinish: (finish: FinishId) => void;
+  /** Move and re-balance the rig without rebuilding anything. */
+  setLighting: (lighting: LightingSettings) => void;
+  /** Show, hide, and recolour the ground without rebuilding anything. */
+  setGround: (visible: boolean, color: string) => void;
+  /** Swap the captured studio without rebuilding anything. */
+  setEnvironment: (environment: THREE.Texture) => void;
   /** The device geometry, so a hit test can ignore the ground. */
   subject: THREE.Object3D;
   /** Set the artwork shown on the display, or null to leave it dark. */
@@ -268,21 +359,15 @@ export async function buildDeviceScene(options: {
   const scene = new THREE.Scene();
   const disposables: { dispose: () => void }[] = [];
 
-  const [gltf, environmentMap] = await Promise.all([
-    new GLTFLoader().loadAsync(
-      `${import.meta.env.BASE_URL}models/${options.device.modelFile}`,
-    ),
-    new RGBELoader().loadAsync(options.environmentUrl),
+  const [gltf, environment] = await Promise.all([
+    loadModel(`${import.meta.env.BASE_URL}models/${options.device.modelFile}`),
+    loadEnvironment(options.renderer, options.environmentUrl),
   ]);
 
-  // Convolve the environment once. This is the whole lighting model: every
-  // material samples the mip level matching its roughness, so a polished rail
-  // and a matte back read correctly from a single texture with no lights.
-  const pmrem = new THREE.PMREMGenerator(options.renderer);
-  pmrem.compileEquirectangularShader();
-  const environment = pmrem.fromEquirectangular(environmentMap).texture;
-  environmentMap.dispose();
-  pmrem.dispose();
+  // The convolved environment is the whole base lighting model: every material
+  // samples the mip level matching its roughness, so a polished rail and a
+  // matte back read correctly from one texture with no lights at all. It is
+  // cached, so it belongs to the cache rather than to this scene.
   scene.environment = environment;
   // The captured studio is the base layer of the lighting model; everything
   // below is placed on top of it rather than replacing it.
@@ -292,10 +377,11 @@ export async function buildDeviceScene(options: {
   // Several of these files hold more than one device in sibling scenes, and the
   // default scene is not always the one named on the tin — loading `gltf.scene`
   // from `macbook.glb` would render a phone.
-  const subject = options.device.sceneName
+  const sourceSubject = options.device.sceneName
     ? (gltf.scenes.find((entry) => entry.name === options.device.sceneName) ??
       gltf.scene)
     : gltf.scene;
+  const subject = cloneForScene(sourceSubject);
 
   if (options.device.yawDegrees) {
     subject.rotation.y = THREE.MathUtils.degToRad(options.device.yawDegrees);
@@ -333,8 +419,10 @@ export async function buildDeviceScene(options: {
   scene.add(subject);
 
   const groundY = bounds.min.y - centre.y;
+  let groundMesh: THREE.Mesh | null = null;
+  let groundSurface: THREE.MeshStandardMaterial | null = null;
 
-  if (options.showGround) {
+  {
     const groundGeometry = new THREE.PlaneGeometry(
       sphere.radius * 40,
       sphere.radius * 40,
@@ -347,7 +435,10 @@ export async function buildDeviceScene(options: {
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = groundY - sphere.radius * 0.002;
     ground.receiveShadow = true;
+    ground.visible = options.showGround;
     scene.add(ground);
+    groundMesh = ground;
+    groundSurface = groundMaterial;
     disposables.push(groundGeometry, groundMaterial);
   }
 
@@ -386,26 +477,23 @@ export async function buildDeviceScene(options: {
   key.shadow.camera.far = sphere.radius * 12;
   scene.add(key);
 
-  if (options.lighting.fillIntensity > 0) {
-    // Hemisphere rather than a second directional: fill is bounce, and bounce
-    // has no direction sharp enough to cast anything.
-    const fill = new THREE.HemisphereLight(
-      0xffffff,
-      new THREE.Color(options.backgroundColor),
-      options.lighting.fillIntensity,
-    );
-    scene.add(fill);
-  }
+  // Fill and rim are always present and driven by intensity alone, so changing
+  // the rig never rebuilds the scene. Hemisphere rather than a second
+  // directional for fill: bounce has no edge sharp enough to cast anything.
+  const fill = new THREE.HemisphereLight(
+    0xffffff,
+    new THREE.Color(options.backgroundColor),
+    options.lighting.fillIntensity,
+  );
+  scene.add(fill);
 
-  if (options.lighting.rimIntensity > 0) {
-    const rim = new THREE.DirectionalLight(0xffffff, options.lighting.rimIntensity);
-    rim.position.set(
-      -keyDirection.x * sphere.radius * 3,
-      sphere.radius * 1.5,
-      -sphere.radius * 3,
-    );
-    scene.add(rim);
-  }
+  const rim = new THREE.DirectionalLight(0xffffff, options.lighting.rimIntensity);
+  rim.position.set(
+    -keyDirection.x * sphere.radius * 3,
+    sphere.radius * 1.5,
+    -sphere.radius * 3,
+  );
+  scene.add(rim);
 
   const screenMaterials = findScreenMaterials(
     subject,
@@ -435,15 +523,48 @@ export async function buildDeviceScene(options: {
     sphere.radius * 60,
   );
 
+  const placeKey = (direction: { x: number; y: number }): THREE.Vector3 => {
+    const vector = new THREE.Vector3(direction.x, -direction.y, 1);
+    if (vector.lengthSq() < 1e-6) vector.set(0, 0, 1);
+    return vector
+      .normalize()
+      .multiplyScalar(sphere.radius * 4)
+      .add(new THREE.Vector3(0, sphere.radius * 2, 0));
+  };
+
   return {
     camera,
     getScreenSlack: () => ({ x: slack.x, y: slack.y }),
     screenMeshes,
+    setEnvironment: (next) => {
+      scene.environment = next;
+    },
+    setFinish: (next) => applyFinish(subject, options.device, next),
+    setGround: (visible, color) => {
+      if (groundMesh) groundMesh.visible = visible;
+      groundSurface?.color.set(color);
+      fill.groundColor.set(color);
+    },
+    setLighting: (next) => {
+      scene.environmentIntensity = next.environmentIntensity;
+      key.intensity = next.keyIntensity;
+      key.color.set(next.keyColor);
+      key.position.copy(placeKey(next.keyDirection));
+      fill.intensity = next.fillIntensity;
+      rim.intensity = next.rimIntensity;
+      rim.position.set(
+        -next.keyDirection.x * sphere.radius * 3,
+        sphere.radius * 1.5,
+        -sphere.radius * 3,
+      );
+    },
     dispose: () => {
+      // Geometry, textures and the convolved environment are shared with the
+      // cache and outlive this scene. Only the per-scene material clones and
+      // the ground built here are ours to release.
       for (const item of disposables) item.dispose();
       subject.traverse((object) => {
         if (!(object instanceof THREE.Mesh)) return;
-        object.geometry.dispose();
         const material = object.material;
         if (Array.isArray(material)) material.forEach((m) => m.dispose());
         else material.dispose();

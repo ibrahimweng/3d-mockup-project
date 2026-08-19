@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { readDeviceDefinition, readFinishId } from "../product-domain";
 import {
   buildDeviceScene,
+  loadEnvironment,
   type DeviceScene,
   type LightingSettings,
   type ScreenTransform,
@@ -43,6 +44,9 @@ export class RasterRenderer {
   // still adopts the correct aspect. Without this the camera keeps its
   // constructor default of 1 and renders a tall phone square.
   private viewport = { height: 0, width: 0 };
+  private lastEnvironment = "";
+  /** Called when a swapped-in studio has finished convolving. */
+  onEnvironmentReady: (() => void) | null = null;
 
   readonly renderer: THREE.WebGLRenderer;
 
@@ -70,17 +74,15 @@ export class RasterRenderer {
     this.settings = settings;
     this.renderer.toneMappingExposure = settings.exposure / 100;
 
-    // The rig is rebuilt with the scene, so it belongs in the key that decides
-    // whether the scene is rebuilt at all.
-    const key = JSON.stringify([
-      settings.backgroundColor,
-      settings.device,
-      settings.environment,
-      settings.finish,
-      settings.lighting,
-      settings.showBackground,
-    ]);
-    if (key === this.lastKey && this.built) return;
+    // Only the model and the studio decide whether a scene has to be built.
+    // Everything else — the rig, the finish, the ground — is applied to the
+    // scene already on screen, so moving a light no longer re-decodes a 21MB
+    // device or re-convolves an environment.
+    const key = JSON.stringify([settings.device]);
+    if (key === this.lastKey && this.built) {
+      this.applyLiveSettings(settings);
+      return;
+    }
     if (this.loading) return;
 
     this.lastKey = key;
@@ -100,6 +102,8 @@ export class RasterRenderer {
         }
         this.built?.dispose();
         this.built = scene;
+        this.lastEnvironment = settings.environment;
+        this.applyLiveSettings(settings);
         this.applyViewport();
         onReady();
       })
@@ -110,6 +114,39 @@ export class RasterRenderer {
       })
       .finally(() => {
         this.loading = null;
+      });
+  }
+
+  /** Everything a scene can absorb without being rebuilt. */
+  private applyLiveSettings(settings: RasterSettings): void {
+    const built = this.built;
+    if (!built) return;
+    this.applyEnvironment(built, settings.environment);
+    built.setFinish(readFinishId(settings.finish));
+    built.setLighting(settings.lighting);
+    built.setGround(settings.showBackground, settings.backgroundColor);
+  }
+
+  /**
+   * Swap the captured studio in place.
+   *
+   * Convolving is cached per renderer, so returning to a studio already used is
+   * free; the first use of one pays for it once and never again.
+   */
+  private applyEnvironment(built: DeviceScene, environment: string): void {
+    if (environment === this.lastEnvironment) return;
+    this.lastEnvironment = environment;
+    const url = `${import.meta.env.BASE_URL}hdri/${environment}.hdr`;
+    void loadEnvironment(this.renderer, url)
+      .then((texture) => {
+        if (this.disposed || this.built !== built) return;
+        built.setEnvironment(texture);
+        this.onEnvironmentReady?.();
+      })
+      .catch(() => {
+        // A studio that fails to load leaves the previous one lighting the
+        // scene; the next change retries.
+        this.lastEnvironment = "";
       });
   }
 

@@ -12,6 +12,7 @@ import {
 
 import { forgetArtworkUrl, publishArtworkUrl } from "./artwork-store";
 import { useDesignDrag } from "./design-drag";
+import { useViewOrbit } from "./view-orbit";
 import { readDeviceDefinition } from "./product-domain";
 import { RasterRenderer } from "./render/raster-renderer";
 import { createScreenTexture } from "./render/screen-texture";
@@ -56,9 +57,15 @@ export function MockupPreview(): React.ReactElement {
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
     const renderer = new RasterRenderer(canvas);
+    // A studio swapped in place changes the lighting without rebuilding the
+    // scene, so the frame has to be invalidated when it finishes convolving.
+    renderer.onEnvironmentReady = () => {
+      dirtyRef.current = true;
+    };
     rendererRef.current = renderer;
     return () => {
       rendererRef.current = null;
+      renderer.onEnvironmentReady = null;
       renderer.dispose();
     };
   }, []);
@@ -174,33 +181,35 @@ export function MockupPreview(): React.ReactElement {
     target: "camera.orbit",
   });
   const designDrag = useDesignDrag(rendererRef, artworkUrl !== null);
+  const viewOrbit = useViewOrbit();
 
-  // The design drag is offered the pointer first; anything it declines carries
-  // on to orbit unchanged.
+  // Pointer priority, highest first: a dedicated orbit binding, then the design
+  // drag on a display, then the runtime's own model orbit, then CanvasShell.
+  // Each declines what is not its own, so there is never a mode to switch.
   const pointerHandlers = React.useMemo(
     () => ({
       onPointerCancel: (event: React.PointerEvent<HTMLCanvasElement>) => {
-        if (!designDrag.onPointerCancel(event)) {
-          orbitHandlers.onPointerCancel?.(event);
-        }
+        if (viewOrbit.onPointerCancel(event)) return;
+        if (designDrag.onPointerCancel(event)) return;
+        orbitHandlers.onPointerCancel?.(event);
       },
       onPointerDown: (event: React.PointerEvent<HTMLCanvasElement>) => {
-        if (!designDrag.onPointerDown(event)) {
-          orbitHandlers.onPointerDown?.(event);
-        }
+        if (viewOrbit.onPointerDown(event)) return;
+        if (designDrag.onPointerDown(event)) return;
+        orbitHandlers.onPointerDown?.(event);
       },
       onPointerMove: (event: React.PointerEvent<HTMLCanvasElement>) => {
-        if (!designDrag.onPointerMove(event)) {
-          orbitHandlers.onPointerMove?.(event);
-        }
+        if (viewOrbit.onPointerMove(event)) return;
+        if (designDrag.onPointerMove(event)) return;
+        orbitHandlers.onPointerMove?.(event);
       },
       onPointerUp: (event: React.PointerEvent<HTMLCanvasElement>) => {
-        if (!designDrag.onPointerUp(event)) {
-          orbitHandlers.onPointerUp?.(event);
-        }
+        if (viewOrbit.onPointerUp(event)) return;
+        if (designDrag.onPointerUp(event)) return;
+        orbitHandlers.onPointerUp?.(event);
       },
     }),
-    [designDrag, orbitHandlers],
+    [designDrag, orbitHandlers, viewOrbit],
   );
 
   React.useEffect(() => {
