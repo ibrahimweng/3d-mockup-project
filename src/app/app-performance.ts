@@ -121,7 +121,7 @@ export const appPerformance: ToolcraftEnvelopePerformanceConfig =
       exportRenderer: "webgl",
       fidelityRisks: [
         "Lighting is image-based rather than traced, so shadows come from a single directional shadow map instead of true area-light occlusion. Contact shadows are soft but approximate, and objects do not bounce light onto each other.",
-        "Reflections sample the environment map only. A device cannot reflect the ground plane or itself, which is visible on polished rails and on the Studio Display's glass at grazing angles.",
+        "Reflections sample the environment map only. A device cannot reflect the ground plane or itself, which is visible on polished rails and on the Mac Studio's glass at grazing angles.",
         "Depth of field is not simulated. Reference product photography has shallow focus; this renders everything sharp.",
         "The display is driven through the model's own emissive channel and UVs. A screenshot is mapped to the panel the source file authored, so on a device whose screen mesh is modelled at a tilt the fit maths uses a declared aspect rather than a measured one.",
       ],
@@ -140,8 +140,8 @@ export const appPerformance: ToolcraftEnvelopePerformanceConfig =
       ],
       performanceRisks: [
         "The environment map is convolved through PMREM whenever the environment or the device changes. That is a one-off cost per scene build rather than a per-frame one, but it is the most expensive single operation in the product.",
-        "Device models are decoded on selection and range from 5MB to 96MB. The largest is Studio Display, whose first load is the latency a user actually feels; frames are cheap afterwards.",
-        "Switching device discards the previous scene and builds a new one. Repeated switching pays decode and convolution each time because only the active scene is retained.",
+        "Device models are decoded on selection and range from 2MB to 19MB. The largest is the file the MacBook and iMac share, whose first load is the latency a user actually feels; frames are cheap afterwards.",
+        "Switching device builds a new scene from a parsed model that is cached for the life of the page, so a device already seen costs no download and no re-decode.",
       ],
       previewExportDifferenceReason:
         "Preview and export share one scene builder, one camera model and one renderer, differing only in backing resolution. Because nothing accumulates and no sampling is involved, the exported frame is deterministic and identical to what the preview shows at that size.",

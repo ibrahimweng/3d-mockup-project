@@ -31,7 +31,7 @@ framework preset, the `npm run build` command and the `dist` output directory.
 | iPhone 17 Pro Max | `iphone-5.glb` | Default. Named for an iPhone 5, but holds a 17 Pro Max in orange. Its back panel's colour is printed into a texture, so a colourway repaints it rather than tinting it |
 | MacBook | `macbook.glb` | Scene `Scene.002`; the file also holds an iPhone and the iMac below |
 | iMac | `macbook.glb` | Scene `Scene.001`; the 24-inch model, sharing the MacBook's download |
-| Studio Display | `macstudio.glb` | Scene `Exp`; the default scene stacks two displays. Its stand and bezel ship as pure black metal and are repaired in the catalog |
+| Mac Studio | `mac-studio.glb` | The display, its stand and the machine beside it. Cleaned from a 502k-triangle Draco source: see below |
 | Apple Watch Ultra | `apple-watch-ultra.glb` | Nearly square screen, so tall screenshots crop hard |
 
 The models are not interchangeable, so each one is a catalog entry in
@@ -108,6 +108,33 @@ that is not cropped has no slack and correctly does not move.
 Model provenance is not recorded anywhere in the repo. If these came from a
 source with attribution or licensing terms, that belongs here before the site is
 promoted anywhere public.
+
+## Cleaning a supplied model
+
+`mac-studio.glb` is the worked example, in
+[`scripts/clean-model.mjs`](scripts/clean-model.mjs). Its source arrived at
+3.5MB, which flattered it: that was Draco compression over 502,646 triangles,
+and 34.8MB once decoded. The app loads with a plain `GLTFLoader` and has no
+Draco decoder, so it had to come out anyway.
+
+What the pass does, and why each step earned its place here:
+
+- **Drops the unused scene.** The file carried two. The one not used is a full
+  studio set built around a 22-metre backdrop, and the app brings its own
+  ground and lighting.
+- **Simplifies geometry** to 105,046 triangles, bounded by an error tolerance
+  rather than a flat ratio, so the simplifier stops early on anything it cannot
+  reduce without moving the surface. A rounded aluminium box does not need six
+  figures of triangles; the base pad alone was 224,764 for something 88mm
+  across.
+- **Rebuilds the display's unwrap.** The panel shipped mapped into a corner of
+  a shared atlas — u from 0.02 to 0.45 — which is fine for a baked wallpaper
+  and useless for a design supplied at runtime. It is now a clean 0..1 across
+  the panel, derived from the geometry.
+- **Quantizes** positions, normals and texture coordinates, which is most of
+  the remaining size for none of the accuracy that matters at this scale.
+
+The result is 2.4MB and loads without a decoder.
 
 ## Preview resolution
 
