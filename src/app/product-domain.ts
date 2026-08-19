@@ -61,6 +61,26 @@ export type DeviceFinish = {
   body: string;
 };
 
+/**
+ * A repair to one material, applied before any colourway.
+ *
+ * Model authors sometimes leave a part at a value that is not physically
+ * meaningful. The common one in this set is pure black on a fully metallic
+ * material: a metal's base colour is its reflectance, so black metal returns
+ * no light at any angle and renders as a hole rather than as the part it
+ * represents. No environment or light fixes that — the surface has nothing to
+ * reflect with.
+ *
+ * Corrections are separate from finishes on purpose. A finish is a choice the
+ * user makes; a correction is what the model should have said in the first
+ * place, so it applies to Natural too and every colourway paints over it.
+ */
+export type MaterialCorrection = {
+  color?: string;
+  metalness?: number;
+  roughness?: number;
+};
+
 export const DEFAULT_DEVICE: DeviceId = "iphone-17-pro-max";
 
 /**
@@ -118,6 +138,12 @@ export type DeviceDefinition = {
    * Natural is always the model exactly as it shipped, so it needs no entry.
    */
   finishes?: Partial<Record<FinishId, DeviceFinish>>;
+  /**
+   * Authoring defects repaired before the model is ever shown, by material
+   * name. See `MaterialCorrection` for what counts as a defect rather than a
+   * preference.
+   */
+  materialCorrections?: Readonly<Record<string, MaterialCorrection>>;
   screenMaterial: string;
   /**
    * Scene to load when the file's default scene is not this device.
@@ -241,8 +267,9 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
     excludedNodes: [],
     // The enclosure is textured, so its base colour multiplies the texture
     // rather than replacing it: the aluminium tints and keeps its brushed
-    // detail.
-    bodyMaterials: ["metal.010"],
+    // detail. The stand is untextured and takes the colour flat, which is why
+    // it needs a correction below before any of this reads correctly.
+    bodyMaterials: ["metal.010", "metal2.002"],
     finishes: {
       blue: { body: "#8fa4bd" },
       gold: { body: "#d9c3a1" },
@@ -250,6 +277,26 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
       silver: { body: "#e6e8ea" },
     },
     label: "Studio Display",
+    // Every one of this model's seven materials is fully metallic, and two of
+    // them are pure black on top of that. A metal has no diffuse response —
+    // it can only return what it reflects — so a flat panel facing the camera
+    // shows whatever is behind the camera, which in a studio is darkness. That
+    // is why this device alone rendered as a bright rim around a void while
+    // the phones, whose authors left most of the shell dielectric, read
+    // correctly from every angle. These corrections give it the same footing.
+    materialCorrections: {
+      // The frame around the panel. A display bezel is a dark dielectric, not
+      // a metal: it should absorb and scatter a little rather than mirror.
+      "Besels.002": { color: "#17181a", metalness: 0, roughness: 0.5 },
+      // Enclosure and stand neck. The file's metallic-roughness map is a flat
+      // white, which is the glTF default rather than authored intent; taking
+      // it part-way to dielectric lets the light aluminium texture actually
+      // show, while enough metal remains to keep the brushed reflection.
+      "metal.010": { metalness: 0.5 },
+      // The foot, untextured and left at pure black. Same aluminium as the
+      // enclosure, and the same split between diffuse and reflection.
+      "metal2.002": { color: "#c8cbcd", metalness: 0.5 },
+    },
     modelFile: "macstudio.glb",
     screenMaterial: "Screen",
     // The file's default scene stacks two displays; `Exp` is the single one.

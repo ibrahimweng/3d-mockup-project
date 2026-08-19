@@ -253,16 +253,22 @@ function applyScreenTransform(
     return;
   }
 
+  // The panel is measured as height over width, because that is what reads
+  // naturally for a device; an image is described the other way round. Both
+  // are put in width-over-height here so the comparison below is between like
+  // and like — mixing the two silently squared the error and cropped every
+  // design far tighter than its aspect called for.
+  const screenRatio = screenAspect > 0 ? 1 / screenAspect : 1;
   const image = texture.image as { height?: number; width?: number } | undefined;
   const imageAspect =
-    image?.width && image?.height ? image.width / image.height : screenAspect;
+    image?.width && image?.height ? image.width / image.height : screenRatio;
 
   // Base fit. `fill` covers and crops, `fit` shows everything and leaves
   // margins, `stretch` ignores aspect entirely and distorts to the display.
   let repeatX = 1;
   let repeatY = 1;
   if (transform.fit !== "stretch") {
-    const ratio = imageAspect / screenAspect;
+    const ratio = imageAspect / screenRatio;
     const cover = transform.fit === "fill";
     if (ratio > 1 === cover) repeatX = cover ? 1 / ratio : ratio;
     else repeatY = cover ? ratio : 1 / ratio;
@@ -310,41 +316,96 @@ export type LightingSettings = {
 };
 
 /**
+ * Repair the materials a model got wrong, before anything else touches them.
+ *
+ * This runs once per built scene and on the scene's own material clones, so a
+ * correction never reaches the cached source and never leaks between devices.
+ * A named material the model does not contain is simply skipped, which keeps a
+ * correction harmless if a re-export renames the part it describes.
+ */
+function applyMaterialCorrections(
+  root: THREE.Object3D,
+  device: DeviceDefinition,
+): void {
+  const corrections = device.materialCorrections;
+  if (!corrections) return;
+
+  for (const material of standardMaterials(root)) {
+    const correction = corrections[material.name];
+    if (!correction) continue;
+
+    if (correction.color !== undefined) material.color.set(correction.color);
+    if (correction.metalness !== undefined) {
+      material.metalness = correction.metalness;
+    }
+    if (correction.roughness !== undefined) {
+      material.roughness = correction.roughness;
+    }
+    material.needsUpdate = true;
+  }
+}
+
+/**
+ * The colour every material carries once corrections are in and before any
+ * colourway is chosen — in other words, what Natural means for this model.
+ *
+ * A finish is applied to the scene on screen rather than by rebuilding it, so
+ * without somewhere to return to, leaving a colourway would leave its paint
+ * behind and Natural would be reachable only by reloading the device.
+ */
+type BaseColors = Map<THREE.MeshStandardMaterial, THREE.Color>;
+
+function standardMaterials(root: THREE.Object3D): THREE.MeshStandardMaterial[] {
+  const seen = new Set<THREE.MeshStandardMaterial>();
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    const materials = Array.isArray(object.material)
+      ? object.material
+      : [object.material];
+    for (const material of materials) {
+      if (material instanceof THREE.MeshStandardMaterial) seen.add(material);
+    }
+  });
+  return [...seen];
+}
+
+function captureBaseColors(root: THREE.Object3D): BaseColors {
+  const colors: BaseColors = new Map();
+  for (const material of standardMaterials(root)) {
+    colors.set(material, material.color.clone());
+  }
+  return colors;
+}
+
+/**
  * Repaint the materials a colourway names.
  *
  * Only base colour is rewritten. Metalness and roughness stay as the model's
  * author set them, so a brushed enclosure stays brushed and a polished rail
  * stays polished — the finish changes the colour, not the material.
+ *
+ * Every material is returned to its captured colour first, so a colourway
+ * describes the whole device rather than the difference from whichever
+ * colourway happened to precede it.
  */
 function applyFinish(
-  root: THREE.Object3D,
+  baseColors: BaseColors,
   device: DeviceDefinition,
   finish: FinishId,
 ): void {
   const colorway = device.finishes?.[finish];
-  if (!colorway) return;
-
   const body = new Set(device.bodyMaterials ?? []);
-  const accents = colorway.accents ?? {};
-  const painted = new Set<THREE.Material>();
+  const accents = colorway?.accents ?? {};
 
-  root.traverse((object) => {
-    if (!(object instanceof THREE.Mesh)) return;
-    const material = object.material;
-    if (
-      Array.isArray(material) ||
-      !(material instanceof THREE.MeshStandardMaterial) ||
-      painted.has(material)
-    ) {
-      return;
-    }
+  for (const [material, base] of baseColors) {
     // An accent wins over the shell, so a band keeps its own colour.
-    const hex = accents[material.name] ?? (body.has(material.name) ? colorway.body : null);
-    if (!hex) return;
-    material.color.set(hex);
+    const hex =
+      accents[material.name] ??
+      (colorway && body.has(material.name) ? colorway.body : null);
+    if (hex) material.color.set(hex);
+    else material.color.copy(base);
     material.needsUpdate = true;
-    painted.add(material);
-  });
+  }
 }
 
 export async function buildDeviceScene(options: {
@@ -372,7 +433,6 @@ export async function buildDeviceScene(options: {
   // The captured studio is the base layer of the lighting model; everything
   // below is placed on top of it rather than replacing it.
   scene.environmentIntensity = options.lighting.environmentIntensity;
-  disposables.push(environment);
 
   // Several of these files hold more than one device in sibling scenes, and the
   // default scene is not always the one named on the tin — loading `gltf.scene`
@@ -388,7 +448,12 @@ export async function buildDeviceScene(options: {
     subject.updateMatrixWorld(true);
   }
 
-  applyFinish(subject, options.device, options.finish);
+  // Corrections first: a colourway paints over a repaired material, never the
+  // other way round, and Natural returns to the repaired model rather than to
+  // the file as shipped.
+  applyMaterialCorrections(subject, options.device);
+  const baseColors = captureBaseColors(subject);
+  applyFinish(baseColors, options.device, options.finish);
 
   const excluded = new Set(options.device.excludedNodes);
   subject.traverse((object) => {
@@ -539,7 +604,7 @@ export async function buildDeviceScene(options: {
     setEnvironment: (next) => {
       scene.environment = next;
     },
-    setFinish: (next) => applyFinish(subject, options.device, next),
+    setFinish: (next) => applyFinish(baseColors, options.device, next),
     setGround: (visible, color) => {
       if (groundMesh) groundMesh.visible = visible;
       groundSurface?.color.set(color);

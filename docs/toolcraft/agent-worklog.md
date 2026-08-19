@@ -107,6 +107,18 @@ The quoted evidence must be an exact nontrivial raw substring of `Request` with 
 - Source reviewed: All five GLB files were inspected with `@gltf-transform` to record their scenes, emissive display materials and screen geometry. `macbook.glb` holds an iPhone, an iMac and the MacBook in sibling scenes, and `macstudio.glb`'s default scene stacks two displays, so both declare an explicit `sceneName`.
 - Evidence: The rebuilt app was driven in Chromium across all five device options with a screenshot applied; each option loaded its own model and displayed the screenshot on its own screen with no page errors.
 
+### Model repair
+
+- Decision: `materialCorrections` on `DeviceDefinition`, applied before any colourway and captured as the model's Natural state.
+- Reason: The Studio Display rendered as a bright rim around a void. All seven of its materials are fully metallic and two are pure black; a metal has no diffuse response, so a flat black metal panel returns nothing at any angle and no environment or light can rescue it. The phones read correctly because their authors left most of the shell dielectric. This is a defect in the file rather than a preference, so it is repaired rather than expressed as a finish.
+- Evidence: `materialCorrections` in `src/app/product-domain.ts` and `applyMaterialCorrections` in `src/app/render/device-scene.ts`; every material was identified first by tinting each one separately and rendering, which established that the stand neck is `metal.010` and only the foot is `metal2.002`.
+
+### Screen fit
+
+- Decision: `applyScreenTransform` converts the panel's aspect to width-over-height before comparing it with the image's.
+- Reason: `measureScreenAspect` returns height over width and an image is measured width over height, so the ratio between them was wrong by the square of the panel's aspect and every design was cropped far tighter than its proportions called for.
+- Evidence: `screenRatio` in `src/app/render/device-scene.ts`; a corner-labelled design now fills a matched panel exactly instead of showing a fifth of its width.
+
 ## Verification
 
 - `npm run typecheck` passes.
@@ -116,6 +128,6 @@ The quoted evidence must be an exact nontrivial raw substring of `Request` with 
 
 ## Risks
 
-- Risk: `macstudio.glb` is 96MB, so the first selection of Studio Display is slow to load. Rendering is cheap once it is decoded.
+- Risk: `macstudio.glb` was 96MB; its three 4096-square PNGs were re-encoded as 2048 JPEG to bring it to 21MB, verified as visually identical. Parsed models and convolved environments are now cached for the life of the page, so each is paid for once — returning to a device already seen issues no request at all.
 - Risk: `iphone-5.glb` contains the same phone geometry as `iphone-17-pro-max.glb`, so those two device options render nearly the same object.
 - Risk: `src/app/render/device-scene.ts` imports `GLTFLoader` and `RGBELoader`, which the product boundary checker rejects. The reference app has the same violation, and the runtime's sanctioned alternative — a model `fileDrop` with runtime presentation — cannot express bundled device geometry or HDR environments.
