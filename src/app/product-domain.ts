@@ -20,7 +20,7 @@ export const DEVICE_OPTIONS = [
   { label: "iPhone 17 Pro Max", value: "iphone-17-pro-max" },
   { label: "MacBook", value: "macbook" },
   { label: "iMac", value: "imac" },
-  { label: "Studio Display", value: "studio-display" },
+  { label: "Mac Studio", value: "mac-studio" },
   { label: "Apple Watch Ultra", value: "apple-watch-ultra" },
 ] as const;
 
@@ -160,15 +160,14 @@ export type DeviceDefinition = {
    * Scene to load when the file's default scene is not this device.
    *
    * Several of these files are multi-scene: `macbook.glb` also contains an
-   * iPhone and an iMac in sibling scenes, and `macstudio.glb`'s default scene
-   * holds two displays where `Exp` holds one.
+   * iPhone and an iMac in sibling scenes.
    */
   sceneName?: string;
   /**
    * Turn the model about its vertical axis before framing, in degrees.
    *
    * The default camera looks down +Z, and not every source file models its
-   * device facing that way. Without this the Studio Display presents its back.
+   * device facing that way. Without this the Mac Studio presents its back.
    */
   yawDegrees?: number;
 };
@@ -324,48 +323,34 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
     sceneName: "Scene.001",
     // Measured, not guessed: this scene's display normal points along +X, and
     // the camera looks down +Z. The other models in this set face +Z already,
-    // apart from the Studio Display which faces away and is turned 180.
+    // apart from the Mac Studio which faces away and is turned 180.
     yawDegrees: -90,
   },
-  "studio-display": {
+  "mac-studio": {
+    // The display shell, its stand and the machine beside it all share one
+    // aluminium, so a colourway is a single colour. `Side circle` is the trim
+    // ring on the enclosure, which is the same metal polished.
+    bodyMaterials: ["Main", "Side circle"],
     excludedNodes: [],
-    // The enclosure is textured, so its base colour multiplies the texture
-    // rather than replacing it: the aluminium tints and keeps its brushed
-    // detail. The stand is untextured and takes the colour flat, which is why
-    // it needs a correction below before any of this reads correctly.
-    bodyMaterials: ["metal.010", "metal2.002"],
     finishes: {
       blue: { body: "#8fa4bd" },
       gold: { body: "#d9c3a1" },
       graphite: { body: "#6f7175" },
       silver: { body: "#e6e8ea" },
     },
-    label: "Studio Display",
-    // Every one of this model's seven materials is fully metallic, and two of
-    // them are pure black on top of that. A metal has no diffuse response —
-    // it can only return what it reflects — so a flat panel facing the camera
-    // shows whatever is behind the camera, which in a studio is darkness. That
-    // is why this device alone rendered as a bright rim around a void while
-    // the phones, whose authors left most of the shell dielectric, read
-    // correctly from every angle. These corrections give it the same footing.
+    label: "Mac Studio",
     materialCorrections: {
-      // The frame around the panel. A display bezel is a dark dielectric, not
-      // a metal: it should absorb and scatter a little rather than mirror.
-      "Besels.002": { color: "#17181a", metalness: 0, roughness: 0.5 },
-      // Enclosure and stand neck. The file's metallic-roughness map is a flat
-      // white, which is the glTF default rather than authored intent; taking
-      // it part-way to dielectric lets the light aluminium texture actually
-      // show, while enough metal remains to keep the brushed reflection.
-      "metal.010": { metalness: 0.5 },
-      // The foot, untextured and left at pure black. Same aluminium as the
-      // enclosure, and the same split between diffuse and reflection.
-      "metal2.002": { color: "#c8cbcd", metalness: 0.5 },
+      // The frame around the panel ships as pure black metal, and a metal's
+      // base colour is its reflectance, so black metal returns nothing at any
+      // angle. A display bezel is a dark dielectric: it should absorb and
+      // scatter a little rather than mirror.
+      Besels: { color: "#17181a", metalness: 0, roughness: 0.5 },
     },
-    modelFile: "macstudio.glb",
+    modelFile: "mac-studio.glb",
+    // Black, unlit and untextured as authored, which is exactly what a display
+    // wants: the artwork goes on as emission with nothing underneath it.
     screenMaterial: "Screen",
-    // The file's default scene stacks two displays; `Exp` is the single one.
-    sceneName: "Exp",
-    // Modelled facing away from the default camera.
+    // Measured from the display's world normal, which points down -Z.
     yawDegrees: 180,
   },
 };
