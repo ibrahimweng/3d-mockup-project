@@ -5,7 +5,11 @@ import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
-import type { DeviceDefinition, FinishId } from "../product-domain";
+import type {
+  DeviceDefinition,
+  FinishId,
+  LightPatternId,
+} from "../product-domain";
 
 /**
  * A device scene: a real GLB lit entirely by a prefiltered environment.
@@ -412,6 +416,8 @@ export type LightingSettings = {
    * infinitely small, so the shadow is where its apparent size has to be told.
    */
   shadowSoftness: number;
+  /** What the key shines through: nothing, a window, or a set of blinds. */
+  pattern: LightPatternId;
 };
 
 /**
@@ -517,6 +523,86 @@ function createSweepGeometry(
   geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
+  return geometry;
+}
+
+/**
+ * The cut-out the key shines through.
+ *
+ * Everything in the rig until now is a light with a number on it, and no
+ * number makes a room. A gobo does: a shape held in front of the light so that
+ * what lands is the shape rather than the light. Bars across a floor read as a
+ * window with no window anywhere in the frame, which is the whole trick.
+ *
+ * Bars only, never a surround blocking the light around them. A real window is
+ * a hole in an opaque wall, but the depth map covering this scene is finite,
+ * and beyond its edge nothing is shadowed at all — so a surround would draw a
+ * hard line across the floor where the map ran out and the light started
+ * arriving again. Bars have no such edge: both sides of that boundary are lit,
+ * and only the bars are not.
+ *
+ * The pattern is laid out around the middle rather than through it, so the
+ * device stands in a pane and the shadows fall beside it. A bar across the
+ * product is a defect however well it reads on the floor.
+ */
+function createPatternGeometry(
+  pattern: LightPatternId,
+  radius: number,
+): THREE.BufferGeometry | null {
+  // Each bar is a flat quad in the plane facing the light: centre, half width,
+  // half height. None of them needs thickness, because none is ever seen.
+  const bars: [number, number, number, number][] = [];
+
+  if (pattern === "window") {
+    const frame = 3.6 * radius;
+    const mullion = 1.8 * radius;
+    // Thick enough to survive the projection. A bar is seen from the side the
+    // light is going, so a raking key stretches its shadow along the floor and
+    // squeezes it across — one cut thin enough to look right on paper arrives
+    // as a scratch.
+    const bar = 0.17 * radius;
+    // A three-by-three sash: the outer four are the frame, the inner four the
+    // glazing bars, and the middle pane is where the device stands.
+    for (const x of [-frame, -mullion, mullion, frame]) {
+      bars.push([x, 0, bar, frame + bar]);
+    }
+    for (const y of [-frame, -mullion, mullion, frame]) {
+      bars.push([0, y, frame + bar, bar]);
+    }
+  } else if (pattern === "blinds") {
+    const span = 9 * radius;
+    const bar = 0.26 * radius;
+    // Offset by half a gap, so the middle of the frame falls in the daylight
+    // between two slats rather than under one of them.
+    for (let index = -5; index <= 5; index += 1) {
+      bars.push([0, (index + 0.5) * 1.7 * radius, span, bar]);
+    }
+  } else {
+    return null;
+  }
+
+  const positions = new Float32Array(bars.length * 4 * 3);
+  const indices: number[] = [];
+  bars.forEach(([x, y, halfWidth, halfHeight], bar) => {
+    const corners = [
+      [x - halfWidth, y - halfHeight],
+      [x + halfWidth, y - halfHeight],
+      [x + halfWidth, y + halfHeight],
+      [x - halfWidth, y + halfHeight],
+    ];
+    corners.forEach(([cornerX, cornerY], corner) => {
+      const vertex = bar * 4 + corner;
+      positions[vertex * 3] = cornerX;
+      positions[vertex * 3 + 1] = cornerY;
+      positions[vertex * 3 + 2] = 0;
+    });
+    const base = bar * 4;
+    indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  });
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setIndex(indices);
   return geometry;
 }
 
@@ -1259,6 +1345,61 @@ export async function buildDeviceScene(options: {
   frameShadow(key.position);
   scene.add(key);
 
+  /**
+   * The gobo, hung between the key and the device.
+   *
+   * It has to be invisible and it has to cast, which sound like a
+   * contradiction and are not. Hiding it is the obvious way and the wrong one:
+   * three skips an invisible object in the shadow pass as well, and skips one
+   * on a layer the *view* camera cannot see — the shadow pass tests the view
+   * camera's layers, not the shadow camera's, which is the trap. What does
+   * work is refusing to write colour: the depth material three substitutes for
+   * the shadow pass does not inherit that refusal, so the gobo draws nothing
+   * anyone can see and everything the shadow needs.
+   */
+  const patternSurface = new THREE.MeshBasicMaterial({
+    colorWrite: false,
+    depthWrite: false,
+    // A flat quad facing the light is back-facing to the shadow camera by the
+    // time three has flipped sides for it, so both sides have to count.
+    side: THREE.DoubleSide,
+  });
+  const patternMesh = new THREE.Mesh(new THREE.BufferGeometry(), patternSurface);
+  patternMesh.castShadow = true;
+  patternMesh.receiveShadow = false;
+  patternMesh.visible = false;
+  scene.add(patternMesh);
+  let patternGeometry: THREE.BufferGeometry | null = null;
+  let patternId: LightPatternId = "none";
+  disposables.push(patternSurface, {
+    dispose: () => patternGeometry?.dispose(),
+  });
+
+  /**
+   * Cut a new gobo, and hang it square to the light.
+   *
+   * Square to the light is what makes it predictable: the key is directional,
+   * so its shadow is a parallel projection and the pattern lands at the size
+   * it was cut, however far away it is held. Distance only has to keep it
+   * inside the depth map's near plane and out of the device.
+   */
+  const applyPattern = (next: LightPatternId): void => {
+    if (next !== patternId || !patternGeometry) {
+      patternId = next;
+      patternGeometry?.dispose();
+      patternGeometry = createPatternGeometry(next, sphere.radius);
+      patternMesh.geometry = patternGeometry ?? new THREE.BufferGeometry();
+    }
+    patternMesh.visible = patternGeometry !== null;
+    if (!patternMesh.visible) return;
+    patternMesh.position
+      .copy(key.position)
+      .normalize()
+      .multiplyScalar(sphere.radius * 2.6);
+    patternMesh.lookAt(0, 0, 0);
+  };
+  applyPattern(options.lighting.pattern);
+
   // Fill and rim are always present and driven by intensity alone, so changing
   // the rig never rebuilds the scene. Hemisphere rather than a second
   // directional for fill: bounce has no edge sharp enough to cast anything.
@@ -1364,6 +1505,7 @@ export async function buildDeviceScene(options: {
       key.color.set(next.keyColor);
       key.position.copy(placeKey(next.keyDirection));
       frameShadow(key.position);
+      applyPattern(next.pattern);
       fill.intensity = next.fillIntensity;
       rim.intensity = next.rimIntensity;
       applyShadowEdge(next.shadowSoftness);

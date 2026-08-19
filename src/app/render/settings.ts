@@ -1,4 +1,8 @@
-import { DEFAULT_DEVICE, DEFAULT_FINISH } from "../product-domain";
+import {
+  DEFAULT_DEVICE,
+  DEFAULT_FINISH,
+  readLightPatternId,
+} from "../product-domain";
 import type { ScreenTransform } from "./device-scene";
 import type { RasterSettings } from "./raster-renderer";
 
@@ -93,6 +97,7 @@ export function readRasterSettings(
       keyIntensity: num(values, "light.keyIntensity", 110) / 100,
       rimIntensity: num(values, "light.rim", 0) / 100,
       shadowSoftness: num(values, "light.shadowSoftness", 34) / 100,
+      pattern: readLightPatternId(values["light.pattern"]),
     },
     showBackground: values["export.includeBackground"] !== false,
   };

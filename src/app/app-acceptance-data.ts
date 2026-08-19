@@ -318,7 +318,7 @@ export const appControlSectionInventory: readonly ToolcraftControlSectionInvento
       entity: "Lights",
       entityId: "lights",
       groupingReason:
-        "Key, fill and rim are one placed rig sitting on top of the captured studio, and the shadow's edge is the size of the key stated the only way a directional light can state it; each is only meaningful relative to the others, and all five controls are grouped-layout.",
+        "Key, fill and rim are one placed rig sitting on top of the captured studio; the shadow's edge is the size of the key stated the only way a directional light can state it, and the pattern is what the same key shines through. Each is only meaningful relative to the others, and all six controls are grouped-layout.",
       id: "lights",
       targets: [
         "light.keyIntensity",
@@ -326,6 +326,7 @@ export const appControlSectionInventory: readonly ToolcraftControlSectionInvento
         "light.fill",
         "light.rim",
         "light.shadowSoftness",
+        "light.pattern",
       ],
       title: "Lights",
     },
@@ -517,6 +518,23 @@ export const appAcceptance: readonly ToolcraftComponentAcceptance[] = [
     optionCoverage: "each-visible-item",
     target: "studio.preset",
     userAction: "Choose each Environment option and inspect the render.",
+  },
+  {
+    automated: true,
+    automatedTestName: "light pattern casts its cut-out across the scene",
+    browser: true,
+    browserTestName:
+      "browser: choosing a pattern lays bars of shadow across the floor beside the device",
+    componentType: "select",
+    evidence: "rendered-pixels",
+    expectedObservable:
+      "Choosing Window lays a sash of shadow bars across the floor and backdrop with the device standing in a clear pane; choosing Blinds replaces it with parallel slats running the same way as the light; None leaves the floor unbroken.",
+    fixture: "any device casting a shadow on a visible background",
+    id: "light.pattern.gobo",
+    kind: "control",
+    optionCoverage: "each-visible-item",
+    target: "light.pattern",
+    userAction: "Pick each option of the Lights pattern control in turn.",
   },
   {
     automated: true,

@@ -1,5 +1,7 @@
 import type { ToolcraftOrientationPose } from "@/toolcraft/runtime/react";
 
+import type { LightPatternId } from "./product-domain";
+
 /**
  * Studio presets: a backdrop, a floor, a light rig and a framing, together.
  *
@@ -60,6 +62,8 @@ export type ScenePreset = {
   rim: number;
   /** The key's apparent size, told as its shadow's edge, 0 hard to 100 hazy. */
   shadowSoftness: number;
+  /** What the key shines through, if anything. */
+  pattern: LightPatternId;
 };
 
 export const SCENE_PRESETS: Readonly<Record<ScenePresetId, ScenePreset>> = {
@@ -107,6 +111,7 @@ export const SCENE_PRESETS: Readonly<Record<ScenePresetId, ScenePreset>> = {
     // an edge and becomes a second broad highlight washing the whole face.
     rim: 85,
     shadowSoftness: 34,
+    pattern: "none",
     // Nothing behind the device at all. A backdrop, however dark, is a surface
     // that catches light and puts a tone in the frame, and the whole point of
     // this one is that there is nothing back there to find.
@@ -151,6 +156,7 @@ export const SCENE_PRESETS: Readonly<Record<ScenePresetId, ScenePreset>> = {
     rim: 20,
 // Wide, because a softbox this size barely casts an edge at all.
     shadowSoftness: 62,
+    pattern: "none",
     // A broad cove. The graduation is the look, and a wide bend is what makes
     // the tone fall off over a long way instead of breaking at a corner.
     sweepCurve: 78,
@@ -193,6 +199,7 @@ export const SCENE_PRESETS: Readonly<Record<ScenePresetId, ScenePreset>> = {
     rim: 0,
 // Tight enough that the contact shadow reads as contact rather than haze.
     shadowSoftness: 26,
+    pattern: "none",
     // Tighter than the softbox and taller. The bend sits low and out of frame,
     // so what is behind the device is an even wall rather than a curve.
     sweepCurve: 34,
@@ -231,6 +238,7 @@ export const SCENE_PRESETS: Readonly<Record<ScenePresetId, ScenePreset>> = {
     // The whole point. A bare source throws an edge you could cut around, and
     // everything else in this preset exists to keep that edge legible.
     shadowSoftness: 3,
+    pattern: "none",
     // A low wall, mostly to give the frame a top. The shadow belongs on the
     // floor, so the paper stays out of the way of it.
     sweepCurve: 26,
@@ -262,6 +270,7 @@ export const SCENE_PRESETS: Readonly<Record<ScenePresetId, ScenePreset>> = {
     pose: { position: [-0.3, 0.2, 1], up: [0, 1, 0] },
     rim: 60,
     shadowSoftness: 16,
+    pattern: "none",
     sweepCurve: 45,
     // No paper, which is what puts the lamp overhead and the pool on the floor.
     sweepHeight: 0,
@@ -276,10 +285,14 @@ export const SCENE_PRESETS: Readonly<Record<ScenePresetId, ScenePreset>> = {
     // room is made of, and that surface is half of why it reads as daylight.
     background: "#D9D1C2",
     environment: "studio-soft",
-    environmentIntensity: 74,
+    // Held below the key by a wide margin, and that ratio is the preset. Sun
+    // outdoors is a hundred times the sky it arrives with, and a captured room
+    // run up near the key would fill every shadow the window casts until the
+    // bars stopped being bars.
+    environmentIntensity: 44,
     // Standing in for the sky, which is the other half of the light outdoors
-    // and the reason a sunlit shadow is never black.
-    fill: 52,
+    // and the reason a sunlit shadow is never black — only blue.
+    fill: 26,
     floorEnvironment: 76,
     // A table rather than a floor: enough sheen to catch the light raking
     // across it, not enough to mirror anything.
@@ -291,13 +304,17 @@ export const SCENE_PRESETS: Readonly<Record<ScenePresetId, ScenePreset>> = {
     // Hard across from the side, which is what makes it rake: a long shadow
     // running out sideways rather than a short one pooling underneath.
     keyDirection: { x: 0.94, y: 0.34 },
-    keyIntensity: 132,
+    keyIntensity: 168,
     label: "Daylight",
     pose: { position: [-0.18, 0.16, 1], up: [0, 1, 0] },
     rim: 0,
     // Sun is a small source ninety-three million miles away, so its shadow has
     // an edge — soft enough to be air, not soft enough to be a studio.
     shadowSoftness: 12,
+    // The one preset with a room in it. Sun does not arrive as an even
+    // wash indoors — it arrives through something, and the shape of that
+    // something on the floor is most of what tells you where you are.
+    pattern: "window",
     sweepCurve: 58,
     sweepHeight: 52,
     sweepLight: 34,

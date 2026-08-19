@@ -421,6 +421,30 @@ export const FIT_OPTIONS = [
   { label: "Stretch", value: "stretch" },
 ] as const;
 
+/**
+ * What the key shines through on its way in.
+ *
+ * A gobo — a cookie, in a British studio — is a cut-out held in front of a
+ * light so the shadow it throws has a shape. It is the cheapest way to put a
+ * place in a picture: bars across a floor read as a window without a window,
+ * a wall, or a room being in the frame at all.
+ */
+export const LIGHT_PATTERN_OPTIONS = [
+  { label: "None", value: "none" },
+  { label: "Window", value: "window" },
+  { label: "Blinds", value: "blinds" },
+] as const;
+
+export type LightPatternId = (typeof LIGHT_PATTERN_OPTIONS)[number]["value"];
+
+export const DEFAULT_LIGHT_PATTERN: LightPatternId = "none";
+
+export function readLightPatternId(value: unknown): LightPatternId {
+  return LIGHT_PATTERN_OPTIONS.some((option) => option.value === value)
+    ? (value as LightPatternId)
+    : DEFAULT_LIGHT_PATTERN;
+}
+
 export const ENVIRONMENT_OPTIONS = [
   { label: "Studio soft", value: "studio-soft" },
   { label: "Hard key", value: "hard-key" },

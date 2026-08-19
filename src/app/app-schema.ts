@@ -1,6 +1,10 @@
 import { defineToolcraft } from "@/toolcraft/runtime";
 
 import { appIdentity } from "./app-identity";
+import {
+  DEFAULT_LIGHT_PATTERN,
+  LIGHT_PATTERN_OPTIONS,
+} from "./product-domain";
 import { DEFAULT_SCENE_PRESET, SCENE_PRESET_OPTIONS } from "./scene-presets";
 import {
   DEFAULT_DEVICE,
@@ -261,6 +265,19 @@ export const appSchema = defineToolcraft({
               target: "light.shadowSoftness",
               type: "slider",
               unit: "%",
+            },
+            pattern: {
+              applicability: { mode: "always" },
+              defaultValue: DEFAULT_LIGHT_PATTERN,
+              description:
+                "A cut-out held in front of the key, so what lands has a shape. Bars of shadow across a floor read as a window or a slatted blind without either being in the frame — it is the cheapest way to put the device somewhere rather than nowhere. The pattern falls around the device rather than across it.",
+              label: "Pattern",
+              options: LIGHT_PATTERN_OPTIONS,
+              performanceReason:
+                "A dozen invisible quads in the depth pass, which is redrawn on change rather than per frame.",
+              performanceRole: "responsiveness",
+              target: "light.pattern",
+              type: "select",
             },
           },
           id: "lights",
