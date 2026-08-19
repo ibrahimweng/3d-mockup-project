@@ -14,8 +14,9 @@ import type { DeviceDefinition, FinishId } from "../product-domain";
  * convergence that has to be re-accumulated from zero, which is what would let a
  * progressive renderer hold a GPU at full load while showing a static image.
  *
- * Everything that differs between the five devices is data on `DeviceDefinition`
- * rather than a branch here, so adding a sixth model is a catalog entry.
+ * Everything that differs between the devices is data on `DeviceDefinition`
+ * rather than a branch here, so adding another model is a catalog entry — the
+ * iMac was added that way, and needed no code.
  */
 
 export type ScreenTransform = {
@@ -408,6 +409,31 @@ function applyFinish(
   }
 }
 
+/**
+ * Find a scene by the name the file gives it.
+ *
+ * The loader runs every name through three.js's own sanitiser, which strips
+ * the characters its animation paths reserve — `.` among them. A file that
+ * names its scenes `Scene.001` and `Scene.002`, as Blender does by default,
+ * therefore arrives as `Scene001` and `Scene002` and never matches the catalog
+ * on a plain comparison. Matching both forms keeps the catalog readable as the
+ * file writes it, and stops a miss falling back silently to the default scene
+ * and rendering the wrong device.
+ */
+function sanitizeSceneName(name: string): string {
+  return name.replace(/\s/g, "_").replace(/[[\]./:]/g, "");
+}
+
+function findScene(
+  scenes: readonly THREE.Group[],
+  wanted: string,
+): THREE.Group | undefined {
+  const exact = scenes.find((entry) => entry.name === wanted);
+  if (exact) return exact;
+  const sanitized = sanitizeSceneName(wanted);
+  return scenes.find((entry) => sanitizeSceneName(entry.name) === sanitized);
+}
+
 export async function buildDeviceScene(options: {
   backgroundColor: string;
   device: DeviceDefinition;
@@ -436,10 +462,9 @@ export async function buildDeviceScene(options: {
 
   // Several of these files hold more than one device in sibling scenes, and the
   // default scene is not always the one named on the tin — loading `gltf.scene`
-  // from `macbook.glb` would render a phone.
+  // from `iphone-5.glb` would render the phone rather than the iMac beside it.
   const sourceSubject = options.device.sceneName
-    ? (gltf.scenes.find((entry) => entry.name === options.device.sceneName) ??
-      gltf.scene)
+    ? (findScene(gltf.scenes, options.device.sceneName) ?? gltf.scene)
     : gltf.scene;
   const subject = cloneForScene(sourceSubject);
 

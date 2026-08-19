@@ -35,7 +35,7 @@ The quoted evidence must be an exact nontrivial raw substring of `Request` with 
 
 - Request: Rebuild the 3D mockup application at `3d-mockup-project` using Toolcraft, supporting all five bundled device models through a device picker, porting and adapting the existing implementation rather than re-authoring it.
 - Task type: Reference app port, schema and controls, custom renderer, canvas output, image export, acceptance, and performance.
-- User-visible result: A screenshot dropped into the panel appears on the selected device's display. Five devices are selectable (iPhone 17 Pro Max, iPhone 5, MacBook, Studio Display, Apple Watch Ultra); each loads its own model, reframes the camera around its own bounds, and keeps the screenshot on its own screen. Fit mode, scale, position and stretch place the image inside the display. Four captured studio environments relight the scene, focal length changes perspective, dragging the device rotates it while dragging the background pans, the ground plane can be turned off, and Export PNG downloads the framed result.
+- User-visible result: A screenshot dropped into the panel appears on the selected device's display. Six devices are selectable (iPhone 17 Pro Max, iPhone 17 Pro Max in orange, MacBook, iMac, Studio Display, Apple Watch Ultra); each loads its own model, reframes the camera around its own bounds, and keeps the screenshot on its own screen. Fit mode, scale, position and stretch place the image inside the display. Four captured studio environments relight the scene, focal length changes perspective, dragging the device rotates it while dragging the background pans, the ground plane can be turned off, and Export PNG downloads the framed result.
 - Source/reference checked: `https://github.com/ibrahimweng/3d-mockup-project` at commit c2b67e6, cloned and run locally. Read `src/app/app-schema.ts`, `app-composition.tsx`, `product-domain.ts`, `preview.tsx`, `export-renderer.ts`, `artwork-store.ts` and all of `src/app/render`. Inspected every GLB in `public/models` with `@gltf-transform` to record its scenes, emissive display material and screen geometry. The deployed build at `3d-mockup-project-main.vercel.app` is unreachable from this environment because the network policy denies `vercel.app`, so the repository at that commit is the reference.
 - Reference inputs: None. The reference is a running application and its source, not a motion recording, so `referenceInputs` is the empty no-reference fast path.
 - Docs/contracts read: `workflow.md`, `core/reference-study.md`, `core/runtime-boundary.md`, `assembly-workflow.md`, `core/control-selection.md`, `core/layout.md`, `core/performance.md`, `core/setup-export.md`, `core/media-upload.md`, `schema-reference.md`, `decision-contract.md`, `component-rules.md`, `renderer-technique.md`, and `performance.md`.
@@ -118,6 +118,18 @@ The quoted evidence must be an exact nontrivial raw substring of `Request` with 
 - Decision: `applyScreenTransform` converts the panel's aspect to width-over-height before comparing it with the image's.
 - Reason: `measureScreenAspect` returns height over width and an image is measured width over height, so the ratio between them was wrong by the square of the panel's aspect and every design was cropped far tighter than its proportions called for.
 - Evidence: `screenRatio` in `src/app/render/device-scene.ts`; a corner-labelled design now fills a matched panel exactly instead of showing a fifth of its width.
+
+### Scene selection
+
+- Decision: `findScene` matches a catalog `sceneName` against both the file's own name and three.js's sanitised form.
+- Reason: The loader strips the characters its animation paths reserve, `.` among them, so a Blender file naming its scenes `Scene.001` and `Scene.002` arrives as `Scene001` and `Scene002`. A plain comparison never matched, and the miss fell through to the default scene — which for `macbook.glb` happens to be the MacBook, so that device appeared to work while the mechanism behind it did not.
+- Evidence: `sanitizeSceneName` and `findScene` in `src/app/render/device-scene.ts`; `PropertyBinding.sanitizeNodeName` in three.js is `name.replace(/\s/g, "_").replace(/[[\]./:]/g, "")`.
+
+### iMac
+
+- Decision: Added as a sixth device, reading `Scene.001` out of the `macbook.glb` already shipped.
+- Reason: Asked to "check the imac". No iMac was selectable, but one is modelled in a scene the app never loaded, so the model was there and only the catalog entry was missing. It costs no new asset and no new code — the two devices share one download and the second is served from the model cache.
+- Evidence: The `imac` entry in `src/app/product-domain.ts`. Its yaw was measured rather than guessed: the display's world normal points along +X where the camera looks down +Z, hence `yawDegrees: -90`. Driving all six devices in Chromium fetches five GLBs, because the iMac hits the MacBook's.
 
 ## Verification
 

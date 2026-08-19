@@ -8,18 +8,19 @@
  */
 
 /**
- * Five devices, so this cannot be a segmented control: that budget is 4 options
- * and 24 total label characters, and these names alone are 63. Select is the
- * closest built-in for a finite named set rendered full-width.
+ * Six devices, so this cannot be a segmented control: that budget is 4 options
+ * and 24 total label characters, and these names alone are well past both.
+ * Select is the closest built-in for a finite named set rendered full-width.
  *
  * ImagePicker was the other candidate and was rejected because it needs a
  * visual tile per option, and the source repository ships no device thumbnails.
- * A picker of five identical placeholder tiles is less useful than named rows.
+ * A picker of identical placeholder tiles is less useful than named rows.
  */
 export const DEVICE_OPTIONS = [
   { label: "iPhone 17 Pro Max", value: "iphone-17-pro-max" },
   { label: "iPhone 17 Pro Max (Orange)", value: "iphone-orange" },
   { label: "MacBook", value: "macbook" },
+  { label: "iMac", value: "imac" },
   { label: "Studio Display", value: "studio-display" },
   { label: "Apple Watch Ultra", value: "apple-watch-ultra" },
 ] as const;
@@ -262,6 +263,52 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
     screenFlip: { y: true },
     screenMaterial: "Screen.002",
     sceneName: "Scene.002",
+  },
+  imac: {
+    // The 24-inch model, in its shipped blue. Two tones, as the real machine
+    // has: a pale front and stand against a saturated back, so a colourway
+    // names the front and carries the back as an accent.
+    bodyMaterials: ["LightBlue"],
+    excludedNodes: [],
+    finishes: {
+      blue: {
+        accents: { DarkBlue: "#2b5f96" },
+        body: "#bcd8f2",
+      },
+      gold: {
+        accents: { DarkBlue: "#a8834f" },
+        body: "#f0dcc0",
+      },
+      graphite: {
+        accents: { DarkBlue: "#4a4c4f" },
+        body: "#b8babd",
+      },
+      silver: {
+        accents: { DarkBlue: "#9ea2a6" },
+        body: "#e6e8ea",
+      },
+    },
+    label: "iMac",
+    // The panel carries its wallpaper as a base texture on a white material
+    // rather than as pure emission, so lighting it as a lit surface washes the
+    // uploaded design out. Black base leaves only the emissive channel, which
+    // is where the design is put.
+    materialCorrections: {
+      Screen: { color: "#000000" },
+    },
+    // Shares a file with the MacBook: `macbook.glb` carries a phone, this iMac
+    // and the MacBook in sibling scenes, so nothing new is downloaded and the
+    // second of the two to be selected is already decoded.
+    modelFile: "macbook.glb",
+    // Read off a corner-labelled design, as with the MacBook it ships beside:
+    // this panel's UVs run bottom-up.
+    screenFlip: { y: true },
+    screenMaterial: "Screen",
+    sceneName: "Scene.001",
+    // Measured, not guessed: this scene's display normal points along +X, and
+    // the camera looks down +Z. The other models in this set face +Z already,
+    // apart from the Studio Display which faces away and is turned 180.
+    yawDegrees: -90,
   },
   "studio-display": {
     excludedNodes: [],
