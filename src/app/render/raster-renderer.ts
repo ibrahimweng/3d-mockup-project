@@ -5,6 +5,7 @@ import {
   buildDeviceScene,
   loadEnvironment,
   type DeviceScene,
+  type FloorSettings,
   type LightingSettings,
   type ScreenTransform,
 } from "./device-scene";
@@ -20,6 +21,7 @@ export type RasterSettings = {
   environment: string;
   exposure: number;
   finish: string;
+  floor: FloorSettings;
   focalLength: number;
   lighting: LightingSettings;
   showBackground: boolean;
@@ -48,6 +50,8 @@ export class RasterRenderer {
   private pose: Pose | null = null;
   private lastEnvironment = "";
   private lastLiveKey = "";
+  /** Set when a request arrived mid-load, so it can be served afterwards. */
+  private pendingReady: (() => void) | null = null;
   /** Called when a swapped-in studio has finished convolving. */
   onEnvironmentReady: (() => void) | null = null;
 
@@ -108,7 +112,15 @@ export class RasterRenderer {
       this.applyLiveSettings(settings);
       return;
     }
-    if (this.loading) return;
+    // A device takes seconds to decode, and anything the app asks for in that
+    // window would be lost if it were simply ignored: a studio preset applies
+    // on first paint, and a second device picked while the first is still
+    // loading is a normal impatient thing to do. Both are remembered and
+    // replayed once the load settles, against whatever the settings are then.
+    if (this.loading) {
+      this.pendingReady = onReady;
+      return;
+    }
 
     this.lastKey = key;
     this.loading = buildDeviceScene({
@@ -116,6 +128,7 @@ export class RasterRenderer {
       device: readDeviceDefinition(settings.device),
       environmentUrl: `${import.meta.env.BASE_URL}hdri/${settings.environment}.hdr`,
       finish: readFinishId(settings.finish),
+      floor: settings.floor,
       lighting: settings.lighting,
       renderer: this.renderer,
       showGround: settings.showBackground,
@@ -129,7 +142,11 @@ export class RasterRenderer {
         this.built = scene;
         this.lastEnvironment = settings.environment;
         this.lastLiveKey = "";
-        this.applyLiveSettings(settings);
+        // The settings this scene was built from are already history: the
+        // preset that runs on mount writes a dozen of them while the first
+        // model is still decoding. What is current now is what the scene has
+        // to show.
+        this.applyLiveSettings(this.settings ?? settings);
         this.invalidateShadow();
         this.applyViewport();
         onReady();
@@ -141,7 +158,23 @@ export class RasterRenderer {
       })
       .finally(() => {
         this.loading = null;
+        this.drainPending();
       });
+  }
+
+  /**
+   * Serve whatever was asked for while a device was loading.
+   *
+   * Only the latest request matters — clicking through three devices should
+   * load the third, not all three in turn — so this replays the current
+   * settings once rather than a queue.
+   */
+  private drainPending(): void {
+    const onReady = this.pendingReady;
+    const settings = this.settings;
+    if (!onReady || !settings || this.disposed) return;
+    this.pendingReady = null;
+    void this.update(settings, onReady);
   }
 
   /**
@@ -161,6 +194,7 @@ export class RasterRenderer {
       settings.backgroundColor,
       settings.environment,
       settings.finish,
+      settings.floor,
       settings.lighting,
       settings.showBackground,
     ]);
@@ -171,6 +205,7 @@ export class RasterRenderer {
     built.setFinish(readFinishId(settings.finish));
     built.setLighting(settings.lighting);
     built.setGround(settings.showBackground, settings.backgroundColor);
+    built.setFloor(settings.floor);
     // Colour, lights and the ground plane all feed the depth map.
     this.invalidateShadow();
   }
@@ -238,6 +273,7 @@ export class RasterRenderer {
     built.camera.up.set(pose.up[0], pose.up[1], pose.up[2]);
     built.camera.lookAt(built.target);
     built.camera.updateProjectionMatrix();
+    built.onCameraMoved();
   }
 
   /**
@@ -331,6 +367,7 @@ export class RasterRenderer {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.pendingReady = null;
     this.built?.dispose();
     this.renderer.dispose();
   }

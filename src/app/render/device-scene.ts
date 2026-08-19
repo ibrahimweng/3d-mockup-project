@@ -21,6 +21,36 @@ import type { DeviceDefinition, FinishId } from "../product-domain";
  * iMac was added that way, and needed no code.
  */
 
+/**
+ * How the floor behaves under the device.
+ *
+ * A matte floor takes a shadow and nothing else, which is what a paper sweep
+ * does. A polished one also carries the device's reflection, which is most of
+ * what makes the references read as photographs rather than renders.
+ */
+export type FloorSettings = {
+  /**
+   * How much of the captured room the floor picks up, 0 to 1.
+   *
+   * Separate from the device's own environment response, because the two want
+   * opposite things: metal needs a bright capture to have anything to reflect,
+   * while a floor given the same capture turns grey. The floor is very large
+   * and most of it is seen at a grazing angle, where reflectance approaches
+   * total — so a black floor under a bright room reads as a grey sheet with a
+   * horizon, which is the opposite of a void.
+   */
+  environment: number;
+  /**
+   * How much of the device's reflection shows, 0 to 1.
+   *
+   * Zero leaves the floor exactly as it was. Anything above draws the device a
+   * second time, mirrored beneath the floor, and lets it show through.
+   */
+  reflection: number;
+  /** Surface roughness of the floor itself, 0 polished to 1 matte. */
+  roughness: number;
+};
+
 export type ScreenTransform = {
   fit: "fill" | "fit" | "stretch";
   /** Pan, 0..1 per axis with 0.5 centred. */
@@ -157,6 +187,10 @@ export type DeviceScene = {
   setLighting: (lighting: LightingSettings) => void;
   /** Show, hide, and recolour the ground without rebuilding anything. */
   setGround: (visible: boolean, color: string) => void;
+  /** Change the floor's finish and how much reflection it carries. */
+  setFloor: (floor: FloorSettings) => void;
+  /** Re-judge the reflection after the camera has been placed. */
+  onCameraMoved: () => void;
   /** Swap the captured studio without rebuilding anything. */
   setEnvironment: (environment: THREE.Texture) => void;
   /** The device geometry, so a hit test can ignore the ground. */
@@ -371,6 +405,67 @@ function creaseNormals(root: THREE.Object3D, angleDegrees: number): void {
 }
 
 /**
+ * Where the floor gives way to the reflection under it, and where it ends.
+ *
+ * One gradient does two jobs, because both are the floor's own opacity at a
+ * distance from the device.
+ *
+ * Near the centre it is the reflection: a real polished floor loses the
+ * mirrored device with distance, because the surface is never perfectly flat
+ * and a grazing angle carries less of it. Without that falloff the reflection
+ * sits as hard as the device and reads as a second object standing upside
+ * down. The stops are tight because the plane is forty subject radii across,
+ * so the pool has to be a small fraction of it to stay under the device.
+ *
+ * At the rim it is the horizon. The plane is finite, and a finite plane has an
+ * edge — a hard line across the frame where the floor stops and the backdrop
+ * begins, which is exactly the tell that gives a rendered scene away. A real
+ * sweep has no edge because it curves out of sight, so this one dissolves
+ * instead: opaque where the device stands, gone by the time it would end.
+ *
+ * The strength is baked into the gradient rather than set as the material's
+ * opacity, because three multiplies the two: an opacity of 0.3 would take the
+ * whole floor to thirty percent, edges included, and the sweep would vanish.
+ */
+function createFloorFade(reflection: number): THREE.Texture {
+  const size = 256;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d");
+  if (context) {
+    const gradient = context.createRadialGradient(
+      size / 2,
+      size / 2,
+      0,
+      size / 2,
+      size / 2,
+      size / 2,
+    );
+    // Through an alpha map black is fully transparent and white fully opaque,
+    // so the centre carries what is left of the floor once the reflection has
+    // taken its share.
+    const centre = Math.round(255 * (1 - Math.max(0, Math.min(1, reflection))));
+    const hex = centre.toString(16).padStart(2, "0");
+    // A tall device reflects further from its contact point than a small one,
+    // and a fade that reaches three radii leaves a monitor's reflection nearly
+    // untouched, so the pool closes within a few percent of the plane.
+    gradient.addColorStop(0, `#${hex}${hex}${hex}`);
+    gradient.addColorStop(0.015, `#${hex}${hex}${hex}`);
+    gradient.addColorStop(0.07, "#ffffff");
+    // Ten radii of solid floor, which is far outside any framing of the
+    // device, and then ten more to disappear across.
+    gradient.addColorStop(0.5, "#ffffff");
+    gradient.addColorStop(1, "#000000");
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, size, size);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  return texture;
+}
+
+/**
  * Rebuild the display's texture coordinates from its own geometry.
  *
  * Panels are frequently unwrapped into a corner of a shared atlas, which is
@@ -555,6 +650,7 @@ export async function buildDeviceScene(options: {
   device: DeviceDefinition;
   environmentUrl: string;
   finish: FinishId;
+  floor: FloorSettings;
   lighting: LightingSettings;
   renderer: THREE.WebGLRenderer;
   showGround: boolean;
@@ -633,6 +729,45 @@ export async function buildDeviceScene(options: {
   let groundMesh: THREE.Mesh | null = null;
   let groundSurface: THREE.MeshStandardMaterial | null = null;
 
+  /**
+   * The device again, upside down under the floor.
+   *
+   * A true planar reflection renders the whole scene a second time through a
+   * mirrored camera. On a flat floor with one object, drawing that object
+   * mirrored costs one pass over geometry already on the GPU and is not
+   * tellable apart. It casts nothing and is never hit by the pointer: it is a
+   * picture of the device, not a second device.
+   *
+   * Every material in this set is double sided, so the negative scale that
+   * does the mirroring does not turn the surfaces inside out.
+   */
+  let ground: THREE.Mesh;
+  const mirror = subject.clone(true);
+  mirror.scale.y *= -1;
+  mirror.position.y = 2 * groundY - subject.position.y;
+  mirror.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    object.castShadow = false;
+    object.receiveShadow = false;
+  });
+  mirror.visible = false;
+  // Drawn before the floor, so the floor's own transparency is what decides
+  // how much of it survives.
+  mirror.renderOrder = -1;
+  scene.add(mirror);
+
+  /**
+   * The floor with nothing on it but the shadow.
+   *
+   * Turning the backdrop off exports a transparent PNG, which is only useful
+   * if the device still sits on something once it is composited. A shadow
+   * material draws the shadow and nothing else, so the plane stays where it
+   * was and everything that was not in shadow comes out clear.
+   */
+  let shadowSurface: THREE.ShadowMaterial | null = null;
+  /** Whether the backdrop is showing, as opposed to the shadow catcher. */
+  let groundVisible = options.showGround;
+
   {
     const groundGeometry = new THREE.PlaneGeometry(
       sphere.radius * 40,
@@ -641,17 +776,100 @@ export async function buildDeviceScene(options: {
     const groundMaterial = new THREE.MeshStandardMaterial({
       color: new THREE.Color(options.backgroundColor),
       roughness: 0.92,
+      transparent: false,
     });
-    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    // Weighted rather than solid: a composited shadow is being dropped onto a
+    // background this app has never seen, and one that arrives at full black
+    // cannot be lightened again.
+    const shadowMaterial = new THREE.ShadowMaterial({ opacity: 0.42 });
+    ground = new THREE.Mesh(
+      groundGeometry,
+      options.showGround ? groundMaterial : shadowMaterial,
+    );
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = groundY - sphere.radius * 0.002;
     ground.receiveShadow = true;
-    ground.visible = options.showGround;
+    ground.renderOrder = 0;
     scene.add(ground);
     groundMesh = ground;
     groundSurface = groundMaterial;
-    disposables.push(groundGeometry, groundMaterial);
+    shadowSurface = shadowMaterial;
+    disposables.push(groundGeometry, groundMaterial, shadowMaterial);
   }
+
+  /** How much reflection the floor is currently letting through. */
+  let floorReflection = 0;
+  /** The floor's own share of the captured room, 0 to 1. */
+  let floorEnvironment = 1;
+
+  /**
+   * Scale the captured room down for the floor alone.
+   *
+   * three.js hands `scene.environment` to every material that has none of its
+   * own — and, in doing so, overwrites that material's `envMapIntensity` with
+   * the scene's. A per-material share is therefore only possible for a
+   * material holding its own reference to the same texture, which is what this
+   * gives the floor. Everything else in the scene keeps the shared path.
+   *
+   * The two scales multiply rather than replace: turning the studio down still
+   * dims the floor, and the floor's own share says how much of whatever is
+   * left it picks up.
+   */
+  const applyFloorEnvironment = (): void => {
+    if (!groundSurface) return;
+    const map = scene.environment;
+    if (groundSurface.envMap !== map) {
+      groundSurface.envMap = map;
+      // Gaining or losing an environment map changes which shader the material
+      // compiles, which is the one case that needs more than a new uniform.
+      groundSurface.needsUpdate = true;
+    }
+    groundSurface.envMapIntensity = floorEnvironment * scene.environmentIntensity;
+  };
+
+  /**
+   * Hide the reflection when the camera drops below the floor.
+   *
+   * The reflection is only a reflection because it is seen through a floor
+   * that fades it. From underneath there is no floor to see it through — the
+   * plane is single sided, so it culls — and the mirrored device is simply
+   * exposed, upside down and at full strength. A low hero angle is a normal
+   * thing to want, so this has to be handled rather than avoided.
+   */
+  const updateMirrorVisibility = (): void => {
+    mirror.visible =
+      floorReflection > 0 &&
+      groundVisible &&
+      camera.position.y > ground.position.y;
+  };
+
+  let floorFade: THREE.Texture | null = null;
+
+  const applyFloor = (floor: FloorSettings): void => {
+    const next = Math.max(0, Math.min(1, floor.reflection));
+    if (groundSurface) {
+      groundSurface.roughness = Math.max(0.02, Math.min(1, floor.roughness));
+      floorEnvironment = Math.max(0, Math.min(2, floor.environment));
+      applyFloorEnvironment();
+      // The floor is see-through in two places whatever the reflection is
+      // doing — under the device, by however much it mirrors, and at the rim,
+      // where it has to dissolve rather than end — so the map and the
+      // transparent pass are not optional. Only its centre depends on the
+      // setting, which is the one thing that has to be redrawn.
+      if (next !== floorReflection || !floorFade) {
+        floorFade?.dispose();
+        floorFade = createFloorFade(next);
+        groundSurface.alphaMap = floorFade;
+        groundSurface.transparent = true;
+        // A floor that wrote depth would hide the mirrored device beneath it
+        // and stop the backdrop showing through where it fades out.
+        groundSurface.depthWrite = false;
+        groundSurface.needsUpdate = true;
+      }
+    }
+    floorReflection = next;
+    updateMirrorVisibility();
+  };
 
   // A placeable three-point rig on top of the captured studio. The key is the
   // only shadow caster: a second shadow map would read as two suns, which is
@@ -740,6 +958,11 @@ export async function buildDeviceScene(options: {
     sphere.radius * 60,
   );
 
+  // After the camera exists, because whether the reflection is visible at all
+  // depends on which side of the floor the camera is on.
+  applyFloor(options.floor);
+  disposables.push({ dispose: () => floorFade?.dispose() });
+
   const placeKey = (direction: { x: number; y: number }): THREE.Vector3 => {
     const vector = new THREE.Vector3(direction.x, -direction.y, 1);
     if (vector.lengthSq() < 1e-6) vector.set(0, 0, 1);
@@ -751,19 +974,32 @@ export async function buildDeviceScene(options: {
 
   return {
     camera,
+    onCameraMoved: updateMirrorVisibility,
     getScreenSlack: () => ({ x: slack.x, y: slack.y }),
     screenMeshes,
     setEnvironment: (next) => {
       scene.environment = next;
+      applyFloorEnvironment();
     },
     setFinish: (next) => applyFinish(baseColors, options.device, next),
+    setFloor: applyFloor,
     setGround: (visible, color) => {
-      if (groundMesh) groundMesh.visible = visible;
+      groundVisible = visible;
+      // The plane stays; what it is made of is what changes. Hiding it would
+      // take the shadow with it, and the shadow is the whole reason a cut-out
+      // device looks placed rather than pasted.
+      if (groundMesh && groundSurface && shadowSurface) {
+        groundMesh.material = visible ? groundSurface : shadowSurface;
+      }
       groundSurface?.color.set(color);
+      // The reflection lives on the backdrop, so it goes when the backdrop
+      // does: there is nothing for it to be seen through.
+      updateMirrorVisibility();
       fill.groundColor.set(color);
     },
     setLighting: (next) => {
       scene.environmentIntensity = next.environmentIntensity;
+      applyFloorEnvironment();
       key.intensity = next.keyIntensity;
       key.color.set(next.keyColor);
       key.position.copy(placeKey(next.keyDirection));

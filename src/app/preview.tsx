@@ -12,6 +12,7 @@ import {
 
 import { forgetArtworkUrl, publishArtworkUrl } from "./artwork-store";
 import { useAdaptiveQuality } from "./adaptive-quality";
+import { useScenePreset } from "./apply-scene-preset";
 import { useDesignDrag } from "./design-drag";
 import { useViewOrbit } from "./view-orbit";
 import { useViewPan } from "./view-pan";
@@ -41,6 +42,8 @@ export function MockupPreview(): React.ReactElement {
   // over a value that would be stale by the first frame.
   const interactingRef = React.useRef(false);
   const quality = useAdaptiveQuality();
+  // Writes the chosen studio into the ordinary controls, once per change.
+  useScenePreset();
 
   const values = useToolcraftEvaluatedValues();
   const frame = useToolcraftProductSceneFrame();

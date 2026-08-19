@@ -73,6 +73,11 @@ export function readRasterSettings(
     environment: str(values, "studio.environment", "studio-soft"),
     exposure: 100,
     finish: str(values, "device.finish", DEFAULT_FINISH),
+    floor: {
+      environment: num(values, "floor.environment", 100) / 100,
+      reflection: num(values, "floor.reflection", 0) / 100,
+      roughness: num(values, "floor.roughness", 92) / 100,
+    },
     focalLength: num(values, "camera.focalLength", 85),
     lighting: {
       environmentIntensity: num(values, "studio.intensity", 100) / 100,

@@ -1,6 +1,7 @@
 import { defineToolcraft } from "@/toolcraft/runtime";
 
 import { appIdentity } from "./app-identity";
+import { DEFAULT_SCENE_PRESET, SCENE_PRESET_OPTIONS } from "./scene-presets";
 import {
   DEFAULT_DEVICE,
   DEFAULT_FINISH,
@@ -135,12 +136,25 @@ export const appSchema = defineToolcraft({
         },
         {
           controls: {
+            preset: {
+              applicability: { mode: "always" },
+              defaultValue: DEFAULT_SCENE_PRESET,
+              description:
+                "A backdrop, a floor, a light rig and a framing, set together. Everything it writes stays editable below — this is a starting point, not a mode.",
+              label: "Environment",
+              options: SCENE_PRESET_OPTIONS,
+              performanceReason:
+                "Choosing one writes a dozen control values in a single history entry; the scene absorbs them without rebuilding the model.",
+              performanceRole: "responsiveness",
+              target: "studio.preset",
+              type: "select",
+            },
             environment: {
               applicability: { mode: "always" },
               defaultValue: "studio-soft",
               description:
-                "The captured studio the device is lit by and reflects. This is the whole lighting model — there are no separate lights to place.",
-              label: "Environment",
+                "The captured room the device reflects. A polished floor mirrors this before it mirrors anything else, so a bright capture lifts the whole scene.",
+              label: "Capture",
               options: ENVIRONMENT_OPTIONS,
               performanceReason:
                 "Switching environment reloads and re-convolves one image-based lighting texture; frames themselves are unaffected.",
@@ -286,6 +300,70 @@ export const appSchema = defineToolcraft({
           },
           id: "camera",
           title: "Camera",
+        },
+        {
+          controls: {
+            environment: {
+              applicability: {
+                all: [{ equals: true, target: "export.includeBackground" }],
+                mode: "conditional",
+              },
+              defaultValue: 100,
+              description:
+                "How much of the captured room the floor picks up. The device wants a bright capture to read as metal, but the floor is large and seen edge-on, where every surface returns most of what falls on it — so the same capture that flatters the device washes the floor to grey. Lower this to keep a dark floor dark without dimming the device.",
+              label: "Room light",
+              max: 100,
+              min: 0,
+              performanceReason: "One material uniform.",
+              performanceRole: "responsiveness",
+              sliderValueKind: "continuous",
+              step: 2,
+              target: "floor.environment",
+              type: "slider",
+              unit: "%",
+            },
+            reflection: {
+              applicability: {
+                all: [{ equals: true, target: "export.includeBackground" }],
+                mode: "conditional",
+              },
+              defaultValue: 0,
+              description:
+                "How much of the device the floor carries back. The device is drawn a second time beneath the floor and fades with distance, which is what a polished surface does.",
+              label: "Reflection",
+              max: 100,
+              min: 0,
+              performanceReason:
+                "Above zero the device is drawn once more, mirrored: one extra pass over geometry already uploaded, with no second scene traversal and no render target.",
+              performanceRole: "responsiveness",
+              sliderValueKind: "continuous",
+              step: 5,
+              target: "floor.reflection",
+              type: "slider",
+              unit: "%",
+            },
+            roughness: {
+              applicability: {
+                all: [{ equals: true, target: "export.includeBackground" }],
+                mode: "conditional",
+              },
+              defaultValue: 92,
+              description:
+                "Floor finish, from polished to matte. A polished floor mirrors the captured room as well as the device.",
+              label: "Roughness",
+              max: 100,
+              min: 0,
+              performanceReason: "One material uniform.",
+              performanceRole: "responsiveness",
+              sliderValueKind: "continuous",
+              step: 2,
+              target: "floor.roughness",
+              type: "slider",
+              unit: "%",
+            },
+          },
+          id: "floor",
+          title: "Floor",
         },
         {
           controls: {

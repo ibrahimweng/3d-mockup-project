@@ -293,10 +293,19 @@ export const appControlSectionInventory: readonly ToolcraftControlSectionInvento
       entity: "Studio",
       entityId: "studio",
       groupingReason:
-        "The captured environment is the entire lighting setup, so it is one entity with one control rather than a light rig split across several.",
+        "The preset and the captured room it selects are one decision about how the scene is lit; the preset writes the capture, so separating them would put a control and the thing that sets it in different places.",
       id: "studio",
-      targets: ["studio.environment", "studio.intensity"],
+      targets: ["studio.preset", "studio.environment", "studio.intensity"],
       title: "Studio",
+    },
+    {
+      entity: "Floor",
+      entityId: "floor",
+      groupingReason:
+        "How much light the floor picks up, how much it reflects and how polished it is are one surface described three times; a reflection without a finish to carry it means nothing, and the room light sets the tone the other two are read against. All three are grouped-layout controls.",
+      id: "floor",
+      targets: ["floor.environment", "floor.reflection", "floor.roughness"],
+      title: "Floor",
     },
     {
       entity: "Lights",
@@ -483,6 +492,71 @@ export const appAcceptance: readonly ToolcraftComponentAcceptance[] = [
     kind: "control",
     target: "artwork.stretch",
     userAction: "Drag the Screen stretch pad along each axis.",
+  },
+  {
+    automated: true,
+    automatedTestName: "each studio preset writes its whole rig in one entry",
+    browser: true,
+    browserTestName:
+      "browser: choosing an environment relights, refloors and reframes the shot",
+    componentType: "select",
+    evidence: "rendered-pixels",
+    expectedObservable:
+      "Choosing an environment changes the backdrop, the floor's reflection, the light rig and the camera angle together, and one undo puts all of them back, because a preset writes every control it touches under a single history group.",
+    fixture: "the bundled studio presets",
+    id: "studio.preset.applies",
+    kind: "control",
+    optionCoverage: "each-visible-item",
+    target: "studio.preset",
+    userAction: "Choose each Environment option and inspect the render.",
+  },
+  {
+    automated: true,
+    automatedTestName: "floor room light changes how much the floor picks up",
+    browser: true,
+    browserTestName:
+      "browser: lowering floor room light darkens the floor without dimming the device",
+    componentType: "slider",
+    evidence: "rendered-pixels",
+    expectedObservable:
+      "Lowering Room light darkens the floor towards its own colour while the device keeps its brightness and its reflections, because the setting scales what the floor takes from the captured room and nothing else.",
+    fixture: "any device on a visible background",
+    id: "floor.environment.pickup",
+    kind: "control",
+    target: "floor.environment",
+    userAction: "Drag the Floor room light slider from 100 to 0.",
+  },
+  {
+    automated: true,
+    automatedTestName: "floor reflection draws the device mirrored beneath it",
+    browser: true,
+    browserTestName:
+      "browser: raising floor reflection puts the device's reflection under it",
+    componentType: "slider",
+    evidence: "rendered-pixels",
+    expectedObservable:
+      "Raising Reflection makes the device appear inverted below the floor, fading with distance, and lowering it to zero removes it, because the floor becomes transparent over a mirrored copy of the device.",
+    fixture: "any device on a visible background",
+    id: "floor.reflection.mirrors",
+    kind: "control",
+    target: "floor.reflection",
+    userAction: "Drag the Floor reflection slider from 0 to 100 and back.",
+  },
+  {
+    automated: true,
+    automatedTestName: "floor roughness changes how sharply the floor mirrors",
+    browser: true,
+    browserTestName:
+      "browser: lowering floor roughness sharpens what the floor returns",
+    componentType: "slider",
+    evidence: "rendered-pixels",
+    expectedObservable:
+      "Lowering Roughness makes the floor return the captured room and the device more sharply; raising it diffuses both until the floor is plain matte.",
+    fixture: "any device on a visible background",
+    id: "floor.roughness.finish",
+    kind: "control",
+    target: "floor.roughness",
+    userAction: "Drag the Floor roughness slider across its range.",
   },
   {
     automated: true,
@@ -675,11 +749,11 @@ export const appAcceptance: readonly ToolcraftComponentAcceptance[] = [
     backgroundOutputCoverage: "all-required-background-output",
     browser: true,
     browserTestName:
-      "browser: turning Background off removes the ground and makes PNG export transparent",
+      "browser: turning Background off leaves only the device and its shadow, and makes PNG export transparent",
     componentType: "switch",
     evidence: "product-output",
     expectedObservable:
-      "Disabling Background removes the ground plane from the render and exports a transparent PNG; enabling it restores both.",
+      "Disabling Background clears the backdrop and its reflection, leaving the device and the shadow it casts over transparency, and exports a transparent PNG that can be composited onto anything; enabling it restores the backdrop.",
     fixture: "the default device framed above its ground plane",
     id: "background.include.toggle",
     kind: "control",
