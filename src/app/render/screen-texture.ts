@@ -32,6 +32,16 @@ export function createScreenTexture(
   image: HTMLImageElement,
   device: DeviceDefinition,
   design?: DesignTransform,
+  /**
+   * Highest anisotropy the renderer supports.
+   *
+   * A display is almost never seen square on, and a foreshortened surface
+   * sampled without anisotropy takes a mip level chosen for its *narrowest*
+   * axis — so the whole panel blurs to match the direction that happens to be
+   * most compressed. This is the single largest thing standing between a
+   * screenshot on a tilted screen and a legible one.
+   */
+  maxAnisotropy = 1,
 ): THREE.Texture {
   const rotationDeg = design?.rotationDeg ?? 0;
   const userFlipX = design?.flipHorizontal === true;
@@ -56,7 +66,13 @@ export function createScreenTexture(
         userFlipY,
       });
 
+  texture.anisotropy = Math.max(1, maxAnisotropy);
   texture.colorSpace = THREE.SRGBColorSpace;
+  // Trilinear between mip levels rather than a hard switch, so a screen at a
+  // shallow angle does not band where the level changes.
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = true;
   // These models' own UVs expect a top-down texture, matching how their stock
   // wallpaper was authored.
   texture.flipY = false;

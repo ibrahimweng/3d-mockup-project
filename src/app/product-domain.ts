@@ -155,6 +155,35 @@ export type DeviceDefinition = {
    * texture aside for the duration of a colourway; Natural puts it back.
    */
   repaintedMaterials?: readonly string[];
+  /**
+   * Rebuild the display's texture coordinates from its geometry after loading.
+   *
+   * A panel is often unwrapped into a corner of whatever atlas its author was
+   * using — the Mac Studio's runs u from 0.02 to 0.45 — which is fine for a
+   * wallpaper baked into the file and useless for a design supplied at
+   * runtime: it would land squeezed into part of the panel and cropped by the
+   * rest. Rebuilding at load keeps the supplied file untouched, which matters
+   * when the file is the thing being preserved.
+   *
+   * Only for a flat panel. A curved display would need a real projection.
+   */
+  screenUnwrap?: boolean;
+  /**
+   * Recompute vertex normals, splitting at edges sharper than this many
+   * degrees.
+   *
+   * Some models weld the vertices where a flat panel meets its rounded bevel,
+   * so the corner normals are an average of the two and the whole flat face
+   * interpolates between them. The result is a soft triangular wash across a
+   * surface that should read dead flat — the giveaway is a fan spreading from
+   * a corner rather than a highlight sitting where the light is. Recomputing
+   * with a crease threshold gives the flat faces one normal each and leaves
+   * the bevels smooth.
+   *
+   * Not free: splitting normals de-indexes the geometry, so a model that needs
+   * this carries more vertices than one authored with proper smoothing groups.
+   */
+  creaseAngleDegrees?: number;
   screenMaterial: string;
   /**
    * Scene to load when the file's default scene is not this device.
@@ -327,6 +356,17 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
     yawDegrees: -90,
   },
   "mac-studio": {
+    // Shipped exactly as supplied, Draco compression and all: decompressing it
+    // costs 34.8MB and decimating it costs the surface detail it was supplied
+    // for. The loader carries a decoder instead.
+    sceneName: "Scene",
+    // Its display is unwrapped into an atlas corner, so a runtime design needs
+    // the panel re-unwrapped before it can fill it.
+    screenUnwrap: true,
+    // Its flat panels are welded to their bevels, which washed a soft fan
+    // across the machine's lid and the display's back. Anything under 35
+    // degrees is a fillet worth keeping smooth; anything over it is an edge.
+    creaseAngleDegrees: 35,
     // The display shell, its stand and the machine beside it all share one
     // aluminium, so a colourway is a single colour. `Side circle` is the trim
     // ring on the enclosure, which is the same metal polished.

@@ -23,8 +23,6 @@ import styles from "./preview.module.css";
 
 /** Drawing above the display's own ratio is pixels nobody can see. */
 const MAX_PIXEL_RATIO = 2;
-/** How far resolution drops while a gesture is in flight. */
-const INTERACTION_PIXEL_SCALE = 0.6;
 
 export function MockupPreview(): React.ReactElement {
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
@@ -37,11 +35,11 @@ export function MockupPreview(): React.ReactElement {
   // Dragging trades resolution for frame rate. Nothing is being inspected
   // closely while the scene is in motion, and the alternative is a sharp
   // picture that arrives after the pointer has already moved on.
-  const [interacting, setInteracting] = React.useState(false);
-  // The frame loop is created once, so it reads the flag through a ref rather
-  // than closing over a value that would be stale by the first frame.
+  // Only used to decide which frames are worth timing: a frame drawn because a
+  // slider moved says nothing about whether a rotation will hold up. The frame
+  // loop is created once, so it reads this through a ref rather than closing
+  // over a value that would be stale by the first frame.
   const interactingRef = React.useRef(false);
-  interactingRef.current = interacting;
   const quality = useAdaptiveQuality();
 
   const values = useToolcraftEvaluatedValues();
@@ -140,6 +138,7 @@ export function MockupPreview(): React.ReactElement {
           image,
           readDeviceDefinition(settings.device),
           designTransform,
+          rendererRef.current?.maxAnisotropy ?? 1,
         );
 
         artworkRef.current?.dispose();
@@ -196,11 +195,13 @@ export function MockupPreview(): React.ReactElement {
   const pixelRatio = React.useMemo(() => {
     const display = Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO);
     const still = Math.min(display, Math.max(1, renderScale));
-    if (!interacting) return still;
-    // Whatever the machine turns out to be able to hold, on top of the fixed
-    // drop that applies to every machine.
-    return Math.max(0.75, still * INTERACTION_PIXEL_SCALE * quality.scale);
-  }, [interacting, quality.scale, renderScale]);
+    // Full sharpness is the default, dragging included. There used to be a
+    // flat reduction on every drag, which cost every machine detail whether or
+    // not it needed to and made the preview look soft to anyone judging the
+    // picture. What is left is earned: the scale only leaves 1 once frames
+    // have actually been late, and it climbs back as soon as they are not.
+    return Math.max(1, still * quality.scale);
+  }, [quality.scale, renderScale]);
 
   // Deliberately not keyed on the pose. The camera has its own effect above,
   // and resizing is the one operation that must not run per pointer move.
@@ -246,7 +247,7 @@ export function MockupPreview(): React.ReactElement {
   const pointerHandlers = React.useMemo(
     () => ({
       onPointerCancel: (event: React.PointerEvent<HTMLCanvasElement>) => {
-        setInteracting(false);
+        interactingRef.current = false;
         quality.reset();
         if (viewPan.onPointerCancel(event)) return;
         if (designDrag.onPointerCancel(event)) return;
@@ -259,7 +260,7 @@ export function MockupPreview(): React.ReactElement {
           designDrag.onPointerDown(event) ||
           viewOrbit.onPointerDown(event);
         if (claimed) {
-          setInteracting(true);
+          interactingRef.current = true;
           return;
         }
         orbitHandlers.onPointerDown?.(event);
@@ -271,7 +272,7 @@ export function MockupPreview(): React.ReactElement {
         orbitHandlers.onPointerMove?.(event);
       },
       onPointerUp: (event: React.PointerEvent<HTMLCanvasElement>) => {
-        setInteracting(false);
+        interactingRef.current = false;
         quality.reset();
         if (viewPan.onPointerUp(event)) return;
         if (designDrag.onPointerUp(event)) return;

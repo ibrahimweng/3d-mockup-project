@@ -180,6 +180,19 @@ The quoted evidence must be an exact nontrivial raw substring of `Request` with 
 - Evidence: `scripts/clean-model.mjs` drops the unused scene, removes Draco, welds, simplifies under an error bound rather than a flat ratio, rebuilds the display's unwrap from its geometry, and quantizes. 502,646 triangles to 105,046 at 2.43MB, against 22MB for the model it replaces. Driven in Chromium across all five devices: the design fills the panel the right way up, Natural and Graphite both read correctly, no page errors.
 - Risk: The step that rebuilds the unwrap assumes the display is a flat panel, which is true of every model in this set. A screen modelled with curvature would need a real projection rather than two axes.
 
+### Sharpness
+
+- Decision: Export honours the pixel ratio it is handed, screen textures request maximum anisotropy, and the preview holds full resolution until frames are measurably late.
+- Reason: Reported as renders looking overly compressed and blurred, which matters because the output is for professional use. Three separate losses. The runtime scales the export context by a pixel ratio and passes that ratio to the product renderer; ours ignored it and rendered at CSS size, so `drawImage` upscaled every export. No anisotropy was set anywhere, so a foreshortened panel sampled a mip chosen for its narrowest axis. And the preview dropped a flat 0.6 on every drag whether or not the machine needed it.
+- Evidence: `mockupExportRenderer` in `src/app/export-renderer.ts`, `createScreenTexture` in `render/screen-texture.ts`, `pixelRatio` in `preview.tsx`. Measured on a 3277x4096 export of a one-pixel grid: edge energy per pixel 6.98 before, 13.61 after, a 1.95x gain that matches the ratio being restored.
+
+### Taking a supplied model as it is
+
+- Decision: A supplied GLB ships byte for byte and is repaired at load. `creaseAngleDegrees` and `screenUnwrap` join `sceneName` as catalog entries; a Draco decoder is wired into the loader.
+- Reason: Simplifying the Mac Studio to 105k triangles introduced visible artifacts, and the request was to keep the supplied file. Its own faults are repairable without touching it: flat panels welded to their bevels, which washed a soft fan across the machine's lid and the display's back, and a display unwrapped into an atlas corner.
+- Evidence: `creaseNormals` and `unwrapScreen` in `render/device-scene.ts`; `md5sum` matches the upload. Verified in Chromium from four angles: the fan across the display back is gone and the machine reads as a crisp aluminium block with a defined vent grille.
+- Risk: Splitting normals de-indexes the geometry, so the model carries more vertices than one authored with proper smoothing groups. The file also holds a second scene the loader parses and never draws.
+
 ## Verification
 
 - `npm run typecheck` passes.

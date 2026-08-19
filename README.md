@@ -31,7 +31,7 @@ framework preset, the `npm run build` command and the `dist` output directory.
 | iPhone 17 Pro Max | `iphone-5.glb` | Default. Named for an iPhone 5, but holds a 17 Pro Max in orange. Its back panel's colour is printed into a texture, so a colourway repaints it rather than tinting it |
 | MacBook | `macbook.glb` | Scene `Scene.002`; the file also holds an iPhone and the iMac below |
 | iMac | `macbook.glb` | Scene `Scene.001`; the 24-inch model, sharing the MacBook's download |
-| Mac Studio | `mac-studio.glb` | The display, its stand and the machine beside it. Cleaned from a 502k-triangle Draco source: see below |
+| Mac Studio | `mac-studio.glb` | The display, its stand and the machine beside it. Shipped exactly as supplied, Draco and all; repaired at load rather than in the file |
 | Apple Watch Ultra | `apple-watch-ultra.glb` | Nearly square screen, so tall screenshots crop hard |
 
 The models are not interchangeable, so each one is a catalog entry in
@@ -109,42 +109,62 @@ Model provenance is not recorded anywhere in the repo. If these came from a
 source with attribution or licensing terms, that belongs here before the site is
 promoted anywhere public.
 
-## Cleaning a supplied model
+## Taking a supplied model as it is
 
-`mac-studio.glb` is the worked example, in
-[`scripts/clean-model.mjs`](scripts/clean-model.mjs). Its source arrived at
-3.5MB, which flattered it: that was Draco compression over 502,646 triangles,
-and 34.8MB once decoded. The app loads with a plain `GLTFLoader` and has no
-Draco decoder, so it had to come out anyway.
+A supplied GLB ships byte for byte and is repaired at load instead. Decimating
+geometry to save bytes costs exactly the surface quality a mockup exists to
+show, and every model has needed a different repair anyway, so the repairs are
+catalog entries rather than a baked file.
 
-What the pass does, and why each step earned its place here:
+`mac-studio.glb` is the worked example. It arrived at 3.4MB, which flattered
+it: that is Draco compression over 502,646 triangles, 34.8MB once decoded. The
+loader carries a Draco decoder (`public/draco`, WebAssembly, on a worker) so
+the file needs neither decompressing nor decimating.
 
-- **Drops the unused scene.** The file carried two. The one not used is a full
-  studio set built around a 22-metre backdrop, and the app brings its own
-  ground and lighting.
-- **Simplifies geometry** to 105,046 triangles, bounded by an error tolerance
-  rather than a flat ratio, so the simplifier stops early on anything it cannot
-  reduce without moving the surface. A rounded aluminium box does not need six
-  figures of triangles; the base pad alone was 224,764 for something 88mm
-  across.
-- **Rebuilds the display's unwrap.** The panel shipped mapped into a corner of
-  a shared atlas — u from 0.02 to 0.45 — which is fine for a baked wallpaper
-  and useless for a design supplied at runtime. It is now a clean 0..1 across
-  the panel, derived from the geometry.
-- **Quantizes** positions, normals and texture coordinates, which is most of
-  the remaining size for none of the accuracy that matters at this scale.
+Three things about it are declared in
+[`src/app/product-domain.ts`](src/app/product-domain.ts) and applied by the
+scene builder:
 
-The result is 2.4MB and loads without a decoder.
+- **`sceneName`** — the file carries a second scene built around a 22-metre
+  studio backdrop. The app brings its own ground and lighting, so it loads the
+  one it wants.
+- **`creaseAngleDegrees`** — its flat panels are welded to their rounded
+  bevels, so the corner normals hold an average of both and the flat face
+  shades as a gradient between them. The giveaway is a soft fan spreading from
+  a corner rather than a highlight where the light is. Normals are recomputed
+  with a crease threshold, which gives flat faces one normal each and leaves
+  the fillets smooth.
+- **`screenUnwrap`** — the display is mapped into a corner of a shared atlas,
+  u from 0.02 to 0.45. Fine for a wallpaper baked into the file, useless for a
+  design supplied at runtime, so the panel is re-unwrapped from its geometry.
 
-## Preview resolution
+[`scripts/clean-model.mjs`](scripts/clean-model.mjs) still exists for a model
+that genuinely needs reducing, but it is not on the path any model takes by
+default.
 
-The preview draws at the display's own pixel ratio, capped at 2, and at 0.6 of
-that while a drag is in flight. Resolution scale lowers that ceiling; it cannot
-raise it, because a display cannot show more pixels than it has.
+## Sharpness
 
-Export does not go through this canvas. `export-renderer.ts` builds its own
-renderer at the requested size, so the picture you download is unaffected by
-anything here.
+Three things decide how much detail survives, and all three were losing some.
+
+**Export resolution.** The runtime hands the product renderer a frame in CSS
+units and a separate pixel ratio, having already scaled the destination context
+by that ratio. Rendering at the CSS size and letting `drawImage` stretch the
+result is an upscale: a 2x export carried half the detail it claimed. The ratio
+is applied to the render instead, so every pixel in the artifact is one the
+renderer drew. Measured on a 3277x4096 export of a one-pixel grid, edge energy
+per pixel went from 6.98 to 13.61.
+
+**Anisotropy.** A display is almost never seen square on, and a foreshortened
+surface sampled without anisotropic filtering takes a mip level chosen for its
+narrowest axis, so the whole panel blurs to match the most compressed
+direction. Screen textures now request the highest anisotropy the context
+supports.
+
+**Preview resolution.** Full sharpness is the default, dragging included.
+Resolution only drops once frames have actually been late, and climbs back as
+soon as they are not — see the adaptive policy in `adaptive-quality.ts`.
+Resolution scale lowers the ceiling; it cannot raise it, because a display
+cannot show more pixels than it has.
 
 ## Known issues
 
