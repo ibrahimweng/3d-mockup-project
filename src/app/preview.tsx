@@ -62,6 +62,10 @@ export function MockupPreview(): React.ReactElement {
   const screen = React.useMemo(() => readScreenTransform(values), [values]);
   const screenRef = React.useRef(screen);
   screenRef.current = screen;
+  // Keyed on the values rather than the object, because the object is rebuilt
+  // on every store change — including a rotation, which does not touch the
+  // screen at all — and remapping the display texture rebinds it each time.
+  const screenKey = JSON.stringify(screen);
   const pose = React.useMemo(
     () => readToolcraftOrientationPose(values["camera.orbit"]),
     [values],
@@ -163,9 +167,12 @@ export function MockupPreview(): React.ReactElement {
   // Fit, scale, stretch and position only remap the display texture, so they
   // redraw a frame without touching the model or the environment.
   React.useEffect(() => {
-    rendererRef.current?.setArtwork(artworkRef.current, screen);
+    rendererRef.current?.setArtwork(artworkRef.current, screenRef.current);
     dirtyRef.current = true;
-  }, [screen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the transform is
+    // read through a ref and tracked by its serialized key, so an unchanged
+    // transform with a new object identity does not rebind the texture.
+  }, [screenKey]);
 
   const rect =
     frame.kind === "finite" || frame.kind === "infinite" ? frame.rect : null;

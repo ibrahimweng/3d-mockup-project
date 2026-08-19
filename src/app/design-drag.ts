@@ -21,7 +21,10 @@ const TARGET = "artwork.offset";
 const HISTORY_LABEL = "Move design";
 
 type Gesture = {
+  frame: number;
   group: string;
+  /** Latest pointer position, applied once per frame rather than per event. */
+  pending: { x: number; y: number } | null;
   pointerId: number;
   startOffset: { x: number; y: number };
   startUV: { u: number; v: number };
@@ -82,7 +85,9 @@ export function useDesignDrag(
 
       groupRef.current += 1;
       gestureRef.current = {
+        frame: 0,
         group: `design-drag-${groupRef.current}`,
+        pending: null,
         pointerId: event.pointerId,
         startOffset: readOffset(),
         startUV: uv,
@@ -95,24 +100,41 @@ export function useDesignDrag(
     [hasDesign, readOffset, rendererRef],
   );
 
-  const onPointerMove = React.useCallback(
-    (event: React.PointerEvent<HTMLCanvasElement>): boolean => {
-      const gesture = gestureRef.current;
-      if (!gesture || gesture.pointerId !== event.pointerId) return false;
+  /**
+   * Place the design where the pointer last was, once per frame.
+   *
+   * Each pointer event would otherwise cost a raycast against the display and
+   * a store write that re-renders the app, several times per frame on a fast
+   * mouse, for positions that are overwritten before anything is drawn. Only
+   * the last one matters, so only the last one is used.
+   */
+  const flush = React.useCallback(() => {
+    const gesture = gestureRef.current;
+    if (!gesture) return;
+    gesture.frame = 0;
+    const point = gesture.pending;
+    if (!point) return;
+    gesture.pending = null;
 
-      const renderer = rendererRef.current;
-      const uv = renderer?.hitScreenUV(event.clientX, event.clientY);
-      // Leaving the panel mid-drag holds the last position rather than
-      // snapping the design somewhere it was never dragged.
-      if (!renderer || !uv) return true;
+    const renderer = rendererRef.current;
+    const uv = renderer?.hitScreenUV(point.x, point.y);
+    // Leaving the display mid-drag holds the last position rather than
+    // snapping the design somewhere it was never dragged.
+    if (!renderer || !uv) return;
 
-      const slack = renderer.screenSlack();
-      const deltaU = uv.u - gesture.startUV.u;
-      const deltaV = uv.v - gesture.startUV.v;
+    const slack = renderer.screenSlack();
+    const deltaU = uv.u - gesture.startUV.u;
+    const deltaV = uv.v - gesture.startUV.v;
 
-      // Offset shifts the sampling window, so it moves against the design on
-      // both axes. An axis with no slack is not cropped and has nothing to pan.
-      const next = {
+    // Offset shifts the sampling window, so it moves against the design on
+    // both axes. An axis with no slack is not cropped and has nothing to pan.
+    dispatch({
+      history: "merge",
+      historyGroup: gesture.group,
+      label: HISTORY_LABEL,
+      target: TARGET,
+      type: "controls.setValue",
+      value: {
         x:
           slack.x > 0
             ? clamp01(gesture.startOffset.x - deltaU / slack.x)
@@ -121,27 +143,30 @@ export function useDesignDrag(
           slack.y > 0
             ? clamp01(gesture.startOffset.y - deltaV / slack.y)
             : gesture.startOffset.y,
-      };
+      },
+    });
+  }, [dispatch, rendererRef]);
 
-      dispatch({
-        history: "merge",
-        historyGroup: gesture.group,
-        label: HISTORY_LABEL,
-        target: TARGET,
-        type: "controls.setValue",
-        value: next,
-      });
+  const onPointerMove = React.useCallback(
+    (event: React.PointerEvent<HTMLCanvasElement>): boolean => {
+      const gesture = gestureRef.current;
+      if (!gesture || gesture.pointerId !== event.pointerId) return false;
+
+      gesture.pending = { x: event.clientX, y: event.clientY };
+      if (gesture.frame === 0) gesture.frame = requestAnimationFrame(flush);
       event.preventDefault();
       event.stopPropagation();
       return true;
     },
-    [dispatch, rendererRef],
+    [flush],
   );
 
   const finish = React.useCallback(
     (event: React.PointerEvent<HTMLCanvasElement>): boolean => {
       const gesture = gestureRef.current;
       if (!gesture || gesture.pointerId !== event.pointerId) return false;
+      if (gesture.frame !== 0) cancelAnimationFrame(gesture.frame);
+      flush();
       gestureRef.current = null;
       if (event.currentTarget.hasPointerCapture(event.pointerId)) {
         event.currentTarget.releasePointerCapture(event.pointerId);
@@ -150,7 +175,7 @@ export function useDesignDrag(
       event.stopPropagation();
       return true;
     },
-    [],
+    [flush],
   );
 
   return {

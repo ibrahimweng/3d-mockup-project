@@ -28,14 +28,26 @@ function claimsPan(event: React.PointerEvent<HTMLCanvasElement>): boolean {
   return event.button === 1;
 }
 
+type Gesture = {
+  frame: number;
+  pendingX: number;
+  pendingY: number;
+  pointerId: number;
+};
+
 export function useViewPan(): ViewPanHandlers {
   const dispatch = useToolcraftDispatch();
-  const pointerRef = React.useRef<number | null>(null);
+  const gestureRef = React.useRef<Gesture | null>(null);
 
   const onPointerDown = React.useCallback(
     (event: React.PointerEvent<HTMLCanvasElement>): boolean => {
       if (!claimsPan(event)) return false;
-      pointerRef.current = event.pointerId;
+      gestureRef.current = {
+        frame: 0,
+        pendingX: 0,
+        pendingY: 0,
+        pointerId: event.pointerId,
+      };
       event.currentTarget.setPointerCapture(event.pointerId);
       // Middle-press is the browser's autoscroll gesture, which would other-
       // wise start its own scrolling on top of this one.
@@ -46,28 +58,49 @@ export function useViewPan(): ViewPanHandlers {
     [],
   );
 
+  /**
+   * Apply whatever movement has piled up since the last frame.
+   *
+   * A pointer reports far more often than the screen refreshes, and only the
+   * last position before a frame is drawn can be seen, so writing every one of
+   * them re-renders the app for results nobody sees.
+   */
+  const flush = React.useCallback(() => {
+    const gesture = gestureRef.current;
+    if (!gesture) return;
+    gesture.frame = 0;
+    const { pendingX, pendingY } = gesture;
+    if (pendingX === 0 && pendingY === 0) return;
+    gesture.pendingX = 0;
+    gesture.pendingY = 0;
+    // The offset is in screen pixels, so the pointer's own delta is the pan:
+    // the board keeps up with the cursor at any zoom.
+    dispatch({ delta: { x: pendingX, y: pendingY }, type: "canvas.panBy" });
+  }, [dispatch]);
+
   const onPointerMove = React.useCallback(
     (event: React.PointerEvent<HTMLCanvasElement>): boolean => {
-      if (pointerRef.current !== event.pointerId) return false;
-      if (event.movementX !== 0 || event.movementY !== 0) {
-        // The offset is in screen pixels, so the pointer's own delta is the
-        // pan: the board keeps up with the cursor at any zoom.
-        dispatch({
-          delta: { x: event.movementX, y: event.movementY },
-          type: "canvas.panBy",
-        });
-      }
+      const gesture = gestureRef.current;
+      if (!gesture || gesture.pointerId !== event.pointerId) return false;
       event.preventDefault();
       event.stopPropagation();
+      if (event.movementX === 0 && event.movementY === 0) return true;
+
+      gesture.pendingX += event.movementX;
+      gesture.pendingY += event.movementY;
+      if (gesture.frame === 0) gesture.frame = requestAnimationFrame(flush);
       return true;
     },
-    [dispatch],
+    [flush],
   );
 
   const finish = React.useCallback(
     (event: React.PointerEvent<HTMLCanvasElement>): boolean => {
-      if (pointerRef.current !== event.pointerId) return false;
-      pointerRef.current = null;
+      const gesture = gestureRef.current;
+      if (!gesture || gesture.pointerId !== event.pointerId) return false;
+      if (gesture.frame !== 0) cancelAnimationFrame(gesture.frame);
+      flush();
+      gestureRef.current = null;
       if (event.currentTarget.hasPointerCapture(event.pointerId)) {
         event.currentTarget.releasePointerCapture(event.pointerId);
       }
@@ -75,7 +108,7 @@ export function useViewPan(): ViewPanHandlers {
       event.stopPropagation();
       return true;
     },
-    [],
+    [flush],
   );
 
   return {

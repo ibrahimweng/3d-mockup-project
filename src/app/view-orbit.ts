@@ -34,7 +34,13 @@ const RADIANS_PER_PIXEL = (DEGREES_PER_PIXEL * Math.PI) / 180;
 /** Stop just short of the pole, where up and the view direction collapse. */
 const POLE_LIMIT = Math.PI / 2 - 0.01;
 
-type Gesture = { group: string; pointerId: number };
+type Gesture = {
+  frame: number;
+  group: string;
+  pendingX: number;
+  pendingY: number;
+  pointerId: number;
+};
 
 export type ViewOrbitHandlers = {
   onPointerCancel: (event: React.PointerEvent<HTMLCanvasElement>) => boolean;
@@ -107,7 +113,10 @@ export function useViewOrbit(): ViewOrbitHandlers {
       if (!claimsOrbit(event)) return false;
       groupRef.current += 1;
       gestureRef.current = {
+        frame: 0,
         group: `view-orbit-${groupRef.current}`,
+        pendingX: 0,
+        pendingY: 0,
         pointerId: event.pointerId,
       };
       event.currentTarget.setPointerCapture(event.pointerId);
@@ -118,31 +127,59 @@ export function useViewOrbit(): ViewOrbitHandlers {
     [],
   );
 
+  /**
+   * Apply whatever movement has piled up since the last frame.
+   *
+   * A pointer reports far more often than the screen refreshes — a 120Hz mouse
+   * or a trackpad delivering coalesced events can produce several moves per
+   * frame — and every write here re-renders the whole app and re-runs every
+   * effect behind it. Only the last one before the frame is drawn can be seen,
+   * so the rest is work whose result is thrown away. The runtime's own orbit
+   * batches for the same reason.
+   */
+  const flush = React.useCallback(() => {
+    const gesture = gestureRef.current;
+    if (!gesture) return;
+    gesture.frame = 0;
+    const { pendingX, pendingY } = gesture;
+    if (pendingX === 0 && pendingY === 0) return;
+    gesture.pendingX = 0;
+    gesture.pendingY = 0;
+
+    dispatch({
+      history: "merge",
+      historyGroup: gesture.group,
+      label: HISTORY_LABEL,
+      target: TARGET,
+      type: "controls.setValue",
+      value: turn(poseRef.current, pendingX, pendingY),
+    });
+  }, [dispatch]);
+
   const onPointerMove = React.useCallback(
     (event: React.PointerEvent<HTMLCanvasElement>): boolean => {
       const gesture = gestureRef.current;
       if (!gesture || gesture.pointerId !== event.pointerId) return false;
-      if (event.movementX === 0 && event.movementY === 0) return true;
-
-      dispatch({
-        history: "merge",
-        historyGroup: gesture.group,
-        label: HISTORY_LABEL,
-        target: TARGET,
-        type: "controls.setValue",
-        value: turn(poseRef.current, event.movementX, event.movementY),
-      });
       event.preventDefault();
       event.stopPropagation();
+      if (event.movementX === 0 && event.movementY === 0) return true;
+
+      gesture.pendingX += event.movementX;
+      gesture.pendingY += event.movementY;
+      if (gesture.frame === 0) gesture.frame = requestAnimationFrame(flush);
       return true;
     },
-    [dispatch],
+    [flush],
   );
 
   const finish = React.useCallback(
     (event: React.PointerEvent<HTMLCanvasElement>): boolean => {
       const gesture = gestureRef.current;
       if (!gesture || gesture.pointerId !== event.pointerId) return false;
+      // Anything still pending belongs to this gesture, so it lands before the
+      // gesture is forgotten rather than being dropped at the last moment.
+      if (gesture.frame !== 0) cancelAnimationFrame(gesture.frame);
+      flush();
       gestureRef.current = null;
       if (event.currentTarget.hasPointerCapture(event.pointerId)) {
         event.currentTarget.releasePointerCapture(event.pointerId);
@@ -151,7 +188,7 @@ export function useViewOrbit(): ViewOrbitHandlers {
       event.stopPropagation();
       return true;
     },
-    [],
+    [flush],
   );
 
   return {
