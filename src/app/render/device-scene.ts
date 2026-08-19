@@ -567,7 +567,10 @@ export async function buildDeviceScene(options: {
     .multiplyScalar(sphere.radius * 4)
     .add(new THREE.Vector3(0, sphere.radius * 2, 0));
   key.castShadow = true;
-  key.shadow.mapSize.set(2048, 2048);
+  // 1024 is plenty for a contact shadow that is deliberately soft: the blur
+  // radius below throws away the extra detail a larger map would carry, and
+  // the map is redrawn from the whole scene whenever it is invalidated.
+  key.shadow.mapSize.set(1024, 1024);
   key.shadow.radius = 4;
   key.shadow.bias = -0.0006;
   const extent = sphere.radius * 2.2;

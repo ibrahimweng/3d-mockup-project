@@ -66,7 +66,9 @@ export function MockupPreview(): React.ReactElement {
   React.useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
-    const renderer = new RasterRenderer(canvas);
+    const renderer = new RasterRenderer(canvas, {
+      antialias: (window.devicePixelRatio || 1) < 2,
+    });
     // A studio swapped in place changes the lighting without rebuilding the
     // scene, so the frame has to be invalidated when it finishes convolving.
     renderer.onEnvironmentReady = () => {
@@ -184,13 +186,14 @@ export function MockupPreview(): React.ReactElement {
     return interacting ? Math.max(1, still * INTERACTION_PIXEL_SCALE) : still;
   }, [interacting, renderScale]);
 
+  // Deliberately not keyed on the pose. The camera has its own effect above,
+  // and resizing is the one operation that must not run per pointer move.
   React.useEffect(() => {
     const renderer = rendererRef.current;
     if (!renderer || width <= 0 || height <= 0) return;
     renderer.setSize(width, height, pixelRatio);
-    renderer.setPose(pose);
     dirtyRef.current = true;
-  }, [height, pixelRatio, pose, sceneVersion, width]);
+  }, [height, pixelRatio, sceneVersion, width]);
 
   // The runtime's own model orbit still backs this up for a press that reaches
   // it, and it declines a hit that landed on a display so the design drag can
