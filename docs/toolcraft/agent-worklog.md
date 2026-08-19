@@ -167,6 +167,12 @@ The quoted evidence must be an exact nontrivial raw substring of `Request` with 
 - Reason: A fixed resolution has to be chosen for hardware nobody knows in advance. Two rounds of fixed reductions did not resolve the report, and this environment cannot reproduce it: it renders through SwiftShader, draws roughly one frame every five seconds under load, and floors every per-device measurement at the same 33ms, so no fixed number chosen here can be trusted to suit a real GPU. Letting the running machine choose removes the guess.
 - Evidence: `foldFrameGap` in `src/app/adaptive-quality.ts` is a pure function over frame gaps, verified in `adaptive-quality.test.ts` against synthetic timings — it converges to the floor under sustained slowness, climbs back to full when frames come in fast, ignores a single hitch, and discards gaps long enough to be a paused hand. Convergence is proven by test rather than in a browser, because a browser slow enough to need it is too slow to demonstrate it.
 
+### Pointer coalescing
+
+- Decision: The orbit, pan and design drags accumulate pointer movement and write to the store once per animation frame instead of once per event.
+- Reason: A pointer reports far more often than the screen refreshes, and every write re-renders the whole app and re-runs every effect behind it. Only the last position before a frame is drawn can be seen, so the rest is work whose result is discarded. The design drag was worst because it also raycast the display on every event. The runtime's own model orbit already batches this way, which is what pointed at the omission.
+- Evidence: `flush` in `src/app/view-orbit.ts`, `view-pan.ts` and `design-drag.ts`. Measured in Chromium by pumping pointer events at 250Hz for three seconds during a design drag: the page processed 10 of them before and 633 to 660 after, reproducibly — 300ms of main-thread work per event against 4.6ms. The orbit path has no raycast, so the same measurement on it is inside this environment's noise; the change rests on the mechanism and on the runtime's own precedent rather than on a measured figure.
+
 ## Verification
 
 - `npm run typecheck` passes.
