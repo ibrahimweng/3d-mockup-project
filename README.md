@@ -104,14 +104,20 @@ that is not cropped has no slack and correctly does not move.
   and why 1K is deliberate.
 - `public/models/*.glb` — the device models listed above. `macbook.glb` carries
   the MacBook and the iMac in sibling scenes, so the two share one download.
-  `iphone-17-pro-max.glb` is no longer referenced: it is the same phone as
-  `iphone-5.glb` without the orange back panel, and with a stray full-height
-  mesh that had to be hidden. Kept in case it is wanted again; delete it to
-  save 5MB from every deploy.
 
 Model provenance is not recorded anywhere in the repo. If these came from a
 source with attribution or licensing terms, that belongs here before the site is
 promoted anywhere public.
+
+## Preview resolution
+
+The preview draws at the display's own pixel ratio, capped at 2, and at 0.6 of
+that while a drag is in flight. Resolution scale lowers that ceiling; it cannot
+raise it, because a display cannot show more pixels than it has.
+
+Export does not go through this canvas. `export-renderer.ts` builds its own
+renderer at the requested size, so the picture you download is unaffected by
+anything here.
 
 ## Known issues
 
