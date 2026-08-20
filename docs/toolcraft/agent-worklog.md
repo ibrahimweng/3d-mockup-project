@@ -406,6 +406,15 @@ Zooming out and shifting the frame were the two new risks: both widen what the c
 - Evidence: The probe that found it read the settled scene rather than the build: every value — cove radius, floor height, paper position, shadow camera, every environment intensity — was identical across four runs that produced two different pictures. Nothing in the scene's state differed, which left the map's contents. `onCameraMoved` now reports whether it recut, and `setPose` invalidates when it did.
 - Evidence: Five fresh browsers on the state that used to flip: one hash, five times. The full seventeen, run twice: identical. The picture it settles on is the one drawn for the set that is actually there.
 
+### The room, and the line budget closed
+
+- Decision: The floor, its reflection and the paper behind it are one subsystem.
+- Reason: They are one surface. The sweep is the floor continuing, the mirror is the floor being polished, and the height the floor sits at is the same number that decides where the paper meets it. What the room does not own is anything standing *in* it — the device, the furniture and the lights read it rather than living in it, so it is handed the camera and the table rather than reaching for them.
+- Evidence: `scene-room.ts` at 521 lines. `device-scene.ts` is 597, and the code-health line budget reports nothing: every module in the app is now inside 700.
+- Evidence: Visually unchanged. Against the build before it, not one pixel in the fixture frame differs by more than three levels out of 255, and the seventeen states are stable across two runs.
+- Decision: Noted, because the last sub-level difference was worth understanding rather than waving through.
+- Reason: The frames are not bit-identical — row means move by up to 0.8 of a level. The cause is in the old arrangement, not the new one: the table's dressing callback referred to `applyFloorEnvironment`, which was declared forty lines further down, so a cached texture resolving quickly could reach it inside its dead zone. The throw went into the `.catch` that guards the load and the room was left un-rebalanced. Building the room before the table removes the hazard, which is the same fault as the shadow sizing's and the second time a swallowed error has hidden one.
+
 ## Verification
 
 - `npm run typecheck` passes.
