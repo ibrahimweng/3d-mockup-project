@@ -1,5 +1,7 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
+import { getToolcraftControlFieldByTarget } from "./browser-control-target-helpers";
+
 /**
  * Driving this product's own controls from a browser test.
  *
@@ -167,4 +169,20 @@ export async function padHandleFor(
     x: `${(x + 1) * 50}%`,
     y: mode === "cartesian" ? `${(1 - (y + 1) / 2) * 100}%` : `${((y + 1) / 2) * 100}%`,
   };
+}
+
+/**
+ * Flip a switch, found by the schema target it writes.
+ *
+ * By target rather than by name: these switches carry their label as sibling
+ * text rather than an accessible name, so asking for a switch called "Infinity
+ * canvas" waits forever.
+ */
+export async function toggleSwitch(page: Page, target: string): Promise<boolean> {
+  const field = await getToolcraftControlFieldByTarget(page, target);
+  const control = field.locator('[role="switch"]').first();
+  await control.scrollIntoViewIfNeeded();
+  await control.click();
+  await page.waitForTimeout(1_200);
+  return (await control.getAttribute("aria-checked")) === "true";
 }

@@ -30,7 +30,7 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
     componentType: "canvas",
     evidence: "product-output",
     expectedObservable:
-      "A drag starting on the display moves the design across it and leaves the device's orientation unchanged; a drag starting on the body rotates the device and leaves the design where it sits; a drag starting on empty canvas pans the viewport.",
+      "A drag starting on the display moves the design across it and leaves the device's orientation unchanged; a drag starting anywhere else with the primary button rotates the device and leaves the design where it sits; the middle button moves the board.",
     fixture: "a design larger than the display so it is cropped on both axes",
     id: "artwork.placement.drag",
     interactionId: "screen-placement-drag",
@@ -188,7 +188,7 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
     automatedTestName: "orbit pose is shared by gizmo, drag, preview and export",
     browser: true,
     browserTestName:
-      "browser: dragging the device rotates it, a miss pans, and export matches the pose",
+      "browser: dragging the device rotates it, the middle button moves the board, and export matches the pose",
     canvasHandle: {
       exportCleanTestName:
         "browser: the exported PNG contains no orientation gizmo",
