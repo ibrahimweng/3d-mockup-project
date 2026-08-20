@@ -115,3 +115,56 @@ export async function readSegments(control: Locator): Promise<string[]> {
     nodes.map((node) => node.getAttribute("aria-label") ?? ""),
   )).filter(Boolean);
 }
+
+/**
+ * Click an X/Y pad at a value in its own units.
+ *
+ * A pad reads -1..1 across its box with zero at the centre, and its y axis runs
+ * down the screen. Kept just inside the border, because a click on the exact
+ * edge does not register — which once reported four different corners as the
+ * centred default.
+ */
+export async function setPad(control: Locator, x: number, y: number): Promise<void> {
+  const pad = control.locator('[aria-label$="X/Y pad"]').first();
+  await pad.scrollIntoViewIfNeeded();
+  const box = await pad.boundingBox();
+  if (!box) throw new Error("Pad has no box to click.");
+  const grip = (value: number) => Math.min(0.98, Math.max(0.02, (value + 1) / 2));
+  await control
+    .page()
+    .mouse.click(box.x + box.width * grip(x), box.y + box.height * grip(y));
+}
+
+/**
+ * Where every pad's handle is, read from the custom property the control writes
+ * it with. Takes no arguments because an observation is serialised into the
+ * page and cannot carry a closure with it.
+ */
+export function padHandles(root: HTMLElement): Record<string, { x: string; y: string }> {
+  const handles: Record<string, { x: string; y: string }> = {};
+  for (const pad of root.querySelectorAll<HTMLElement>('[aria-label$="X/Y pad"]')) {
+    const label = (pad.getAttribute("aria-label") ?? "").replace(/ X\/Y pad$/, "");
+    handles[label] = {
+      x: pad.style.getPropertyValue("--xy-pad-x").trim(),
+      y: pad.style.getPropertyValue("--xy-pad-y").trim(),
+    };
+  }
+  return handles;
+}
+
+/** Where a pad puts its handle for a value, in that pad's own coordinate mode. */
+export async function padHandleFor(
+  page: Page,
+  padLabel: string,
+  x: number,
+  y: number,
+): Promise<{ x: string; y: string }> {
+  const mode = await page
+    .locator(`[aria-label="${padLabel} X/Y pad"]`)
+    .first()
+    .getAttribute("data-vector-pad-coordinate-mode");
+  return {
+    x: `${(x + 1) * 50}%`,
+    y: mode === "cartesian" ? `${(1 - (y + 1) / 2) * 100}%` : `${((y + 1) / 2) * 100}%`,
+  };
+}
