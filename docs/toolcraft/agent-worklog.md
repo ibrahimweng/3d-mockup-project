@@ -375,6 +375,15 @@ Zooming out and shifting the frame were the two new risks: both widen what the c
 - Evidence: The drag follows the pointer rather than fighting it — 64 pixels of pointer, 42 of design, the shortfall being the pan limit it reaches partway. Ninety degrees turns clockwise, each flip mirrors its own axis, and each flip is its own inverse. The export puts the design within 0.03 percent of where the preview put it, at the same size to four decimal places.
 - Risk: A flip read as the wrong axis when tested on a design that was already rotated, because these apply in the design's own axes rather than the screen's. Tested square on, both are right; the first reading was mine, not the app's.
 
+### Taking the scene builder apart, part one
+
+- Decision: Everything in `device-scene.ts` that does not depend on a scene now lives beside it rather than inside it. 2636 lines became 1558, across five modules.
+- Reason: The code-health budget is 700 lines a module and 1000 overall, and this file was flagged against both. More to the point it had become four unrelated jobs in one place: fetching and caching assets, mapping a design onto a modelled panel, generating geometry, repairing a supplied model's materials, and assembling a scene out of all of it.
+- Evidence: `device-assets.ts` holds the model, environment and texture caches; `screen-mapping.ts` finds the display panels, measures their real shape and maps the design into them; `surface-geometry.ts` writes the table; `set-geometry.ts` writes the cove, the gobos and the fades; `model-appearance.ts` creases, corrects and repaints what the file shipped with. None is over 330 lines.
+- Evidence: Byte-identical. Seventeen states — six studios, five surfaces, five devices and both light patterns — hashed from the production build before and after: every hash the same.
+- Risk: Still 1558 against a budget of 700, and the remainder is one function. Getting under it means restructuring `buildDeviceScene` from a single closure into a room, a key light and a pattern that each own their state and are coordinated by the builder — a redesign rather than a move, and worth doing deliberately rather than as the tail of a mechanical split.
+- Risk: The split moved the three forbidden loader imports into `device-assets.ts`; it did not remove them. That violation is unchanged and still stands against the product boundary.
+
 ## Verification
 
 - `npm run typecheck` passes.
