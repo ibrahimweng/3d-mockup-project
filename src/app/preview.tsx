@@ -325,6 +325,11 @@ export function MockupPreview(): React.ReactElement {
   return (
     <canvas
       className={styles.surface}
+      // The design is dragged on this surface, so this surface is the handle.
+      // There is no chrome to drag instead: the affordance is the design
+      // itself, sitting on a screen that is geometry rather than an element.
+      data-testid="toolcraft-product-output"
+      data-toolcraft-canvas-handle
       data-toolcraft-product-output
       ref={canvasRef}
       {...orbitHandlers}
