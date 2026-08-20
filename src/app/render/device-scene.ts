@@ -392,13 +392,27 @@ function applyScreenTransform(
 
   // Base fit. `fill` covers and crops, `fit` shows everything and leaves
   // margins, `stretch` ignores aspect entirely and distorts to the display.
+  //
+  // `repeat` is how much of the image spans the panel, so a number below one
+  // magnifies and crops and a number above one leaves room. Covering and
+  // containing are therefore reciprocals of each other, not the same number
+  // moved to the other axis — which is what this was, so Fit cropped exactly
+  // as hard as Fill did, on the opposite axis, and a square design on a
+  // sixteen-by-ten display lost a fifth of its width off each side while the
+  // control promised margins.
   let repeatX = 1;
   let repeatY = 1;
   if (transform.fit !== "stretch") {
     const ratio = imageAspect / screenRatio;
-    const cover = transform.fit === "fill";
-    if (ratio > 1 === cover) repeatX = cover ? 1 / ratio : ratio;
-    else repeatY = cover ? ratio : 1 / ratio;
+    const wider = ratio > 1;
+    if (transform.fit === "fill") {
+      if (wider) repeatX = 1 / ratio;
+      else repeatY = ratio;
+    } else if (wider) {
+      repeatY = ratio;
+    } else {
+      repeatX = 1 / ratio;
+    }
   }
 
   // Manual zoom on top of the fit.
@@ -2137,6 +2151,21 @@ export async function buildDeviceScene(options: {
    * when the shadow is crisp enough to show it, and only when the map is
    * redrawn — which is on change, not on every frame.
    */
+  /** The half-width of the depth map's view, in world units. */
+  let shadowExtent = 0;
+  /**
+   * Whether a cut-out is in the light, which changes what the depth map is for.
+   *
+   * With no pattern the map exists to draw the device's own shadow, and it
+   * should be wrapped as tightly around the device as the rake allows, because
+   * every texel spent elsewhere is detail lost from the one edge anybody looks
+   * at. With a pattern it also has to reach the backdrop — a window that lands
+   * on the floor and stops at the skirting is not a window, it is a rug — and
+   * that is a far larger volume for the same number of texels. The map is
+   * doubled to pay for it.
+   */
+  let patterned = false;
+
   const applyShadowEdge = (softness: number): void => {
     const amount = Math.max(0, Math.min(1, softness));
     lastSoftness = amount;
@@ -2159,21 +2188,6 @@ export async function buildDeviceScene(options: {
     }
   };
   applyShadowEdge(options.lighting.shadowSoftness);
-
-  /** The half-width of the depth map's view, in world units. */
-  let shadowExtent = 0;
-  /**
-   * Whether a cut-out is in the light, which changes what the depth map is for.
-   *
-   * With no pattern the map exists to draw the device's own shadow, and it
-   * should be wrapped as tightly around the device as the rake allows, because
-   * every texel spent elsewhere is detail lost from the one edge anybody looks
-   * at. With a pattern it also has to reach the backdrop — a window that lands
-   * on the floor and stops at the skirting is not a window, it is a rug — and
-   * that is a far larger volume for the same number of texels. The map is
-   * doubled to pay for it.
-   */
-  let patterned = false;
 
   /**
    * Size the depth map's view to the shadow the key is about to throw.

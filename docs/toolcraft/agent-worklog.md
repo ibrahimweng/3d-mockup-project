@@ -355,6 +355,18 @@ Zooming out and shifting the frame were the two new risks: both widen what the c
 - Reason: Read against a rail that is one width all the way along, a post losing a quarter of itself over its drop stops looking turned and starts looking melted. And at a third of roughness the sheen was so broad that the post shaded from one side to the other with no highlight anywhere in it, which is a matte plastic tube; measured across the leg the tone ran 42 to 74 levels of gradient and never reached a specular. Tightening it puts a soft line of light down the leg, which is the thing that says coated steel and the only reason the taper is worth having.
 - Evidence: Swept again on the new geometry — 25 device and surface combinations, 12 studio combinations, and focal length, zoom, framing and backdrop at their limits. No transparent pixel anywhere; the frames with no legs come back identical to before it. The worst row step in a Sweep frame rose from 7.2 to 14.4 grey levels, and at that row it is the underframe's own bottom edge against a white cyclorama — the furniture's silhouette, the same class of legitimate hard edge as the laptop's screen.
 
+### Two bugs on the screen side
+
+- Decision: `patterned` is declared before the function that reads it.
+- Reason: `applyShadowEdge` runs once during the build and reads `patterned`, which was declared fifteen lines further down — a dead-zone read that throws. It only fires when the shadow is soft, because the expression is `amount < 0.35 || patterned` and a crisp shadow short-circuits before reaching it. The default softness is 34. One point higher and building a scene throws, the catch swallows it, and what the user sees is the previous device still on screen with every control reading the new one: pick Softbox, then change device, and nothing happens.
+- Evidence: Measured against the production bundle, not the dev server, because the first stack trace pointed at lines that did not match the file — a stale module. Before the fix, switching to the iMac after each preset: Void 34 repainted, Softbox 62 unchanged, Hard light 4 repainted, Sweep 26 repainted, Spotlight 16 repainted, Daylight 12 repainted. After it, all six repaint.
+- Risk: This survived several full sweeps because none of them ever returned to a device already on screen while a soft studio was selected. A sweep that only ever moves forward through a list does not test coming back.
+- Decision: A scene build that fails says so.
+- Reason: The catch left the previous scene up and cleared the key so the next change would retry, which is the right recovery and the wrong silence. Swallowing the error is what let a dead-zone read live through several passes.
+- Decision: Fit contains the design again.
+- Reason: `repeat` is how much of the image spans the panel, so below one magnifies and crops and above one leaves room. Covering and containing are reciprocals, not the same number moved to the other axis — which is what the code did, so Fit cropped exactly as hard as Fill, on the opposite axis. A square design on a sixteen-by-ten display lost a fifth of its width off each side while the control's own description promised margins.
+- Evidence: With a square test image carrying a coloured marker in each corner, Fit on the MacBook now shows all four and Fill shows none, which is what the two modes mean. Before the fix, Fit showed none either.
+
 ## Verification
 
 - `npm run typecheck` passes.

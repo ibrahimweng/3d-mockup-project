@@ -187,9 +187,14 @@ export class RasterRenderer {
         this.applyViewport();
         onReady();
       })
-      .catch(() => {
-        // A failed load leaves the previous scene visible rather than blanking
-        // the canvas; the key is cleared so the next change retries.
+      .catch((error: unknown) => {
+        // Loudly. A build that fails leaves the previous device on screen while
+        // every control reads the new one, which is indistinguishable from the
+        // app ignoring the click — and swallowing it is how a dead-zone read in
+        // the shadow sizing survived several sweeps. The previous scene is
+        // still better than a blank canvas, and the key is cleared so the next
+        // change retries, but it does not happen quietly.
+        console.error("Device scene build failed", error);
         this.lastKey = "";
       })
       .finally(() => {
