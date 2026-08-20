@@ -327,7 +327,11 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
     browserTestName:
       "browser: editing canvas width and height resizes the rendered output",
     componentType: "canvas",
-    evidence: "viewport-side-effect",
+    // Not a viewport side effect: that evidence proves the workspace moved
+    // while the output size held, which is the opposite of what this row
+    // claims. Resizing the canvas changes the rendered frame, so the evidence
+    // is the rendered frame changing, which is what "rendered-pixels" declares.
+    evidence: "rendered-pixels",
     expectedObservable:
       "Editing Canvas width or height changes the artboard and the rendered frame's aspect, and the device stays framed inside the new bounds.",
     fixture: "the default device at the default 1080x1350 canvas",
