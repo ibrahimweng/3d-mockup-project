@@ -774,20 +774,50 @@ function createSurfaceGeometry(
       }
     }
   } else {
-    // An inset top face, a chamfer falling away from it, the sides, and a
+    // An inset top face, an arris rounded away from it, the sides, and a
     // closed underside — because with legs there is an angle that sees it.
-    const face = ring(ease, 0);
-    const brim = ring(0, -ease);
+    //
+    // The arris is turned rather than cut flat. A single chamfer facet has one
+    // normal down its whole length, so on anything polished it is one long
+    // mirror pointed in one direction: the steel top came out with a blown
+    // white band running the entire front edge, at the same brightness end to
+    // end, with the brush lines aliasing into a barcode inside it. Real eased
+    // edges are a radius, and a radius turns the reflection into a gradient
+    // that is only fully bright where it actually faces the light.
+    const ROUND = 4;
+    const levels: Point[][] = [];
+    for (let step = 0; step <= ROUND; step += 1) {
+      const turn = (step / ROUND) * (Math.PI / 2);
+      levels.push(ring(ease * (1 - Math.sin(turn)), -ease * (1 - Math.cos(turn))));
+    }
+    const face = levels[0];
+    const brim = levels[ROUND];
     const under = ring(0, -top);
     quad(face[0], face[3], face[2], face[1]);
-    for (const [upper, lower] of [
-      [face, brim],
-      [brim, under],
-    ]) {
+    // Written out with shared vertices rather than through `quad`, because the
+    // whole point is that the normals blend across it. Independent faces would
+    // give four narrow mirrors in place of one wide one.
+    const arris = positions.length / 3;
+    for (const level of levels) {
+      for (const [x, y, z] of level) {
+        positions.push(x, y, z);
+        uvs.push((x - west) / across, (z - north) / across);
+      }
+    }
+    for (let step = 0; step < ROUND; step += 1) {
       for (let corner = 0; corner < 4; corner += 1) {
         const next = (corner + 1) % 4;
-        quad(upper[corner], upper[next], lower[next], lower[corner]);
+        const upper = arris + step * 4;
+        const lower = arris + (step + 1) * 4;
+        indices.push(
+          upper + corner, upper + next, lower + next,
+          upper + corner, lower + next, lower + corner,
+        );
       }
+    }
+    for (let corner = 0; corner < 4; corner += 1) {
+      const next = (corner + 1) % 4;
+      quad(brim[corner], brim[next], under[next], under[corner]);
     }
     quad(under[0], under[1], under[2], under[3]);
   }

@@ -306,6 +306,44 @@ The quoted evidence must be an exact nontrivial raw substring of `Request` with 
 - Decision: Screen stretch is a power of two rather than a line through 0.5 to 2.
 - Reason: Its own description says the centre leaves the image untouched, and the old mapping made the centre 1.25. `2 ** value` is half at one end, double at the other, exactly one at the middle, and squashes and extends by the same proportion either side.
 
+### Sweeping it again, and what the sweep found
+
+- Decision: The tabletop's arris is turned rather than cut flat.
+- Reason: A single chamfer facet has one normal down its whole length, so on anything polished it is one long mirror pointing one way. The steel top came out with a blown white band running the entire front edge, the same brightness end to end, with the brush lines aliasing into a barcode inside it. A real eased edge is a radius, and a radius turns that into a gradient which is only fully bright where it actually faces the light.
+- Evidence: `createSurfaceGeometry` in `render/device-scene.ts` builds four rings through a quarter turn and writes them with shared vertices, so the normals blend across the edge instead of stepping. Independent faces would have given four narrow mirrors in place of one wide one.
+- Decision: The stone map wraps, and its veins drift.
+- Reason: Two faults, both plain in a three-by-three tile of the map. The vein coordinate advanced by 1.65 vein spacings across the map in x, so the sheets never met themselves and every tile boundary was a hard vertical line — in a file whose own header promises that everything wraps. And the sheets were evenly spaced, all one width and all one darkness, which reads as corrugated card rather than as rock.
+- Evidence: `stone()` in `scripts/make-surface-textures.mjs`. Two thirds rather than 0.55, so the x term advances by a whole number of spacings; a slow, large displacement crowds the spacing in one part of the slab and opens it in another; a second field decides which sheets are strong and how wide. Measured on the map, the columns either side of a wrap differ by 1.26 grey levels against 0.75 for two ordinary neighbours.
+- Decision: The stone tabletop is one slab.
+- Reason: At three tiles the same vein motif appeared nine times on one top, which is a wallpaper however good the map is. Stone is the one material here that has to be sized to the furniture rather than to the material. In the sweep the worst seam on a stone table fell from 3.9 to 3.0 grey levels, and the median across all twenty-five combinations sits at 2.2.
+
+### The harness was wrong four ways
+
+- Decision: Written down rather than quietly fixed, because it means some of the earlier sweep's evidence was worth less than it looked.
+- Reason: A screenshot of the canvas element captures page pixels, and at the viewport being used the control panel overlapped the canvas by a hundred pixels. Every frame carried a static strip of UI, which anchors any image comparison towards "nothing moved". The app also settles, and then redraws again later when the environment map arrives, so a reference frame taken on arrival is lit differently from everything measured against it — warm where the settled frame is neutral.
+- Reason: The picker helper matched any control that merely contained the marker option. "Studio soft" is the name of an environment, not a studio preset, so the pass that reported six studios changed the environment once and the preset five times.
+- Reason: A click on the exact end of a slider track, or the exact corner of an X/Y pad, does not register. One run reported focal length as 24 at both extremes, zoom as 40 at both, and all four framing corners as 0.00, 0.00 — four measurements of the same frame, which would have read as four passes.
+- Evidence: Every number in this entry comes from a harness that shoots at a viewport wide enough to clear the panel, waits for two identical frames before measuring, requires the marker and the target in the same picker, and keeps clicks inside the control. It also reads back what the app has selected and prints it beside each row, because one pattern run labelled every table "stone" and rendered oak; re-run with the readback, the labels hold and the results are unchanged.
+
+### The sweep
+
+Each frame is shot twice over different colours painted behind the canvas, and every pixel that moves is one the canvas did not paint. Calibrated against a case that must fail: with the backdrop switched off the same code reads 84.8 percent transparent, with it on, zero.
+
+| check | result |
+|---|---|
+| 5 devices x 5 surfaces | 0 holes, all 25; median seam 2.2 of 255 |
+| 6 studios x 2 surfaces | 0 holes, all 12 |
+| Window and Blinds, on a table and on the bare set, under two studios | 0 holes, all 12; worst seam 2.8 |
+| Focal length 24mm and 200mm | 0 holes |
+| Zoom 40 and 260 percent | 0 holes |
+| Framing pushed into all four corners | 0 holes |
+| Backdrop height and curve at both limits | 0 holes |
+| Real export, 3277x4096 | alpha never below 255; 0.000 percent transparent |
+| Undo and redo across a preset and a surface | back to the start exactly, forward to the end exactly, over a change worth 184.7 grey levels |
+| Console errors, fresh server | none |
+
+Zooming out and shifting the frame were the two new risks: both widen what the camera can see without enlarging the set, and neither found an edge of it.
+
 ## Verification
 
 - `npm run typecheck` passes.

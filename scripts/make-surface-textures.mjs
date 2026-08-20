@@ -56,6 +56,14 @@ async function stone() {
   // What bends the veins. Veins are straight only in a diagram.
   const warp = fbm(SIZE, SIZE, 3, 4, 4, 59);
   const branch = fbm(SIZE, SIZE, 9, 11, 3, 73);
+  // What stops them being a corrugation. `drift` crowds the spacing in one
+  // part of the slab and opens it out in another; `grade` decides which of the
+  // sheets are strong. Both are very low frequency on purpose — a slow, large
+  // displacement moves whole veins together, where a fast one folds them back
+  // through each other. Without these the sheets come out evenly spaced, all
+  // the same width and all the same darkness, which is a woven fabric.
+  const drift = fbm(SIZE, SIZE, 1, 2, 3, 197);
+  const grade = fbm(SIZE, SIZE, 2, 1, 3, 211);
   // Travertine's voids: small, and wider than they are tall, because they were
   // laid down flat and the slab is cut across them.
   const vug = valueNoise(SIZE, SIZE, 130, 90, 101);
@@ -79,11 +87,26 @@ async function stone() {
       // Warped by well under one spacing. Bend it further and the sheets fold
       // back through each other into closed rings, which reads as camouflage
       // rather than as bedding seen in section.
+      //
+      // Two thirds, not any convenient number: `along` is multiplied by three
+      // below, so the x term has to advance by a whole number of vein spacings
+      // across the map or the sheets do not meet themselves at the edge. It
+      // was 0.55, which advances by 1.65 of them, and left a hard vertical
+      // seam down every tile boundary — visible on the tabletop as a drawn
+      // line, in a file whose own header promises that everything wraps.
       const along =
-        (x * 0.55 + y) / SIZE + (warp[index] - 0.5) * 0.34 + (branch[index] - 0.5) * 0.1;
+        (x * (2 / 3) + y) / SIZE +
+        (drift[index] - 0.5) * 0.55 +
+        (warp[index] - 0.5) * 0.34 +
+        (branch[index] - 0.5) * 0.1;
       const crossing = Math.abs(((along * 3) % 1) - 0.5) * 2;
-      // Narrow and soft-edged: a vein is a stain, not a drawn line.
-      const vein = Math.pow(1 - crossing, 7) * (0.55 + branch[index] * 0.75);
+      // Narrow and soft-edged: a vein is a stain, not a drawn line. How narrow
+      // and how dark both vary across the slab, which is the difference
+      // between rock and ruled lines: the same vein thins and fades along its
+      // length, and its neighbour may be barely there at all.
+      const strength = Math.pow(ramp(0.2, 0.95, grade[index]), 1.5);
+      const vein =
+        Math.pow(1 - crossing, 5 + grade[index] * 7) * (0.1 + strength * 1.5);
 
       // Sparse. Travertine has voids; a honed slab chosen for a tabletop has
       // been filled and polished back, so what is left is the occasional one

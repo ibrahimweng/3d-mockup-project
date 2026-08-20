@@ -130,11 +130,11 @@ export const SURFACE_DEFINITIONS = [
     metalness: 0,
     normalScale: 0.38,
     roughness: 1,
-    // Around half a metre a tile on a table this size, which puts the veins a
-    // hand's width apart. Stone is the one material here where too *many*
-    // tiles is the worse failure: aggregate repeating is invisible, and a vein
-    // repeating is a wallpaper.
-    tiles: 3,
+    // One. A stone tabletop is one slab, and a slab does not repeat: at three
+    // tiles the same vein motif appeared nine times on the top, which is a
+    // wallpaper however good the map is. This is the one material here that
+    // has to be sized to the furniture rather than to the material.
+    tiles: 1,
     value: "stone",
   },
   {
