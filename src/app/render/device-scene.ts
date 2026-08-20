@@ -11,7 +11,11 @@ import type {
   FinishId,
   LightPatternId,
 } from "../product-domain";
-import { readSurfaceDefinition, type SurfaceDefinition } from "../surfaces";
+import {
+  readSurfaceDefinition,
+  SURFACE_LEG,
+  type SurfaceDefinition,
+} from "../surfaces";
 
 /**
  * A device scene: a real GLB lit entirely by a prefiltered environment.
@@ -472,30 +476,32 @@ function creaseNormals(root: THREE.Object3D, angleDegrees: number): void {
  * is no corner in it anywhere, which is the whole point — a corner would draw
  * a line across the frame and the eye would read a room instead of a nowhere.
  *
- * The profile is drawn once in the plane facing the camera and extruded
- * sideways, because that is what the paper is: one shape, dragged along the
- * width of the set.
+ * The profile is swept all the way around rather than dragged sideways, so the
+ * paper closes on itself and the set has no ends. A strip has two, and they
+ * are found the moment anyone orbits: the wall runs out, and past it is
+ * whatever the canvas clears to. Revolving costs a few hundred vertices and
+ * removes the entire class of problem — there is no direction to look in that
+ * finds an edge, because there is no edge.
  */
 function createSweepGeometry(
-  width: number,
-  standoff: number,
+  radius: number,
   curve: number,
   height: number,
 ): THREE.BufferGeometry {
-  // Height above the floor and distance behind the device, walked from the
-  // point where the paper leaves the floor to the top of the wall.
+  // Height above the floor and distance out from the middle of the set, walked
+  // from the point where the paper leaves the floor to the top of the wall.
   const profile: [number, number][] = [];
-  const SEGMENTS = 24;
+  const SEGMENTS = 20;
   for (let index = 0; index <= SEGMENTS; index += 1) {
     const angle = (Math.PI / 2) * (index / SEGMENTS);
     profile.push([
       curve * (1 - Math.cos(angle)),
-      -standoff - curve * Math.sin(angle),
+      radius + curve * Math.sin(angle),
     ]);
   }
   // Above the cove the paper is vertical, and there is only something to add
   // if it was asked to rise further than the bend already takes it.
-  if (height > curve) profile.push([height, -standoff - curve]);
+  if (height > curve) profile.push([height, radius + curve]);
 
   // Texture coordinates run with distance along the profile rather than with
   // the index, so the fade at the top is the same width of paper however many
@@ -510,26 +516,37 @@ function createSweepGeometry(
   });
   const total = travel[travel.length - 1] || 1;
 
-  const half = width / 2;
-  const positions = new Float32Array(profile.length * 2 * 3);
-  const uvs = new Float32Array(profile.length * 2 * 2);
+  // Enough segments around that the wall reads as curved rather than faceted
+  // at the distances a long lens puts it. The seam is a duplicated column of
+  // vertices rather than a shared one, so U can run 0 to 1 without the last
+  // quad having to wrap backwards through the whole map.
+  const AROUND = 72;
+  const columns = AROUND + 1;
+  const positions = new Float32Array(profile.length * columns * 3);
+  const uvs = new Float32Array(profile.length * columns * 2);
   for (let index = 0; index < profile.length; index += 1) {
-    const [up, back] = profile[index];
-    for (let side = 0; side < 2; side += 1) {
-      const vertex = index * 2 + side;
-      positions[vertex * 3] = side === 0 ? -half : half;
+    const [up, out] = profile[index];
+    for (let column = 0; column < columns; column += 1) {
+      const turn = (column / AROUND) * Math.PI * 2;
+      const vertex = index * columns + column;
+      positions[vertex * 3] = Math.sin(turn) * out;
       positions[vertex * 3 + 1] = up;
-      positions[vertex * 3 + 2] = back;
-      uvs[vertex * 2] = side;
+      positions[vertex * 3 + 2] = -Math.cos(turn) * out;
+      uvs[vertex * 2] = column / AROUND;
       uvs[vertex * 2 + 1] = travel[index] / total;
     }
   }
 
   const indices: number[] = [];
   for (let index = 0; index < profile.length - 1; index += 1) {
-    const a = index * 2;
-    // Wound so the face the camera sees is the front one.
-    indices.push(a, a + 1, a + 3, a, a + 3, a + 2);
+    for (let column = 0; column < AROUND; column += 1) {
+      const a = index * columns + column;
+      const b = a + 1;
+      const c = a + columns;
+      const d = c + 1;
+      // Wound so the faces point inwards, at the camera standing in the set.
+      indices.push(a, c, d, a, d, b);
+    }
   }
 
   const geometry = new THREE.BufferGeometry();
@@ -563,90 +580,150 @@ function createSweepGeometry(
  * product is a defect however well it reads on the floor.
  */
 /**
- * The table: a top, a front face, and the edge between them.
+ * The table: a chamfered top, and legs under it if it is that kind of table.
  *
- * A box would do most of this, and does not, for one reason. The edge is the
- * whole photograph, and a mathematically sharp edge is the one thing real
- * furniture never has — every worked surface carries an eased arris a
- * millimetre or two across, and that tiny band is what catches the key and
- * draws the bright line along the front of every table you have ever seen
- * photographed. Modelling it costs one extra row of vertices.
+ * Two things make furniture read as furniture rather than as floor. The first
+ * is the eased arris — every worked surface carries one a millimetre or two
+ * across, and that tiny band is what catches the key and draws the bright line
+ * along the front of every table you have ever seen photographed. A
+ * mathematically sharp edge is the one thing real furniture never has.
  *
- * Only the faces that can be seen are built. The underside and the back are
- * left off: the back runs into the backdrop and the underside is below a
- * camera that is always above the surface it is standing something on.
+ * The second is that you can see under it. A block that runs out of the bottom
+ * of frame is a plinth: it tells you the device is standing on something, and
+ * nothing else. Legs, an underside, and the backdrop carrying on behind them
+ * tell you the device is standing on an object, in a room, and that is the
+ * whole difference between a staged photograph and a rendering.
+ *
+ * Everything is measured from the device, not from the middle of the top, so
+ * the device can sit near one corner with two edges running away from it.
  */
 function createSurfaceGeometry(
   surface: DeviceSurface,
   radius: number,
+  legs: boolean,
 ): THREE.BufferGeometry {
-  const halfWidth = surface.halfWidth * radius;
-  const front = surface.front * radius;
-  const back = surface.back * radius;
-  const thickness = surface.thickness * radius;
-  // The eased arris. Sized against the subject rather than against the block,
-  // because the block runs out of frame and would give a chamfer you could sit
-  // on; what is wanted is the millimetre of relief that catches the key and
-  // draws the bright line along the front of every photographed table.
-  const ease = radius * 0.045;
+  const west = -surface.left * radius;
+  const east = surface.right * radius;
+  const north = -surface.back * radius;
+  const south = surface.front * radius;
+  const top = surface.top * radius;
+  // Sized against the subject rather than against the top, because the top
+  // runs out of frame and would give a chamfer you could sit on.
+  const ease = Math.min(radius * 0.04, top * 0.45);
+  // UVs are divided through by one length in both directions, so texels come
+  // out square and a material declares one repeat count rather than two.
+  const across = east - west;
 
-  // The profile again, as with the sweep: height and depth, walked from the
-  // back of the top surface, over the front edge, and down the face. Depth is
-  // the camera's axis, so behind the device is negative and towards the viewer
-  // is positive.
-  const profile: [number, number][] = [
-    [0, -back],
-    [0, front - ease],
-    [-ease, front],
-    [-thickness, front],
-  ];
-
-  const positions = new Float32Array(profile.length * 2 * 3);
-  const uvs = new Float32Array(profile.length * 2 * 2);
-  const width = halfWidth * 2;
-  /**
-   * V runs along the profile by distance walked, not by depth.
-   *
-   * Two of the four profile points sit at the same depth — the top of the
-   * front face and the bottom of it — so a V taken from depth hands the whole
-   * face a single value, and any map on it arrives as one row of pixels
-   * smeared down the front of the table. Measuring the walk gives the face its
-   * own run of map, and it comes out continuous with the top, which is what a
-   * grain does when it turns an edge.
-   *
-   * Both axes are divided by the same width, so texels stay square and a
-   * material has one repeat count to declare rather than two.
-   */
-  let travelled = 0;
-  for (let index = 0; index < profile.length; index += 1) {
-    const [up, depth] = profile[index];
-    if (index > 0) {
-      const [wasUp, wasDepth] = profile[index - 1];
-      travelled += Math.hypot(up - wasUp, depth - wasDepth);
-    }
-    for (let side = 0; side < 2; side += 1) {
-      const vertex = index * 2 + side;
-      const across = side === 0 ? -halfWidth : halfWidth;
-      positions[vertex * 3] = across;
-      positions[vertex * 3 + 1] = up;
-      positions[vertex * 3 + 2] = depth;
-      uvs[vertex * 2] = (across + halfWidth) / width;
-      uvs[vertex * 2 + 1] = travelled / width;
-    }
-  }
-
+  const positions: number[] = [];
+  const uvs: number[] = [];
   const indices: number[] = [];
-  for (let index = 0; index < profile.length - 1; index += 1) {
-    const a = index * 2;
-    indices.push(a, a + 2, a + 3, a, a + 3, a + 1);
+
+  /**
+   * One box, given its two opposite corners.
+   *
+   * Written out rather than taken from `BoxGeometry` because each face needs
+   * UVs in the table's own units — a box's own unwrap puts nought-to-one on
+   * every face regardless of how big the face is, which tiles a leg with the
+   * whole map and the top with the whole map and makes them different
+   * materials by accident.
+   */
+  const box = (
+    x0: number,
+    y0: number,
+    z0: number,
+    x1: number,
+    y1: number,
+    z1: number,
+  ): void => {
+    const faces: [number[], number[], number[], number[]][] = [
+      // Each face as four corners, wound to face outwards.
+      [[x0, y1, z0], [x0, y1, z1], [x1, y1, z1], [x1, y1, z0]], // up
+      [[x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1]], // down
+      [[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], // south
+      [[x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0]], // north
+      [[x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1]], // east
+      [[x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0]], // west
+    ];
+    for (const face of faces) {
+      const base = positions.length / 3;
+      for (const [x, y, z] of face) {
+        positions.push(x, y, z);
+        // Projected from world position: whichever pair of axes the face
+        // spans is the pair the map is read with, so the grain runs on across
+        // an edge instead of restarting at it.
+        const spansX = face[0][0] !== face[2][0];
+        const spansZ = face[0][2] !== face[2][2];
+        uvs.push(
+          (spansX ? x - west : z - north) / across,
+          (spansZ && spansX ? z - north : -y) / across,
+        );
+      }
+      indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    }
+  };
+
+  /** A ring of four corners, inset by `offset`, at height `y`. */
+  const ring = (offset: number, y: number): number => {
+    const base = positions.length / 3;
+    const corners: [number, number][] = [
+      [west + offset, north + offset],
+      [east - offset, north + offset],
+      [east - offset, south - offset],
+      [west + offset, south - offset],
+    ];
+    for (const [x, z] of corners) {
+      positions.push(x, y, z);
+      uvs.push((x - west) / across, (z - north) / across);
+    }
+    return base;
+  };
+
+  if (legs) {
+    const thick = surface.leg * radius;
+    // Set in from the corners by their own thickness, which is where a leg
+    // goes on a table anyone has actually built.
+    const inset = thick * 1.4;
+    const floor = -surface.stand * radius;
+    for (const x of [west + inset, east - inset - thick]) {
+      for (const z of [north + inset, south - inset - thick]) {
+        box(x, floor, z, x + thick, -top, z + thick);
+      }
+    }
+  } else {
+    // The top: an inset face, a chamfer falling away from it, and the sides.
+    const face = ring(ease, 0);
+    const brim = ring(0, -ease);
+    const under = ring(0, -top);
+    indices.push(face, face + 2, face + 1, face, face + 3, face + 2);
+    for (const [from, to] of [
+      [face, brim],
+      [brim, under],
+    ]) {
+      for (let corner = 0; corner < 4; corner += 1) {
+        const next = (corner + 1) % 4;
+        indices.push(
+          from + corner,
+          to + corner,
+          to + next,
+          from + corner,
+          to + next,
+          from + next,
+        );
+      }
+    }
+    // Closed underneath, because with legs there is an angle that sees it.
+    indices.push(under, under + 1, under + 2, under, under + 2, under + 3);
   }
 
   const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+  geometry.setAttribute(
+    "position",
+    new THREE.BufferAttribute(new Float32Array(positions), 3),
+  );
+  geometry.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(uvs), 2));
   geometry.setIndex(indices);
   // Flat, because the arris is the point. Smoothing it away would average the
-  // top into the face and put a soft gradient where the highlight belongs.
+  // top into the chamfer and put a soft gradient where the highlight belongs.
   geometry.computeVertexNormals();
   return geometry;
 }
@@ -787,7 +864,29 @@ function createSweepFade(): THREE.Texture {
  * opacity, because three multiplies the two: an opacity of 0.3 would take the
  * whole floor to thirty percent, edges included, and the sweep would vanish.
  */
-function createFloorFade(reflection: number): THREE.Texture {
+/**
+ * How far the floor plane runs out, in subject radii from the middle.
+ *
+ * Larger than the furthest the cove is allowed to stand, so the two always
+ * meet. Everything past the cove is behind an opaque wall and costs nothing.
+ */
+const FLOOR_HALF_EXTENT = 34;
+
+/** The furthest out the paper may stand, in subject radii. */
+const COVE_MAX = 28;
+
+/**
+ * How far the table is turned away from square.
+ *
+ * Enough that the near corner leads and both edges are legibly receding,
+ * little enough that the top still reads as a flat plane the device is
+ * standing squarely on rather than as a ramp. Measured against the render at
+ * the default framing: at eight degrees it looks like a mistake, and past
+ * twenty-five the device starts to look dropped onto a moving surface.
+ */
+const TABLE_YAW = (16 * Math.PI) / 180;
+
+function createFloorFade(reflection: number, dissolve: boolean): THREE.Texture {
   const size = 256;
   const canvas = document.createElement("canvas");
   canvas.width = size;
@@ -810,13 +909,25 @@ function createFloorFade(reflection: number): THREE.Texture {
     // A tall device reflects further from its contact point than a small one,
     // and a fade that reaches three radii leaves a monitor's reflection nearly
     // untouched, so the pool closes within a few percent of the plane.
+    // The stops are written in subject radii and converted, so the reflection
+    // pool stays the size it was when the plane under it grew to reach the
+    // cove. A gradient defined in the plane's own coordinates would have
+    // scaled the pool with the floor and made the reflection change size with
+    // the focal length.
+    const at = (radii: number): number => (radii / FLOOR_HALF_EXTENT) * 0.5;
     gradient.addColorStop(0, `#${hex}${hex}${hex}`);
-    gradient.addColorStop(0.015, `#${hex}${hex}${hex}`);
-    gradient.addColorStop(0.07, "#ffffff");
-    // Ten radii of solid floor, which is far outside any framing of the
-    // device, and then ten more to disappear across.
-    gradient.addColorStop(0.5, "#ffffff");
-    gradient.addColorStop(1, "#000000");
+    gradient.addColorStop(at(0.3), `#${hex}${hex}${hex}`);
+    gradient.addColorStop(at(1.4), "#ffffff");
+    // Past the reflection the floor is simply floor, and what happens at its
+    // rim depends on whether anything is standing there.
+    //
+    // With a backdrop up, nothing: the cove rises out of the floor and takes
+    // over, so the floor has to arrive at full strength or there is a ring of
+    // half-floor where the two meet. With no backdrop, the rim is the edge of
+    // the world and has to be got rid of, so it dissolves — into the scene
+    // background, which is now a real colour rather than a hole in the canvas.
+    gradient.addColorStop(dissolve ? at(10) : 1, "#ffffff");
+    gradient.addColorStop(1, dissolve ? "#000000" : "#ffffff");
     context.fillStyle = gradient;
     context.fillRect(0, 0, size, size);
   }
@@ -1133,6 +1244,17 @@ export async function buildDeviceScene(options: {
   scene.add(subject);
 
   const groundY = bounds.min.y - centre.y;
+  /**
+   * Where the room's floor is, which is not where the device's feet are.
+   *
+   * With no table the two are the same: the device stands on the ground. Put a
+   * table under it and the ground has to drop by the height of the table,
+   * because the device has not moved — it is standing on the top, and the top
+   * is where its feet always were. Everything that belongs to the room rather
+   * than to the subject hangs off this: the floor plane, the foot of the cove,
+   * the lamp that washes it.
+   */
+  let floorY = groundY;
   let groundMesh: THREE.Mesh | null = null;
   let groundSurface: THREE.MeshStandardMaterial | null = null;
 
@@ -1176,9 +1298,11 @@ export async function buildDeviceScene(options: {
   let groundVisible = options.showGround;
 
   {
+    // Wider than the paper can ever stand out, so the floor always arrives at
+    // the foot of the cove rather than stopping short of it in a ring.
     const groundGeometry = new THREE.PlaneGeometry(
-      sphere.radius * 40,
-      sphere.radius * 40,
+      sphere.radius * FLOOR_HALF_EXTENT * 2,
+      sphere.radius * FLOOR_HALF_EXTENT * 2,
     );
     const groundMaterial = new THREE.MeshStandardMaterial({
       color: new THREE.Color(options.backgroundColor),
@@ -1194,7 +1318,7 @@ export async function buildDeviceScene(options: {
       options.showGround ? groundMaterial : shadowMaterial,
     );
     ground.rotation.x = -Math.PI / 2;
-    ground.position.y = groundY - sphere.radius * 0.002;
+    ground.position.y = floorY - sphere.radius * 0.002;
     ground.receiveShadow = true;
     ground.renderOrder = 0;
     scene.add(ground);
@@ -1267,19 +1391,36 @@ export async function buildDeviceScene(options: {
    * throws the old strip away and lays a new one. It is a hundred vertices, so
    * doing that on every frame of a drag costs less than deciding not to.
    */
+  /**
+   * How far out the paper stands.
+   *
+   * Far enough that the camera is always inside it. That is not a nicety: the
+   * paper is drawn double-sided, so a camera that ends up outside the set sees
+   * the back of the wall, and a two-hundred-millimetre lens pulls back four
+   * times as far as a twenty-four does. The framing distance is derived from
+   * the subject and the field of view, so it can simply be read off the camera
+   * that was placed with it.
+   *
+   * Quantised, because this is consulted whenever the camera moves and the
+   * answer is a vertex buffer. A focal-length drag should recut the set a
+   * handful of times, not sixty times a second.
+   */
+  const COVE_STEP = 2;
+  /** The radius the current paper was cut to, so it is not recut for nothing. */
+  let builtCoveRadius = 0;
+  /** What the wash lamp has to run at to reach paper standing that far out. */
+  let sweepFalloff = 30;
+  const coveRadius = (): number => {
+    const framing = camera.position.length() / sphere.radius;
+    const wanted = Math.min(COVE_MAX, Math.max(6, framing * 1.45));
+    return sphere.radius * Math.ceil(wanted / COVE_STEP) * COVE_STEP;
+  };
+
   const applySweep = (sweep: SweepSettings): void => {
     if (!sweepMesh) return;
     const height = Math.max(0, Math.min(1, sweep.height));
     const curve = Math.max(0, Math.min(1, sweep.curve));
-    // Behind whatever the device is standing on, and exactly at its back edge
-    // rather than beyond it. A gap there is a strip of nothing between the
-    // table and the paper, which is the one place a viewer can see that the
-    // set is two objects rather than a room.
-    const tableBack =
-      surfaceKind !== "none" && options.device.surface
-        ? options.device.surface.back
-        : 0;
-    const standoff = sphere.radius * Math.max(2.5, tableBack);
+    const standoff = coveRadius();
     const bend = sphere.radius * (0.4 + 7.6 * curve);
     sweepHeight = height;
     sweepMesh.visible = groundVisible && height > 0;
@@ -1288,21 +1429,19 @@ export async function buildDeviceScene(options: {
     // light moves as much as when the paper does. Recutting the strip either
     // way would throw away a vertex buffer and upload another one on every
     // frame of a drag that had nothing to do with the backdrop.
-    const shape = `${height}/${curve}`;
+    builtCoveRadius = standoff;
+    const shape = `${height}/${curve}/${standoff}/${floorY}`;
     if (height > 0 && shape !== sweepShape) {
       sweepShape = shape;
       sweepGeometry?.dispose();
       sweepGeometry = createSweepGeometry(
-        sphere.radius * 40,
-        // Far enough back to be out of the device's own contact shadow, close
-        // enough that the light reaching it is the light on the device.
         standoff,
         bend,
         sphere.radius * 16 * height,
       );
       sweepMesh.geometry = sweepGeometry;
       // The paper leaves the floor, so it starts where the floor is.
-      sweepMesh.position.y = groundY - sphere.radius * 0.0015;
+      sweepMesh.position.y = floorY - sphere.radius * 0.0015;
     }
 
     if (sweepLight) {
@@ -1314,8 +1453,12 @@ export async function buildDeviceScene(options: {
         // climbs. That gradient is what the sweep is prized for.
         sweepLight.position.set(
           0,
-          groundY + sphere.radius * 0.35,
-          -standoff - bend * 0.12,
+          floorY + sphere.radius * 0.35,
+          // Just inside the foot of the paper rather than tucked behind it.
+          // The cove leans away as it rises, so a lamp set even slightly
+          // beyond the foot ends up on the wrong side of a wall that is
+          // nearly vertical whenever the bend is shallow.
+          -standoff + sphere.radius * 0.3,
         );
         // And it is given a range that runs out before it gets to the device.
         // This is the card the gaffer puts beside it, done the only way this
@@ -1325,6 +1468,11 @@ export async function buildDeviceScene(options: {
         // range leaves its own reflection sitting under the device like a
         // puddle nobody put there.
         sweepLight.distance = standoff + bend * 0.12;
+        // Inverse-square, and the paper is now as far away as the framing
+        // needs it to be rather than at a fixed two and a half radii. Without
+        // this the graduation quietly disappears on a long lens, which pushes
+        // the whole set back and takes four times the light with it.
+        sweepFalloff = (standoff / sphere.radius) ** 2 * 4.8;
       } else {
         // With no paper there is nothing behind to wash, and the only surface
         // left is the floor — so the lamp goes overhead instead and the pool
@@ -1336,7 +1484,7 @@ export async function buildDeviceScene(options: {
         // gone wrong: it is what a spotlight is.
         sweepLight.position.set(
           0,
-          groundY + sphere.radius * 3.4,
+          floorY + sphere.radius * 3.4,
           -sphere.radius * 0.5,
         );
         sweepLight.distance = 0;
@@ -1346,7 +1494,7 @@ export async function buildDeviceScene(options: {
       // tucked lamp is inches from what it lights and the overhead one is
       // several radii above it, so the same slider has to mean different
       // amounts of light in the two placements to arrive at the same strength.
-      const reach = height > 0 ? 30 : 42;
+      const reach = height > 0 ? sweepFalloff : 42;
       sweepLight.intensity = strength * reach * sphere.radius * sphere.radius;
       sweepLight.visible = groundVisible && strength > 0;
     }
@@ -1362,6 +1510,8 @@ export async function buildDeviceScene(options: {
    */
   let surfaceMesh: THREE.Mesh | null = null;
   let surfaceGeometry: THREE.BufferGeometry | null = null;
+  let legMesh: THREE.Mesh | null = null;
+  let legGeometry: THREE.BufferGeometry | null = null;
   let surfaceKind = "none";
   /** Remembered so a table can re-place the paper without being handed it. */
   let lastSweep: SweepSettings = options.sweep;
@@ -1433,17 +1583,52 @@ export async function buildDeviceScene(options: {
         if (surfaceDressed === definition.value) surfaceDressed = "";
       });
   };
+  /**
+   * The legs, as their own mesh.
+   *
+   * Separate because they are a different material, and a different material
+   * is the whole reason they read: a thin dark metal post under a pale stone
+   * top is the shape of every table anyone photographs a computer on. Merged
+   * into the top they would have had to wear a stone map at a scale chosen for
+   * a surface a hundred times their width, which tiles one vein down the
+   * length of a leg and reads as a painted stick.
+   */
+  const legSurface = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(SURFACE_LEG.color),
+    metalness: SURFACE_LEG.metalness,
+    roughness: SURFACE_LEG.roughness,
+  });
   {
-    const mesh = new THREE.Mesh(new THREE.BufferGeometry(), surfaceSurface);
-    // It takes the device's shadow and throws none of its own. A block this
-    // deep standing against the paper behind it casts a hard black band right
-    // along the join — true of a table pulled away from a wall, and wrong for
-    // the one thing a set is built to avoid, which is a visible seam between
-    // the surface and the backdrop.
-    mesh.castShadow = false;
+    const mesh = new THREE.Mesh(new THREE.BufferGeometry(), legSurface);
+    mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.visible = false;
     mesh.position.y = groundY;
+    mesh.rotation.y = TABLE_YAW;
+    scene.add(mesh);
+    legMesh = mesh;
+    disposables.push(legSurface, {
+      dispose: () => legGeometry?.dispose(),
+    });
+  }
+
+  {
+    const mesh = new THREE.Mesh(new THREE.BufferGeometry(), surfaceSurface);
+    // It throws a shadow now, and has to. It is an object standing on a floor
+    // with a room behind it, and an object that takes light without returning
+    // any is the single clearest tell that a scene was assembled rather than
+    // photographed. The reason it did not before was that it was a plinth
+    // pressed against the paper, where its shadow was a black band along the
+    // join; a table with air behind it has no such join.
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.visible = false;
+    mesh.position.y = groundY;
+    // Turned, so a corner leads and two edges run away from it. A rectangle
+    // presented square-on gives one edge doing all the work and reads as a
+    // shelf; the three-quarter view is what says furniture. The device is left
+    // facing the camera, because it is the subject and the table is the set.
+    mesh.rotation.y = TABLE_YAW;
     scene.add(mesh);
     surfaceMesh = mesh;
     disposables.push(surfaceSurface, {
@@ -1472,16 +1657,31 @@ export async function buildDeviceScene(options: {
     if (wanted !== surfaceKind) {
       surfaceKind = wanted;
       dressSurface(definition);
+      // The device has not moved: it is standing on the top, and the top is
+      // where its feet already were. So it is the room that drops.
+      floorY =
+        on && options.device.surface
+          ? groundY - options.device.surface.stand * sphere.radius
+          : groundY;
+      placeFloor();
       if (on && options.device.surface) {
         surfaceGeometry?.dispose();
         surfaceGeometry = createSurfaceGeometry(
           options.device.surface,
           sphere.radius,
+          false,
         );
         if (surfaceMesh) surfaceMesh.geometry = surfaceGeometry;
+        legGeometry?.dispose();
+        legGeometry =
+          options.device.surface.leg > 0
+            ? createSurfaceGeometry(options.device.surface, sphere.radius, true)
+            : null;
+        if (legMesh) legMesh.geometry = legGeometry ?? new THREE.BufferGeometry();
       }
     }
     if (surfaceMesh) surfaceMesh.visible = on && groundVisible;
+    if (legMesh) legMesh.visible = on && groundVisible && legGeometry !== null;
     updateMirrorVisibility();
     applyGroundVisibility();
     applyFloorEnvironment();
@@ -1490,6 +1690,8 @@ export async function buildDeviceScene(options: {
 
   /** How much reflection the floor is currently letting through. */
   let floorReflection = 0;
+  /** Whether the floor's rim is currently drawn as dissolving. */
+  let floorDissolves = true;
   /** The floor's own share of the captured room, 0 to 1. */
   let floorEnvironment = 1;
 
@@ -1550,6 +1752,38 @@ export async function buildDeviceScene(options: {
       camera.position.y > ground.position.y;
   };
 
+  /** Move the room to wherever its floor now is. */
+  const placeFloor = (): void => {
+    if (groundMesh) groundMesh.position.y = floorY - sphere.radius * 0.002;
+    mirror.position.y = 2 * floorY - subject.position.y;
+  };
+
+  /**
+   * Put something behind everything, or nothing at all.
+   *
+   * The renderer is built with `alpha: true` and clears to transparent, which
+   * is exactly right for an export with the backdrop off: the device and its
+   * shadow come out on a clear ground. With the backdrop *on* it was the
+   * reason the set visibly stopped — above the paper, past the floor's rim and
+   * out at the sides there was no geometry, so the canvas was simply
+   * see-through and what showed was the page behind it. A set that ends in a
+   * hole is not a set.
+   *
+   * So the backdrop colour goes in as the scene's own background. The paper
+   * still does the work in frame; this is what the paper fades into instead of
+   * into nothing, and it means no framing, focal length or orbit can find an
+   * edge to fall off.
+   */
+  const applyBackground = (): void => {
+    if (!groundVisible) {
+      scene.background = null;
+      return;
+    }
+    const colour = groundSurface?.color ?? new THREE.Color(options.backgroundColor);
+    if (scene.background instanceof THREE.Color) scene.background.copy(colour);
+    else scene.background = colour.clone();
+  };
+
   /**
    * The floor plane has two jobs, and a table only takes one of them.
    *
@@ -1561,9 +1795,12 @@ export async function buildDeviceScene(options: {
    * of.
    */
   const applyGroundVisibility = (): void => {
-    if (groundMesh) {
-      groundMesh.visible = surfaceKind === "none" || !groundVisible;
-    }
+    // The floor stays. It used to stand down for a table, because the table
+    // was a plinth filling the bottom of frame and two surfaces at one height
+    // would have fought over every pixel. Now the table stands *on* the floor
+    // with the room continuing under and around it, so hiding the floor would
+    // leave the legs in mid-air over nothing.
+    if (groundMesh) groundMesh.visible = true;
   };
 
   let floorFade: THREE.Texture | null = null;
@@ -1585,9 +1822,11 @@ export async function buildDeviceScene(options: {
       // where it has to dissolve rather than end — so the map and the
       // transparent pass are not optional. Only its centre depends on the
       // setting, which is the one thing that has to be redrawn.
-      if (next !== floorReflection || !floorFade) {
+      const dissolve = sweepHeight <= 0;
+      if (next !== floorReflection || dissolve !== floorDissolves || !floorFade) {
+        floorDissolves = dissolve;
         floorFade?.dispose();
-        floorFade = createFloorFade(next);
+        floorFade = createFloorFade(next, dissolve);
         groundSurface.alphaMap = floorFade;
         groundSurface.transparent = true;
         // A floor that wrote depth would hide the mirrored device beneath it
@@ -1882,6 +2121,7 @@ export async function buildDeviceScene(options: {
   // the slab afterwards.
   await surfaceReady;
   applySweep(options.sweep);
+  applyBackground();
   disposables.push({ dispose: () => floorFade?.dispose() });
 
   const placeKey = (direction: { x: number; y: number }): THREE.Vector3 => {
@@ -1895,7 +2135,13 @@ export async function buildDeviceScene(options: {
 
   return {
     camera,
-    onCameraMoved: updateMirrorVisibility,
+    onCameraMoved: () => {
+      updateMirrorVisibility();
+      // A longer lens stands the camera further back, and the set has to be
+      // bigger than wherever the camera has gone. Recut only when the answer
+      // actually changes, which a quantised radius makes rare.
+      if (coveRadius() !== builtCoveRadius) applySweep(lastSweep);
+    },
     getScreenSlack: () => ({ x: slack.x, y: slack.y }),
     screenMeshes,
     setEnvironment: (next) => {
@@ -1932,9 +2178,12 @@ export async function buildDeviceScene(options: {
       sweepSurface?.color.set(color);
       // A table is part of the backdrop, so it goes when the backdrop does and
       // hands the floor back its other job.
-      if (surfaceMesh) surfaceMesh.visible = surfaceKind !== "none" && visible;
+      const staged = surfaceKind !== "none" && visible;
+      if (surfaceMesh) surfaceMesh.visible = staged;
+      if (legMesh) legMesh.visible = staged && legGeometry !== null;
       applyGroundVisibility();
       applyBounce();
+      applyBackground();
       // The reflection lives on the backdrop, so it goes when the backdrop
       // does: there is nothing for it to be seen through.
       updateMirrorVisibility();

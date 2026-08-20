@@ -206,6 +206,27 @@ The quoted evidence must be an exact nontrivial raw substring of `Request` with 
 - Risk: The tile count is fixed per material while the table is sized against the device, so texel scale varies about threefold across the three devices a table is offered for. Tuned against the MacBook. A fourth device far outside that range would want a physical size in the catalog rather than a repeat count.
 - Risk: The acceptance row `surface.kind.material` names an automated test and a browser test that do not exist. That is true of every product row in this file's acceptance data — the e2e suite covers the Toolcraft harness and not this product — so it is a standing gap rather than one this change opened.
 
+### Staging
+
+- Decision: The backdrop is a surface of revolution sized to contain the camera, and the scene carries a real background colour whenever the backdrop is on.
+- Reason: Reported as the backdrop cutting rather than flowing around the scene. Two separate causes. The paper was an extruded strip with two ends, found the moment anyone orbited; and the renderer is built with `alpha: true`, so everywhere the set's geometry did not reach — above the paper, past the floor's rim, out at the sides — the canvas was simply see-through and what showed was the page behind it. A set that ends in a hole is not a set.
+- Evidence: `createSweepGeometry` in `render/device-scene.ts` sweeps the cove profile through a full turn; `coveRadius` reads the framing distance off the camera it was placed with and quantises it, so a two-hundred-millimetre lens standing the camera four times further back gets a set four times larger rather than a view of the outside of the wall. `applyBackground` sets `scene.background` when the backdrop is showing and clears it for a transparent export. The floor's rim fade now only dissolves when there is no cove for it to meet, and the plane grew to `FLOOR_HALF_EXTENT` so it always arrives at the foot of one.
+- Risk: The wash lamp's intensity is now derived from the cove's distance rather than fixed, because inverse-square over a set that can quadruple in size would otherwise lose the graduation entirely on a long lens.
+
+### Furniture
+
+- Decision: A surface is a piece of furniture standing on a floor: a chamfered top turned sixteen degrees off square, legs on the three large devices, a slab on the two small ones, and the room's floor dropping by the height of it.
+- Reason: The previous table was a plinth — full width, running out of every side of frame, with the floor hidden behind it. That reads as a change of floor rather than as an object, and it cannot be photographed from below at all. What separates furniture from ground is that you can get under it: legs, an underside, and the backdrop carrying on behind them.
+- Evidence: `DeviceSurface` is now measured from the device in four directions rather than symmetrically, so the device sits near one corner with two short edges reading and the top continuing out of frame behind and to the right. `floorY` in `render/device-scene.ts` drops by `surface.stand` when a table appears — the device has not moved, it is standing on the top and the top is where its feet already were — and the floor, the foot of the cove and the wash lamp all hang off it. The top casts a shadow now, which it could not when it was a plinth pressed against the paper. Driven in Chromium across all five devices and both materials, and orbited below the tabletop: the underside is closed, the legs shade, and the device is correctly occluded by its own table.
+- Decision: Legs are a separate mesh in dark satin metal at 0.45 metalness.
+- Reason: A stone slab on stone stilts is a plinth and an oak top on oak posts is a farmhouse table. More practically, merged into the top they would have worn a tiling map at a scale chosen for a surface a hundred times their width. The first attempt at 0.85 metalness over a near-black base came out as a flat silhouette — metals have no diffuse response, so under a low environment there was nothing left to shade the corners with.
+
+### Stone
+
+- Decision: The concrete maps are replaced by honed veined limestone, and the option is called Stone.
+- Reason: Asked for natural stone rather than a manufactured surface. The two are built the other way up from each other: a pour is homogeneous by construction, so its character is small and even, while a bed of limestone was laid down over an age and cut across, so its character is large — broad tonal drift and veins that run somewhere.
+- Evidence: `stone()` in `scripts/make-surface-textures.mjs`. The veins come from bending a coordinate that runs across the slab and taking where it crosses a whole number, warped by well under one spacing — bending it further folds the sheets back through each other into closed rings, which reads as camouflage rather than as bedding seen in section. Voids are sparse rather than a field, because at the density the first pass used it read as sandstone.
+
 ## Verification
 
 - `npm run typecheck` passes.

@@ -82,24 +82,41 @@ export type DeviceFinish = {
  * the line the whole thing is for, and how far it sits from the device decides
  * whether the shot reads as a product on a surface or a product near a cliff.
  */
+/**
+ * The piece of furniture a device stands on, in subject radii.
+ *
+ * Measured from the device rather than from the middle of the table, and
+ * deliberately not symmetrical. A device sitting dead centre on a rectangle is
+ * a diagram; a device set near one corner, with two edges running away from it
+ * and the rest of the top continuing out of frame, is a photograph. So `front`
+ * and `left` are short — those are the edges that read — and `back` and
+ * `right` are long.
+ */
 export type DeviceSurface = {
   /** How far the top runs behind the device, towards the backdrop. */
   back: number;
   /** How far the front edge sits in front of the device. */
   front: number;
-  /** Half the width, so the table runs off both sides of any sane framing. */
-  halfWidth: number;
   /**
-   * How far the front face drops below the top.
-   *
-   * Deep enough to leave the bottom of frame, because the alternative is worse
-   * than it sounds: a thin top with nothing under it puts a band of dead black
-   * across the lower third of every shot, and the eye reads that as the picture
-   * having failed rather than as a table being thin. A block that runs out of
-   * frame is the plinth in your MacBook reference, and it needs no legs, no
-   * floor behind it and no second surface to make sense of.
+   * Square section of one leg. Zero for a slab, which stands on the floor and
+   * has no underside to see.
    */
-  thickness: number;
+  leg: number;
+  /** How far the left edge sits from the device: the near edge when turned. */
+  left: number;
+  /**
+   * How far the floor sits below the top.
+   *
+   * This is what makes it furniture rather than a plinth. The floor drops by
+   * this much when the table appears, so the room continues underneath it and
+   * a low camera sees legs, an underside, and the backdrop carrying on behind
+   * them. For a slab it is the thickness of the slab and nothing more.
+   */
+  stand: number;
+  /** How far the right edge sits from the device. */
+  right: number;
+  /** How thick the top is. */
+  top: number;
 };
 
 export type MaterialCorrection = {
@@ -310,6 +327,18 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
     },
     label: "Apple Watch Ultra",
     modelFile: "apple-watch-ultra.glb",
+    // A slab rather than a table. A watch on a desk is a watch photographed
+    // from too far away; what it wants is a plate it is standing on, seen from
+    // above, with the room continuing past it at the same level.
+    surface: {
+      back: 2.6,
+      front: 1.1,
+      leg: 0,
+      left: 1.5,
+      stand: 0.34,
+      right: 3.2,
+      top: 0.34,
+    },
     screenMaterial: "Material.004",
   },
   "iphone-17-pro-max": {
@@ -319,6 +348,15 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
     finishes: PHONE_FINISHES,
     label: "iPhone 17 Pro Max",
     modelFile: "iphone-5.glb",
+    surface: {
+      back: 2.4,
+      front: 1,
+      leg: 0,
+      left: 1.4,
+      stand: 0.3,
+      right: 3,
+      top: 0.3,
+    },
     // The file is named for an iPhone 5 but holds a 17 Pro Max in orange, with
     // the display material renamed. The catalog is named for what it renders.
     //
@@ -343,10 +381,19 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
       silver: { body: "#cfd2d6" },
     },
     label: "MacBook",
-    // A desk it sits on rather than fills: the edge lands just outside the
-    // palm rest, close enough to be the composition and far enough that the
-    // laptop is not teetering on it.
-    surface: { back: 7, front: 0.82, halfWidth: 5.2, thickness: 9 },
+    // A desk it sits on rather than fills. The near edges land just outside
+    // the palm rest — close enough to be the composition, far enough that the
+    // laptop is not teetering — and the top carries on behind and to the right
+    // until it leaves frame, which is what a desk does.
+    surface: {
+      back: 2.4,
+      front: 0.88,
+      leg: 0.1,
+      left: 1.25,
+      stand: 3.6,
+      right: 3.4,
+      top: 0.22,
+    },
     modelFile: "macbook.glb",
     // 16:10. The open lid is modelled at its hinge angle, so the panel's local
     // bounding box spans three axes and measuring it would report 0.61.
@@ -387,7 +434,15 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
     // Further forward than the MacBook's. The iMac's foot is already near the
     // front of its own bounding sphere, so an edge measured the same way would
     // cut through the stand.
-    surface: { back: 6.5, front: 0.8, halfWidth: 4.6, thickness: 9 },
+    surface: {
+      back: 2.3,
+      front: 0.82,
+      leg: 0.095,
+      left: 1.2,
+      stand: 3.4,
+      right: 3.2,
+      top: 0.2,
+    },
     // The panel carries its wallpaper as a base texture on a white material
     // rather than as pure emission, so lighting it as a lit surface washes the
     // uploaded design out. Black base leaves only the emissive channel, which
@@ -435,7 +490,15 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
     label: "Mac Studio",
     // The widest of the three, because this is two objects side by side and the
     // table has to hold both without either overhanging.
-    surface: { back: 6.5, front: 0.75, halfWidth: 5, thickness: 9 },
+    surface: {
+      back: 2.3,
+      front: 0.82,
+      leg: 0.095,
+      left: 1.45,
+      stand: 3.4,
+      right: 3.6,
+      top: 0.2,
+    },
     materialCorrections: {
       // The frame around the panel ships as pure black metal, and a metal's
       // base colour is its reflectance, so black metal returns nothing at any

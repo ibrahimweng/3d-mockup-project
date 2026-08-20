@@ -21,6 +21,28 @@ export type SurfaceMaps = {
   roughness: string;
 };
 
+/**
+ * What the legs are made of.
+ *
+ * The same for both tables, and not the same as the top. A stone slab on stone
+ * stilts is a plinth and an oak top on oak posts is a farmhouse table; what
+ * both of these want to be is the modern thing they are photographing a
+ * computer on, which is a solid top on thin dark metal. Keeping it constant
+ * also means the leg never has to carry a tiling map at a scale that would
+ * suit a surface a hundred times its width.
+ */
+export const SURFACE_LEG = {
+  // Dark, but a long way from black. A leg at 0.85 metalness and a near-black
+  // base colour returns almost nothing under a low environment — metals have
+  // no diffuse response, so there is nothing left to shade with — and comes
+  // out as a flat silhouette with no facets, which reads as a bar drawn on the
+  // picture rather than a post standing in it. Dropping the metalness lets the
+  // key model the corners.
+  color: "#3e4043",
+  metalness: 0.45,
+  roughness: 0.38,
+} as const;
+
 export type SurfaceDefinition = {
   /**
    * What the slab throws back up at the device.
@@ -78,29 +100,28 @@ export const SURFACE_DEFINITIONS = [
     value: "none",
   },
   {
-    // Grey, and only just: a slab lifts the shadow side without tinting it,
-    // which is exactly why architects photograph on it.
-    bounce: { color: "#b9b3aa", share: 0.13 },
+    // Warm, and only just. Limestone lifts the shadow side without announcing
+    // itself, which is exactly why architects photograph on it.
+    bounce: { color: "#c3bbae", share: 0.15 },
     color: "#ffffff",
-    // Rough enough that the room arrives as a wash rather than a picture, and
-    // a full share of that wash would flatten the very relief the maps carry.
-    environmentShare: 0.5,
-    label: "Concrete",
+    // Honed, so the room arrives as a soft sheen rather than a picture — and a
+    // full share of it would wash out the veining the map exists for.
+    environmentShare: 0.6,
+    label: "Stone",
     maps: {
-      albedo: "concrete-albedo.jpg",
-      normal: "concrete-normal.png",
-      roughness: "concrete-rough.jpg",
+      albedo: "stone-albedo.jpg",
+      normal: "stone-normal.png",
+      roughness: "stone-rough.jpg",
     },
     metalness: 0,
     normalScale: 0.6,
     roughness: 1,
-    // The table is sized against the device and comes out around two metres
-    // across, so this is about forty centimetres a tile — which puts the
-    // aggregate at the four or five millimetres it actually is. Measured
-    // against the render rather than picked: at two tiles the pinholes came
-    // out the size of coins.
-    tiles: 6,
-    value: "concrete",
+    // Around half a metre a tile on a table this size, which puts the veins a
+    // hand's width apart. Stone is the one material here where too *many*
+    // tiles is the worse failure: aggregate repeating is invisible, and a vein
+    // repeating is a wallpaper.
+    tiles: 3,
+    value: "stone",
   },
   {
     // The whole point of wood. A finished board is pale and strongly coloured,
@@ -123,11 +144,12 @@ export const SURFACE_DEFINITIONS = [
     roughness: 1,
     // Coarser than a real board, deliberately, and this is the compromise.
     // Thirteen rings a tile at the spacing oak actually grows would want two
-    // dozen tiles across a desk, and a tile repeating two dozen times is a
+    // dozen tiles across a table, and a tile repeating two dozen times is a
     // wallpaper: the eye finds the period long before it finds the timber. At
-    // nine the rings come out around two centimetres — wide-plank rather than
-    // furniture-grade, and still unmistakably wood.
-    tiles: 9,
+    // three the rings come out around three centimetres — wide-plank rather
+    // than furniture-grade, and still unmistakably wood. Any finer and the
+    // lines close up into a corrugation, which is a different material.
+    tiles: 3,
     value: "oak",
   },
 ] as const satisfies readonly SurfaceDefinition[];

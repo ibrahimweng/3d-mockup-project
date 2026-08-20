@@ -255,10 +255,10 @@ export const SCENE_PRESETS: Readonly<Record<ScenePresetId, ScenePreset>> = {
     shadowSoftness: 3,
     pattern: "none",
     // The reference is a device on a pale slab with one hard shadow drawn
-    // across it. Concrete is what takes that shadow without arguing: it is
-    // matte, it is neutral, and it bounces almost nothing back into the shadow
-    // side, which is the only reason the edge stays as black as it does.
-    surface: "concrete",
+    // across it. Stone is what takes that shadow without arguing: it is honed
+    // rather than polished, it is close to neutral, and it bounces little back
+    // into the shadow side, which is why the edge stays as black as it does.
+    surface: "stone",
     // A low wall, mostly to give the frame a top. The shadow belongs on the
     // floor, so the paper stays out of the way of it.
     sweepCurve: 26,

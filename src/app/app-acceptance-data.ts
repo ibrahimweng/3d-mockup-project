@@ -570,7 +570,7 @@ export const appAcceptance: readonly ToolcraftComponentAcceptance[] = [
     componentType: "select",
     evidence: "rendered-pixels",
     expectedObservable:
-      "Choosing a surface replaces the floor that fades away at its rim with a slab that ends: a lit top, a hard edge across the frame, and a face below it falling into shadow, with the backdrop moved behind its far edge. Concrete arrives grey, matte and finely aggregated; Oak arrives warm, with grain running across the top and continuing over the front edge — and the scene relights, because a pale board throws a warm underlight back into the device that a grey slab does not. Returning to None restores the endless floor. On devices offered no surface the control leaves the floor alone.",
+      "Choosing a surface stands the device on a piece of furniture. The floor drops away beneath it and carries on past it, so a turned top appears with a lit chamfer along its near edges, a shaded face below them, and — on the devices given a table rather than a slab — legs reaching down to a floor that is still there. Stone arrives warm, honed and veined; Oak arrives warm and grained, running across the top and continuing over the edge; and the scene relights, because a pale board throws a warm underlight back into the device that stone does not. Returning to None puts the device back on the floor itself.",
     fixture: "a device the catalog gives a table, on a visible background",
     id: "surface.kind.material",
     kind: "control",

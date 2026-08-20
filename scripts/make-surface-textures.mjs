@@ -19,226 +19,114 @@
  *   node scripts/make-surface-textures.mjs
  */
 
-import sharp from "sharp";
 import { mkdirSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 
-const SIZE = 1024;
-const OUT = join(dirname(fileURLToPath(import.meta.url)), "..", "public", "textures");
-
-/** A deterministic hash, so a rebuild produces the identical file. */
-function hash(x, y, seed) {
-  let h = (x * 374761393 + y * 668265263 + seed * 1274126177) | 0;
-  h = (h ^ (h >>> 13)) * 1274126177;
-  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
-}
-
-function smooth(t) {
-  return t * t * (3 - 2 * t);
-}
-
-const clamp01 = (value) => Math.max(0, Math.min(1, value));
-
-/** Zero below `edge0`, one above `edge1`, eased between. */
-function ramp(edge0, edge1, value) {
-  return smooth(clamp01((value - edge0) / (edge1 - edge0)));
-}
+import {
+  clamp,
+  clamp01,
+  fbm,
+  normalFromHeight,
+  OUT,
+  ramp,
+  SIZE,
+  valueNoise,
+  writeAlbedo,
+  writeNormal,
+  writeRough,
+} from "./texture-lab.mjs";
 
 /**
- * Value noise on a lattice that wraps, so the result tiles.
+ * Stone: a honed slab with veins in it and the small voids of travertine.
  *
- * The two cell counts are separate because grain has a direction. A wood fibre
- * is a hundred times longer than it is wide, and isotropic noise — the same
- * count both ways — can only ever produce clouds. Stretching the lattice is
- * what turns a cloud into a fibre.
- */
-function valueNoise(width, height, cellsX, cellsY, seed) {
-  const out = new Float32Array(width * height);
-  for (let y = 0; y < height; y += 1) {
-    const fy = (y / height) * cellsY;
-    const y0 = Math.floor(fy);
-    const ty = smooth(fy - y0);
-    for (let x = 0; x < width; x += 1) {
-      const fx = (x / width) * cellsX;
-      const x0 = Math.floor(fx);
-      const tx = smooth(fx - x0);
-      const x1 = (x0 + 1) % cellsX;
-      const y1 = (y0 + 1) % cellsY;
-      const a = hash(x0 % cellsX, y0 % cellsY, seed);
-      const b = hash(x1, y0 % cellsY, seed);
-      const c = hash(x0 % cellsX, y1, seed);
-      const d = hash(x1, y1, seed);
-      out[y * width + x] =
-        a + (b - a) * tx + (c - a) * ty + (a - b - c + d) * tx * ty;
-    }
-  }
-  return out;
-}
-
-/** Octaves of it, each finer and weaker than the last. */
-function fbm(width, height, cellsX, cellsY, octaves, seed, gain = 0.5) {
-  const out = new Float32Array(width * height);
-  let amplitude = 1;
-  let total = 0;
-  for (let octave = 0; octave < octaves; octave += 1) {
-    const step = 2 ** octave;
-    const layer = valueNoise(
-      width,
-      height,
-      cellsX * step,
-      cellsY * step,
-      seed + octave * 71,
-    );
-    for (let index = 0; index < out.length; index += 1) {
-      out[index] += layer[index] * amplitude;
-    }
-    total += amplitude;
-    amplitude *= gain;
-  }
-  for (let index = 0; index < out.length; index += 1) out[index] /= total;
-  return out;
-}
-
-/**
- * A normal map from a height field, with wrapped neighbours.
+ * What separates stone from concrete is that stone has a history and concrete
+ * does not. A pour is homogeneous by construction — whatever is in it is
+ * everywhere in it — so its character is small and even: aggregate, pinholes,
+ * the marks of a float. A bed of limestone was laid down over an age, folded,
+ * and then sliced across, so its character is *large*: broad tonal drift from
+ * one part of the block to another, and veins that run somewhere. A stone
+ * without that reads as a grey worktop.
  *
- * Tangent space, so the blue channel is the surface facing straight out and
- * the red and green carry the slope. `strength` is how deep the relief reads.
+ * So this is built the other way up from the concrete it replaces. The big
+ * shapes carry it and the fine detail is only seasoning.
  */
-function normalFromHeight(height, width, rows, strength) {
-  const data = Buffer.alloc(width * rows * 3);
-  const at = (x, y) => height[((y + rows) % rows) * width + ((x + width) % width)];
-  for (let y = 0; y < rows; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const dx = (at(x + 1, y) - at(x - 1, y)) * strength;
-      const dy = (at(x, y + 1) - at(x, y - 1)) * strength;
-      // Normalise (-dx, -dy, 1) into the 0..255 the format expects.
-      const length = Math.hypot(dx, dy, 1);
-      const index = (y * width + x) * 3;
-      data[index] = Math.round(((-dx / length) * 0.5 + 0.5) * 255);
-      data[index + 1] = Math.round(((-dy / length) * 0.5 + 0.5) * 255);
-      data[index + 2] = Math.round(((1 / length) * 0.5 + 0.5) * 255);
-    }
-  }
-  return data;
-}
-
-const clamp = (value) => Math.max(0, Math.min(255, Math.round(value)));
-
-/**
- * Colour, as JPEG.
- *
- * Chroma subsampling is a poor idea on a normal map and an entirely reasonable
- * one on albedo, where the eye is looking at a slab and not at the numbers.
- * The whole set is well under 2MB this way and 6.7MB as lossless PNG, on maps
- * that are about to be tiled across a table and seen at a few hundred pixels.
- */
-async function writeAlbedo(name, data) {
-  await sharp(data, { raw: { channels: 3, height: SIZE, width: SIZE } })
-    .jpeg({ mozjpeg: true, quality: 88 })
-    .toFile(join(OUT, name));
-}
-
-/**
- * Relief, as PNG at half resolution.
- *
- * Lossless because a normal map is a direction per pixel and JPEG's ringing
- * turns into visible facets across a flat surface. Half size because the
- * relief here is a slope rather than a silhouette, and it survives the
- * resample where the colour above would not.
- */
-async function writeNormal(name, data) {
-  await sharp(data, { raw: { channels: 3, height: SIZE, width: SIZE } })
-    .resize(SIZE / 2, SIZE / 2)
-    .png({ compressionLevel: 9 })
-    .toFile(join(OUT, name));
-}
-
-/** How rough, in one channel, at half resolution. */
-async function writeRough(name, data) {
-  await sharp(data, { raw: { channels: 1, height: SIZE, width: SIZE } })
-    .resize(SIZE / 2, SIZE / 2)
-    .jpeg({ mozjpeg: true, quality: 90 })
-    .toFile(join(OUT, name));
-}
-
-/**
- * Concrete: a pale matrix with aggregate in it and the marks of a pour.
- *
- * Two temptations, and both are wrong. Cloudy is wrong — a poured slab is
- * remarkably even in tone, and broad blotches read as fog. Speckled is wrong
- * too — high-contrast flecks read as terrazzo or as a rubber gym floor. What
- * identifies concrete is that almost all of its character is in how it takes
- * the light rather than in its colour: aggregate that broke the surface is
- * denser and polishes, the matrix around it stays open and matte, and a power
- * float leaves long sheen marks. So the colour here barely moves, and the
- * roughness map does the work.
- */
-async function concrete() {
-  const cure = fbm(SIZE, SIZE, 3, 3, 3, 11);
-  const patch = fbm(SIZE, SIZE, 7, 7, 3, 23);
-  const trowel = fbm(SIZE, SIZE, 3, 40, 2, 29);
-  const coarse = valueNoise(SIZE, SIZE, 60, 60, 47);
-  const sand = valueNoise(SIZE, SIZE, 280, 280, 53);
-  const pinhole = valueNoise(SIZE, SIZE, 90, 90, 67);
+async function stone() {
+  // Bedding: the broad tonal drift across a cut block.
+  const bed = fbm(SIZE, SIZE, 2, 3, 4, 13);
+  const cloud = fbm(SIZE, SIZE, 5, 7, 3, 31);
+  // What bends the veins. Veins are straight only in a diagram.
+  const warp = fbm(SIZE, SIZE, 3, 4, 4, 59);
+  const branch = fbm(SIZE, SIZE, 9, 11, 3, 73);
+  // Travertine's voids: small, and wider than they are tall, because they were
+  // laid down flat and the slab is cut across them.
+  const vug = valueNoise(SIZE, SIZE, 130, 90, 101);
+  const speck = valueNoise(SIZE, SIZE, 340, 340, 149);
 
   const height = new Float32Array(SIZE * SIZE);
   const albedo = Buffer.alloc(SIZE * SIZE * 3);
   const rough = Buffer.alloc(SIZE * SIZE);
 
-  for (let index = 0; index < height.length; index += 1) {
-    // Aggregate only where it broke the surface, so it reads as stones in a
-    // matrix rather than as an even sparkle over everything.
-    const stone = ramp(0.8, 0.95, coarse[index]);
-    const grit = ramp(0.78, 0.97, sand[index]);
-    // Air voids: sparse, small, and genuinely dark, because they are holes.
-    const hole = ramp(0.028, 0.004, pinhole[index]);
+  // Warm pale limestone, and the colour a vein of it darkens to.
+  const pale = [205, 197, 185];
+  const deep = [138, 128, 115];
 
-    const tone =
-      0.62 +
-      (cure[index] - 0.5) * 0.055 +
-      (patch[index] - 0.5) * 0.045 +
-      stone * 0.025 +
-      grit * 0.018 -
-      hole * 0.26;
-    // The height field is not the tone. Nearly all of it is the slow
-    // undulation a float leaves across a slab; the aggregate stands only
-    // barely proud, and a pinhole is the one thing here with a real edge.
-    // Piling fine noise in as well is what turns concrete into sandpaper —
-    // grit belongs in the roughness, where it changes the sheen and not the
-    // silhouette.
-    height[index] =
-      0.5 +
-      (patch[index] - 0.5) * 0.5 +
-      (cure[index] - 0.5) * 0.3 +
-      stone * 0.05 +
-      grit * 0.012 -
-      hole * 0.5;
+  for (let y = 0; y < SIZE; y += 1) {
+    for (let x = 0; x < SIZE; x += 1) {
+      const index = y * SIZE + x;
 
-    const value = clamp(tone * 255);
-    // A trace of warmth in the matrix and none in the aggregate, which is what
-    // stops it reading as flat grey card.
-    albedo[index * 3] = clamp(value * 1.03);
-    albedo[index * 3 + 1] = clamp(value * 1.0);
-    albedo[index * 3 + 2] = clamp(value * 0.96);
-    // Where the eye actually reads the material. Aggregate takes a polish,
-    // the matrix does not, the inside of a void never saw a trowel, and the
-    // long faint drift is the float sweeping one way across the slab.
-    rough[index] = clamp(
-      (0.9 -
-        stone * 0.3 -
-        grit * 0.1 +
-        hole * 0.08 +
-        (trowel[index] - 0.5) * 0.07) *
-        255,
-    );
+      // A vein is where a sheet of something else cut through the bed. Take a
+      // coordinate running across the slab, bend it hard, and the places it
+      // crosses a whole number are a set of wandering parallel sheets.
+      // Warped by well under one spacing. Bend it further and the sheets fold
+      // back through each other into closed rings, which reads as camouflage
+      // rather than as bedding seen in section.
+      const along =
+        (x * 0.55 + y) / SIZE + (warp[index] - 0.5) * 0.34 + (branch[index] - 0.5) * 0.1;
+      const crossing = Math.abs(((along * 3) % 1) - 0.5) * 2;
+      // Narrow and soft-edged: a vein is a stain, not a drawn line.
+      const vein = Math.pow(1 - crossing, 7) * (0.55 + branch[index] * 0.75);
+
+      // Sparse. Travertine has voids; a honed slab chosen for a tabletop has
+      // been filled and polished back, so what is left is the occasional one
+      // rather than a field of them. At the density this started with it read
+      // as sandstone, which is a different rock and a much cheaper one.
+      const voids = ramp(0.972, 0.998, vug[index]);
+      const grit = ramp(0.93, 0.995, speck[index]);
+
+      const shade = clamp01(
+        (bed[index] - 0.5) * 0.55 +
+          (cloud[index] - 0.5) * 0.3 +
+          vein * 1.05 +
+          voids * 0.45 +
+          0.32,
+      );
+
+      for (let channel = 0; channel < 3; channel += 1) {
+        albedo[index * 3 + channel] = clamp(
+          pale[channel] +
+            (deep[channel] - pale[channel]) * shade +
+            (speck[index] - 0.5) * 7,
+        );
+      }
+
+      // Almost nothing stands proud on a honed slab. The voids are real holes
+      // and everything else is colour, which is the whole difference between
+      // stone that has been finished and stone that has been broken.
+      height[index] = 0.5 - voids * 0.8 - grit * 0.04 + (cloud[index] - 0.5) * 0.04;
+
+      // Honed rather than polished: a soft even sheen, dulling where the
+      // surface is open. The veins take a slightly better finish than the
+      // matrix, which is what gives a cut slab its faint figure under a
+      // raking light even when the colour is nearly uniform.
+      rough[index] = clamp(
+        (0.44 - vein * 0.08 + voids * 0.38 + grit * 0.06 + (cloud[index] - 0.5) * 0.05) * 255,
+      );
+    }
   }
 
-  await writeAlbedo("concrete-albedo.jpg", albedo);
-  await writeNormal("concrete-normal.png", normalFromHeight(height, SIZE, SIZE, 15));
-  await writeRough("concrete-rough.jpg", rough);
-  console.log("concrete: albedo, normal, roughness");
+  await writeAlbedo("stone-albedo.jpg", albedo);
+  await writeNormal("stone-normal.png", normalFromHeight(height, SIZE, SIZE, 18));
+  await writeRough("stone-rough.jpg", rough);
+  console.log("stone: albedo, normal, roughness");
 }
 
 /**
@@ -342,6 +230,6 @@ async function oak() {
 }
 
 mkdirSync(OUT, { recursive: true });
-await concrete();
+await stone();
 await oak();
 console.log(`written to ${OUT}`);
