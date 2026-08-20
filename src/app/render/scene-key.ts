@@ -16,6 +16,8 @@ export type StageReader = {
   coveRadius: () => number;
   floorY: () => number;
   sweepHeight: () => number;
+  /** How far the picture reaches at the back of the set, corner to corner. */
+  viewReach: () => number;
 };
 
 export type KeyLight = {
@@ -195,12 +197,44 @@ export function createKeyLight(
     // box being stretched to contain a gobo of some fixed size, which is the
     // way round that used to leave the two disagreeing.
     const wanted = sphere.radius * 2.2 + Math.max(0, reach);
+    // And never smaller than the set the light is shining at, nor than the
+    // picture reaches.
+    //
+    // The cove is the whole of what the camera can see, so a cut-out that
+    // covers the cove covers the picture. Sized to the shadow the device
+    // throws instead, the gobo's own rim swept across the backdrop as a bright
+    // curve — everything outside the cut-out is lit by an unobstructed light —
+    // and it only showed once the frame was wider than the portrait canvas
+    // this was tuned against. A curve is also what no metric here was looking
+    // for: they all watched for a hard horizontal step.
+    // Outside the depth map nothing is shadowed at all, so its edge is a line
+    // between shadowed and unshadowed set — which is the curve that showed up
+    // in a 16:9 frame. The map has to hold whatever the camera can see, and a
+    // wider frame sees further across than a tall one sees up.
+    // A sphere drawn round the whole set, not a disc drawn round its floor.
+    //
+    // The extent is measured in the light's own plane, so a tall wall on the
+    // far side of the cove lands much further from the axis than its footprint
+    // suggests — its height is added to its distance once the light is raking.
+    // Sized to the footprint alone, the map's rim fell inside the picture and
+    // drew a bright curve across the backdrop, because outside the map nothing
+    // is shadowed at all.
+    const wall = sphere.radius * 16 * stage.sweepHeight();
+    const top = Math.abs(stage.floorY()) + wall;
+    const staged = Math.max(
+      Math.hypot(stage.coveRadius(), top) + sphere.radius,
+      stage.viewReach(),
+    );
     const extent = patterned
-      ? Math.min(sphere.radius * 20, Math.max(reachPaper(position), wanted))
+      ? Math.min(
+          sphere.radius * 44,
+          Math.max(reachPaper(position), wanted, staged),
+        )
       : Math.min(
           sphere.radius * 9,
           Math.max(sphere.radius * 3.6, wanted),
         );
+    const settled = shadowExtent !== extent;
     shadowExtent = extent;
     key.shadow.camera.left = -extent;
     key.shadow.camera.right = extent;
@@ -225,6 +259,10 @@ export function createKeyLight(
     // Held constant in world units as the range grows behind it.
     key.shadow.bias = -SHADOW_BIAS / depth;
     key.shadow.camera.updateProjectionMatrix();
+    // The cut-out is cut to fill whatever this settled on, every time it
+    // settles on something new — not once, at load, against the frame the app
+    // happened to open with.
+    if (settled) cutPattern();
   };
   key.shadow.camera.near = sphere.radius * 0.2;
   scene.add(key);
@@ -273,13 +311,22 @@ export function createKeyLight(
    * it was cut, however far away it is held. Distance only has to keep it
    * inside the depth map's near plane and out of the device.
    */
-  const applyPattern = (next: LightPatternId): void => {
-    // Both of these come before the framing, because the framing depends on
-    // them: a patterned map has to reach the wall and a plain one does not.
-    patterned = next !== "none";
-    applyShadowEdge(lastSoftness);
-    // Settled first, because the cut-out is then cut to fill it.
-    frameShadow(key.position);
+  /**
+   * Cut the gobo to whatever the shadow now covers.
+   *
+   * Called from `frameShadow` rather than only when somebody picks a pattern,
+   * which is the whole of the fault this fixes: the cut-out was sized once, at
+   * load, against whatever the shadow reached then. Change the aspect ratio and
+   * the camera stands somewhere else, the cove grows to suit, the depth map
+   * grows with it — and the cut-out stayed the size it was born. Everything
+   * past its rim is lit by an unobstructed light, so the rim itself draws a
+   * bright curve across the backdrop.
+   */
+  const cutPattern = (): void => {
+    if (!patterned) {
+      patternMesh.visible = false;
+      return;
+    }
     /**
      * The sine of the light's elevation: how much a floor measurement has to
      * be squashed to survive the trip through the gobo plane.
@@ -295,19 +342,19 @@ export function createKeyLight(
     // Quantised, because this is consulted on every move of the key pad and
     // the answer is a vertex buffer. Recut the sash a dozen times across a
     // drag, not sixty times a second.
-    const cut = `${next}/${Math.round(squash * 24)}/${Math.round(shadowExtent)}`;
+    const shown = patternId ?? "none";
+    const cut = `${shown}/${Math.round(squash * 24)}/${Math.round(shadowExtent)}`;
     if (cut !== patternCut) {
       patternCut = cut;
       patternGeometry?.dispose();
       patternGeometry = createPatternGeometry(
-        next,
+        shown,
         sphere.radius,
         squash,
         shadowExtent,
       );
       patternMesh.geometry = patternGeometry ?? noPattern;
     }
-    patternId = next;
     patternMesh.visible = patternGeometry !== null;
     if (!patternMesh.visible) return;
     patternMesh.position
@@ -318,6 +365,17 @@ export function createKeyLight(
       .multiplyScalar(sphere.radius * 3.2);
     patternMesh.lookAt(0, 0, 0);
   };
+
+  const applyPattern = (next: LightPatternId): void => {
+    // Both of these come before the framing, because the framing depends on
+    // them: a patterned map has to reach the wall and a plain one does not.
+    patterned = next !== "none";
+    patternId = next;
+    applyShadowEdge(lastSoftness);
+    // Which settles the extent and then cuts the sash to fill it.
+    frameShadow(key.position);
+  };
+
   applyPattern(options.lighting.pattern);
 
   return { applyPattern, applyShadowEdge, frameShadow, key, keyDirection };

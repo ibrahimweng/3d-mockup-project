@@ -343,6 +343,11 @@ export async function buildDeviceScene(options: {
   // how far out the cove is standing, how high the paper runs and where the
   // floor sits all decide how much depth map the shadow needs. Everything else
   // about it is its own.
+  //
+  // Held rather than closed over: the camera is built further down, and the
+  // key light asks the stage what the picture reaches while it is still being
+  // put together.
+  let viewCamera: THREE.PerspectiveCamera | null = null;
   const { applyPattern, applyShadowEdge, frameShadow, key, keyDirection } =
     createKeyLight(
       {
@@ -353,6 +358,16 @@ export async function buildDeviceScene(options: {
           coveRadius: () => room.builtCoveRadius(),
           floorY: () => room.floorY(),
           sweepHeight: () => room.sweepHeight(),
+          viewReach: () => {
+            if (!viewCamera) return 0;
+            // The half-diagonal of the frame at the far side of the set: the
+            // furthest corner of the picture, which is the furthest thing the
+            // shadow has to be able to say something about.
+            const climb = Math.tan((viewCamera.fov * Math.PI) / 360);
+            const depth = viewCamera.position.length() + room.builtCoveRadius();
+            const up = depth * climb;
+            return Math.hypot(up, up * Math.max(1, viewCamera.aspect));
+          },
         },
       },
       options,
@@ -477,6 +492,7 @@ export async function buildDeviceScene(options: {
     sphere.radius * 0.01,
     sphere.radius * 60,
   );
+  viewCamera = camera;
 
   // After the camera exists, because whether the reflection is visible at all
   // depends on which side of the floor the camera is on.
@@ -504,6 +520,11 @@ export async function buildDeviceScene(options: {
     camera,
     onCameraMoved: () => {
       updateMirrorVisibility();
+      // The depth map has to hold whatever the picture holds, and the picture
+      // changes shape when the canvas does — so this settles on every move
+      // rather than only when the cove is recut. It is quantised downstream:
+      // the sash is only re-cut when the extent actually lands somewhere new.
+      frameShadow(key.position);
       // A longer lens stands the camera further back, and the set has to be
       // bigger than wherever the camera has gone. Recut only when the answer
       // actually changes, which a quantised radius makes rare.
