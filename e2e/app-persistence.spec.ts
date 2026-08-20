@@ -3,6 +3,10 @@ import { expectToolcraftPersistenceState } from "./browser-state-evidence-helper
 import { createToolcraftBrowserProofSession } from "./browser-proof-session";
 import { expect, test } from "./toolcraft-product-test";
 
+// This product loads a real model and convolves an environment before it can
+// answer anything, which is well past the default per-test budget.
+test.setTimeout(180_000);
+
 const persistence = appSchema.persistence;
 
 if (persistence.storage !== "localStorage") {
