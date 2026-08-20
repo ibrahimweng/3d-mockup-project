@@ -406,10 +406,11 @@ function applyScreenTransform(
   repeatX /= zoom;
   repeatY /= zoom;
 
-  // Stretch maps 0..1 onto a half-to-double factor per axis, so the pad's
-  // centre leaves the image untouched.
-  const stretchX = 0.5 + Math.max(0, Math.min(1, transform.stretch.x)) * 1.5;
-  const stretchY = 0.5 + Math.max(0, Math.min(1, transform.stretch.y)) * 1.5;
+  // Stretch maps the pad's -1..1 onto a half-to-double factor per axis. It is
+  // a power rather than a line so that the centre really is untouched and one
+  // step either way squashes and extends by the same proportion.
+  const stretchX = 2 ** transform.stretch.x;
+  const stretchY = 2 ** transform.stretch.y;
   repeatX /= stretchX;
   repeatY /= stretchY;
 

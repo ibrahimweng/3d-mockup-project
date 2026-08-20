@@ -7,7 +7,16 @@ import { DEFAULT_SURFACE } from "../surfaces";
 import type { ScreenTransform } from "./device-scene";
 import type { RasterSettings } from "./raster-renderer";
 
-function vec(
+/**
+ * Read an X/Y pad.
+ *
+ * A pad reports -1..1 with zero at its centre, and its y axis runs down the
+ * screen. Everything here was reading it as 0..1 with 0.5 in the middle, which
+ * put every pad's neutral a quarter of the way to a corner, drew every handle
+ * off centre, and left the whole left half of two pads clamped flat. Read the
+ * pad in the pad's own units and convert at the point of use.
+ */
+function pad(
   values: Record<string, unknown>,
   key: string,
 ): { x: number; y: number } {
@@ -16,18 +25,18 @@ function vec(
     typeof value === "object" && value !== null
       ? (value as { x?: number; y?: number })
       : {};
-  return {
-    x: Number.isFinite(raw.x) ? Number(raw.x) : 0.5,
-    y: Number.isFinite(raw.y) ? Number(raw.y) : 0.5,
-  };
+  const axis = (component: unknown): number =>
+    Number.isFinite(component) ? Math.min(1, Math.max(-1, Number(component))) : 0;
+  return { x: axis(raw.x), y: axis(raw.y) };
 }
 
-function signedVec(
+/** A pad reported as 0..1 about a neutral half, for the texture maths. */
+function unitPad(
   values: Record<string, unknown>,
   key: string,
 ): { x: number; y: number } {
-  const raw = vec(values, key);
-  return { x: (raw.x - 0.5) * 2, y: (raw.y - 0.5) * 2 };
+  const raw = pad(values, key);
+  return { x: 0.5 + raw.x / 2, y: 0.5 + raw.y / 2 };
 }
 
 function num(values: Record<string, unknown>, key: string, fallback: number) {
@@ -53,9 +62,9 @@ export function readScreenTransform(
   const fit = values["artwork.fit"];
   return {
     fit: fit === "fit" || fit === "stretch" ? fit : "fill",
-    offset: vec(values, "artwork.offset"),
+    offset: unitPad(values, "artwork.offset"),
     scale: num(values, "artwork.scale", 100),
-    stretch: vec(values, "artwork.stretch"),
+    stretch: pad(values, "artwork.stretch"),
   };
 }
 
@@ -84,7 +93,9 @@ export function readRasterSettings(
       roughness: num(values, "floor.roughness", 92) / 100,
     },
     focalLength: num(values, "camera.focalLength", 85),
+    framing: pad(values, "camera.framing"),
     surface: { kind: str(values, "surface.kind", DEFAULT_SURFACE) },
+    zoom: num(values, "camera.zoom", 100) / 100,
     sweep: {
       curve: num(values, "backdrop.curve", 45) / 100,
       height: num(values, "backdrop.height", 0) / 100,
@@ -95,7 +106,7 @@ export function readRasterSettings(
       fillIntensity: num(values, "light.fill", 30) / 100,
       keyColor: str(values, "light.keyColor", "#FFFFFF"),
       // The pad is 0..1 with 0.5 centred; the rig wants -1..1 with 0 straight on.
-      keyDirection: signedVec(values, "light.keyDirection"),
+      keyDirection: pad(values, "light.keyDirection"),
       keyIntensity: num(values, "light.keyIntensity", 110) / 100,
       rimIntensity: num(values, "light.rim", 0) / 100,
       shadowSoftness: num(values, "light.shadowSoftness", 34) / 100,

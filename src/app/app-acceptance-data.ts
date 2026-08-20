@@ -352,10 +352,19 @@ export const appControlSectionInventory: readonly ToolcraftControlSectionInvento
       entity: "Camera",
       entityId: "camera",
       groupingReason:
-        "Pose and focal length are the properties of one lens looking at the scene; together they fix both the framing and the perspective.",
+        "Pose, focal length and zoom are the properties of one lens looking at the scene; together they fix where it stands, how compressed the picture is, and how much of the frame the subject fills.",
       id: "camera",
-      targets: ["camera.focalLength", "camera.orbit"],
+      targets: ["camera.focalLength", "camera.orbit", "camera.zoom"],
       title: "Camera",
+    },
+    {
+      entity: "Framing offset",
+      entityId: "framing-offset",
+      groupingReason:
+        "Where the subject sits in the picture is a separate decision from the lens looking at it — a shift rather than a move — and the pad is that entity's complete editable surface.",
+      id: "framing",
+      targets: ["camera.framing"],
+      title: "Framing",
     },
     {
       entity: "Background",
@@ -829,6 +838,39 @@ export const appAcceptance: readonly ToolcraftComponentAcceptance[] = [
     referenceCoverage: "control-mapping",
     target: "camera.focalLength",
     userAction: "Drag the Focal length slider from 24mm to 200mm.",
+  },
+  {
+    automated: true,
+    automatedTestName: "zoom crops the frame without moving the camera",
+    browser: true,
+    browserTestName:
+      "browser: zoom changes how much of the frame the subject fills and nothing else",
+    componentType: "slider",
+    evidence: "product-output",
+    expectedObservable:
+      "Raising Zoom makes everything larger in the picture without changing how the device's depth converges, and past 100% the set is cropped by the edges of frame; lowering it leaves more room around the subject. The device's perspective is identical at every setting, because the camera has not moved.",
+    fixture: "the default device in the default studio",
+    id: "camera.zoom.crop",
+    kind: "control",
+    target: "camera.zoom",
+    userAction: "Drag the Zoom slider from 40% to 260%.",
+  },
+  {
+    automated: true,
+    automatedTestName: "framing offset shifts the picture without leaning it",
+    browser: true,
+    browserTestName:
+      "browser: the framing pad moves the subject off centre with verticals still upright",
+    componentType: "vector",
+    controlPartCoverage: ["vector.x", "vector.y"],
+    evidence: "product-output",
+    expectedObservable:
+      "Moving the Framing pad slides the subject across the picture and leaves room on the other side of it. Vertical edges stay vertical however far it is moved, because the projection is shifted rather than the camera turned.",
+    fixture: "the default device in the default studio",
+    id: "camera.framing.shift",
+    kind: "control",
+    target: "camera.framing",
+    userAction: "Drag the Framing pad from centre to each corner.",
   },
   {
     automated: true,

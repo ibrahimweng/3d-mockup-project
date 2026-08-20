@@ -47,8 +47,9 @@ function isPlainPrimary(event: React.PointerEvent<HTMLCanvasElement>): boolean {
   );
 }
 
-function clamp01(value: number): number {
-  return Math.max(0, Math.min(1, value));
+/** The pad's range: -1..1 about a centred design. */
+function clampPad(value: number): number {
+  return Math.max(-1, Math.min(1, value));
 }
 
 export function useDesignDrag(
@@ -61,15 +62,15 @@ export function useDesignDrag(
   const groupRef = React.useRef(0);
   // The gesture reads the committed offset once, at pointer-down, so the drag
   // stays anchored to where it started rather than compounding its own writes.
-  const offsetRef = React.useRef({ x: 0.5, y: 0.5 });
+  const offsetRef = React.useRef({ x: 0, y: 0 });
   const rawOffset = state.values[TARGET];
   const parsed =
     typeof rawOffset === "object" && rawOffset !== null
       ? (rawOffset as { x?: number; y?: number })
       : {};
   offsetRef.current = {
-    x: Number.isFinite(parsed.x) ? Number(parsed.x) : 0.5,
-    y: Number.isFinite(parsed.y) ? Number(parsed.y) : 0.5,
+    x: Number.isFinite(parsed.x) ? Number(parsed.x) : 0,
+    y: Number.isFinite(parsed.y) ? Number(parsed.y) : 0,
   };
 
   const readOffset = React.useCallback(
@@ -128,6 +129,7 @@ export function useDesignDrag(
 
     // Offset shifts the sampling window, so it moves against the design on
     // both axes. An axis with no slack is not cropped and has nothing to pan.
+    // The pad spans two units across the same slack, hence the doubling.
     dispatch({
       history: "merge",
       historyGroup: gesture.group,
@@ -137,11 +139,11 @@ export function useDesignDrag(
       value: {
         x:
           slack.x > 0
-            ? clamp01(gesture.startOffset.x - deltaU / slack.x)
+            ? clampPad(gesture.startOffset.x - (2 * deltaU) / slack.x)
             : gesture.startOffset.x,
         y:
           slack.y > 0
-            ? clamp01(gesture.startOffset.y - deltaV / slack.y)
+            ? clampPad(gesture.startOffset.y - (2 * deltaV) / slack.y)
             : gesture.startOffset.y,
       },
     });

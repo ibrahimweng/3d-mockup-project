@@ -80,7 +80,7 @@ export const appSchema = defineToolcraft({
             },
             offset: {
               applicability: { mode: "always" },
-              defaultValue: { x: 0.5, y: 0.5 },
+              defaultValue: { x: 0, y: 0 },
               description:
                 "Slides the image behind the screen. Only has an effect once the image is larger than the display and something is being cropped.",
               label: "Position",
@@ -92,7 +92,7 @@ export const appSchema = defineToolcraft({
             },
             stretch: {
               applicability: { mode: "always" },
-              defaultValue: { x: 0.5, y: 0.5 },
+              defaultValue: { x: 0, y: 0 },
               description:
                 "Independent width and height. Centre is unstretched; moving an axis squashes or extends the image along it.",
               label: "Stretch",
@@ -289,7 +289,7 @@ export const appSchema = defineToolcraft({
           controls: {
             keyDirection: {
               applicability: { mode: "always" },
-              defaultValue: { x: 0.72, y: 0.24 },
+              defaultValue: { x: 0.44, y: -0.52 },
               description:
                 "Where the key sits relative to the camera. Centre is straight on; move it off centre to rake the light across the device and lengthen the shadow.",
               label: false,
@@ -322,6 +322,23 @@ export const appSchema = defineToolcraft({
               type: "slider",
               unit: "mm",
             },
+            zoom: {
+              applicability: { mode: "always" },
+              defaultValue: 100,
+              description:
+                "How much of the frame the subject fills. The camera stays where the framing put it and the picture is cropped instead, so this changes the size of things and nothing else — perspective is the focal length's job. At 100 everything in the scene is in frame, including the table it is standing on; past that it crops in, which is how a tight shot of the device is got.",
+              label: "Zoom",
+              max: 260,
+              min: 40,
+              performanceReason:
+                "Zoom scales the camera's projection matrix and redraws one frame.",
+              performanceRole: "responsiveness",
+              sliderValueKind: "continuous",
+              step: 1,
+              target: "camera.zoom",
+              type: "slider",
+              unit: "%",
+            },
             orbit: {
               applicability: { mode: "always" },
               defaultValue: { position: [-0.36, 0.14, 1], up: [0, 1, 0] },
@@ -336,6 +353,24 @@ export const appSchema = defineToolcraft({
           },
           id: "camera",
           title: "Camera",
+        },
+        {
+          controls: {
+            framing: {
+              applicability: { mode: "always" },
+              defaultValue: { x: 0, y: 0 },
+              description:
+                "Where the subject sits in the picture. Centre is centred; move it off centre to leave room beside the device for a headline. The projection is shifted rather than the camera swung, the way a shift lens works, so nothing leans as it moves.",
+              label: false,
+              performanceReason:
+                "A framing offset shifts the camera's projection matrix and redraws one frame.",
+              performanceRole: "responsiveness",
+              target: "camera.framing",
+              type: "vector",
+            },
+          },
+          id: "framing",
+          title: "Framing",
         },
         {
           controls: {

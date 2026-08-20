@@ -288,6 +288,24 @@ The quoted evidence must be an exact nontrivial raw substring of `Request` with 
 - Reason: A box drawn round a device is smaller than the sphere the studios were composed against, so fitting the box alone quietly cropped in on every preset with no furniture in it — Void came out with the laptop touching the edge of the picture. The box fit is a floor under the old distance, not a replacement for it.
 - Risk: A table that holds the whole of itself in frame is a table the device is small on. The first pass at this kept the old proportions and produced a photograph of a desk with a laptop somewhere on it; the tables are now around two and a half times the device's width rather than four and a half, which is a compact desk rather than a boardroom table, and it is the proportion that makes the shot about the device.
 
+### Zoom, and where the subject sits
+
+- Decision: Zoom is a separate control that crops the picture, and Framing is a pad that slides the picture without swinging the camera.
+- Reason: Asked for a tighter fit and for a way to frame the device by hand. Both have to leave perspective alone, because perspective is a function of where the camera is standing and nothing else — a shot recomposed by moving the camera is a different shot. Zoom scales the projection about its own centre and never moves the camera; Framing shifts the projection sideways, which is what a shift lens is, so vertical edges stay vertical however far it is pushed.
+- Evidence: `setPose` in `render/raster-renderer.ts` writes `camera.zoom` and `setViewOffset`. Measured in the browser against a settled reference: at every pad setting tried the frame is the reference translated by exactly the predicted number of pixels — 113 across for a third of the pad, 142 down, no cross-axis drift — differing by 0.4 to 0.8 grey levels where the same frame shot twice differs by 0. At 150 percent zoom the frame is the reference cropped and enlarged to 1.6, against 38 for an unchanged frame; at 222 percent, 0.6 against 27.
+- Evidence: The export honours both. Preview and export, resampled to the same size, differ by 0.14 grey levels with the picture centred, 0.12 with it shifted, and 0.21 at double zoom.
+- Decision: The fit margin is two percent rather than six.
+- Reason: Asked to bias it tighter. It is a floor under the old sphere distance, so it only ever loosens a shot that would otherwise crop.
+
+### The pads were reading the wrong numbers
+
+- Decision: Every X/Y pad is read in the pad's own units.
+- Reason: A Toolcraft pad reports -1..1 with zero at its centre and its y axis running down the screen. Every consumer here was reading it as 0..1 with a half in the middle. That put the neutral of Screen position and Screen stretch a quarter of the way to a corner, drew the key light's handle low-right while the light was up-right, and left the whole left half of two pads clamped flat against a limit — Screen position could pan one way and not the other. The key light was worse than dead: the pad's centre resolved to a fully raking key, and a click at the far left asked for three times the deflection the far right could give.
+- Evidence: `pointFromEvent` and `updateFromPointer` in the runtime's `vector-pad-field.tsx` do `point * 2 - 1`; a click at the pad's centre reads 0.00, which the app was turning into -1. `pad()` in `render/settings.ts` now reads the value as given, `unitPad()` converts for the two texture controls that want a half in the middle, and the presets and the schema defaults are restated in the same units.
+- Evidence: The six studio presets render byte-for-byte identically before and after, with the fit change backed out to isolate them — the key light lands exactly where it did; what changed is that the handle now sits where the light is and the far half of each pad does something.
+- Decision: Screen stretch is a power of two rather than a line through 0.5 to 2.
+- Reason: Its own description says the centre leaves the image untouched, and the old mapping made the centre 1.25. `2 ** value` is half at one end, double at the other, exactly one at the middle, and squashes and extends by the same proportion either side.
+
 ## Verification
 
 - `npm run typecheck` passes.

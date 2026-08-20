@@ -25,10 +25,14 @@ export type RasterSettings = {
   finish: string;
   floor: FloorSettings;
   focalLength: number;
+  /** Where the subject sits in the picture, each axis 0 to 1 with 0.5 centred. */
+  framing: { x: number; y: number };
   lighting: LightingSettings;
   showBackground: boolean;
   surface: SurfaceSettings;
   sweep: SweepSettings;
+  /** How tightly the picture is cropped on the fitted framing, 1 being it. */
+  zoom: number;
 };
 
 /**
@@ -347,7 +351,7 @@ export class RasterRenderer {
       }
     }
     // A hair of air, so nothing sits exactly on the edge of the picture.
-    distance *= 1.06;
+    distance *= 1.02;
 
     built.camera.position
       .copy(direction)
@@ -355,6 +359,44 @@ export class RasterRenderer {
       .add(centre);
     built.camera.up.copy(up);
     built.camera.lookAt(built.target);
+
+    /**
+     * Crop, rather than move.
+     *
+     * Zoom narrows the projection and leaves the camera where the fit put it,
+     * which is the only way it can be a size control and nothing else.
+     * Perspective is a property of where the camera is standing: dolly in and
+     * a long lens stops being a long lens. This way the focal length keeps
+     * meaning exactly one thing — how compressed the picture is — and the zoom
+     * keeps meaning exactly one thing, how much of the frame the subject
+     * fills. Past one it crops, which is the point of having it.
+     */
+    built.camera.zoom = Math.max(0.05, settings.zoom);
+
+    /**
+     * And shift, rather than swing.
+     *
+     * Moving the subject off centre by turning the camera towards one side
+     * converges the verticals — the table starts to lean — because the picture
+     * plane is no longer parallel to what is in front of it. Offsetting the
+     * projection instead is what a shift lens does on a real camera and what
+     * an architectural photographer reaches for: the same view, framed off
+     * centre, with everything still standing up straight.
+     */
+    // The pad reads -1..1 about its centre, and the handle marks where the
+    // subject should sit, so the frustum moves the opposite way. A third of a
+    // frame at full deflection leaves the device near the edge with the whole
+    // of the other side free, which is as far as a headline ever needs.
+    const shift = 0.35;
+    const across2 = -settings.framing.x * shift;
+    const down = -settings.framing.y * shift;
+    if (Math.abs(across2) > 1e-4 || Math.abs(down) > 1e-4) {
+      // Full size and window size are the same, so only the offset counts and
+      // the units can be anything as long as they agree.
+      built.camera.setViewOffset(1, 1, across2, down, 1, 1);
+    } else if (built.camera.view?.enabled) {
+      built.camera.clearViewOffset();
+    }
     built.camera.updateProjectionMatrix();
     built.onCameraMoved();
   }

@@ -106,7 +106,7 @@ export const SCENE_PRESETS: Readonly<Record<ScenePresetId, ScenePreset>> = {
     // highlight and becomes a white disc burned across the artwork. Lifting it
     // sends that reflection down to the floor instead, and lights the top
     // surfaces on the way.
-    keyDirection: { x: 0.72, y: 0.24 },
+    keyDirection: { x: 0.44, y: -0.52 },
     keyIntensity: 95,
     label: "Void",
     // Low, but above the floor. Going under it would put the camera beneath
@@ -156,7 +156,7 @@ export const SCENE_PRESETS: Readonly<Record<ScenePresetId, ScenePreset>> = {
     keyColor: "#FFFFFF",
     // High and only just off centre, so the modelling is gentle and the
     // reflection of the key clears the display.
-    keyDirection: { x: 0.6, y: 0.26 },
+    keyDirection: { x: 0.2, y: -0.48 },
     keyIntensity: 70,
     label: "Softbox",
     // Dead on, at the height of the device itself.
@@ -202,7 +202,7 @@ export const SCENE_PRESETS: Readonly<Record<ScenePresetId, ScenePreset>> = {
     keyColor: "#FFFFFF",
     // From above and in front. Straighter than the others because the shadow
     // is meant to sit under the device rather than rake away from it.
-    keyDirection: { x: 0.56, y: 0.2 },
+    keyDirection: { x: 0.12, y: -0.6 },
     keyIntensity: 95,
     label: "Sweep",
     // Eye level, a touch off axis so the device has some depth to it.
@@ -245,7 +245,7 @@ export const SCENE_PRESETS: Readonly<Record<ScenePresetId, ScenePreset>> = {
     // Hard across from one side, still high enough to clear the display's
     // mirror angle. The shadow leaves the device on the diagonal because the
     // light comes from the corner rather than the front.
-    keyDirection: { x: 0.88, y: 0.3 },
+    keyDirection: { x: 0.76, y: -0.4 },
     keyIntensity: 150,
     label: "Hard light",
     pose: { position: [-0.22, 0.24, 1], up: [0, 1, 0] },
@@ -284,7 +284,7 @@ export const SCENE_PRESETS: Readonly<Record<ScenePresetId, ScenePreset>> = {
     floorRoughness: 56,
     focalLength: 85,
     keyColor: "#FFFFFF",
-    keyDirection: { x: 0.58, y: 0.16 },
+    keyDirection: { x: 0.16, y: -0.68 },
     keyIntensity: 120,
     label: "Spotlight",
     pose: { position: [-0.3, 0.2, 1], up: [0, 1, 0] },
@@ -325,7 +325,7 @@ export const SCENE_PRESETS: Readonly<Record<ScenePresetId, ScenePreset>> = {
     keyColor: "#FFE7C2",
     // Hard across from the side, which is what makes it rake: a long shadow
     // running out sideways rather than a short one pooling underneath.
-    keyDirection: { x: 0.94, y: 0.34 },
+    keyDirection: { x: 0.88, y: -0.32 },
     keyIntensity: 168,
     label: "Daylight",
     pose: { position: [-0.18, 0.16, 1], up: [0, 1, 0] },
