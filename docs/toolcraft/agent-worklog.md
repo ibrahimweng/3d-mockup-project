@@ -241,6 +241,13 @@ The quoted evidence must be an exact nontrivial raw substring of `Request` with 
 - Reason: Both were mine, both introduced with the furniture, and the first was invisible as itself. The bands were wound inside-out, so back-face culling removed them and the top rendered as a plane of no thickness — which does not read as a thin table, it reads as a table whose legs float below it, because the legs are still exactly where the underside used to be. I spent three passes moving the legs before measuring the thing itself: the gap was 0.22 subject radii, which is the top's thickness to the pixel.
 - Evidence: `createSurfaceGeometry` in `render/device-scene.ts`. The second defect was that the side faces reused the top ring's coordinates, so they had no variation down their height and a single row of the map was smeared the full depth of the edge — on a tabletop, the most looked-at surface in the frame. `quad` now picks the axis pair from the face normal.
 
+### Patterns
+
+- Decision: A gobo is cut in floor measurements squashed by the sine of the key's elevation, and it is an opaque wall with an opening rather than a set of bars.
+- Reason: Reported as not looking like blinds and breaking partway across. Two faults, and the second is the one that had been mistaken for the first. A gobo is drawn in the plane facing the light and its shadow lands on a floor, so the flatter the light the more the floor stretches everything along the direction it travels — at the angle sun comes through a window that factor is four or five, which turned eleven slats into two enormous stripes. And a cut-out that runs out does not fade at its edge: light simply passes either side of it, so the pattern stopped dead on a straight line in the middle of the frame.
+- Evidence: `createPatternGeometry` in `render/device-scene.ts` takes the squash and the depth map's half-extent, states every size as what it should measure on the floor, and fills the whole box with wall. The dependency also went the right way round: the box used to be stretched to contain a gobo of fixed size, and the gobo is now cut to fill whatever box the device's own shadow needs. Verified in Chromium under Daylight and Hard light, on a table and on the floor: bands run to the edge of frame at both key angles, and the window reads as an opening with a sash rather than as loose bars.
+- Risk: The cut is quantised to twenty-fourths of the squash and whole radii of extent, so a slow drag of the key pad recuts the sash a dozen times rather than on every frame. A gobo held at a rake beyond about eighty degrees is clamped, because past that the shadow is longer than the room.
+
 ## Verification
 
 - `npm run typecheck` passes.

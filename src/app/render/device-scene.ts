@@ -725,47 +725,77 @@ function createSurfaceGeometry(
   return geometry;
 }
 
-/** Half the width of a cut-out, which is how much depth map it needs. */
-function patternReach(pattern: LightPatternId, radius: number): number {
-  if (pattern === "window") return 3.8 * radius;
-  if (pattern === "blinds") return 9 * radius;
-  return 0;
-}
-
+/**
+ * What the key shines through, cut to suit the angle it is shining at.
+ *
+ * A gobo is drawn in the plane facing the light and its shadow lands on a
+ * floor, so the two are not the same shape: the flatter the light, the more
+ * the floor stretches everything along the direction it is travelling. At the
+ * angle sun comes through a window that factor is four or five, which is why a
+ * set of slats cut to look right on paper arrives as two enormous stripes. So
+ * the sizes here are stated as what they should measure *on the floor*, and
+ * squashed by the sine of the light's elevation on the way in.
+ *
+ * The other half of it is that a gobo has to be bigger than the shadow map, not
+ * smaller. Light simply passes either side of a cut-out that runs out, so the
+ * pattern does not fade at its edge — it stops, mid-frame, on a hard line. What
+ * a window actually is, and what this now builds, is an opaque wall with a hole
+ * in it: dark outside, bright in the opening, bars across the opening.
+ */
 function createPatternGeometry(
   pattern: LightPatternId,
   radius: number,
+  squash: number,
+  extent: number,
 ): THREE.BufferGeometry | null {
-  // Each bar is a flat quad in the plane facing the light: centre, half width,
-  // half height. None of them needs thickness, because none is ever seen.
+  if (pattern === "none") return null;
+
+  // Each piece is a flat quad: centre, half width, half height.
   const bars: [number, number, number, number][] = [];
+  /** A floor measurement, in the gobo's own squashed vertical units. */
+  const up = (floor: number): number => floor * squash;
+  // Generously past the depth map, so no edge of the wall is ever the edge of
+  // the pattern. Anything outside the map costs nothing: it is clipped.
+  const edge = extent * 1.6;
+
+  /** The wall around an opening, as four rectangles. */
+  const wall = (halfWide: number, halfHigh: number): void => {
+    bars.push([0, (edge + halfHigh) / 2, edge, (edge - halfHigh) / 2]);
+    bars.push([0, -(edge + halfHigh) / 2, edge, (edge - halfHigh) / 2]);
+    bars.push([(edge + halfWide) / 2, 0, (edge - halfWide) / 2, halfHigh]);
+    bars.push([-(edge + halfWide) / 2, 0, (edge - halfWide) / 2, halfHigh]);
+  };
 
   if (pattern === "window") {
-    const frame = 3.6 * radius;
-    const mullion = 1.8 * radius;
+    const halfWide = 3.6 * radius;
+    const halfHigh = up(2.6 * radius);
     // Thick enough to survive the projection. A bar is seen from the side the
-    // light is going, so a raking key stretches its shadow along the floor and
-    // squeezes it across — one cut thin enough to look right on paper arrives
-    // as a scratch.
-    const bar = 0.17 * radius;
-    // A three-by-three sash: the outer four are the frame, the inner four the
-    // glazing bars, and the middle pane is where the device stands.
-    for (const x of [-frame, -mullion, mullion, frame]) {
-      bars.push([x, 0, bar, frame + bar]);
-    }
-    for (const y of [-frame, -mullion, mullion, frame]) {
-      bars.push([0, y, frame + bar, bar]);
-    }
-  } else if (pattern === "blinds") {
-    const span = 9 * radius;
-    const bar = 0.26 * radius;
-    // Offset by half a gap, so the middle of the frame falls in the daylight
-    // between two slats rather than under one of them.
-    for (let index = -5; index <= 5; index += 1) {
-      bars.push([0, (index + 0.5) * 1.7 * radius, span, bar]);
+    // light is going, so a raking key squeezes it across — one cut thin enough
+    // to look right on paper arrives as a scratch.
+    const bar = 0.13 * radius;
+    wall(halfWide, halfHigh);
+    // A three-by-three sash, so the device stands in the middle pane.
+    for (const sign of [-1, 1]) {
+      bars.push([(sign * halfWide) / 3, 0, bar, halfHigh]);
+      bars.push([0, (sign * halfHigh) / 3, halfWide, up(bar)]);
     }
   } else {
-    return null;
+    const halfWide = 4.2 * radius;
+    const halfHigh = up(3.1 * radius);
+    // A venetian blind is mostly slat. Bands of light with hairlines between
+    // them read as a scratched negative; bands of shade with light between
+    // them read as a blind, and the ratio is most of what says which.
+    const pitch = up(0.62 * radius);
+    const slat = pitch * 0.56;
+    const count = Math.ceil(halfHigh / pitch);
+    wall(halfWide, halfHigh);
+    // Offset by half a pitch, so the middle of the frame falls in the daylight
+    // between two slats rather than under one of them.
+    for (let index = -count; index <= count; index += 1) {
+      const centre = (index + 0.5) * pitch;
+      if (Math.abs(centre) - slat / 2 > halfHigh) continue;
+      bars.push([0, centre, halfWide, slat / 2]);
+    }
   }
 
   const positions = new Float32Array(bars.length * 4 * 3);
@@ -1890,8 +1920,8 @@ export async function buildDeviceScene(options: {
   };
   applyShadowEdge(options.lighting.shadowSoftness);
 
-  /** How far the current cut-out reaches, so the depth map can cover it. */
-  let patternExtent = 0;
+  /** The half-width of the depth map's view, in world units. */
+  let shadowExtent = 0;
 
   /**
    * Size the depth map's view to the shadow the key is about to throw.
@@ -1914,15 +1944,17 @@ export async function buildDeviceScene(options: {
       position.y > 1e-3
         ? (sphere.radius * horizontal) / position.y
         : sphere.radius * 9;
+    // Enough for the shadow the device throws, and never less than the floor
+    // the frame can actually see — a box drawn tight around an overhead
+    // subject leaves the pattern covering a patch smaller than the picture.
+    // The gobo is then cut to fill whatever this settles on, rather than the
+    // box being stretched to contain a gobo of some fixed size, which is the
+    // way round that used to leave the two disagreeing.
     const extent = Math.min(
       sphere.radius * 9,
-      // Whichever is larger: enough room for the shadow the device throws, or
-      // enough to see the whole gobo. A cut-out reaching past the edge of the
-      // depth map is a cut-out whose outer bars quietly stop casting — with
-      // the key high and straight on, that is the window frame gone and only
-      // the glazing bars left.
-      Math.max(sphere.radius * 2.2 + Math.max(0, reach), patternExtent),
+      Math.max(sphere.radius * 3.6, sphere.radius * 2.2 + Math.max(0, reach)),
     );
+    shadowExtent = extent;
     key.shadow.camera.left = -extent;
     key.shadow.camera.right = extent;
     key.shadow.camera.top = extent;
@@ -1963,6 +1995,8 @@ export async function buildDeviceScene(options: {
   scene.add(patternMesh);
   let patternGeometry: THREE.BufferGeometry | null = null;
   let patternId: LightPatternId | null = null;
+  /** The shape the current cut-out was cut to, so it is not recut for nothing. */
+  let patternCut = "";
   disposables.push(patternSurface, noPattern, {
     dispose: () => patternGeometry?.dispose(),
   });
@@ -1976,22 +2010,44 @@ export async function buildDeviceScene(options: {
    * inside the depth map's near plane and out of the device.
    */
   const applyPattern = (next: LightPatternId): void => {
-    if (next !== patternId) {
-      patternId = next;
-      patternGeometry?.dispose();
-      patternGeometry = createPatternGeometry(next, sphere.radius);
-      patternMesh.geometry = patternGeometry ?? noPattern;
-      patternExtent = patternGeometry ? patternReach(next, sphere.radius) : 0;
-    }
-    // The framing depends on the cut-out, so it is settled here rather than
-    // wherever the key happened to move last.
+    // Settled first, because the cut-out is cut to fill it.
     frameShadow(key.position);
+    /**
+     * The sine of the light's elevation: how much a floor measurement has to
+     * be squashed to survive the trip through the gobo plane.
+     *
+     * Floored rather than allowed to reach zero. A key on the horizon asks for
+     * a pattern of no height at all, which is both unbuildable and pointless —
+     * past a certain rake the shadow is longer than the room.
+     */
+    const squash = Math.max(
+      0.16,
+      key.position.y / Math.max(1e-6, key.position.length()),
+    );
+    // Quantised, because this is consulted on every move of the key pad and
+    // the answer is a vertex buffer. Recut the sash a dozen times across a
+    // drag, not sixty times a second.
+    const cut = `${next}/${Math.round(squash * 24)}/${Math.round(shadowExtent)}`;
+    if (cut !== patternCut) {
+      patternCut = cut;
+      patternGeometry?.dispose();
+      patternGeometry = createPatternGeometry(
+        next,
+        sphere.radius,
+        squash,
+        shadowExtent,
+      );
+      patternMesh.geometry = patternGeometry ?? noPattern;
+    }
+    patternId = next;
     patternMesh.visible = patternGeometry !== null;
     if (!patternMesh.visible) return;
     patternMesh.position
       .copy(key.position)
       .normalize()
-      .multiplyScalar(sphere.radius * 2.6);
+      // Far enough out that the table never stands in front of it, close
+      // enough to stay well inside the depth map's near plane.
+      .multiplyScalar(sphere.radius * 3.2);
     patternMesh.lookAt(0, 0, 0);
   };
   applyPattern(options.lighting.pattern);

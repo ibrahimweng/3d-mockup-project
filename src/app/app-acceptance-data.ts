@@ -537,7 +537,7 @@ export const appAcceptance: readonly ToolcraftComponentAcceptance[] = [
     componentType: "select",
     evidence: "rendered-pixels",
     expectedObservable:
-      "Choosing Window lays a sash of shadow bars across the floor and backdrop with the device standing in a clear pane; choosing Blinds replaces it with parallel slats running the same way as the light; None leaves the floor unbroken.",
+      "Choosing Window lays a sash of shadow across the scene — dark outside the opening, a bright three-by-three of panes inside it, glazing bars between them — with the device standing in the middle pane. Choosing Blinds replaces it with evenly spaced slats running the way the light is travelling. Both keep the same size on the floor whatever angle the key is raked to, and both continue to the edge of frame rather than stopping on a line partway across it. None leaves the floor unbroken.",
     fixture: "any device casting a shadow on a visible background",
     id: "light.pattern.gobo",
     kind: "control",
