@@ -61,7 +61,20 @@ export class RasterRenderer {
 
   readonly renderer: THREE.WebGLRenderer;
 
-  constructor(canvas: HTMLCanvasElement, options?: { antialias?: boolean }) {
+  /**
+   * How much depth map to spend, against what the preview uses.
+   *
+   * The preview is redrawn on every drag and has to hold a frame rate; an
+   * export is drawn once and looked at closely, so the two want different
+   * answers to the same question. This is the multiplier the export turns up.
+   */
+  private readonly shadowDetail: number;
+
+  constructor(
+    canvas: HTMLCanvasElement,
+    options?: { antialias?: boolean; shadowDetail?: number },
+  ) {
+    this.shadowDetail = Math.max(1, options?.shadowDetail ?? 1);
     this.renderer = new THREE.WebGLRenderer({
       alpha: true,
       // Multisampling resolves edges by shading several samples per pixel, so
@@ -137,6 +150,7 @@ export class RasterRenderer {
       finish: readFinishId(settings.finish),
       floor: settings.floor,
       lighting: settings.lighting,
+      shadowDetail: this.shadowDetail,
       // A tabletop's maps land after the frame that asked for them, so the
       // frame has to be asked for again. Without this the slab sits
       // untextured until something else happens to invalidate it, which on a

@@ -388,7 +388,7 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
     surface: {
       back: 2.4,
       front: 0.88,
-      leg: 0.1,
+      leg: 0.075,
       left: 1.25,
       stand: 3.6,
       right: 3.4,
@@ -437,7 +437,7 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
     surface: {
       back: 2.3,
       front: 0.82,
-      leg: 0.095,
+      leg: 0.07,
       left: 1.2,
       stand: 3.4,
       right: 3.2,
@@ -493,7 +493,7 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
     surface: {
       back: 2.3,
       front: 0.82,
-      leg: 0.095,
+      leg: 0.07,
       left: 1.45,
       stand: 3.4,
       right: 3.6,

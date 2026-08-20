@@ -130,16 +130,17 @@ async function writeAlbedo(name, data) {
 }
 
 /**
- * Relief, as PNG at half resolution.
+ * Relief, as PNG at full resolution.
  *
  * Lossless because a normal map is a direction per pixel and JPEG's ringing
- * turns into visible facets across a flat surface. Half size because the
- * relief here is a slope rather than a silhouette, and it survives the
- * resample where the colour above would not.
+ * turns into visible facets across a flat surface. Full size because this is
+ * the map that carries detail: an export is four thousand pixels tall and the
+ * tabletop fills most of it, so a relief map at half resolution is the one
+ * thing standing between a surface that reads as material and one that reads
+ * as a soft photograph of material.
  */
 async function writeNormal(name, data) {
   await sharp(data, { raw: { channels: 3, height: SIZE, width: SIZE } })
-    .resize(SIZE / 2, SIZE / 2)
     .png({ compressionLevel: 9 })
     .toFile(join(OUT, name));
 }

@@ -344,7 +344,14 @@ export const SCENE_PRESETS: Readonly<Record<ScenePresetId, ScenePreset>> = {
     surface: "oak",
     sweepCurve: 58,
     sweepHeight: 52,
-    sweepLight: 34,
+    // No wash on the paper. Every other studio has a lamp at the foot of the
+    // backdrop because the backdrop is the subject's background and wants
+    // shaping; here the backdrop is a wall in a room, and the only thing
+    // meant to be lighting it is the sun coming through the window. A wash
+    // lamp on top of that lifts the wall to within a few percent of white,
+    // at which point the sash falling across it removes almost nothing and
+    // the pattern that reads plainly on the floor is invisible on the wall.
+    sweepLight: 0,
   },
 };
 

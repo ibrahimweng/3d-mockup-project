@@ -669,6 +669,77 @@ function createSurfaceGeometry(
     [west + offset, y, south - offset],
   ];
 
+  /**
+   * A turned leg: a tapered post with enough sides to read as round.
+   *
+   * Built with shared vertices around the circumference rather than through
+   * `quad`, because these are the one part of the table that should *not* be
+   * flat shaded. Averaged normals give a post a continuous highlight running
+   * down it, which is what says metal; four flat faces give four flat tones
+   * and a black rectangle, which is what the first pass at these looked like
+   * and what makes them read as bars drawn on the picture.
+   *
+   * The taper is small and does most of the work. Furniture legs are almost
+   * never parallel-sided — the eye reads a perfectly parallel post as a pipe —
+   * and a few percent over their length is enough.
+   */
+  const post = (
+    centreX: number,
+    centreZ: number,
+    wide: number,
+    high: number,
+    low: number,
+  ): void => {
+    const SIDES = 14;
+    const base = positions.length / 3;
+    for (const [level, scale] of [
+      [high, 1],
+      [low, 0.74],
+    ] as const) {
+      for (let side = 0; side <= SIDES; side += 1) {
+        const turn = (side / SIDES) * Math.PI * 2;
+        positions.push(
+          centreX + Math.cos(turn) * wide * scale,
+          level,
+          centreZ + Math.sin(turn) * wide * scale,
+        );
+        uvs.push((side / SIDES) * ((wide * 6) / across), (high - level) / across);
+      }
+    }
+    const ring = SIDES + 1;
+    for (let side = 0; side < SIDES; side += 1) {
+      const a = base + side;
+      const b = a + 1;
+      const c = a + ring;
+      const d = c + 1;
+      indices.push(a, c, d, a, d, b);
+    }
+    // Capped top and bottom: the underside of a table is a place a low camera
+    // goes, and an open tube there is worse than no leg at all.
+    for (const [level, scale, up] of [
+      [high, 1, true],
+      [low, 0.74, false],
+    ] as const) {
+      const centre = positions.length / 3;
+      positions.push(centreX, level, centreZ);
+      uvs.push(0.5, 0.5);
+      const rim = positions.length / 3;
+      for (let side = 0; side <= SIDES; side += 1) {
+        const turn = (side / SIDES) * Math.PI * 2;
+        positions.push(
+          centreX + Math.cos(turn) * wide * scale,
+          level,
+          centreZ + Math.sin(turn) * wide * scale,
+        );
+        uvs.push(0.5 + Math.cos(turn) * 0.5, 0.5 + Math.sin(turn) * 0.5);
+      }
+      for (let side = 0; side < SIDES; side += 1) {
+        if (up) indices.push(centre, rim + side, rim + side + 1);
+        else indices.push(centre, rim + side + 1, rim + side);
+      }
+    }
+  };
+
   if (legs) {
     const thick = surface.leg * radius;
     // Flush: the leg's outer faces sit in the same plane as the top's sides.
@@ -680,17 +751,12 @@ function createSurfaceGeometry(
     // the one part never in view. Coplanar, the silhouette carries straight on
     // down and there is nothing left to hide.
     const floor = -surface.stand * radius;
-    for (const x of [west, east - thick]) {
-      for (const z of [north, south - thick]) {
-        const post: Point[][] = [
-          [[x, -top, z], [x, -top, z + thick], [x + thick, -top, z + thick], [x + thick, -top, z]],
-          [[x, floor, z], [x + thick, floor, z], [x + thick, floor, z + thick], [x, floor, z + thick]],
-          [[x, floor, z + thick], [x + thick, floor, z + thick], [x + thick, -top, z + thick], [x, -top, z + thick]],
-          [[x + thick, floor, z], [x, floor, z], [x, -top, z], [x + thick, -top, z]],
-          [[x + thick, floor, z + thick], [x + thick, floor, z], [x + thick, -top, z], [x + thick, -top, z + thick]],
-          [[x, floor, z], [x, floor, z + thick], [x, -top, z + thick], [x, -top, z]],
-        ];
-        for (const [a, b, c, d] of post) quad(a, b, c, d);
+    // Tucked into each corner so the post is tangent to both edges: flush with
+    // the silhouette, and not hanging off it the way a circle inscribed on the
+    // corner point itself would.
+    for (const x of [west + thick, east - thick]) {
+      for (const z of [north + thick, south - thick]) {
+        post(x, z, thick, -top, floor);
       }
     }
   } else {
@@ -780,21 +846,27 @@ function createPatternGeometry(
       bars.push([0, (sign * halfHigh) / 3, halfWide, up(bar)]);
     }
   } else {
-    const halfWide = 4.2 * radius;
-    const halfHigh = up(3.1 * radius);
-    // A venetian blind is mostly slat. Bands of light with hairlines between
-    // them read as a scratched negative; bands of shade with light between
-    // them read as a blind, and the ratio is most of what says which.
+    // No opening, and no wall around one. A window is a hole in a wall and has
+    // to be built as one; a blind is not — it is a stack of slats, and the
+    // thing it does to a room is band the whole of it, floor and far wall
+    // alike. Giving it a frame put the wall of the gobo across most of the
+    // backdrop, which shadowed the backdrop rather than striping it: a room
+    // with the blind pulled down and no window behind it.
+    //
+    // The slats run to the edge of the depth map instead, which is what stops
+    // the pattern ending on a line partway across the frame — the fault the
+    // frame was doing double duty to prevent.
+    //
+    // A venetian blind is mostly slat, too. Bands of light with hairlines
+    // between them read as a scratched negative; bands of shade with light
+    // between them read as a blind, and the ratio is most of what says which.
     const pitch = up(0.62 * radius);
     const slat = pitch * 0.56;
-    const count = Math.ceil(halfHigh / pitch);
-    wall(halfWide, halfHigh);
+    const count = Math.ceil(edge / pitch);
     // Offset by half a pitch, so the middle of the frame falls in the daylight
     // between two slats rather than under one of them.
     for (let index = -count; index <= count; index += 1) {
-      const centre = (index + 0.5) * pitch;
-      if (Math.abs(centre) - slat / 2 > halfHigh) continue;
-      bars.push([0, centre, halfWide, slat / 2]);
+      bars.push([0, (index + 0.5) * pitch, edge, slat / 2]);
     }
   }
 
@@ -844,20 +916,26 @@ function createSweepFade(): THREE.Texture {
     // Read unflipped, the texture climbs the paper: the foot of the wall is at
     // the top of the canvas and the top of the wall at the bottom of it.
     const up = context.createLinearGradient(0, 0, 0, size);
+    // A long dissolve rather than a short one. The paper has a top, and at
+    // the heights a studio preset actually runs it to, that top is in frame —
+    // where a short fade shows as a horizontal edge across the picture with
+    // flat colour above it, which is the backdrop visibly stopping. Taken
+    // across half the height it arrives at the scene's own background without
+    // ever drawing a line.
     up.addColorStop(0, "#ffffff");
-    up.addColorStop(0.82, "#ffffff");
+    up.addColorStop(0.45, "#ffffff");
     up.addColorStop(1, "#000000");
     context.fillStyle = up;
     context.fillRect(0, 0, size, size);
-    // The sides are cut out of what is left, so a corner fades on both counts.
-    context.globalCompositeOperation = "multiply";
-    const across = context.createLinearGradient(0, 0, size, 0);
-    across.addColorStop(0, "#000000");
-    across.addColorStop(0.12, "#ffffff");
-    across.addColorStop(0.88, "#ffffff");
-    across.addColorStop(1, "#000000");
-    context.fillStyle = across;
-    context.fillRect(0, 0, size, size);
+    // Nothing across. There used to be a fade at each side, from when the
+    // paper was a strip that had to stop somewhere without showing an edge.
+    // The paper is swept through a full turn now and closes on itself, so U
+    // is an angle rather than a position — and fading its ends took a wedge
+    // of a quarter of the circumference clean out of the wall, centred at U
+    // nought, which is exactly the piece directly behind the device. The
+    // whole back wall has been a hole with the scene's background showing
+    // through it: no paper in frame, nothing for a pattern to land on, and a
+    // flat field of colour where the backdrop should be.
   }
   const texture = new THREE.CanvasTexture(canvas);
   // Textures are flipped on upload by default, which would put the fade at the
@@ -1196,6 +1274,8 @@ export async function buildDeviceScene(options: {
   /** Called when a surface's maps land, so the frame can be drawn again. */
   onSurfaceReady?: () => void;
   renderer: THREE.WebGLRenderer;
+  /** Multiplier on the depth map's resolution; an export turns this up. */
+  shadowDetail?: number;
   showGround: boolean;
   surface: SurfaceSettings;
   sweep: SweepSettings;
@@ -1467,6 +1547,10 @@ export async function buildDeviceScene(options: {
         sphere.radius * 16 * height,
       );
       sweepMesh.geometry = sweepGeometry;
+      // How deep the depth map has to reach depends on where the paper now
+      // stands, so moving the paper re-frames the shadow as surely as moving
+      // the key does.
+      frameShadow(key.position);
       // The paper leaves the floor, so it starts where the floor is.
       sweepMesh.position.y = floorY - sphere.radius * 0.0015;
     }
@@ -1895,7 +1979,18 @@ export async function buildDeviceScene(options: {
     .multiplyScalar(sphere.radius * 4)
     .add(new THREE.Vector3(0, sphere.radius * 2, 0));
   key.castShadow = true;
-  key.shadow.bias = -0.0006;
+  /**
+   * How far a surface is pushed away from the light before it is compared.
+   *
+   * Stated in world units rather than as the depth-buffer figure it becomes,
+   * because the buffer's range is no longer fixed: the paper now stands as far
+   * out as the framing needs, and a bias that is a constant fraction of a
+   * range that quadruples is a bias that quadruples with it, which detaches a
+   * shadow from the thing casting it.
+   */
+  const SHADOW_BIAS = sphere.radius * 0.008;
+  /** Remembered so a pattern can re-decide the map size without it. */
+  let lastSoftness = options.lighting.shadowSoftness;
   /**
    * Set the shadow's edge, and give it enough map to be worth setting.
    *
@@ -1908,8 +2003,17 @@ export async function buildDeviceScene(options: {
    */
   const applyShadowEdge = (softness: number): void => {
     const amount = Math.max(0, Math.min(1, softness));
+    lastSoftness = amount;
     key.shadow.radius = 0.35 + 11 * amount;
-    const wanted = amount < 0.35 ? 2048 : 1024;
+    // A patterned map covers the backdrop as well as the floor, so it is
+    // spread over four times the area and needs the texels back — and an
+    // export, drawn once and enlarged to four thousand pixels, can afford
+    // more of them than a preview being dragged around can.
+    const detail = Math.max(1, options.shadowDetail ?? 1);
+    const wanted = Math.min(
+      4096,
+      (amount < 0.35 || patterned ? 2048 : 1024) * detail,
+    );
     if (key.shadow.mapSize.x !== wanted) {
       key.shadow.mapSize.set(wanted, wanted);
       // three allocates the depth target from mapSize on first use and never
@@ -1922,6 +2026,18 @@ export async function buildDeviceScene(options: {
 
   /** The half-width of the depth map's view, in world units. */
   let shadowExtent = 0;
+  /**
+   * Whether a cut-out is in the light, which changes what the depth map is for.
+   *
+   * With no pattern the map exists to draw the device's own shadow, and it
+   * should be wrapped as tightly around the device as the rake allows, because
+   * every texel spent elsewhere is detail lost from the one edge anybody looks
+   * at. With a pattern it also has to reach the backdrop — a window that lands
+   * on the floor and stops at the skirting is not a window, it is a rug — and
+   * that is a far larger volume for the same number of texels. The map is
+   * doubled to pay for it.
+   */
+  let patterned = false;
 
   /**
    * Size the depth map's view to the shadow the key is about to throw.
@@ -1938,6 +2054,45 @@ export async function buildDeviceScene(options: {
    * approaching infinity, and past a point the map is spread so thin the shadow
    * it draws is worse than the one it clipped.
    */
+  /**
+   * How wide the depth map's view has to be to hold the paper, not just the floor.
+   *
+   * Measured off the set rather than picked, because the answer moves with all
+   * three things it depends on: how far out the cove is standing, how high the
+   * paper has been run up, and how steeply the key is raked. A point's distance
+   * from the light's axis is what the box has to cover, so this takes the
+   * furthest points of the cove that a normal framing can see — the foot and a
+   * few radii up it, on the far side and on both flanks — and returns the
+   * worst of them.
+   *
+   * Only the lower part of the paper is considered. A backdrop run to its full
+   * height is sixteen radii of wall, almost none of it ever in frame, and
+   * sizing the box to cover all of it would spread the map so thin that the
+   * device's own shadow — the one edge anybody actually looks at — would go
+   * to pieces to light a wall nobody can see.
+   */
+  const reachPaper = (position: THREE.Vector3): number => {
+    const axis = position.clone().normalize();
+    const flat = new THREE.Vector3(position.x, 0, position.z);
+    if (flat.lengthSq() < 1e-6) flat.set(0, 0, 1);
+    flat.normalize();
+    const radius = Math.max(builtCoveRadius, sphere.radius * 6);
+    const rise = Math.min(sweepHeight * sphere.radius * 16, sphere.radius * 6);
+    let worst = 0;
+    const probe = new THREE.Vector3();
+    for (const height of [floorY, floorY + rise]) {
+      for (const [x, z] of [
+        [-flat.x, -flat.z],
+        [flat.z, -flat.x],
+        [-flat.z, flat.x],
+      ]) {
+        probe.set(x * radius, height, z * radius);
+        worst = Math.max(worst, probe.addScaledVector(axis, -probe.dot(axis)).length());
+      }
+    }
+    return worst;
+  };
+
   const frameShadow = (position: THREE.Vector3): void => {
     const horizontal = Math.hypot(position.x, position.z);
     const reach =
@@ -1950,19 +2105,39 @@ export async function buildDeviceScene(options: {
     // The gobo is then cut to fill whatever this settles on, rather than the
     // box being stretched to contain a gobo of some fixed size, which is the
     // way round that used to leave the two disagreeing.
-    const extent = Math.min(
-      sphere.radius * 9,
-      Math.max(sphere.radius * 3.6, sphere.radius * 2.2 + Math.max(0, reach)),
-    );
+    const wanted = sphere.radius * 2.2 + Math.max(0, reach);
+    const extent = patterned
+      ? Math.min(sphere.radius * 20, Math.max(reachPaper(position), wanted))
+      : Math.min(
+          sphere.radius * 9,
+          Math.max(sphere.radius * 3.6, wanted),
+        );
     shadowExtent = extent;
     key.shadow.camera.left = -extent;
     key.shadow.camera.right = extent;
     key.shadow.camera.top = extent;
     key.shadow.camera.bottom = -extent;
+    /**
+     * Deep enough to reach the far side of the paper.
+     *
+     * This was a fixed twelve radii, from when the backdrop stood two and a
+     * half radii behind the device. The cove is now sized to the framing and
+     * can stand four times further than that, and everything past the far
+     * plane is simply not in the depth map — which is why a pattern landed on
+     * the floor and the table and then stopped at the skirting, with the wall
+     * above it lit flat. The wall is the half of the shot a window is *for*.
+     */
+    const reachesWall = Math.hypot(
+      builtCoveRadius + sphere.radius * 2,
+      sphere.radius * 18,
+    );
+    const depth = position.length() + reachesWall;
+    key.shadow.camera.far = depth;
+    // Held constant in world units as the range grows behind it.
+    key.shadow.bias = -SHADOW_BIAS / depth;
     key.shadow.camera.updateProjectionMatrix();
   };
   key.shadow.camera.near = sphere.radius * 0.2;
-  key.shadow.camera.far = sphere.radius * 12;
   scene.add(key);
 
   /**
@@ -2010,7 +2185,11 @@ export async function buildDeviceScene(options: {
    * inside the depth map's near plane and out of the device.
    */
   const applyPattern = (next: LightPatternId): void => {
-    // Settled first, because the cut-out is cut to fill it.
+    // Both of these come before the framing, because the framing depends on
+    // them: a patterned map has to reach the wall and a plain one does not.
+    patterned = next !== "none";
+    applyShadowEdge(lastSoftness);
+    // Settled first, because the cut-out is then cut to fill it.
     frameShadow(key.position);
     /**
      * The sine of the light's elevation: how much a floor measurement has to
@@ -2180,6 +2359,8 @@ export async function buildDeviceScene(options: {
   // the slab afterwards.
   await surfaceReady;
   applySweep(options.sweep);
+  // Once more with the cove's real radius, which the first pass did not have.
+  frameShadow(key.position);
   applyBackground();
   disposables.push({ dispose: () => floorFade?.dispose() });
 

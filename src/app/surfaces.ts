@@ -38,9 +38,9 @@ export const SURFACE_LEG = {
   // out as a flat silhouette with no facets, which reads as a bar drawn on the
   // picture rather than a post standing in it. Dropping the metalness lets the
   // key model the corners.
-  color: "#3e4043",
+  color: "#494c50",
   metalness: 0.45,
-  roughness: 0.38,
+  roughness: 0.34,
 } as const;
 
 export type SurfaceDefinition = {
@@ -128,7 +128,7 @@ export const SURFACE_DEFINITIONS = [
       roughness: "stone-rough.jpg",
     },
     metalness: 0,
-    normalScale: 0.6,
+    normalScale: 0.38,
     roughness: 1,
     // Around half a metre a tile on a table this size, which puts the veins a
     // hand's width apart. Stone is the one material here where too *many*
@@ -155,7 +155,7 @@ export const SURFACE_DEFINITIONS = [
       roughness: "oak-rough.jpg",
     },
     metalness: 0,
-    normalScale: 0.45,
+    normalScale: 0.2,
     roughness: 1,
     // Coarser than a real board, deliberately, and this is the compromise.
     // Thirteen rings a tile at the spacing oak actually grows would want two
@@ -185,7 +185,7 @@ export const SURFACE_DEFINITIONS = [
       roughness: "steel-rough.jpg",
     },
     metalness: 1,
-    normalScale: 0.35,
+    normalScale: 0.24,
     roughness: 1,
     // Coarse. The brush lines are already a hundred to one inside the map, so
     // repeating it hard would shorten them into a weave, and a long smeared

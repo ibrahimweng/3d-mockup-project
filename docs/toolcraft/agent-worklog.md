@@ -258,6 +258,27 @@ The quoted evidence must be an exact nontrivial raw substring of `Request` with 
 - Evidence: With the backdrop switched off the same measurement reads 82 percent transparent, and with it on, zero. Both from the same code path in the same run.
 - Findings: No product defect. Two false alarms ran to ground: the sharpest row-to-row luminance steps, 92 and 52 against a median of 16, are the top edge of the laptop's own black screen rather than a seam — restricted to columns clear of the device the worst step in any frame is 16 of 255 and the median 5.5 — and a scatter of failed module requests belonged to a dev server that had been running through several hours of edits, and is absent on a fresh one. Undo after a preset and a surface takes one press each, and redo restores both exactly.
 
+### The wall was a hole
+
+- Decision: The sweep's fade no longer cuts anything across its width, and Daylight has no wash lamp on its paper.
+- Reason: Asked for the blinds to land on the wall as well as the floor, and they would not. Three things had to be true and only the third was the one I expected. The depth map's far plane predated the camera-sized cove and did not reach the paper; the box was too narrow to hold it; and — the one that mattered — the paper had a transparent wedge a quarter of its circumference wide punched straight through it, centred exactly behind the device. The fade was written for a strip that had two ends to hide. Revolving the cove turned U from a position into an angle, so fading its ends took the back wall out. Every frame since had been showing the scene's flat background where the backdrop should have been, and a flat clear colour cannot receive a shadow.
+- Evidence: `createSweepFade` in `render/device-scene.ts`; `reachPaper` sizes the depth box off the cove's actual radius, rise and the key's rake rather than a constant. Measured by differencing frames with the pattern on and off: the pattern used to change nothing above row 437 of 1350 and a wall crop moved by at most 12 of 255; it now changes the full height of the frame and the same crop moves by 53. The wash lamp came off Daylight because a wall lifted to 224 of 255 by a lamp cannot show a sash falling across it — the light being blocked was a twentieth of what was landing there.
+- Decision: A blind has no window frame; a window does.
+- Reason: Both were built as an opaque wall with an opening, which is what a window is. On a blind it put the gobo's solid wall across most of the backdrop, so the far wall went into shadow rather than into stripes — a room with the blind down and no window behind it. The slats now run to the edge of the depth map, which is what stops the pattern ending mid-frame anyway.
+
+### The export was not the preview
+
+- Decision: The export always sets the artwork, even when there is none, and renders with twice the depth map.
+- Reason: Reported as the final render having parts cut off and looking soft. The first was two things: the paper's top edge landed in frame as a horizontal line with flat colour above it — a short dissolve over the top eighteen percent, taken across half the height now — and the display. Skipping `setArtwork` when no image is uploaded left the model's own wallpaper glowing on the screen, while the preview had already blanked it, because the preview calls that on every update whether or not there is an image. An export that does not match the preview is not an export of what the user was looking at.
+- Evidence: `export-renderer.ts` and `shadowDetail` in `render/raster-renderer.ts`. Preview and export, resampled to the same size, disagreed across 16.4 percent of pixels with a band of rows over 30 percent out; they now disagree across 9.2 percent with no row over 30, and the remainder is the finer shadow and sampling the export is paying for on purpose.
+- Decision: Relief maps ship at full resolution, and the grain that reads at that resolution is much quieter.
+- Reason: The maps were being halved on the way out, which is invisible in a preview and is exactly what "clean, with more detail" is asking about in a four-thousand-pixel export. Turning that back on made a second fault obvious: the oak was corrugated. Damping the relief did nothing, because the relief was never drawing it — measured, the oak normal averages under 0.04 of slope. It was the albedo: two dozen evenly spaced bands at the contrast of two different timbers. Latewood is a shade of earlywood on a sanded board, and a line rather than a swell.
+
+### Legs
+
+- Decision: Turned tapered posts with smooth normals, in place of square bars.
+- Reason: Reported as looking very unrealistic, and they did. Four flat faces give four flat tones, which is a black rectangle drawn on the picture rather than a post standing in it; and a perfectly parallel-sided leg reads as a pipe. Fourteen sides with shared vertices give a continuous highlight down the length, a taper of a quarter over the drop does the rest, and both ends are capped because a low camera goes under a table.
+
 ## Verification
 
 - `npm run typecheck` passes.

@@ -43,7 +43,13 @@ export const mockupExportRenderer: ToolcraftProductExportRenderer = {
 
     // Multisampling always, whatever the preview decided: an export is looked
     // at closely and is drawn once, so the cost does not matter here.
-    const renderer = new RasterRenderer(canvas, { antialias: true });
+    const renderer = new RasterRenderer(canvas, {
+      antialias: true,
+      // Twice the depth map. The preview redraws on every drag and has to hold
+      // a frame rate; this is drawn once, at four thousand pixels, and looked
+      // at closely.
+      shadowDetail: 2,
+    });
     try {
       await new Promise<void>((resolve) => {
         void renderer.update(settings, resolve);
@@ -57,18 +63,25 @@ export const mockupExportRenderer: ToolcraftProductExportRenderer = {
         )
         .at(-1);
 
-      if (artworkAsset) {
-        const image = await getExportArtworkImage(artworkAsset.id);
-        if (image) {
-          const texture = createScreenTexture(
-            image,
-            readDeviceDefinition(settings.device),
-            artworkAsset.transform,
-            renderer.maxAnisotropy,
-          );
-          renderer.setArtwork(texture, readScreenTransform(values));
-        }
-      }
+      const image = artworkAsset
+        ? await getExportArtworkImage(artworkAsset.id)
+        : null;
+      // Always, even with nothing to show. Skipping the call left the model's
+      // own wallpaper glowing on the display — which the preview had already
+      // blanked, because it calls this on every update whether or not there is
+      // an image. An export that does not match the preview is not an export
+      // of what the user was looking at.
+      renderer.setArtwork(
+        image && artworkAsset
+          ? createScreenTexture(
+              image,
+              readDeviceDefinition(settings.device),
+              artworkAsset.transform,
+              renderer.maxAnisotropy,
+            )
+          : null,
+        readScreenTransform(values),
+      );
 
       renderer.setSize(width, height, ratio);
       renderer.setPose(pose);

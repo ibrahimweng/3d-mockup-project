@@ -173,8 +173,15 @@ async function oak() {
   const albedo = Buffer.alloc(SIZE * SIZE * 3);
   const rough = Buffer.alloc(SIZE * SIZE);
 
-  const light = [203, 167, 119];
-  const dark = [110, 74, 41];
+  // The gap between these two is the whole read, and it was far too wide. On
+  // a sanded and sealed board the latewood is a shade of the earlywood, not a
+  // different timber; at the contrast this started with, twenty-four evenly
+  // spaced bands across a tabletop stop looking like figure and start looking
+  // like corrugated sheet — which is what it looked like, and no amount of
+  // damping the relief fixed it, because the relief was never what was
+  // drawing them.
+  const light = [201, 166, 121];
+  const dark = [156, 119, 77];
 
   for (let y = 0; y < SIZE; y += 1) {
     for (let x = 0; x < SIZE; x += 1) {
@@ -191,14 +198,18 @@ async function oak() {
         // where the warp steepens the rings crowd, where it flattens they open
         // out — and it stays safely under the half-period at which the sheets
         // would fold back through each other.
-        (drift[index] - 0.5) * period * 0.46 +
-        (waver[index] - 0.5) * period * 0.16;
+        (drift[index] - 0.5) * period * 0.62 +
+        (waver[index] - 0.5) * period * 0.2;
       const season = along * RINGS - Math.floor(along * RINGS);
       // Slow darkening through the year, the tight latewood band at the end of
       // it, and a hard edge back to next spring — softened over one percent of
       // the ring so it resamples without stairsteps.
+      // Most of the ring is one tone with a narrow line at the end of it. The
+      // slow ramp across the whole ring that used to carry a fifth of the
+      // weight is what made each one read as a swell rather than a growth
+      // year — a wave has a broad gradient, a board has a line.
       const band =
-        (season * 0.22 + ramp(0.72, 0.94, season) * 0.78) *
+        (season * 0.1 + ramp(0.82, 0.96, season) * 0.9) *
         (1 - ramp(0.99, 1, season)) *
         (0.42 + weight[index] * 1.05);
       const streak = (fibre[index] - 0.5) * 0.62;
@@ -210,7 +221,7 @@ async function oak() {
       const pit = ramp(0.9, 0.995, pore[index]) * spring;
       const fleck = ramp(0.91, 1, ray[index]) * (1 - band) * 0.8;
 
-      const shade = clamp01(mix + pit * 0.34 - fleck * 0.22);
+      const shade = clamp01(mix + pit * 0.55 - fleck * 0.26);
       for (let channel = 0; channel < 3; channel += 1) {
         albedo[index * 3 + channel] = clamp(
           light[channel] +
@@ -228,7 +239,7 @@ async function oak() {
       // rather than as wood. The fine detail stays in the colour, where it
       // is harmless.
       height[index] =
-        0.5 + band * 0.05 + streak * 0.04 - pit * 0.9;
+        0.5 + band * 0.035 + streak * 0.025 - pit * 0.5;
 
       // Open grain in the pores, closed and slightly sheened elsewhere: a
       // finished board is not uniformly matte, and that is most of why oak
