@@ -367,6 +367,14 @@ Zooming out and shifting the frame were the two new risks: both widen what the c
 - Reason: `repeat` is how much of the image spans the panel, so below one magnifies and crops and above one leaves room. Covering and containing are reciprocals, not the same number moved to the other axis — which is what the code did, so Fit cropped exactly as hard as Fill, on the opposite axis. A square design on a sixteen-by-ten display lost a fifth of its width off each side while the control's own description promised margins.
 - Evidence: With a square test image carrying a coloured marker in each corner, Fit on the MacBook now shows all four and Fill shows none, which is what the two modes mean. Before the fix, Fit showed none either.
 
+### Driving the design placement, which had never been driven
+
+- Decision: Recorded rather than changed. Every placement control behaves as specified, including the three whose units were rewritten in the pad fix and never verified with a design on screen.
+- Reason: The pad fix changed what `artwork.offset` and `artwork.stretch` mean and rewrote the drag gesture's arithmetic, and the only evidence taken at the time was that the studio presets rendered identically — which exercises the key light and nothing on the screen. The two faults found in the pass before this one both lived on paths no sweep had ever walked, so walking this one was owed.
+- Evidence: A square design with a marker inset into each corner, measured on the panel. Scale 57, 98 and 160 give marker spreads of 97, 167 and 273 pixels — 0.581 and 1.635 against the 0.582 and 1.633 the slider asked for. Stretch at plus and minus 0.96 gives 1.95 and 0.52 times the width, which is two to that power, and its centre leaves the design alone. Position moves the design and stops where the crop does: at 170 percent scale on a sixteen-by-ten panel the design has 5.9 percent of horizontal slack against 41 percent vertical, and the measured travel is small across and large down, in that proportion.
+- Evidence: The drag follows the pointer rather than fighting it — 64 pixels of pointer, 42 of design, the shortfall being the pan limit it reaches partway. Ninety degrees turns clockwise, each flip mirrors its own axis, and each flip is its own inverse. The export puts the design within 0.03 percent of where the preview put it, at the same size to four decimal places.
+- Risk: A flip read as the wrong axis when tested on a design that was already rotated, because these apply in the design's own axes rather than the screen's. Tested square on, both are right; the first reading was mine, not the app's.
+
 ## Verification
 
 - `npm run typecheck` passes.
