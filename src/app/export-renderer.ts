@@ -41,10 +41,20 @@ export const mockupExportRenderer: ToolcraftProductExportRenderer = {
     canvas.width = Math.round(width * ratio);
     canvas.height = Math.round(height * ratio);
 
-    // Multisampling always, whatever the preview decided: an export is looked
-    // at closely and is drawn once, so the cost does not matter here.
+    // Multisampling on everything the machine can hold it for. An export is
+    // looked at closely and drawn once, so the cost is worth paying — up to the
+    // point where paying it is why nothing comes out at all.
+    //
+    // A multisample buffer is one allocation per sample: the 8K export is 6554
+    // by 8192, which is already exactly this platform's maximum renderbuffer
+    // size, and four samples of it is about eight hundred megabytes. It did not
+    // finish in ten minutes. Past four thousand pixels there is very little for
+    // multisampling to do anyway — an edge is already resolved by that many
+    // pixels across the frame — so the samples are what gives way, not the
+    // resolution the user asked for.
+    const pixels = canvas.width * canvas.height;
     const renderer = new RasterRenderer(canvas, {
-      antialias: true,
+      antialias: pixels <= 4096 * 4096,
       // Twice the depth map. The preview redraws on every drag and has to hold
       // a frame rate; this is drawn once, at four thousand pixels, and looked
       // at closely.
