@@ -387,6 +387,21 @@ Zooming out and shifting the frame were the two new risks: both widen what the c
 - Reason: `app-acceptance-data.ts` was 1083 lines and four dozen rows in one array. It is now the transfer mode, the readiness statement and the section inventory at 396 lines, with the rows next door: what the picture is of in one file, the shot and what comes out of it in the other. Order across the two is part of the contract, so they are concatenated in one place rather than merged anywhere else.
 - Evidence: 450 tests still pass, which is what would catch a row lost or reordered.
 
+### Taking the scene builder apart, part two
+
+- Decision: The key light and the table own their own state; the builder coordinates them.
+- Reason: `buildDeviceScene` was a single closure holding every part of the scene and every wire between them, which is why it could not be split by moving code. The key light is the one subsystem that genuinely has to know where the set is — how far out the cove stands, how high the paper runs and where the floor sits all decide how much depth map its shadow needs — so it now reads those three through functions and owns the rest of itself. The table used to move the floor, re-place the paper and re-balance the bounce, which meant it knew about three things that are not the table; it now reports how far the room has to drop and lets the room drop it.
+- Evidence: `scene-key.ts`, `scene-table.ts` and `scene-types.ts`. device-scene.ts went 1558 to 980.
+- Risk: Still 980 against 700. The remaining lift is the room — ground, mirror, paper and floor — which is the most entangled of the three: it needs the camera, the table and the key's shadow reframing, and it sits in two spans with the table between them. Left for its own pass rather than done at the tail of this one.
+
+### The same settings can produce two different pictures
+
+- Decision: Found while verifying the split, recorded rather than fixed.
+- Reason: After switching device with a table staged, the scene settles into one of two states. They differ only above the table — the wall's shading — by around sixteen grey levels across a third of the frame.
+- Evidence: The same production build, run twice, gives two different hashes for each of six states, and the six that vary are exactly the six taken after a device switch. The eleven taken before one are stable. This is not the split: run twice, the new build reproduces the old build's hashes exactly, and the device sits at the identical pixel in both, so the camera and the framing are not involved.
+- Risk: It means an export is not reproducible from its settings. Two people with the same document, or the same person twice, can get different pictures of the same set. That is worth more than the line budget and should be the next thing looked at.
+- Risk: It also means "byte-identical" is a weaker claim than it sounds on those six states, and the earlier split's clean result on all seventeen was in part luck. Deterministic states are still the right evidence; they just have to be identified first.
+
 ## Verification
 
 - `npm run typecheck` passes.
