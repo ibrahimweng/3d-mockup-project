@@ -281,7 +281,7 @@ const PHONE_PRINTED_PANELS = ["SMUhrjUPCjJkPUK", "HETovHCBsEjcSiP"] as const;
 /**
  * Every material carrying the phone's finish.
  *
- * Read out of the GLB rather than eyeballed: any material whose base colour is
+ * Read out of the GLB rather than eyeballed: every material whose base colour is
  * red-dominant, plus the printed panels above, which a base-colour sweep
  * cannot see. Missing the small ones leaves an orange side button on an
  * otherwise repainted phone.

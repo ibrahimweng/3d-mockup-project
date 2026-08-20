@@ -113,8 +113,22 @@ export function MockupPreview(): React.ReactElement {
   const artworkUrl = artworkAsset ? (urls.get(artworkAsset.id) ?? null) : null;
   // Runtime owns rotate and flip through the actions under the uploader; the
   // renderer reads that state rather than keeping its own copy.
-  const designTransform = artworkAsset?.transform;
-  const designTransformKey = JSON.stringify(designTransform ?? {});
+  const designTransformKey = JSON.stringify(artworkAsset?.transform ?? null);
+  /**
+   * The transform, rebuilt from its own serialization.
+   *
+   * The runtime hands back a fresh object on every store change, so depending
+   * on it directly re-decodes the source image whenever anything at all moves.
+   * Deriving it from the key instead makes "the same transform is the same
+   * value" true rather than asserted — which is what the two suppressions here
+   * used to assert in a comment.
+   */
+  const designTransform = React.useMemo(
+    () =>
+      (JSON.parse(designTransformKey) as ToolcraftImageAsset["transform"] | null) ??
+      undefined,
+    [designTransformKey],
+  );
 
   React.useEffect(() => {
     if (!artworkAsset || !artworkUrl) return undefined;
@@ -159,10 +173,7 @@ export function MockupPreview(): React.ReactElement {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- the transform is
-    // tracked by its serialized key so a new object identity alone cannot
-    // re-decode the source image.
-  }, [artworkUrl, designTransformKey, sceneVersion, settings.device]);
+  }, [artworkUrl, designTransform, sceneVersion, settings.device]);
 
   React.useEffect(() => {
     rendererRef.current?.setPose(pose);
@@ -174,9 +185,6 @@ export function MockupPreview(): React.ReactElement {
   React.useEffect(() => {
     rendererRef.current?.setArtwork(artworkRef.current, screenRef.current);
     dirtyRef.current = true;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- the transform is
-    // read through a ref and tracked by its serialized key, so an unchanged
-    // transform with a new object identity does not rebind the texture.
   }, [screenKey]);
 
   const rect =

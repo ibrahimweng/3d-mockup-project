@@ -415,6 +415,19 @@ Zooming out and shifting the frame were the two new risks: both widen what the c
 - Decision: Noted, because the last sub-level difference was worth understanding rather than waving through.
 - Reason: The frames are not bit-identical — row means move by up to 0.8 of a level. The cause is in the old arrangement, not the new one: the table's dressing callback referred to `applyFloorEnvironment`, which was declared forty lines further down, so a cached texture resolving quickly could reach it inside its dead zone. The throw went into the `.catch` that guards the load and the room was left un-rebalanced. Building the room before the table removes the hazard, which is the same fault as the shadow sizing's and the second time a swallowed error has hidden one.
 
+### The last of the code-health debt, and the one thing that cannot be paid
+
+- Decision: The two lint suppressions in `preview.tsx` are gone, and the intent they asserted is now structural.
+- Reason: Both said the same thing in a comment — that the design's transform is tracked by its serialization, so a fresh object with the same contents must not re-decode the image. The transform is now *derived* from that serialization through a memo, so the claim is true by construction rather than by assertion, and the effects can depend on the value itself.
+- Evidence: Rotate and both flips still behave — each mirrors its own axis, each is its own inverse, ninety degrees turns clockwise — and the seventeen states are identical to the build before the change.
+- Decision: The `any` the checker reported does not exist.
+- Reason: It matched the English word in a doc comment, on a line describing which materials carry the phone's finish. There is no `any` type in the file. The sentence now says "every", which is what it meant.
+
+- Decision: The three loader imports stay, and this is the definitive answer rather than another deferral.
+- Reason: The sanctioned route the checker names is a model `fileDrop` declared in schema, whose bundled default the runtime imports and presents. That is built for one user-supplied model shown through the runtime's own model presentation. This app picks between five bundled devices from a catalog and draws them through a scene of its own — a placeable rig, a cove, furniture, and a design mapped onto a modelled panel — as `canvasContent`. Taking the sanctioned route means giving up that scene, which is the product.
+- Evidence: Checked rather than assumed. The runtime exposes no URL-based loader to product source; importing its model-import internals is caught by the same rule; and the boundary checker has no waiver or allowlist. `RGBELoader` is not a model loader at all — it loads the environment — but the rule catches it too.
+- Risk: So the product boundary check fails, on three imports, in one module. Everything else it checks now passes: no line budget violation anywhere in the app, and no escape hatches.
+
 ## Verification
 
 - `npm run typecheck` passes.
