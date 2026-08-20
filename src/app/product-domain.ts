@@ -331,13 +331,13 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
     // from too far away; what it wants is a plate it is standing on, seen from
     // above, with the room continuing past it at the same level.
     surface: {
-      back: 2.6,
-      front: 1.1,
+      back: 1.15,
+      front: 0.75,
       leg: 0,
-      left: 1.5,
-      stand: 0.34,
-      right: 3.2,
-      top: 0.34,
+      left: 1.0,
+      stand: 0.25,
+      right: 1.6,
+      top: 0.25,
     },
     screenMaterial: "Material.004",
   },
@@ -349,13 +349,13 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
     label: "iPhone 17 Pro Max",
     modelFile: "iphone-5.glb",
     surface: {
-      back: 2.4,
-      front: 1,
+      back: 1.1,
+      front: 0.7,
       leg: 0,
-      left: 1.4,
-      stand: 0.3,
-      right: 3,
-      top: 0.3,
+      left: 0.95,
+      stand: 0.22,
+      right: 1.5,
+      top: 0.22,
     },
     // The file is named for an iPhone 5 but holds a 17 Pro Max in orange, with
     // the display material renamed. The catalog is named for what it renders.
@@ -386,13 +386,13 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
     // laptop is not teetering — and the top carries on behind and to the right
     // until it leaves frame, which is what a desk does.
     surface: {
-      back: 2.4,
-      front: 0.88,
-      leg: 0.075,
-      left: 1.25,
-      stand: 3.6,
-      right: 3.4,
-      top: 0.22,
+      back: 1.25,
+      front: 0.75,
+      leg: 0.045,
+      left: 1.0,
+      stand: 1.8,
+      right: 1.6,
+      top: 0.14,
     },
     modelFile: "macbook.glb",
     // 16:10. The open lid is modelled at its hinge angle, so the panel's local
@@ -435,13 +435,13 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
     // front of its own bounding sphere, so an edge measured the same way would
     // cut through the stand.
     surface: {
-      back: 2.3,
-      front: 0.82,
-      leg: 0.07,
-      left: 1.2,
-      stand: 3.4,
-      right: 3.2,
-      top: 0.2,
+      back: 1.2,
+      front: 0.7,
+      leg: 0.043,
+      left: 1.0,
+      stand: 1.75,
+      right: 1.55,
+      top: 0.13,
     },
     // The panel carries its wallpaper as a base texture on a white material
     // rather than as pure emission, so lighting it as a lit surface washes the
@@ -491,13 +491,13 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
     // The widest of the three, because this is two objects side by side and the
     // table has to hold both without either overhanging.
     surface: {
-      back: 2.3,
-      front: 0.82,
-      leg: 0.07,
-      left: 1.45,
-      stand: 3.4,
-      right: 3.6,
-      top: 0.2,
+      back: 1.2,
+      front: 0.7,
+      leg: 0.043,
+      left: 1.15,
+      stand: 1.75,
+      right: 1.75,
+      top: 0.13,
     },
     materialCorrections: {
       // The frame around the panel ships as pure black metal, and a metal's

@@ -299,14 +299,61 @@ export class RasterRenderer {
     built.camera.fov =
       2 * Math.atan(36 / (2 * settings.focalLength)) * (180 / Math.PI);
 
+    /**
+     * Stand back far enough that every corner of the set is inside the frame.
+     *
+     * A radius and a margin is the usual shortcut and it is only right for a
+     * ball. What the camera has to hold here is a long low box — a laptop on a
+     * table is four times wider than it is deep — and a sphere drawn round
+     * that box has to reach its corners, which pushes the camera much further
+     * back than the picture needs. So each of the eight corners is asked
+     * directly how far away the camera would have to be for it to clear the
+     * edge of frame, and the answer is the largest of them.
+     *
+     * Both axes are asked separately, because the frame is not square and the
+     * thing being framed is not either.
+     */
     const halfFov = THREE.MathUtils.degToRad(built.camera.fov) / 2;
-    const aspectCorrection =
-      built.camera.aspect < 1 ? 1 / built.camera.aspect : 1;
-    const distance =
-      ((built.subjectRadius * 1.25) / Math.tan(halfFov)) * aspectCorrection;
+    const up = new THREE.Vector3(pose.up[0], pose.up[1], pose.up[2]);
+    if (up.lengthSq() < 1e-6) up.set(0, 1, 0);
+    const across = new THREE.Vector3().crossVectors(up, direction).normalize();
+    if (across.lengthSq() < 1e-6) across.set(1, 0, 0);
+    const upright = new THREE.Vector3().crossVectors(direction, across).normalize();
+    const tallness = Math.tan(halfFov);
+    const wideness = tallness * Math.max(0.001, built.camera.aspect);
 
-    built.camera.position.copy(direction.multiplyScalar(distance));
-    built.camera.up.set(pose.up[0], pose.up[1], pose.up[2]);
+    const centre = built.target;
+    const corner = new THREE.Vector3();
+    // Never tighter than the framing the studios were built against: a device
+    // standing on nothing is composed against its own radius with room around
+    // it, and a box drawn round the same device is smaller than the sphere
+    // was, so fitting the box alone would quietly crop in on every preset that
+    // has no furniture in it. This only ever stands further back.
+    let distance =
+      ((built.subjectRadius * 1.25) / Math.tan(halfFov)) *
+      (built.camera.aspect < 1 ? 1 / built.camera.aspect : 1);
+    const box = built.framing;
+    for (const x of [box.min.x, box.max.x]) {
+      for (const y of [box.min.y, box.max.y]) {
+        for (const z of [box.min.z, box.max.z]) {
+          corner.set(x, y, z).sub(centre);
+          const depth = corner.dot(direction);
+          distance = Math.max(
+            distance,
+            depth + Math.abs(corner.dot(across)) / wideness,
+            depth + Math.abs(corner.dot(upright)) / tallness,
+          );
+        }
+      }
+    }
+    // A hair of air, so nothing sits exactly on the edge of the picture.
+    distance *= 1.06;
+
+    built.camera.position
+      .copy(direction)
+      .multiplyScalar(distance)
+      .add(centre);
+    built.camera.up.copy(up);
     built.camera.lookAt(built.target);
     built.camera.updateProjectionMatrix();
     built.onCameraMoved();

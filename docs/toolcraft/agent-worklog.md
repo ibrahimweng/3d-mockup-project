@@ -279,6 +279,15 @@ The quoted evidence must be an exact nontrivial raw substring of `Request` with 
 - Decision: Turned tapered posts with smooth normals, in place of square bars.
 - Reason: Reported as looking very unrealistic, and they did. Four flat faces give four flat tones, which is a black rectangle drawn on the picture rather than a post standing in it; and a perfectly parallel-sided leg reads as a pipe. Fourteen sides with shared vertices give a continuous highlight down the length, a taper of a quarter over the drop does the rest, and both ends are capped because a low camera goes under a table.
 
+### Framing the set rather than the subject
+
+- Decision: The camera stands back far enough to hold everything the shot contains, and the tables are sized against the device rather than against the room.
+- Reason: A table is furniture the device is standing on, and framing off the device's radius cropped three sides of it away. The fix is not a bigger margin — the thing being framed is a long low box, four times wider than it is deep, and a sphere drawn round a box like that has to reach its corners, which stands the camera much further back than the picture needs.
+- Evidence: `framing` in `render/device-scene.ts` is a box in world space, the device alone or the device and its furniture, with the table's corners taken through the same turn the table is. `setPose` in `render/raster-renderer.ts` asks each of the eight corners how far away the camera would have to be for it to clear the edge of frame, on both axes separately, and takes the largest answer.
+- Decision: It never frames tighter than it did.
+- Reason: A box drawn round a device is smaller than the sphere the studios were composed against, so fitting the box alone quietly cropped in on every preset with no furniture in it — Void came out with the laptop touching the edge of the picture. The box fit is a floor under the old distance, not a replacement for it.
+- Risk: A table that holds the whole of itself in frame is a table the device is small on. The first pass at this kept the old proportions and produced a photograph of a desk with a laptop somewhere on it; the tables are now around two and a half times the device's width rather than four and a half, which is a compact desk rather than a boardroom table, and it is the proportion that makes the shot about the device.
+
 ## Verification
 
 - `npm run typecheck` passes.

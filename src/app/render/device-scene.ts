@@ -256,6 +256,19 @@ export type DeviceScene = {
   scene: THREE.Scene;
   /** Bounding sphere radius of the device, for framing. */
   subjectRadius: number;
+  /**
+   * Everything the camera is meant to hold, as a box in world space.
+   *
+   * The device alone with nothing under it; the device and its furniture when
+   * there is furniture. Framing off the subject's radius alone is right for a
+   * device standing on an endless floor and wrong the moment it is standing on
+   * something — a table is four times the width of the laptop on it, so the
+   * shot that framed the laptop cropped three quarters of the table away.
+   *
+   * Mutated in place when the surface changes, so the camera has one thing to
+   * read rather than a rule per surface.
+   */
+  framing: THREE.Box3;
   target: THREE.Vector3;
 };
 
@@ -1759,6 +1772,35 @@ export async function buildDeviceScene(options: {
    * sweep rising out of the middle of a desk is a wall growing out of the
    * furniture.
    */
+  /**
+   * What the camera has to hold, and where the middle of it is.
+   *
+   * The table's corners are taken through the same turn the table is, so a
+   * box drawn round them is the box the turned table actually occupies rather
+   * than the one it would occupy square-on.
+   */
+  const framing = new THREE.Box3();
+  const target = new THREE.Vector3();
+  const measureFraming = (): void => {
+    framing.setFromObject(subject);
+    const size = options.device.surface;
+    if (surfaceKind !== "none" && size) {
+      const turn = new THREE.Matrix4().makeRotationY(TABLE_YAW);
+      const corner = new THREE.Vector3();
+      for (const x of [-size.left, size.right]) {
+        for (const z of [-size.back, size.front]) {
+          for (const y of [0, -size.stand]) {
+            corner
+              .set(x * sphere.radius, groundY + y * sphere.radius, z * sphere.radius)
+              .applyMatrix4(turn);
+            framing.expandByPoint(corner);
+          }
+        }
+      }
+    }
+    framing.getCenter(target);
+  };
+
   const applySurface = (surface: SurfaceSettings): void => {
     const definition = readSurfaceDefinition(
       options.device.surface ? surface.kind : "none",
@@ -1799,6 +1841,7 @@ export async function buildDeviceScene(options: {
     }
     if (surfaceMesh) surfaceMesh.visible = on && groundVisible;
     if (legMesh) legMesh.visible = on && groundVisible && legGeometry !== null;
+    measureFraming();
     updateMirrorVisibility();
     applyGroundVisibility();
     applyFloorEnvironment();
@@ -2479,7 +2522,8 @@ export async function buildDeviceScene(options: {
       }
     },
     subject,
+    framing,
     subjectRadius: sphere.radius,
-    target: new THREE.Vector3(0, 0, 0),
+    target,
   };
 }
