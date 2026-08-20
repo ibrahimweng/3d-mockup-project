@@ -383,6 +383,9 @@ Zooming out and shifting the frame were the two new risks: both widen what the c
 - Evidence: Byte-identical. Seventeen states — six studios, five surfaces, five devices and both light patterns — hashed from the production build before and after: every hash the same.
 - Risk: Still 1558 against a budget of 700, and the remainder is one function. Getting under it means restructuring `buildDeviceScene` from a single closure into a room, a key light and a pattern that each own their state and are coordinated by the builder — a redesign rather than a move, and worth doing deliberately rather than as the tail of a mechanical split.
 - Risk: The split moved the three forbidden loader imports into `device-assets.ts`; it did not remove them. That violation is unchanged and still stands against the product boundary.
+- Decision: The acceptance rows are split by subject too, which clears the other file the budget was flagging.
+- Reason: `app-acceptance-data.ts` was 1083 lines and four dozen rows in one array. It is now the transfer mode, the readiness statement and the section inventory at 396 lines, with the rows next door: what the picture is of in one file, the shot and what comes out of it in the other. Order across the two is part of the contract, so they are concatenated in one place rather than merged anywhere else.
+- Evidence: 450 tests still pass, which is what would catch a row lost or reordered.
 
 ## Verification
 
