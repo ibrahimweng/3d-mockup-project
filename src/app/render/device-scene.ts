@@ -8,7 +8,24 @@ import {
   creaseNormals,
   type BaseColors,
 } from "./model-appearance";
+import { createKeyLight } from "./scene-key";
+import { createTable } from "./scene-table";
 import { createSurfaceGeometry } from "./surface-geometry";
+import type {
+  DeviceScene,
+  FloorSettings,
+  LightingSettings,
+  SurfaceSettings,
+  SweepSettings,
+} from "./scene-types";
+
+export type {
+  DeviceScene,
+  FloorSettings,
+  LightingSettings,
+  SurfaceSettings,
+  SweepSettings,
+} from "./scene-types";
 import {
   COVE_MAX,
   createFloorFade,
@@ -66,74 +83,6 @@ import {
  * iMac was added that way, and needed no code.
  */
 
-/**
- * How the floor behaves under the device.
- *
- * A matte floor takes a shadow and nothing else, which is what a paper sweep
- * does. A polished one also carries the device's reflection, which is most of
- * what makes the references read as photographs rather than renders.
- */
-export type SurfaceSettings = {
-  /**
-   * Whether the device stands on a table, and which one.
-   *
-   * "none" is the app as it was: an endless floor that dissolves at its rim.
-   * That dissolve is right for a backdrop and is exactly why a backdrop can
-   * never be furniture — a table is defined by the thing a sweep exists to
-   * hide, which is an edge with a lit top on one side of it and a shaded face
-   * on the other.
-   */
-  kind: string;
-};
-
-export type SweepSettings = {
-  /**
-   * How wide the cove is, 0 a corner and 1 a broad cyclorama.
-   *
-   * The bend is what makes a backdrop graduate. A surface curving away from
-   * the light turns a little further from it with every step up, so the tone
-   * falls off across the curve on its own — no painted gradient, and it takes
-   * a shadow and bounces onto the device while it is at it.
-   */
-  curve: number;
-  /** How far the sweep rises behind the device, 0 leaving a bare floor. */
-  height: number;
-  /**
-   * A lamp tucked into the cove, lighting the paper rather than the device.
-   *
-   * This is the one light in the rig with any falloff, and it is here because
-   * the graduation a backdrop is prized for cannot come from anywhere else.
-   * The key, the fill and the rim are all directional or hemispherical: they
-   * arrive as parallel rays with no notion of distance, so a large flat wall
-   * under them comes back one even tone however it is shaped. A photographer
-   * solves this exactly this way, with a small light on the floor behind the
-   * subject aimed at the paper.
-   */
-  light: number;
-};
-
-export type FloorSettings = {
-  /**
-   * How much of the captured room the floor picks up, 0 to 1.
-   *
-   * Separate from the device's own environment response, because the two want
-   * opposite things: metal needs a bright capture to have anything to reflect,
-   * while a floor given the same capture turns grey. The floor is very large
-   * and most of it is seen at a grazing angle, where reflectance approaches
-   * total — so a black floor under a bright room reads as a grey sheet with a
-   * horizon, which is the opposite of a void.
-   */
-  environment: number;
-  /**
-   * How much of the device's reflection shows, 0 to 1.
-   *
-   * Zero leaves the floor exactly as it was. Anything above draws the device a
-   * second time, mirrored beneath the floor, and lets it show through.
-   */
-  reflection: number;
-  /** Surface roughness of the floor itself, 0 polished to 1 matte. */
-  roughness: number;
-};
 
 
 
@@ -144,87 +93,12 @@ export type FloorSettings = {
 
 
 
-export type DeviceScene = {
-  camera: THREE.PerspectiveCamera;
-  dispose: () => void;
-  /**
-   * How much of the design is cropped on each axis, 0..1.
-   *
-   * Dragging can only move the design across what is actually hidden, so this
-   * is what converts a pointer delta into an offset delta.
-   */
-  getScreenSlack: () => ScreenSlack;
-  /** The display meshes, for hit testing the screen apart from the body. */
-  screenMeshes: THREE.Mesh[];
-  /** Repaint the shell without rebuilding anything. */
-  setFinish: (finish: FinishId) => void;
-  /** Move and re-balance the rig without rebuilding anything. */
-  setLighting: (lighting: LightingSettings) => void;
-  /** Show, hide, and recolour the ground without rebuilding anything. */
-  setGround: (visible: boolean, color: string) => void;
-  /** Change the floor's finish and how much reflection it carries. */
-  setFloor: (floor: FloorSettings) => void;
-  /** Raise or lower the paper behind the device. */
-  setSweep: (sweep: SweepSettings) => void;
-  /** Stand the device on a table, or take it away again. */
-  setSurface: (surface: SurfaceSettings) => void;
-  /** Re-judge the reflection after the camera has been placed. */
-  onCameraMoved: () => void;
-  /** Swap the captured studio without rebuilding anything. */
-  setEnvironment: (environment: THREE.Texture) => void;
-  /** The device geometry, so a hit test can ignore the ground. */
-  subject: THREE.Object3D;
-  /** Set the artwork shown on the display, or null to leave it dark. */
-  setArtwork: (
-    texture: THREE.Texture | null,
-    transform?: ScreenTransform,
-  ) => void;
-  scene: THREE.Scene;
-  /** Bounding sphere radius of the device, for framing. */
-  subjectRadius: number;
-  /**
-   * Everything the camera is meant to hold, as a box in world space.
-   *
-   * The device alone with nothing under it; the device and its furniture when
-   * there is furniture. Framing off the subject's radius alone is right for a
-   * device standing on an endless floor and wrong the moment it is standing on
-   * something — a table is four times the width of the laptop on it, so the
-   * shot that framed the laptop cropped three quarters of the table away.
-   *
-   * Mutated in place when the surface changes, so the camera has one thing to
-   * read rather than a rule per surface.
-   */
-  framing: THREE.Box3;
-  target: THREE.Vector3;
-};
 
 
 
 
-export type LightingSettings = {
-  /** How strongly the captured studio itself lights the device. */
-  environmentIntensity: number;
-  /** Bounce from below and behind, lifting the shadow side. */
-  fillIntensity: number;
-  keyColor: string;
-  keyIntensity: number;
-  /** Where the key sits, -1..1 per axis with 0 straight on. */
-  keyDirection: { x: number; y: number };
-  /** A hard edge light behind the device, separating it from the ground. */
-  rimIntensity: number;
-  /**
-   * How wide the key's shadow spreads, 0 for a cut edge and 1 for a haze.
-   *
-   * This is the size of the light source, expressed as its only visible
-   * consequence. A bare bulb is a point and throws an edge you could cut round;
-   * a metre-square softbox throws one that takes a hand's width to fade. Every
-   * light in this rig is directional, which means infinitely far away and
-   * infinitely small, so the shadow is where its apparent size has to be told.
-   */
-  shadowSoftness: number;
-  /** What the key shines through: nothing, a window, or a set of blinds. */
-  pattern: LightPatternId;
-};
+
+
 
 
 
@@ -652,230 +526,34 @@ export async function buildDeviceScene(options: {
       sweepLight.visible = groundVisible && strength > 0;
     }
   };
-
-  /**
-   * The table, when there is one.
-   *
-   * It does not sit on the floor, it replaces it. Both at once would put two
-   * surfaces at the same height and leave them fighting over every pixel, and
-   * more to the point the endless floor is the thing whose absence makes an
-   * edge mean anything.
-   */
-  let surfaceMesh: THREE.Mesh | null = null;
-  let surfaceGeometry: THREE.BufferGeometry | null = null;
-  let legMesh: THREE.Mesh | null = null;
-  let legGeometry: THREE.BufferGeometry | null = null;
-  let surfaceKind = "none";
   /** Remembered so a table can re-place the paper without being handed it. */
   let lastSweep: SweepSettings = options.sweep;
-  const surfaceSurface = new THREE.MeshStandardMaterial({
-    color: new THREE.Color("#ffffff"),
-    roughness: 1,
-  });
-  /** Which material the slab is currently wearing, so it is dressed once. */
-  let surfaceDressed = "";
-  /**
-   * The maps still in flight, so a caller can wait for a finished slab.
-   *
-   * The preview does not wait — it shows the untextured slab for a frame and
-   * then the textured one, which is what progressive loading is for. An export
-   * cannot: it takes one frame and writes it to a file, and a file is not
-   * something the user can wait a moment longer for. So the build resolves
-   * only once the surface it was asked for is actually wearing its maps.
-   */
-  let surfaceReady: Promise<unknown> = Promise.resolve();
 
-  /**
-   * Put a material on the slab, and its maps on when they arrive.
-   *
-   * The maps are fetched rather than bundled, so there is a window where the
-   * table exists and its texture does not. That window is handled rather than
-   * hidden: the untextured slab is already the right colour and roughness, so
-   * what lands is detail rather than a different object, and the frame is
-   * redrawn when it does. Switching away mid-flight is checked for, because a
-   * texture that arrives after the user has chosen something else would dress
-   * the slab as the material they just left.
-   */
-  const dressSurface = (definition: SurfaceDefinition): void => {
-    if (surfaceDressed === definition.value) return;
-    surfaceDressed = definition.value;
-    surfaceSurface.color.set(definition.color);
-    surfaceSurface.metalness = definition.metalness;
-    surfaceSurface.roughness = definition.roughness;
-    surfaceSurface.normalScale.set(
-      definition.normalScale,
-      definition.normalScale,
-    );
-    surfaceSurface.map = null;
-    surfaceSurface.normalMap = null;
-    surfaceSurface.roughnessMap = null;
-    surfaceSurface.needsUpdate = true;
-    const maps = definition.maps;
-    if (!maps) return;
-    surfaceReady = Promise.all([
-      loadSurfaceTexture(options.renderer, maps.albedo, true),
-      loadSurfaceTexture(options.renderer, maps.normal, false),
-      loadSurfaceTexture(options.renderer, maps.roughness, false),
-    ])
-      .then(([albedo, normal, roughness]) => {
-        if (surfaceDressed !== definition.value) return;
-        for (const texture of [albedo, normal, roughness]) {
-          texture.repeat.set(definition.tiles, definition.tiles);
-        }
-        surfaceSurface.map = albedo;
-        surfaceSurface.normalMap = normal;
-        surfaceSurface.roughnessMap = roughness;
-        surfaceSurface.needsUpdate = true;
-        applyFloorEnvironment();
-        options.onSurfaceReady?.();
-      })
-      .catch(() => {
-        // A map that will not load leaves a slab of the right colour and
-        // roughness, which is a plain material rather than a broken one.
-        // Clearing the record lets the next choice of this surface retry.
-        if (surfaceDressed === definition.value) surfaceDressed = "";
-      });
-  };
-  /**
-   * The legs, as their own mesh.
-   *
-   * Separate because they are a different material, and a different material
-   * is the whole reason they read: a thin dark metal post under a pale stone
-   * top is the shape of every table anyone photographs a computer on. Merged
-   * into the top they would have had to wear a stone map at a scale chosen for
-   * a surface a hundred times their width, which tiles one vein down the
-   * length of a leg and reads as a painted stick.
-   */
-  const legSurface = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(SURFACE_LEG.color),
-    metalness: SURFACE_LEG.metalness,
-    roughness: SURFACE_LEG.roughness,
-  });
-  {
-    const mesh = new THREE.Mesh(new THREE.BufferGeometry(), legSurface);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    mesh.visible = false;
-    mesh.position.y = groundY;
-    mesh.rotation.y = TABLE_YAW;
-    scene.add(mesh);
-    legMesh = mesh;
-    disposables.push(legSurface, {
-      dispose: () => legGeometry?.dispose(),
-    });
-  }
-
-  {
-    const mesh = new THREE.Mesh(new THREE.BufferGeometry(), surfaceSurface);
-    // It throws a shadow now, and has to. It is an object standing on a floor
-    // with a room behind it, and an object that takes light without returning
-    // any is the single clearest tell that a scene was assembled rather than
-    // photographed. The reason it did not before was that it was a plinth
-    // pressed against the paper, where its shadow was a black band along the
-    // join; a table with air behind it has no such join.
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    mesh.visible = false;
-    mesh.position.y = groundY;
-    // Turned, so a corner leads and two edges run away from it. A rectangle
-    // presented square-on gives one edge doing all the work and reads as a
-    // shelf; the three-quarter view is what says furniture. The device is left
-    // facing the camera, because it is the subject and the table is the set.
-    mesh.rotation.y = TABLE_YAW;
-    scene.add(mesh);
-    surfaceMesh = mesh;
-    disposables.push(surfaceSurface, {
-      dispose: () => surfaceGeometry?.dispose(),
-    });
-  }
-
-  /**
-   * Put the device on a table, or take it off one.
-   *
-   * Three things move together, and they have to. The floor goes, because a
-   * table and an endless floor at the same height are two claims about where
-   * the device is standing. The reflection goes with it: it is a mirrored copy
-   * seen *through* a transparent floor, and with an opaque slab in the way
-   * there is nothing to see it through — it would hang under the table in open
-   * air. And the backdrop moves back behind the table's far edge, because a
-   * sweep rising out of the middle of a desk is a wall growing out of the
-   * furniture.
-   */
-  /**
-   * What the camera has to hold, and where the middle of it is.
-   *
-   * The table's corners are taken through the same turn the table is, so a
-   * box drawn round them is the box the turned table actually occupies rather
-   * than the one it would occupy square-on.
-   */
-  const framing = new THREE.Box3();
-  const target = new THREE.Vector3();
-  const measureFraming = (): void => {
-    framing.setFromObject(subject);
-    const size = options.device.surface;
-    if (surfaceKind !== "none" && size) {
-      const turn = new THREE.Matrix4().makeRotationY(TABLE_YAW);
-      const corner = new THREE.Vector3();
-      for (const x of [-size.left, size.right]) {
-        for (const z of [-size.back, size.front]) {
-          for (const y of [0, -size.stand]) {
-            corner
-              .set(x * sphere.radius, groundY + y * sphere.radius, z * sphere.radius)
-              .applyMatrix4(turn);
-            framing.expandByPoint(corner);
-          }
-        }
-      }
-    }
-    framing.getCenter(target);
-  };
-
+  // The furniture, which reports how far the room drops rather than dropping
+  // it: the floor, the paper, the bounce and the mirror are all the room's.
+  const furniture = createTable(
+    {
+      disposables,
+      groundY,
+      onDressed: () => applyFloorEnvironment(),
+      renderer: options.renderer,
+      scene,
+      sphere,
+      subject,
+    },
+    options,
+  );
+  const { framing, target } = furniture;
   const applySurface = (surface: SurfaceSettings): void => {
-    const definition = readSurfaceDefinition(
-      options.device.surface ? surface.kind : "none",
-    );
-    const wanted = definition.value;
-    const on = wanted !== "none";
-    if (wanted !== surfaceKind) {
-      surfaceKind = wanted;
-      dressSurface(definition);
-      // The device has not moved: it is standing on the top, and the top is
-      // where its feet already were. So it is the room that drops.
-      floorY =
-        on && options.device.surface
-          ? groundY - options.device.surface.stand * sphere.radius
-          : groundY;
-      placeFloor();
-      if (on && options.device.surface) {
-        surfaceGeometry?.dispose();
-        surfaceGeometry = createSurfaceGeometry(
-          options.device.surface,
-          sphere.radius,
-          false,
-          definition.bevel,
-        );
-        if (surfaceMesh) surfaceMesh.geometry = surfaceGeometry;
-        legGeometry?.dispose();
-        legGeometry =
-          options.device.surface.leg > 0
-            ? createSurfaceGeometry(
-                options.device.surface,
-                sphere.radius,
-                true,
-                definition.bevel,
-              )
-            : null;
-        if (legMesh) legMesh.geometry = legGeometry ?? new THREE.BufferGeometry();
-      }
-    }
-    if (surfaceMesh) surfaceMesh.visible = on && groundVisible;
-    if (legMesh) legMesh.visible = on && groundVisible && legGeometry !== null;
-    measureFraming();
+    const { changed, standY } = furniture.applySurface(surface, groundVisible);
+    floorY = standY;
+    if (changed) placeFloor();
     updateMirrorVisibility();
     applyGroundVisibility();
     applyFloorEnvironment();
     applyBounce();
   };
+
 
   /** How much reflection the floor is currently letting through. */
   let floorReflection = 0;
@@ -906,11 +584,11 @@ export async function buildDeviceScene(options: {
     // return. A matte slab shows the room as a wash and a sealed board shows
     // it as a reflection, and handing both the same share flattens one or
     // gilds the other.
-    const table = readSurfaceDefinition(surfaceKind).environmentShare;
+    const table = readSurfaceDefinition(furniture.kind()).environmentShare;
     for (const [surface, own] of [
       [groundSurface, 1],
       [sweepSurface, 1],
-      [surfaceSurface, table],
+      [furniture.top, table],
     ] as const) {
       if (!surface) continue;
       if (surface.envMap !== map) {
@@ -937,7 +615,7 @@ export async function buildDeviceScene(options: {
     mirror.visible =
       floorReflection > 0 &&
       groundVisible &&
-      surfaceKind === "none" &&
+      furniture.kind() === "none" &&
       camera.position.y > ground.position.y;
   };
 
@@ -1028,280 +706,26 @@ export async function buildDeviceScene(options: {
     updateMirrorVisibility();
   };
 
-  // A placeable three-point rig on top of the captured studio. The key is the
-  // only shadow caster: a second shadow map would read as two suns, which is
-  // the giveaway of a rendered product shot rather than a photographed one.
-  // Every distance is expressed in subject radii, so one rig frames a watch and
-  // a laptop alike.
-  const keyDirection = new THREE.Vector3(
-    options.lighting.keyDirection.x,
-    // The pad reads in screen coordinates, where up is negative.
-    -options.lighting.keyDirection.y,
-    1,
-  );
-  if (keyDirection.lengthSq() < 1e-6) keyDirection.set(0, 0, 1);
-  keyDirection.normalize();
-
-  const key = new THREE.DirectionalLight(
-    new THREE.Color(options.lighting.keyColor),
-    options.lighting.keyIntensity,
-  );
-  key.position
-    .copy(keyDirection)
-    .multiplyScalar(sphere.radius * 4)
-    .add(new THREE.Vector3(0, sphere.radius * 2, 0));
-  key.castShadow = true;
-  /**
-   * How far a surface is pushed away from the light before it is compared.
-   *
-   * Stated in world units rather than as the depth-buffer figure it becomes,
-   * because the buffer's range is no longer fixed: the paper now stands as far
-   * out as the framing needs, and a bias that is a constant fraction of a
-   * range that quadruples is a bias that quadruples with it, which detaches a
-   * shadow from the thing casting it.
-   */
-  const SHADOW_BIAS = sphere.radius * 0.008;
-  /** Remembered so a pattern can re-decide the map size without it. */
-  let lastSoftness = options.lighting.shadowSoftness;
-  /**
-   * Set the shadow's edge, and give it enough map to be worth setting.
-   *
-   * Softness is a blur radius measured in shadow-map texels, so the two have
-   * to move together: a crisp edge asks the map for detail a blurred one threw
-   * away, and reading it off 1024 texels spread across the whole subject
-   * returns a staircase rather than an edge. Doubling the map is only paid for
-   * when the shadow is crisp enough to show it, and only when the map is
-   * redrawn — which is on change, not on every frame.
-   */
-  /** The half-width of the depth map's view, in world units. */
-  let shadowExtent = 0;
-  /**
-   * Whether a cut-out is in the light, which changes what the depth map is for.
-   *
-   * With no pattern the map exists to draw the device's own shadow, and it
-   * should be wrapped as tightly around the device as the rake allows, because
-   * every texel spent elsewhere is detail lost from the one edge anybody looks
-   * at. With a pattern it also has to reach the backdrop — a window that lands
-   * on the floor and stops at the skirting is not a window, it is a rug — and
-   * that is a far larger volume for the same number of texels. The map is
-   * doubled to pay for it.
-   */
-  let patterned = false;
-
-  const applyShadowEdge = (softness: number): void => {
-    const amount = Math.max(0, Math.min(1, softness));
-    lastSoftness = amount;
-    key.shadow.radius = 0.35 + 11 * amount;
-    // A patterned map covers the backdrop as well as the floor, so it is
-    // spread over four times the area and needs the texels back — and an
-    // export, drawn once and enlarged to four thousand pixels, can afford
-    // more of them than a preview being dragged around can.
-    const detail = Math.max(1, options.shadowDetail ?? 1);
-    const wanted = Math.min(
-      4096,
-      (amount < 0.35 || patterned ? 2048 : 1024) * detail,
+  // The key light, its shadow, and whatever is standing in front of it. Held
+  // apart because it is the one subsystem that has to know where the set is:
+  // how far out the cove is standing, how high the paper runs and where the
+  // floor sits all decide how much depth map the shadow needs. Everything else
+  // about it is its own.
+  const { applyPattern, applyShadowEdge, frameShadow, key, keyDirection } =
+    createKeyLight(
+      {
+        disposables,
+        scene,
+        sphere,
+        stage: {
+          coveRadius: () => builtCoveRadius,
+          floorY: () => floorY,
+          sweepHeight: () => sweepHeight,
+        },
+      },
+      options,
     );
-    if (key.shadow.mapSize.x !== wanted) {
-      key.shadow.mapSize.set(wanted, wanted);
-      // three allocates the depth target from mapSize on first use and never
-      // looks again, so the old one has to go for a new size to take.
-      key.shadow.map?.dispose();
-      key.shadow.map = null;
-    }
-  };
-  applyShadowEdge(options.lighting.shadowSoftness);
 
-  /**
-   * Size the depth map's view to the shadow the key is about to throw.
-   *
-   * A fixed box works only while the key stays overhead. Rake it towards the
-   * horizon and the shadow lengthens without limit — the flatter the light, the
-   * further it reaches — and anything past the box is simply not drawn, which
-   * shows up as the shadow stopping dead along a straight line in the middle of
-   * the floor. The box therefore follows the light: a shadow of something one
-   * radius tall reaches horizontal-over-height radii along the ground, and that
-   * is exactly how much room it needs.
-   *
-   * The cap is there because a light approaching the horizon asks for a box
-   * approaching infinity, and past a point the map is spread so thin the shadow
-   * it draws is worse than the one it clipped.
-   */
-  /**
-   * How wide the depth map's view has to be to hold the paper, not just the floor.
-   *
-   * Measured off the set rather than picked, because the answer moves with all
-   * three things it depends on: how far out the cove is standing, how high the
-   * paper has been run up, and how steeply the key is raked. A point's distance
-   * from the light's axis is what the box has to cover, so this takes the
-   * furthest points of the cove that a normal framing can see — the foot and a
-   * few radii up it, on the far side and on both flanks — and returns the
-   * worst of them.
-   *
-   * Only the lower part of the paper is considered. A backdrop run to its full
-   * height is sixteen radii of wall, almost none of it ever in frame, and
-   * sizing the box to cover all of it would spread the map so thin that the
-   * device's own shadow — the one edge anybody actually looks at — would go
-   * to pieces to light a wall nobody can see.
-   */
-  const reachPaper = (position: THREE.Vector3): number => {
-    const axis = position.clone().normalize();
-    const flat = new THREE.Vector3(position.x, 0, position.z);
-    if (flat.lengthSq() < 1e-6) flat.set(0, 0, 1);
-    flat.normalize();
-    const radius = Math.max(builtCoveRadius, sphere.radius * 6);
-    const rise = Math.min(sweepHeight * sphere.radius * 16, sphere.radius * 6);
-    let worst = 0;
-    const probe = new THREE.Vector3();
-    for (const height of [floorY, floorY + rise]) {
-      for (const [x, z] of [
-        [-flat.x, -flat.z],
-        [flat.z, -flat.x],
-        [-flat.z, flat.x],
-      ]) {
-        probe.set(x * radius, height, z * radius);
-        worst = Math.max(worst, probe.addScaledVector(axis, -probe.dot(axis)).length());
-      }
-    }
-    return worst;
-  };
-
-  const frameShadow = (position: THREE.Vector3): void => {
-    const horizontal = Math.hypot(position.x, position.z);
-    const reach =
-      position.y > 1e-3
-        ? (sphere.radius * horizontal) / position.y
-        : sphere.radius * 9;
-    // Enough for the shadow the device throws, and never less than the floor
-    // the frame can actually see — a box drawn tight around an overhead
-    // subject leaves the pattern covering a patch smaller than the picture.
-    // The gobo is then cut to fill whatever this settles on, rather than the
-    // box being stretched to contain a gobo of some fixed size, which is the
-    // way round that used to leave the two disagreeing.
-    const wanted = sphere.radius * 2.2 + Math.max(0, reach);
-    const extent = patterned
-      ? Math.min(sphere.radius * 20, Math.max(reachPaper(position), wanted))
-      : Math.min(
-          sphere.radius * 9,
-          Math.max(sphere.radius * 3.6, wanted),
-        );
-    shadowExtent = extent;
-    key.shadow.camera.left = -extent;
-    key.shadow.camera.right = extent;
-    key.shadow.camera.top = extent;
-    key.shadow.camera.bottom = -extent;
-    /**
-     * Deep enough to reach the far side of the paper.
-     *
-     * This was a fixed twelve radii, from when the backdrop stood two and a
-     * half radii behind the device. The cove is now sized to the framing and
-     * can stand four times further than that, and everything past the far
-     * plane is simply not in the depth map — which is why a pattern landed on
-     * the floor and the table and then stopped at the skirting, with the wall
-     * above it lit flat. The wall is the half of the shot a window is *for*.
-     */
-    const reachesWall = Math.hypot(
-      builtCoveRadius + sphere.radius * 2,
-      sphere.radius * 18,
-    );
-    const depth = position.length() + reachesWall;
-    key.shadow.camera.far = depth;
-    // Held constant in world units as the range grows behind it.
-    key.shadow.bias = -SHADOW_BIAS / depth;
-    key.shadow.camera.updateProjectionMatrix();
-  };
-  key.shadow.camera.near = sphere.radius * 0.2;
-  scene.add(key);
-
-  /**
-   * The gobo, hung between the key and the device.
-   *
-   * It has to be invisible and it has to cast, which sound like a
-   * contradiction and are not. Hiding it is the obvious way and the wrong one:
-   * three skips an invisible object in the shadow pass as well, and skips one
-   * on a layer the *view* camera cannot see — the shadow pass tests the view
-   * camera's layers, not the shadow camera's, which is the trap. What does
-   * work is refusing to write colour: the depth material three substitutes for
-   * the shadow pass does not inherit that refusal, so the gobo draws nothing
-   * anyone can see and everything the shadow needs.
-   */
-  const patternSurface = new THREE.MeshBasicMaterial({
-    colorWrite: false,
-    depthWrite: false,
-    // A flat quad facing the light is back-facing to the shadow camera by the
-    // time three has flipped sides for it, so both sides have to count.
-    side: THREE.DoubleSide,
-  });
-  // What the mesh holds when there is no pattern. One of them, kept, because
-  // a mesh always needs some geometry and minting a fresh empty one every time
-  // the lights move leaves a trail of them behind.
-  const noPattern = new THREE.BufferGeometry();
-  const patternMesh = new THREE.Mesh(noPattern, patternSurface);
-  patternMesh.castShadow = true;
-  patternMesh.receiveShadow = false;
-  patternMesh.visible = false;
-  scene.add(patternMesh);
-  let patternGeometry: THREE.BufferGeometry | null = null;
-  let patternId: LightPatternId | null = null;
-  /** The shape the current cut-out was cut to, so it is not recut for nothing. */
-  let patternCut = "";
-  disposables.push(patternSurface, noPattern, {
-    dispose: () => patternGeometry?.dispose(),
-  });
-
-  /**
-   * Cut a new gobo, and hang it square to the light.
-   *
-   * Square to the light is what makes it predictable: the key is directional,
-   * so its shadow is a parallel projection and the pattern lands at the size
-   * it was cut, however far away it is held. Distance only has to keep it
-   * inside the depth map's near plane and out of the device.
-   */
-  const applyPattern = (next: LightPatternId): void => {
-    // Both of these come before the framing, because the framing depends on
-    // them: a patterned map has to reach the wall and a plain one does not.
-    patterned = next !== "none";
-    applyShadowEdge(lastSoftness);
-    // Settled first, because the cut-out is then cut to fill it.
-    frameShadow(key.position);
-    /**
-     * The sine of the light's elevation: how much a floor measurement has to
-     * be squashed to survive the trip through the gobo plane.
-     *
-     * Floored rather than allowed to reach zero. A key on the horizon asks for
-     * a pattern of no height at all, which is both unbuildable and pointless —
-     * past a certain rake the shadow is longer than the room.
-     */
-    const squash = Math.max(
-      0.16,
-      key.position.y / Math.max(1e-6, key.position.length()),
-    );
-    // Quantised, because this is consulted on every move of the key pad and
-    // the answer is a vertex buffer. Recut the sash a dozen times across a
-    // drag, not sixty times a second.
-    const cut = `${next}/${Math.round(squash * 24)}/${Math.round(shadowExtent)}`;
-    if (cut !== patternCut) {
-      patternCut = cut;
-      patternGeometry?.dispose();
-      patternGeometry = createPatternGeometry(
-        next,
-        sphere.radius,
-        squash,
-        shadowExtent,
-      );
-      patternMesh.geometry = patternGeometry ?? noPattern;
-    }
-    patternId = next;
-    patternMesh.visible = patternGeometry !== null;
-    if (!patternMesh.visible) return;
-    patternMesh.position
-      .copy(key.position)
-      .normalize()
-      // Far enough out that the table never stands in front of it, close
-      // enough to stay well inside the depth map's near plane.
-      .multiplyScalar(sphere.radius * 3.2);
-    patternMesh.lookAt(0, 0, 0);
-  };
-  applyPattern(options.lighting.pattern);
 
   // Fill and rim are always present and driven by intensity alone, so changing
   // the rig never rebuilds the scene. Hemisphere rather than a second
@@ -1370,10 +794,10 @@ export async function buildDeviceScene(options: {
    * that was meant to be a consequence of the key becomes a floor under it.
    */
   const applyBounce = (): void => {
-    const definition = readSurfaceDefinition(surfaceKind);
+    const definition = readSurfaceDefinition(furniture.kind());
     bounce.color.set(definition.bounce.color);
     bounce.intensity =
-      surfaceKind === "none" || !groundVisible
+      furniture.kind() === "none" || !groundVisible
         ? 0
         : key.intensity * definition.bounce.share;
   };
@@ -1429,7 +853,7 @@ export async function buildDeviceScene(options: {
   // Only ever a real wait when the scene is built with a surface already
   // chosen, which is the export path; the preview builds with none and dresses
   // the slab afterwards.
-  await surfaceReady;
+  await furniture.ready();
   applySweep(options.sweep);
   // Once more with the cove's real radius, which the first pass did not have.
   frameShadow(key.position);
@@ -1490,9 +914,7 @@ export async function buildDeviceScene(options: {
       sweepSurface?.color.set(color);
       // A table is part of the backdrop, so it goes when the backdrop does and
       // hands the floor back its other job.
-      const staged = surfaceKind !== "none" && visible;
-      if (surfaceMesh) surfaceMesh.visible = staged;
-      if (legMesh) legMesh.visible = staged && legGeometry !== null;
+      furniture.setStaged(visible);
       applyGroundVisibility();
       applyBounce();
       applyBackground();
