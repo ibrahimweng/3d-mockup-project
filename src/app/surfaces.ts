@@ -45,6 +45,18 @@ export const SURFACE_LEG = {
 
 export type SurfaceDefinition = {
   /**
+   * How wide the eased arris runs, against the default.
+   *
+   * A material decision that has to be made in geometry. On timber and stone
+   * the arris is the millimetre of relief that catches the key and draws the
+   * bright line along the front of a table. On glass it is the whole effect:
+   * a real glass edge glows because light travels through the slab and leaves
+   * at the cut, and with no transmission in this renderer the only way to buy
+   * that back is a chamfer wide enough to catch the room and turn it into a
+   * line of its own.
+   */
+  bevel: number;
+  /**
    * What the slab throws back up at the device.
    *
    * `share` is a fraction of the key, not an absolute: bounce is light that
@@ -88,6 +100,7 @@ export type SurfaceDefinition = {
  */
 export const SURFACE_DEFINITIONS = [
   {
+    bevel: 1,
     bounce: { color: "#ffffff", share: 0 },
     color: "#ffffff",
     environmentShare: 1,
@@ -102,6 +115,7 @@ export const SURFACE_DEFINITIONS = [
   {
     // Warm, and only just. Limestone lifts the shadow side without announcing
     // itself, which is exactly why architects photograph on it.
+    bevel: 1,
     bounce: { color: "#c3bbae", share: 0.15 },
     color: "#ffffff",
     // Honed, so the room arrives as a soft sheen rather than a picture — and a
@@ -128,6 +142,7 @@ export const SURFACE_DEFINITIONS = [
     // and everything standing on one picks up an amber underlight that no
     // amount of key colour reproduces — it arrives from below, which is the
     // one direction the rig has no light in.
+    bevel: 1,
     bounce: { color: "#c98a4a", share: 0.24 },
     color: "#ffffff",
     // Sealed timber carries a clear coat, and a coat is a mirror. This is most
@@ -151,6 +166,59 @@ export const SURFACE_DEFINITIONS = [
     // lines close up into a corrugation, which is a different material.
     tiles: 3,
     value: "oak",
+  },
+  {
+    // A steel top is a mirror laid flat, so what it throws back up is the room
+    // and the key, cool and surprisingly strong — the brightest bounce here,
+    // and the only one that is not really the colour of the material.
+    bevel: 1.3,
+    bounce: { color: "#b9c4cf", share: 0.2 },
+    color: "#ffffff",
+    // The whole of it. A metal has no diffuse response, so with no environment
+    // to reflect there is nothing there at all: this is the one material that
+    // is invisible without a capture behind it rather than merely flat.
+    environmentShare: 1,
+    label: "Steel",
+    maps: {
+      albedo: "steel-albedo.jpg",
+      normal: "steel-normal.png",
+      roughness: "steel-rough.jpg",
+    },
+    metalness: 1,
+    normalScale: 0.35,
+    roughness: 1,
+    // Coarse. The brush lines are already a hundred to one inside the map, so
+    // repeating it hard would shorten them into a weave, and a long smeared
+    // highlight is the entire point of a brushed finish.
+    tiles: 2,
+    value: "steel",
+  },
+  {
+    // Almost nothing. A dark polished top returns the room in a mirror rather
+    // than scattering it, and a mirror throws its light onward instead of back
+    // at whatever is standing on it — which is why glass tables photograph
+    // with such black undersides.
+    bevel: 2.6,
+    bounce: { color: "#8fa0ad", share: 0.05 },
+    // Smoked, not clear. The approved trade: a polished dark tinted slab with
+    // a bright chamfer, rather than real transmission — which in this renderer
+    // costs an extra full pass of the scene per frame and buys an effect the
+    // camera is at the wrong angle to see anyway.
+    color: "#1b1e22",
+    // Polished, so it carries the capture as an image. This is where the
+    // illusion lives: the slab is opaque, and every bit of glass in it is the
+    // room arriving off a very smooth surface.
+    environmentShare: 1,
+    label: "Glass",
+    // None. A map is a description of imperfection, and this surface has none
+    // — every pixel of it is the same flawless plane, and any texture at all
+    // would be the thing that gave it away.
+    maps: null,
+    metalness: 0,
+    normalScale: 1,
+    roughness: 0.045,
+    tiles: 1,
+    value: "glass",
   },
 ] as const satisfies readonly SurfaceDefinition[];
 

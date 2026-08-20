@@ -227,6 +227,20 @@ The quoted evidence must be an exact nontrivial raw substring of `Request` with 
 - Reason: Asked for natural stone rather than a manufactured surface. The two are built the other way up from each other: a pour is homogeneous by construction, so its character is small and even, while a bed of limestone was laid down over an age and cut across, so its character is large — broad tonal drift and veins that run somewhere.
 - Evidence: `stone()` in `scripts/make-surface-textures.mjs`. The veins come from bending a coordinate that runs across the slab and taking where it crosses a whole number, warped by well under one spacing — bending it further folds the sheets back through each other into closed rings, which reads as camouflage rather than as bedding seen in section. Voids are sparse rather than a field, because at the density the first pass used it read as sandstone.
 
+### Steel and glass
+
+- Decision: Two more surfaces — brushed steel, and a smoked glass that is opaque.
+- Reason: Completes the set the plan called for. Glass is the approved trade: a polished dark tinted slab with a bright chamfer rather than real transmission, which in this renderer costs an extra full pass of the scene per frame and buys an effect the camera is at the wrong angle to see.
+- Evidence: `steel()` in `scripts/make-surface-textures.mjs` authors only what matters — a metal has no diffuse response, so its entire character is roughness, where brush lines scatter the reflection along their own direction and leave it sharp across them. The lines are noise stretched a hundred to one rather than ruled, because a real brush is a thousand grits of slightly different depth. Glass has no maps at all: a map is a description of imperfection, and any texture would be the thing that gave it away. Measured on the MacBook's palm rest under Hard light, same crop, everything else identical — warmth (R−B) reads 2.64 with no surface, 2.87 on stone, 4.58 on oak, 2.15 on steel and 2.47 on glass, which is the intended ordering: oak warmest, steel coolest and brightest, glass returning almost nothing.
+- Decision: `bevel` is a per-material multiplier on the eased arris, so it is a material decision made in geometry.
+- Reason: On timber and stone the arris is the millimetre of relief that draws the bright line along the front of a table. On glass it is the whole effect — a real glass edge glows because light travels through the slab and leaves at the cut, and with no transmission the only way to buy that back is a chamfer wide enough to catch the room and turn it into a line of its own.
+
+### Two defects in the table
+
+- Decision: The top's side and chamfer bands are wound outwards, and every face takes its map from the pair of axes it actually spans.
+- Reason: Both were mine, both introduced with the furniture, and the first was invisible as itself. The bands were wound inside-out, so back-face culling removed them and the top rendered as a plane of no thickness — which does not read as a thin table, it reads as a table whose legs float below it, because the legs are still exactly where the underside used to be. I spent three passes moving the legs before measuring the thing itself: the gap was 0.22 subject radii, which is the top's thickness to the pixel.
+- Evidence: `createSurfaceGeometry` in `render/device-scene.ts`. The second defect was that the side faces reused the top ring's coordinates, so they had no variation down their height and a single row of the map was smeared the full depth of the edge — on a tabletop, the most looked-at surface in the frame. `quad` now picks the axis pair from the face normal.
+
 ## Verification
 
 - `npm run typecheck` passes.

@@ -601,6 +601,7 @@ function createSurfaceGeometry(
   surface: DeviceSurface,
   radius: number,
   legs: boolean,
+  bevel: number,
 ): THREE.BufferGeometry {
   const west = -surface.left * radius;
   const east = surface.right * radius;
@@ -609,7 +610,7 @@ function createSurfaceGeometry(
   const top = surface.top * radius;
   // Sized against the subject rather than against the top, because the top
   // runs out of frame and would give a chamfer you could sit on.
-  const ease = Math.min(radius * 0.04, top * 0.45);
+  const ease = Math.min(radius * 0.04 * bevel, top * 0.45);
   // UVs are divided through by one length in both directions, so texels come
   // out square and a material declares one repeat count rather than two.
   const across = east - west;
@@ -618,101 +619,97 @@ function createSurfaceGeometry(
   const uvs: number[] = [];
   const indices: number[] = [];
 
+  type Point = readonly [number, number, number];
+
   /**
-   * One box, given its two opposite corners.
+   * One quad, with its map read off whichever pair of axes it actually spans.
    *
-   * Written out rather than taken from `BoxGeometry` because each face needs
-   * UVs in the table's own units — a box's own unwrap puts nought-to-one on
-   * every face regardless of how big the face is, which tiles a leg with the
-   * whole map and the top with the whole map and makes them different
-   * materials by accident.
+   * This is the whole reason the geometry is written out rather than assembled
+   * from boxes. A face needs its texture in the table's own units, and which
+   * two coordinates carry it depends on which way the face points: a top is
+   * read with x and z, a side with one of those and height. Share one set of
+   * coordinates across both — which is what happens if the corners of the top
+   * are reused for the sides beneath them — and the side gets no variation
+   * down its height at all, so a single row of the map is smeared the whole
+   * depth of the edge. On a tabletop that edge is the most looked-at surface
+   * in the frame.
    */
-  const box = (
-    x0: number,
-    y0: number,
-    z0: number,
-    x1: number,
-    y1: number,
-    z1: number,
-  ): void => {
-    const faces: [number[], number[], number[], number[]][] = [
-      // Each face as four corners, wound to face outwards.
-      [[x0, y1, z0], [x0, y1, z1], [x1, y1, z1], [x1, y1, z0]], // up
-      [[x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1]], // down
-      [[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], // south
-      [[x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0]], // north
-      [[x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1]], // east
-      [[x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0]], // west
-    ];
-    for (const face of faces) {
-      const base = positions.length / 3;
-      for (const [x, y, z] of face) {
-        positions.push(x, y, z);
-        // Projected from world position: whichever pair of axes the face
-        // spans is the pair the map is read with, so the grain runs on across
-        // an edge instead of restarting at it.
-        const spansX = face[0][0] !== face[2][0];
-        const spansZ = face[0][2] !== face[2][2];
-        uvs.push(
-          (spansX ? x - west : z - north) / across,
-          (spansZ && spansX ? z - north : -y) / across,
-        );
+  const quad = (a: Point, b: Point, c: Point, d: Point): void => {
+    const base = positions.length / 3;
+    const ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+    const ac = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+    const normal = [
+      ab[1] * ac[2] - ab[2] * ac[1],
+      ab[2] * ac[0] - ab[0] * ac[2],
+      ab[0] * ac[1] - ab[1] * ac[0],
+    ].map(Math.abs);
+    const flat = normal[1] >= normal[0] && normal[1] >= normal[2];
+    const sideways = !flat && normal[0] >= normal[2];
+    for (const [x, y, z] of [a, b, c, d]) {
+      positions.push(x, y, z);
+      if (flat) {
+        uvs.push((x - west) / across, (z - north) / across);
+      } else if (sideways) {
+        // Facing along x, so width comes from z and the rest is the drop —
+        // offset so the top of the face continues the top surface's own
+        // reading rather than restarting at nought.
+        uvs.push((z - north) / across, (a[0] - west - y) / across);
+      } else {
+        uvs.push((x - west) / across, (a[2] - north - y) / across);
       }
-      indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
     }
+    indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
   };
 
-  /** A ring of four corners, inset by `offset`, at height `y`. */
-  const ring = (offset: number, y: number): number => {
-    const base = positions.length / 3;
-    const corners: [number, number][] = [
-      [west + offset, north + offset],
-      [east - offset, north + offset],
-      [east - offset, south - offset],
-      [west + offset, south - offset],
-    ];
-    for (const [x, z] of corners) {
-      positions.push(x, y, z);
-      uvs.push((x - west) / across, (z - north) / across);
-    }
-    return base;
-  };
+  /** The four corners of the outline, inset by `offset`, at height `y`. */
+  const ring = (offset: number, y: number): Point[] => [
+    [west + offset, y, north + offset],
+    [east - offset, y, north + offset],
+    [east - offset, y, south - offset],
+    [west + offset, y, south - offset],
+  ];
 
   if (legs) {
     const thick = surface.leg * radius;
-    // Set in from the corners by their own thickness, which is where a leg
-    // goes on a table anyone has actually built.
-    const inset = thick * 1.4;
+    // Flush: the leg's outer faces sit in the same plane as the top's sides.
+    //
+    // Not a style choice so much as the placement with no failure mode. A leg
+    // set well under a top is hidden by that top from every camera above it,
+    // so what reaches the frame is a post apparently starting in mid-air —
+    // the join, which is the thing that says the leg belongs to the table, is
+    // the one part never in view. Coplanar, the silhouette carries straight on
+    // down and there is nothing left to hide.
     const floor = -surface.stand * radius;
-    for (const x of [west + inset, east - inset - thick]) {
-      for (const z of [north + inset, south - inset - thick]) {
-        box(x, floor, z, x + thick, -top, z + thick);
+    for (const x of [west, east - thick]) {
+      for (const z of [north, south - thick]) {
+        const post: Point[][] = [
+          [[x, -top, z], [x, -top, z + thick], [x + thick, -top, z + thick], [x + thick, -top, z]],
+          [[x, floor, z], [x + thick, floor, z], [x + thick, floor, z + thick], [x, floor, z + thick]],
+          [[x, floor, z + thick], [x + thick, floor, z + thick], [x + thick, -top, z + thick], [x, -top, z + thick]],
+          [[x + thick, floor, z], [x, floor, z], [x, -top, z], [x + thick, -top, z]],
+          [[x + thick, floor, z + thick], [x + thick, floor, z], [x + thick, -top, z], [x + thick, -top, z + thick]],
+          [[x, floor, z], [x, floor, z + thick], [x, -top, z + thick], [x, -top, z]],
+        ];
+        for (const [a, b, c, d] of post) quad(a, b, c, d);
       }
     }
   } else {
-    // The top: an inset face, a chamfer falling away from it, and the sides.
+    // An inset top face, a chamfer falling away from it, the sides, and a
+    // closed underside — because with legs there is an angle that sees it.
     const face = ring(ease, 0);
     const brim = ring(0, -ease);
     const under = ring(0, -top);
-    indices.push(face, face + 2, face + 1, face, face + 3, face + 2);
-    for (const [from, to] of [
+    quad(face[0], face[3], face[2], face[1]);
+    for (const [upper, lower] of [
       [face, brim],
       [brim, under],
     ]) {
       for (let corner = 0; corner < 4; corner += 1) {
         const next = (corner + 1) % 4;
-        indices.push(
-          from + corner,
-          to + corner,
-          to + next,
-          from + corner,
-          to + next,
-          from + next,
-        );
+        quad(upper[corner], upper[next], lower[next], lower[corner]);
       }
     }
-    // Closed underneath, because with legs there is an angle that sees it.
-    indices.push(under, under + 1, under + 2, under, under + 2, under + 3);
+    quad(under[0], under[1], under[2], under[3]);
   }
 
   const geometry = new THREE.BufferGeometry();
@@ -1670,12 +1667,18 @@ export async function buildDeviceScene(options: {
           options.device.surface,
           sphere.radius,
           false,
+          definition.bevel,
         );
         if (surfaceMesh) surfaceMesh.geometry = surfaceGeometry;
         legGeometry?.dispose();
         legGeometry =
           options.device.surface.leg > 0
-            ? createSurfaceGeometry(options.device.surface, sphere.radius, true)
+            ? createSurfaceGeometry(
+                options.device.surface,
+                sphere.radius,
+                true,
+                definition.bevel,
+              )
             : null;
         if (legMesh) legMesh.geometry = legGeometry ?? new THREE.BufferGeometry();
       }

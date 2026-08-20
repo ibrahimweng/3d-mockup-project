@@ -145,11 +145,21 @@ async function stone() {
  * first pass at this produced.
  */
 async function oak() {
-  const RINGS = 13;
+  // Eight, not thirteen. A tabletop is seen at a raking angle, and
+  // foreshortening bunches the far half of the rings into a corrugation long
+  // before the near half looks too fine. The count has to suit the compressed
+  // half of the plane, not the flat one.
+  const RINGS = 8;
   const period = 1 / RINGS;
 
   const drift = fbm(SIZE, SIZE, 2, 2, 3, 91);
   const waver = fbm(SIZE, SIZE, 6, 4, 3, 97);
+  // How strongly the latewood shows, varying slowly along the grain. A band
+  // that holds one weight from one side of a board to the other is the thing
+  // that reads as a machined groove; real latewood fades in, thickens, and
+  // dies away, and it is that dying away rather than the band itself that
+  // stops a row of them looking like a corrugation.
+  const weight = fbm(SIZE, SIZE, 3, 14, 3, 163);
   // Long and thin: features about 170px along the grain and 8px across it.
   const fibre = fbm(SIZE, SIZE, 6, 130, 3, 137);
   // Pores: short dashes, wider than they are tall, as a cut pore vessel is.
@@ -176,15 +186,21 @@ async function oak() {
       // a dune rather than as timber.
       const along =
         y / SIZE +
-        (drift[index] - 0.5) * period * 0.3 +
-        (waver[index] - 0.5) * period * 0.14;
+        // Ring spacing on a real board varies two or three times over across a
+        // single stave. Warping the coordinate is how that is had for free —
+        // where the warp steepens the rings crowd, where it flattens they open
+        // out — and it stays safely under the half-period at which the sheets
+        // would fold back through each other.
+        (drift[index] - 0.5) * period * 0.46 +
+        (waver[index] - 0.5) * period * 0.16;
       const season = along * RINGS - Math.floor(along * RINGS);
       // Slow darkening through the year, the tight latewood band at the end of
       // it, and a hard edge back to next spring — softened over one percent of
       // the ring so it resamples without stairsteps.
       const band =
         (season * 0.22 + ramp(0.72, 0.94, season) * 0.78) *
-        (1 - ramp(0.99, 1, season));
+        (1 - ramp(0.99, 1, season)) *
+        (0.42 + weight[index] * 1.05);
       const streak = (fibre[index] - 0.5) * 0.62;
       const mix = clamp01(band * 0.92 + streak * 0.68 + 0.05);
 
@@ -229,7 +245,54 @@ async function oak() {
   console.log("oak: albedo, normal, roughness");
 }
 
+/**
+ * Steel: rolled sheet, brushed one way, and nothing else.
+ *
+ * A metal has no diffuse response at all — its base colour is its reflectance,
+ * and everything you see in it is the room. So a steel map that tries to carry
+ * tone is carrying nothing: the entire character lives in the roughness, where
+ * the brush lines scatter the reflection along their own direction and leave
+ * it sharp across them. That is why brushed steel smears a highlight into a
+ * band rather than a point, and it is the only thing here worth authoring.
+ *
+ * The lines are drawn as noise stretched a hundred to one rather than as
+ * drawn lines, because a real brush is a thousand grits of slightly different
+ * depth and a ruled set of them reads as corduroy.
+ */
+async function steel() {
+  const brush = fbm(SIZE, SIZE, 2, 260, 3, 211);
+  const coarse = fbm(SIZE, SIZE, 2, 60, 2, 223);
+  // Rolling leaves a very slight waviness across the sheet, which is what
+  // stops a large panel reading as a perfect mirror laid flat.
+  const roll = fbm(SIZE, SIZE, 6, 5, 2, 229);
+
+  const height = new Float32Array(SIZE * SIZE);
+  const albedo = Buffer.alloc(SIZE * SIZE * 3);
+  const rough = Buffer.alloc(SIZE * SIZE);
+
+  for (let index = 0; index < height.length; index += 1) {
+    const line = (brush[index] - 0.5) * 0.75 + (coarse[index] - 0.5) * 0.25;
+    // Stainless returns a bit over half of what lands on it, not nearly all.
+    // A metal's base colour *is* its reflectance, so this is a measurement
+    // rather than a taste: at 0.86 the top came out as white paper with brush
+    // marks on it, because there was no headroom left for the highlight.
+    const tone = 0.62 + line * 0.05;
+    albedo[index * 3] = clamp(tone * 249);
+    albedo[index * 3 + 1] = clamp(tone * 251);
+    albedo[index * 3 + 2] = clamp(tone * 255);
+    height[index] = 0.5 + line * 0.25 + (roll[index] - 0.5) * 0.5;
+    // Satin rather than mirror, and varying along the brush.
+    rough[index] = clamp((0.24 + line * 0.13) * 255);
+  }
+
+  await writeAlbedo("steel-albedo.jpg", albedo);
+  await writeNormal("steel-normal.png", normalFromHeight(height, SIZE, SIZE, 10));
+  await writeRough("steel-rough.jpg", rough);
+  console.log("steel: albedo, normal, roughness");
+}
+
 mkdirSync(OUT, { recursive: true });
 await stone();
+await steel();
 await oak();
 console.log(`written to ${OUT}`);
