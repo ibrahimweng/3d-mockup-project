@@ -3,7 +3,9 @@ import { defineToolcraft } from "@/toolcraft/runtime";
 import { appIdentity } from "./app-identity";
 import {
   DEFAULT_LIGHT_PATTERN,
+  DEFAULT_SURFACE,
   LIGHT_PATTERN_OPTIONS,
+  SURFACE_OPTIONS,
 } from "./product-domain";
 import { DEFAULT_SCENE_PRESET, SCENE_PRESET_OPTIONS } from "./scene-presets";
 import {
@@ -334,6 +336,30 @@ export const appSchema = defineToolcraft({
           },
           id: "camera",
           title: "Camera",
+        },
+        {
+          controls: {
+            kind: {
+              applicability: {
+                all: [{ equals: true, target: "export.includeBackground" }],
+                mode: "conditional",
+              },
+              defaultValue: DEFAULT_SURFACE,
+              description:
+                "What the device is standing on. None leaves the endless floor, which is right for a backdrop and is exactly why it can never be furniture — a table is defined by the thing a sweep exists to hide, an edge with a lit top on one side and a shaded face on the other. Offered only for the devices a table flatters; a watch on a desk is a watch photographed from too far away.",
+              // The section is already titled Surface, and a control repeating
+              // its own section reads as a form rather than a panel.
+              label: false,
+              options: SURFACE_OPTIONS,
+              performanceReason:
+                "Swaps the floor plane for a slab of a dozen vertices.",
+              performanceRole: "responsiveness",
+              target: "surface.kind",
+              type: "select",
+            },
+          },
+          id: "surface",
+          title: "Surface",
         },
         {
           controls: {

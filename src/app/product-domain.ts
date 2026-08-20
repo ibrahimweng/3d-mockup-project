@@ -75,6 +75,33 @@ export type DeviceFinish = {
  * user makes; a correction is what the model should have said in the first
  * place, so it applies to Natural too and every colourway paints over it.
  */
+/**
+ * How much table a device gets, measured out from where it stands.
+ *
+ * The front edge is the only one of these that is really a composition: it is
+ * the line the whole thing is for, and how far it sits from the device decides
+ * whether the shot reads as a product on a surface or a product near a cliff.
+ */
+export type DeviceSurface = {
+  /** How far the top runs behind the device, towards the backdrop. */
+  back: number;
+  /** How far the front edge sits in front of the device. */
+  front: number;
+  /** Half the width, so the table runs off both sides of any sane framing. */
+  halfWidth: number;
+  /**
+   * How far the front face drops below the top.
+   *
+   * Deep enough to leave the bottom of frame, because the alternative is worse
+   * than it sounds: a thin top with nothing under it puts a band of dead black
+   * across the lower third of every shot, and the eye reads that as the picture
+   * having failed rather than as a table being thin. A block that runs out of
+   * frame is the plinth in your MacBook reference, and it needs no legs, no
+   * floor behind it and no second surface to make sense of.
+   */
+  thickness: number;
+};
+
 export type MaterialCorrection = {
   color?: string;
   metalness?: number;
@@ -199,6 +226,25 @@ export type DeviceDefinition = {
    * device facing that way. Without this the Mac Studio presents its back.
    */
   yawDegrees?: number;
+  /**
+   * The table this device is worth standing on, and how big it is.
+   *
+   * Absent means the device is not offered one, which is a judgement rather
+   * than an omission: a watch on a desk is a watch photographed from too far
+   * away, and both watch references you would compare it against are lit on
+   * seamless or on nothing at all.
+   *
+   * Every number is in subject radii, and every one is tuned per device rather
+   * than shared — which is the opposite of how the light rig works, and has to
+   * be. The rig is expressed in radii precisely so one setting flatters a watch
+   * and an iMac alike. A table cannot borrow that trick, because it is the
+   * first object here with a true size of its own, and the shipped models do
+   * not agree on scale: measured in their own units the watch is 1.67 tall and
+   * the MacBook 35.5 wide, a ratio of about 1:21 for two objects whose real
+   * ratio is about 1:7. There is no shared unit to convert through, so the
+   * honest answer is a size per device, set by eye against its own framing.
+   */
+  surface?: DeviceSurface;
 };
 
 /**
@@ -297,6 +343,10 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
       silver: { body: "#cfd2d6" },
     },
     label: "MacBook",
+    // A desk it sits on rather than fills: the edge lands just outside the
+    // palm rest, close enough to be the composition and far enough that the
+    // laptop is not teetering on it.
+    surface: { back: 7, front: 0.82, halfWidth: 5.2, thickness: 9 },
     modelFile: "macbook.glb",
     // 16:10. The open lid is modelled at its hinge angle, so the panel's local
     // bounding box spans three axes and measuring it would report 0.61.
@@ -334,6 +384,10 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
       },
     },
     label: "iMac",
+    // Further forward than the MacBook's. The iMac's foot is already near the
+    // front of its own bounding sphere, so an edge measured the same way would
+    // cut through the stand.
+    surface: { back: 6.5, front: 0.8, halfWidth: 4.6, thickness: 9 },
     // The panel carries its wallpaper as a base texture on a white material
     // rather than as pure emission, so lighting it as a lit surface washes the
     // uploaded design out. Black base leaves only the emissive channel, which
@@ -379,6 +433,9 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
       silver: { body: "#e6e8ea" },
     },
     label: "Mac Studio",
+    // The widest of the three, because this is two objects side by side and the
+    // table has to hold both without either overhanging.
+    surface: { back: 6.5, front: 0.75, halfWidth: 5, thickness: 9 },
     materialCorrections: {
       // The frame around the panel ships as pure black metal, and a metal's
       // base colour is its reflectance, so black metal returns nothing at any
@@ -444,6 +501,22 @@ export function readLightPatternId(value: unknown): LightPatternId {
     ? (value as LightPatternId)
     : DEFAULT_LIGHT_PATTERN;
 }
+
+/**
+ * What the device is standing on.
+ *
+ * Separate from the studio, because a light rig and a piece of furniture are
+ * different decisions: concrete under a hard key and concrete under a softbox
+ * are both things a photographer would shoot on purpose.
+ */
+export const SURFACE_OPTIONS = [
+  { label: "None", value: "none" },
+  { label: "Table", value: "table" },
+] as const;
+
+export type SurfaceId = (typeof SURFACE_OPTIONS)[number]["value"];
+
+export const DEFAULT_SURFACE: SurfaceId = "none";
 
 export const ENVIRONMENT_OPTIONS = [
   { label: "Studio soft", value: "studio-soft" },

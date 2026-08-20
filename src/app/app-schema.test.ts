@@ -91,6 +91,7 @@ describe("appSchema", () => {
       "lights",
       "key-light-direction",
       "camera",
+      "surface",
       "backdrop",
       "image-export",
     ]);

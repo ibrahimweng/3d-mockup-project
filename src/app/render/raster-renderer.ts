@@ -8,6 +8,7 @@ import {
   type FloorSettings,
   type LightingSettings,
   type ScreenTransform,
+  type SurfaceSettings,
   type SweepSettings,
 } from "./device-scene";
 
@@ -26,6 +27,7 @@ export type RasterSettings = {
   focalLength: number;
   lighting: LightingSettings;
   showBackground: boolean;
+  surface: SurfaceSettings;
   sweep: SweepSettings;
 };
 
@@ -137,6 +139,7 @@ export class RasterRenderer {
       lighting: settings.lighting,
       renderer: this.renderer,
       showGround: settings.showBackground,
+      surface: settings.surface,
       sweep: settings.sweep,
     })
       .then((scene) => {
@@ -203,6 +206,7 @@ export class RasterRenderer {
       settings.floor,
       settings.lighting,
       settings.showBackground,
+      settings.surface,
       settings.sweep,
     ]);
     if (key === this.lastLiveKey) return;
@@ -211,6 +215,7 @@ export class RasterRenderer {
     this.applyEnvironment(built, settings.environment);
     built.setFinish(readFinishId(settings.finish));
     built.setLighting(settings.lighting);
+    built.setSurface(settings.surface);
     built.setSweep(settings.sweep);
     built.setGround(settings.showBackground, settings.backgroundColor);
     built.setFloor(settings.floor);

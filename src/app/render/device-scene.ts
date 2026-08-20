@@ -7,6 +7,7 @@ import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
 import type {
   DeviceDefinition,
+  DeviceSurface,
   FinishId,
   LightPatternId,
 } from "../product-domain";
@@ -32,6 +33,19 @@ import type {
  * does. A polished one also carries the device's reflection, which is most of
  * what makes the references read as photographs rather than renders.
  */
+export type SurfaceSettings = {
+  /**
+   * Whether the device stands on a table, and which one.
+   *
+   * "none" is the app as it was: an endless floor that dissolves at its rim.
+   * That dissolve is right for a backdrop and is exactly why a backdrop can
+   * never be furniture — a table is defined by the thing a sweep exists to
+   * hide, which is an edge with a lit top on one side of it and a shaded face
+   * on the other.
+   */
+  kind: string;
+};
+
 export type SweepSettings = {
   /**
    * How wide the cove is, 0 a corner and 1 a broad cyclorama.
@@ -221,6 +235,8 @@ export type DeviceScene = {
   setFloor: (floor: FloorSettings) => void;
   /** Raise or lower the paper behind the device. */
   setSweep: (sweep: SweepSettings) => void;
+  /** Stand the device on a table, or take it away again. */
+  setSurface: (surface: SurfaceSettings) => void;
   /** Re-judge the reflection after the camera has been placed. */
   onCameraMoved: () => void;
   /** Swap the captured studio without rebuilding anything. */
@@ -545,6 +561,76 @@ function createSweepGeometry(
  * device stands in a pane and the shadows fall beside it. A bar across the
  * product is a defect however well it reads on the floor.
  */
+/**
+ * The table: a top, a front face, and the edge between them.
+ *
+ * A box would do most of this, and does not, for one reason. The edge is the
+ * whole photograph, and a mathematically sharp edge is the one thing real
+ * furniture never has — every worked surface carries an eased arris a
+ * millimetre or two across, and that tiny band is what catches the key and
+ * draws the bright line along the front of every table you have ever seen
+ * photographed. Modelling it costs one extra row of vertices.
+ *
+ * Only the faces that can be seen are built. The underside and the back are
+ * left off: the back runs into the backdrop and the underside is below a
+ * camera that is always above the surface it is standing something on.
+ */
+function createSurfaceGeometry(
+  surface: DeviceSurface,
+  radius: number,
+): THREE.BufferGeometry {
+  const halfWidth = surface.halfWidth * radius;
+  const front = surface.front * radius;
+  const back = surface.back * radius;
+  const thickness = surface.thickness * radius;
+  // The eased arris. Sized against the subject rather than against the block,
+  // because the block runs out of frame and would give a chamfer you could sit
+  // on; what is wanted is the millimetre of relief that catches the key and
+  // draws the bright line along the front of every photographed table.
+  const ease = radius * 0.045;
+
+  // The profile again, as with the sweep: height and depth, walked from the
+  // back of the top surface, over the front edge, and down the face. Depth is
+  // the camera's axis, so behind the device is negative and towards the viewer
+  // is positive.
+  const profile: [number, number][] = [
+    [0, -back],
+    [0, front - ease],
+    [-ease, front],
+    [-thickness, front],
+  ];
+
+  const positions = new Float32Array(profile.length * 2 * 3);
+  const uvs = new Float32Array(profile.length * 2 * 2);
+  const span = back + front;
+  for (let index = 0; index < profile.length; index += 1) {
+    const [up, depth] = profile[index];
+    for (let side = 0; side < 2; side += 1) {
+      const vertex = index * 2 + side;
+      positions[vertex * 3] = side === 0 ? -halfWidth : halfWidth;
+      positions[vertex * 3 + 1] = up;
+      positions[vertex * 3 + 2] = depth;
+      uvs[vertex * 2] = ((side === 0 ? -halfWidth : halfWidth) + halfWidth) / (halfWidth * 2);
+      uvs[vertex * 2 + 1] = (depth + back) / span;
+    }
+  }
+
+  const indices: number[] = [];
+  for (let index = 0; index < profile.length - 1; index += 1) {
+    const a = index * 2;
+    indices.push(a, a + 2, a + 3, a, a + 3, a + 1);
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  // Flat, because the arris is the point. Smoothing it away would average the
+  // top into the face and put a soft gradient where the highlight belongs.
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
 /** Half the width of a cut-out, which is how much depth map it needs. */
 function patternReach(pattern: LightPatternId, radius: number): number {
   if (pattern === "window") return 3.8 * radius;
@@ -908,6 +994,7 @@ export async function buildDeviceScene(options: {
   lighting: LightingSettings;
   renderer: THREE.WebGLRenderer;
   showGround: boolean;
+  surface: SurfaceSettings;
   sweep: SweepSettings;
 }): Promise<DeviceScene> {
   const scene = new THREE.Scene();
@@ -1119,7 +1206,15 @@ export async function buildDeviceScene(options: {
     if (!sweepMesh) return;
     const height = Math.max(0, Math.min(1, sweep.height));
     const curve = Math.max(0, Math.min(1, sweep.curve));
-    const standoff = sphere.radius * 2.5;
+    // Behind whatever the device is standing on, and exactly at its back edge
+    // rather than beyond it. A gap there is a strip of nothing between the
+    // table and the paper, which is the one place a viewer can see that the
+    // set is two objects rather than a room.
+    const tableBack =
+      surfaceKind !== "none" && options.device.surface
+        ? options.device.surface.back
+        : 0;
+    const standoff = sphere.radius * Math.max(2.5, tableBack);
     const bend = sphere.radius * (0.4 + 7.6 * curve);
     sweepHeight = height;
     sweepMesh.visible = groundVisible && height > 0;
@@ -1192,6 +1287,74 @@ export async function buildDeviceScene(options: {
     }
   };
 
+  /**
+   * The table, when there is one.
+   *
+   * It does not sit on the floor, it replaces it. Both at once would put two
+   * surfaces at the same height and leave them fighting over every pixel, and
+   * more to the point the endless floor is the thing whose absence makes an
+   * edge mean anything.
+   */
+  let surfaceMesh: THREE.Mesh | null = null;
+  let surfaceGeometry: THREE.BufferGeometry | null = null;
+  let surfaceKind = "none";
+  /** Remembered so a table can re-place the paper without being handed it. */
+  let lastSweep: SweepSettings = options.sweep;
+  const surfaceSurface = new THREE.MeshStandardMaterial({
+    // A plain neutral, deliberately. This is the step that proves an edge
+    // reads; a material would only make it harder to tell whether it does.
+    color: new THREE.Color("#8C8781"),
+    roughness: 0.68,
+  });
+  {
+    const mesh = new THREE.Mesh(new THREE.BufferGeometry(), surfaceSurface);
+    // It takes the device's shadow and throws none of its own. A block this
+    // deep standing against the paper behind it casts a hard black band right
+    // along the join — true of a table pulled away from a wall, and wrong for
+    // the one thing a set is built to avoid, which is a visible seam between
+    // the surface and the backdrop.
+    mesh.castShadow = false;
+    mesh.receiveShadow = true;
+    mesh.visible = false;
+    mesh.position.y = groundY;
+    scene.add(mesh);
+    surfaceMesh = mesh;
+    disposables.push(surfaceSurface, {
+      dispose: () => surfaceGeometry?.dispose(),
+    });
+  }
+
+  /**
+   * Put the device on a table, or take it off one.
+   *
+   * Three things move together, and they have to. The floor goes, because a
+   * table and an endless floor at the same height are two claims about where
+   * the device is standing. The reflection goes with it: it is a mirrored copy
+   * seen *through* a transparent floor, and with an opaque slab in the way
+   * there is nothing to see it through — it would hang under the table in open
+   * air. And the backdrop moves back behind the table's far edge, because a
+   * sweep rising out of the middle of a desk is a wall growing out of the
+   * furniture.
+   */
+  const applySurface = (surface: SurfaceSettings): void => {
+    const wanted = options.device.surface ? surface.kind : "none";
+    const on = wanted !== "none";
+    if (wanted !== surfaceKind) {
+      surfaceKind = wanted;
+      if (on && options.device.surface) {
+        surfaceGeometry?.dispose();
+        surfaceGeometry = createSurfaceGeometry(
+          options.device.surface,
+          sphere.radius,
+        );
+        if (surfaceMesh) surfaceMesh.geometry = surfaceGeometry;
+      }
+    }
+    if (surfaceMesh) surfaceMesh.visible = on && groundVisible;
+    updateMirrorVisibility();
+    applyGroundVisibility();
+  };
+
   /** How much reflection the floor is currently letting through. */
   let floorReflection = 0;
   /** The floor's own share of the captured room, 0 to 1. */
@@ -1239,7 +1402,24 @@ export async function buildDeviceScene(options: {
     mirror.visible =
       floorReflection > 0 &&
       groundVisible &&
+      surfaceKind === "none" &&
       camera.position.y > ground.position.y;
+  };
+
+  /**
+   * The floor plane has two jobs, and a table only takes one of them.
+   *
+   * With the backdrop on it is the ground, and a table replaces it. With the
+   * backdrop off it is the shadow catcher — the invisible surface that lets a
+   * transparent export come out with the device's shadow still under it — and
+   * nothing replaces that, because the table is hidden then too. So it stands
+   * down for a table only while there is a backdrop for the table to be part
+   * of.
+   */
+  const applyGroundVisibility = (): void => {
+    if (groundMesh) {
+      groundMesh.visible = surfaceKind === "none" || !groundVisible;
+    }
   };
 
   let floorFade: THREE.Texture | null = null;
@@ -1495,6 +1675,7 @@ export async function buildDeviceScene(options: {
   // After the camera exists, because whether the reflection is visible at all
   // depends on which side of the floor the camera is on.
   applyFloor(options.floor);
+  applySurface(options.surface);
   applySweep(options.sweep);
   disposables.push({ dispose: () => floorFade?.dispose() });
 
@@ -1518,7 +1699,15 @@ export async function buildDeviceScene(options: {
     },
     setFinish: (next) => applyFinish(baseColors, options.device, next),
     setFloor: applyFloor,
-    setSweep: applySweep,
+    setSurface: (next) => {
+      applySurface(next);
+      // The paper stands behind the table, so moving one moves the other.
+      applySweep(lastSweep);
+    },
+    setSweep: (next) => {
+      lastSweep = next;
+      applySweep(next);
+    },
     setGround: (visible, color) => {
       groundVisible = visible;
       // The plane stays; what it is made of is what changes. Hiding it would
@@ -1536,6 +1725,10 @@ export async function buildDeviceScene(options: {
       // it is still lighting the floor, which is backdrop enough.
       if (sweepLight) sweepLight.visible = visible && sweepLight.intensity > 0;
       sweepSurface?.color.set(color);
+      // A table is part of the backdrop, so it goes when the backdrop does and
+      // hands the floor back its other job.
+      if (surfaceMesh) surfaceMesh.visible = surfaceKind !== "none" && visible;
+      applyGroundVisibility();
       // The reflection lives on the backdrop, so it goes when the backdrop
       // does: there is nothing for it to be seen through.
       updateMirrorVisibility();

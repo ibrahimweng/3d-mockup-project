@@ -299,6 +299,15 @@ export const appControlSectionInventory: readonly ToolcraftControlSectionInvento
       title: "Studio",
     },
     {
+      entity: "Surface",
+      entityId: "surface",
+      groupingReason:
+        "What the device stands on is one decision with one control, and it is separate from the backdrop behind it: a table replaces the floor while the sweep stays where it is, so grouping them would put a piece of furniture and a wall under the same heading.",
+      id: "surface",
+      targets: ["surface.kind"],
+      title: "Surface",
+    },
+    {
       entity: "Backdrop",
       entityId: "backdrop",
       groupingReason:
@@ -551,6 +560,23 @@ export const appAcceptance: readonly ToolcraftComponentAcceptance[] = [
     kind: "control",
     target: "light.shadowSoftness",
     userAction: "Drag the Lights shadow softness slider from 0 to 100.",
+  },
+  {
+    automated: true,
+    automatedTestName: "surface stands the device on a table with a visible edge",
+    browser: true,
+    browserTestName:
+      "browser: choosing a table replaces the endless floor with a slab that ends in frame",
+    componentType: "select",
+    evidence: "rendered-pixels",
+    expectedObservable:
+      "Choosing Table replaces the floor that fades away at its rim with a slab that ends: a lit top, a hard edge across the frame, and a face below it falling into shadow, with the backdrop moved behind its far edge. Returning to None restores the endless floor. On devices offered no table the control leaves the floor alone.",
+    fixture: "a device the catalog gives a table, on a visible background",
+    id: "surface.kind.table",
+    kind: "control",
+    optionCoverage: "each-visible-item",
+    target: "surface.kind",
+    userAction: "Pick each option of the Surface control in turn.",
   },
   {
     automated: true,

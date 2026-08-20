@@ -1,6 +1,7 @@
 import {
   DEFAULT_DEVICE,
   DEFAULT_FINISH,
+  DEFAULT_SURFACE,
   readLightPatternId,
 } from "../product-domain";
 import type { ScreenTransform } from "./device-scene";
@@ -83,6 +84,7 @@ export function readRasterSettings(
       roughness: num(values, "floor.roughness", 92) / 100,
     },
     focalLength: num(values, "camera.focalLength", 85),
+    surface: { kind: str(values, "surface.kind", DEFAULT_SURFACE) },
     sweep: {
       curve: num(values, "backdrop.curve", 45) / 100,
       height: num(values, "backdrop.height", 0) / 100,
