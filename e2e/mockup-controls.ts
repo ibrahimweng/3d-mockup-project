@@ -72,3 +72,46 @@ export async function setColor(control: Locator, hex: string): Promise<void> {
   await field.press("Enter");
   await expect(field).toHaveValue(new RegExp(hex.replace("#", "#?"), "i"));
 }
+
+/** Every label a select is offering, in order. */
+export async function readOptions(control: Locator): Promise<string[]> {
+  const combobox = control.locator("[role=combobox]").first();
+  await combobox.scrollIntoViewIfNeeded();
+  await combobox.click();
+  const labels = (
+    await control.page().locator("[role=listbox]:visible [role=option]").allTextContents()
+  ).map((label) => label.trim());
+  await control.page().keyboard.press("Escape");
+  return labels;
+}
+
+/**
+ * Put a design on the device's display.
+ *
+ * Through the control's own file input rather than a drop on the canvas: the
+ * schema declares one image fileDrop for this, and a test that uploads some
+ * other way is not exercising the control the evidence is keyed to.
+ */
+export async function uploadDesign(control: Locator): Promise<void> {
+  await control
+    .locator('input[type="file"]')
+    .first()
+    .setInputFiles("e2e/fixtures/mockup-design.png");
+}
+
+/** Choose from a segmented control, which is a toggle group rather than a select. */
+export async function pickSegment(control: Locator, label: string): Promise<void> {
+  const item = control.locator(`[aria-label="${label}"]`).first();
+  await item.scrollIntoViewIfNeeded();
+  await item.click();
+  await expect(item).toHaveAttribute("data-pressed", /.*/);
+}
+
+/** Every label a segmented control is offering, in order. */
+export async function readSegments(control: Locator): Promise<string[]> {
+  const group = control.locator("[role=group], [role=radiogroup]").first();
+  const items = group.locator("button");
+  return (await items.evaluateAll((nodes) =>
+    nodes.map((node) => node.getAttribute("aria-label") ?? ""),
+  )).filter(Boolean);
+}
