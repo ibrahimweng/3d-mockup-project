@@ -102,7 +102,8 @@ export type DeviceScene = {
   /** Stand the device on a table, or take it away again. */
   setSurface: (surface: SurfaceSettings) => void;
   /** Re-judge the reflection after the camera has been placed. */
-  onCameraMoved: () => void;
+  /** Returns whether the set was recut, and so whether the shadow is stale. */
+  onCameraMoved: () => boolean;
   /** Swap the captured studio without rebuilding anything. */
   setEnvironment: (environment: THREE.Texture) => void;
   /** The device geometry, so a hit test can ignore the ground. */

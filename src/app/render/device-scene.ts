@@ -876,7 +876,12 @@ export async function buildDeviceScene(options: {
       // A longer lens stands the camera further back, and the set has to be
       // bigger than wherever the camera has gone. Recut only when the answer
       // actually changes, which a quantised radius makes rare.
-      if (coveRadius() !== builtCoveRadius) applySweep(lastSweep);
+      if (coveRadius() === builtCoveRadius) return false;
+      applySweep(lastSweep);
+      // Recutting moves the paper and re-aims the depth map at it, and the
+      // shadow map is only redrawn when something says so. Saying so is the
+      // caller's job because only the caller knows it is about to draw.
+      return true;
     },
     getScreenSlack: () => ({ x: slack.x, y: slack.y }),
     screenMeshes,

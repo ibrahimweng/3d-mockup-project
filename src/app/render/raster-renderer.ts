@@ -403,7 +403,11 @@ export class RasterRenderer {
       built.camera.clearViewOffset();
     }
     built.camera.updateProjectionMatrix();
-    built.onCameraMoved();
+    // A camera move that resizes the set leaves the depth map drawn for the
+    // set that was there before. Without this the wall behind the device keeps
+    // whichever shadow it happened to be given, and the same settings render
+    // two different pictures depending on what else invalidated in between.
+    if (built.onCameraMoved()) this.invalidateShadow();
   }
 
   /**
