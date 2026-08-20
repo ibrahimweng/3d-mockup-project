@@ -248,6 +248,16 @@ The quoted evidence must be an exact nontrivial raw substring of `Request` with 
 - Evidence: `createPatternGeometry` in `render/device-scene.ts` takes the squash and the depth map's half-extent, states every size as what it should measure on the floor, and fills the whole box with wall. The dependency also went the right way round: the box used to be stretched to contain a gobo of fixed size, and the gobo is now cut to fill whatever box the device's own shadow needs. Verified in Chromium under Daylight and Hard light, on a table and on the floor: bands run to the edge of frame at both key angles, and the window reads as an opening with a sash rather than as loose bars.
 - Risk: The cut is quantised to twenty-fourths of the squash and whole radii of extent, so a slow drag of the key pad recuts the sash a dozen times rather than on every frame. A gobo held at a rake beyond about eighty degrees is clamped, because past that the shadow is longer than the room.
 
+### The sweep
+
+- Decision: Every surface was driven on every device it is offered for, and the result is measured rather than looked at.
+- Reason: Five devices times five surfaces is twenty-five scenes, plus six studios; nobody catches a one-percent hole in a backdrop by eye across thirty-seven frames, and the thing most worth proving — that the set has no edges left — is exactly the thing an eye is worst at.
+- Evidence: Each frame is shot twice with a different colour painted behind the canvas, and every pixel that moves between the two is a pixel the canvas did not paint. All thirty-seven read zero. Focal length at 24mm, 85mm and 200mm on a table reads zero, which is what the camera-sized cove was built for — a two-hundred is four times further back than a twenty-four. Sweep height and curve at both limits read zero. A real export at 3277x4096 comes out opaque and material-specific: stone and oak differ across 22 percent of samples, so the surface reaches the export path that builds its own scene.
+- Decision: The measurement was calibrated against a case that must fail.
+- Reason: The first version of it painted the *page* rather than the canvas, and an opaque element in between meant it read zero whatever happened — including for a deliberately transparent export, which is how it was caught. A test that cannot fail is not evidence, and the twenty-five zeros it produced first time round were worth nothing.
+- Evidence: With the backdrop switched off the same measurement reads 82 percent transparent, and with it on, zero. Both from the same code path in the same run.
+- Findings: No product defect. Two false alarms ran to ground: the sharpest row-to-row luminance steps, 92 and 52 against a median of 16, are the top edge of the laptop's own black screen rather than a seam — restricted to columns clear of the device the worst step in any frame is 16 of 255 and the median 5.5 — and a scatter of failed module requests belonged to a dev server that had been running through several hours of edits, and is absent on a fresh one. Undo after a preset and a surface takes one press each, and redo restores both exactly.
+
 ## Verification
 
 - `npm run typecheck` passes.
