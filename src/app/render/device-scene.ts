@@ -611,6 +611,17 @@ function createSweepGeometry(
  * Everything is measured from the device, not from the middle of the top, so
  * the device can sit near one corner with two edges running away from it.
  */
+/**
+ * How much narrower a leg is at the floor than at the top.
+ *
+ * A quarter was too much: read against a rail that is the same width all the
+ * way along, a post losing a quarter of itself over its drop stops looking
+ * turned and starts looking melted. Furniture legs are rarely parallel and
+ * rarely dramatic — a tenth is enough to keep the highlight from running
+ * dead straight, which is the only job the taper has.
+ */
+const LEG_TAPER = 0.88;
+
 function createSurfaceGeometry(
   surface: DeviceSurface,
   radius: number,
@@ -708,7 +719,7 @@ function createSurfaceGeometry(
     const base = positions.length / 3;
     for (const [level, scale] of [
       [high, 1],
-      [low, 0.74],
+      [low, LEG_TAPER],
     ] as const) {
       for (let side = 0; side <= SIDES; side += 1) {
         const turn = (side / SIDES) * Math.PI * 2;
@@ -732,7 +743,7 @@ function createSurfaceGeometry(
     // goes, and an open tube there is worse than no leg at all.
     for (const [level, scale, up] of [
       [high, 1, true],
-      [low, 0.74, false],
+      [low, LEG_TAPER, false],
     ] as const) {
       const centre = positions.length / 3;
       positions.push(centreX, level, centreZ);
@@ -772,6 +783,57 @@ function createSurfaceGeometry(
       for (const z of [north + thick, south - thick]) {
         post(x, z, thick, -top, floor);
       }
+    }
+    /**
+     * The frame the legs are actually attached to.
+     *
+     * Without it the table is a slab resting on four posts that touch it and
+     * nothing more: no bracket, no rail, no reason the thing stands up. That
+     * is what "unreal" looks like on furniture — not the wrong proportion but
+     * an absent joint. A rail set back from the edge is how every steel-framed
+     * table of this kind is built, it puts a shadow line under the top so the
+     * top reads as floating rather than as painted on, and it gives each post
+     * something to run into instead of stopping in mid-air.
+     *
+     * Narrower than the posts and tucked inside their line, so from any camera
+     * above the floor the silhouette is still four legs and a top; the frame
+     * is what you find when you look under it.
+     */
+    const railHalf = thick * 0.5;
+    const railDrop = thick * 2.3;
+    // Buried a little way into the top rather than hung below it. Standing the
+    // rail off by even a fraction leaves a slot you can see the room through,
+    // and against a lit backdrop that is not a shadow line under a floating
+    // top — it is a hard white stripe the width of the table. Overlapping also
+    // keeps the two faces out of the same plane, so neither flickers against
+    // the other.
+    const railTop = -top + thick * 0.12;
+    const railFoot = -top - railDrop;
+    const bar = (x0: number, x1: number, z0: number, z1: number): void => {
+      const upper: Point[] = [
+        [x0, railTop, z0],
+        [x1, railTop, z0],
+        [x1, railTop, z1],
+        [x0, railTop, z1],
+      ];
+      const lower: Point[] = [
+        [x0, railFoot, z0],
+        [x1, railFoot, z0],
+        [x1, railFoot, z1],
+        [x0, railFoot, z1],
+      ];
+      quad(upper[0], upper[3], upper[2], upper[1]);
+      for (let corner = 0; corner < 4; corner += 1) {
+        const next = (corner + 1) % 4;
+        quad(upper[corner], upper[next], lower[next], lower[corner]);
+      }
+      quad(lower[0], lower[1], lower[2], lower[3]);
+    };
+    for (const z of [north + thick, south - thick]) {
+      bar(west + thick, east - thick, z - railHalf, z + railHalf);
+    }
+    for (const x of [west + thick, east - thick]) {
+      bar(x - railHalf, x + railHalf, north + thick, south - thick);
     }
   } else {
     // An inset top face, an arris rounded away from it, the sides, and a

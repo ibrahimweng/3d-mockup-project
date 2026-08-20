@@ -40,7 +40,12 @@ export const SURFACE_LEG = {
   // key model the corners.
   color: "#494c50",
   metalness: 0.45,
-  roughness: 0.34,
+  // Satin, not felt. At a third the sheen is so broad that the post shades
+  // from one side to the other with no highlight anywhere in it, which is what
+  // a matte plastic tube looks like. Tightening it puts a soft line of light
+  // down the leg — the thing that says this is coated steel, and the only
+  // reason the taper is worth having.
+  roughness: 0.22,
 } as const;
 
 export type SurfaceDefinition = {

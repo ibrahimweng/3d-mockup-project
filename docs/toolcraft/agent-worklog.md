@@ -344,6 +344,17 @@ Each frame is shot twice over different colours painted behind the canvas, and e
 
 Zooming out and shifting the frame were the two new risks: both widen what the camera can see without enlarging the set, and neither found an edge of it.
 
+### The table has a frame now
+
+- Decision: A rail runs under the top between the four legs.
+- Reason: What was unreal about the legs was never the proportion — measured, the post is about a fortieth of the table's width, which is an ordinary steel leg — it was that nothing joined them to anything. A slab resting on four posts that touch it and stop has no bracket, no rail and no reason to stand up, and the eye reads that long before it reads a dimension. A set-back rail is how a steel-framed table of this kind is actually built: it gives each post something to run into instead of ending in mid-air, and it puts a line under the top so the top reads as carried rather than as painted on.
+- Evidence: `createSurfaceGeometry` in `render/device-scene.ts` writes four bars between the leg centres, half a leg wide so they stay inside the posts' silhouette, and about two and a third leg widths deep.
+- Decision: The rail is buried a little way into the top rather than hung below it.
+- Reason: Standing it off by even a fraction leaves a slot you can see the room through. Against a lit backdrop that is not a shadow line under a floating top, it is a hard white stripe the width of the table — which is exactly how it came out on the first pass, and plainest of all on the near-level camera the Sweep studio uses. Overlapping also keeps the rail's top face out of the tabletop's plane, so neither flickers against the other.
+- Decision: The taper is a tenth rather than a quarter, and the legs are satin rather than felt.
+- Reason: Read against a rail that is one width all the way along, a post losing a quarter of itself over its drop stops looking turned and starts looking melted. And at a third of roughness the sheen was so broad that the post shaded from one side to the other with no highlight anywhere in it, which is a matte plastic tube; measured across the leg the tone ran 42 to 74 levels of gradient and never reached a specular. Tightening it puts a soft line of light down the leg, which is the thing that says coated steel and the only reason the taper is worth having.
+- Evidence: Swept again on the new geometry — 25 device and surface combinations, 12 studio combinations, and focal length, zoom, framing and backdrop at their limits. No transparent pixel anywhere; the frames with no legs come back identical to before it. The worst row step in a Sweep frame rose from 7.2 to 14.4 grey levels, and at that row it is the underframe's own bottom edge against a white cyclorama — the furniture's silhouette, the same class of legitimate hard edge as the laptop's screen.
+
 ## Verification
 
 - `npm run typecheck` passes.
