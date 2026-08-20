@@ -458,6 +458,18 @@ export function readFinishId(value: unknown): FinishId {
     : DEFAULT_FINISH;
 }
 
+/**
+ * The devices a table is offered for, read off the catalog rather than listed.
+ *
+ * Kept derived so the two can never disagree: giving a device a size is the
+ * single act that offers it a table, and forgetting to also add it to a list
+ * somewhere else is exactly the kind of quiet mismatch that leaves a control
+ * showing for a device it does nothing to.
+ */
+export const SURFACE_DEVICES: readonly DeviceId[] = (
+  Object.keys(DEVICE_CATALOG) as DeviceId[]
+).filter((id) => DEVICE_CATALOG[id].surface !== undefined);
+
 export function readDeviceDefinition(value: unknown): DeviceDefinition {
   return (
     DEVICE_CATALOG[value as DeviceId] ?? DEVICE_CATALOG[DEFAULT_DEVICE]
@@ -517,6 +529,12 @@ export const SURFACE_OPTIONS = [
 export type SurfaceId = (typeof SURFACE_OPTIONS)[number]["value"];
 
 export const DEFAULT_SURFACE: SurfaceId = "none";
+
+export function readSurfaceId(value: unknown): SurfaceId {
+  return SURFACE_OPTIONS.some((option) => option.value === value)
+    ? (value as SurfaceId)
+    : DEFAULT_SURFACE;
+}
 
 export const ENVIRONMENT_OPTIONS = [
   { label: "Studio soft", value: "studio-soft" },

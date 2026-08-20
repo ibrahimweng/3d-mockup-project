@@ -73,6 +73,7 @@ export function useScenePreset(): void {
       ["light.rim", preset.rim],
       ["light.shadowSoftness", preset.shadowSoftness],
       ["light.pattern", preset.pattern],
+      ["surface.kind", preset.surface],
       ["camera.focalLength", preset.focalLength],
       ["camera.orbit", preset.pose],
     ];

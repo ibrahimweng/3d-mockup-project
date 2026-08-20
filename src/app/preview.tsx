@@ -13,6 +13,7 @@ import {
 import { forgetArtworkUrl, publishArtworkUrl } from "./artwork-store";
 import { useAdaptiveQuality } from "./adaptive-quality";
 import { useScenePreset } from "./apply-scene-preset";
+import { useSurfaceFraming } from "./apply-surface-framing";
 import { useDesignDrag } from "./design-drag";
 import { useViewOrbit } from "./view-orbit";
 import { useViewPan } from "./view-pan";
@@ -44,6 +45,8 @@ export function MockupPreview(): React.ReactElement {
   const quality = useAdaptiveQuality();
   // Writes the chosen studio into the ordinary controls, once per change.
   useScenePreset();
+  // And lifts the camera when a table appears under one too low to see it.
+  useSurfaceFraming();
 
   const values = useToolcraftEvaluatedValues();
   const frame = useToolcraftProductSceneFrame();

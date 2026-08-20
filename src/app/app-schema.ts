@@ -5,6 +5,7 @@ import {
   DEFAULT_LIGHT_PATTERN,
   DEFAULT_SURFACE,
   LIGHT_PATTERN_OPTIONS,
+  SURFACE_DEVICES,
   SURFACE_OPTIONS,
 } from "./product-domain";
 import { DEFAULT_SCENE_PRESET, SCENE_PRESET_OPTIONS } from "./scene-presets";
@@ -341,7 +342,14 @@ export const appSchema = defineToolcraft({
           controls: {
             kind: {
               applicability: {
-                all: [{ equals: true, target: "export.includeBackground" }],
+                all: [
+                  { equals: true, target: "export.includeBackground" },
+                  // Only the devices the catalog gives a table. Offering the
+                  // control everywhere and quietly ignoring it on two of the
+                  // five would be worse than not offering it: a control that
+                  // does nothing teaches people not to trust the panel.
+                  { oneOf: SURFACE_DEVICES, target: "device.model" },
+                ],
                 mode: "conditional",
               },
               defaultValue: DEFAULT_SURFACE,

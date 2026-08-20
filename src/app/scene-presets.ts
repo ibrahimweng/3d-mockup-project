@@ -1,6 +1,6 @@
 import type { ToolcraftOrientationPose } from "@/toolcraft/runtime/react";
 
-import type { LightPatternId } from "./product-domain";
+import type { LightPatternId, SurfaceId } from "./product-domain";
 
 /**
  * Studio presets: a backdrop, a floor, a light rig and a framing, together.
@@ -64,6 +64,14 @@ export type ScenePreset = {
   shadowSoftness: number;
   /** What the key shines through, if anything. */
   pattern: LightPatternId;
+  /**
+   * What the device stands on.
+   *
+   * Only where the reference for that studio put it on something. Void and the
+   * softbox are lit on nothing and on seamless respectively, and giving them a
+   * table would be inventing a set neither photograph has.
+   */
+  surface: SurfaceId;
 };
 
 export const SCENE_PRESETS: Readonly<Record<ScenePresetId, ScenePreset>> = {
@@ -112,6 +120,8 @@ export const SCENE_PRESETS: Readonly<Record<ScenePresetId, ScenePreset>> = {
     rim: 85,
     shadowSoftness: 34,
     pattern: "none",
+    // Nothing to stand on: this one is a device in the dark.
+    surface: "none",
     // Nothing behind the device at all. A backdrop, however dark, is a surface
     // that catches light and puts a tone in the frame, and the whole point of
     // this one is that there is nothing back there to find.
@@ -157,6 +167,8 @@ export const SCENE_PRESETS: Readonly<Record<ScenePresetId, ScenePreset>> = {
 // Wide, because a softbox this size barely casts an edge at all.
     shadowSoftness: 62,
     pattern: "none",
+    // Seamless, as the watch triptych is.
+    surface: "none",
     // A broad cove. The graduation is the look, and a wide bend is what makes
     // the tone fall off over a long way instead of breaking at a corner.
     sweepCurve: 78,
@@ -200,6 +212,8 @@ export const SCENE_PRESETS: Readonly<Record<ScenePresetId, ScenePreset>> = {
 // Tight enough that the contact shadow reads as contact rather than haze.
     shadowSoftness: 26,
     pattern: "none",
+    // Seamless again. A sweep and a table are two different photographs.
+    surface: "none",
     // Tighter than the softbox and taller. The bend sits low and out of frame,
     // so what is behind the device is an even wall rather than a curve.
     sweepCurve: 34,
@@ -239,6 +253,8 @@ export const SCENE_PRESETS: Readonly<Record<ScenePresetId, ScenePreset>> = {
     // everything else in this preset exists to keep that edge legible.
     shadowSoftness: 3,
     pattern: "none",
+    // Your MacBook reference is a plinth, and the shadow across it is the shot.
+    surface: "table",
     // A low wall, mostly to give the frame a top. The shadow belongs on the
     // floor, so the paper stays out of the way of it.
     sweepCurve: 26,
@@ -271,6 +287,8 @@ export const SCENE_PRESETS: Readonly<Record<ScenePresetId, ScenePreset>> = {
     rim: 60,
     shadowSoftness: 16,
     pattern: "none",
+    // A pool on a floor, which is a floor and not furniture.
+    surface: "none",
     sweepCurve: 45,
     // No paper, which is what puts the lamp overhead and the pool on the floor.
     sweepHeight: 0,
@@ -315,6 +333,8 @@ export const SCENE_PRESETS: Readonly<Record<ScenePresetId, ScenePreset>> = {
     // wash indoors — it arrives through something, and the shape of that
     // something on the floor is most of what tells you where you are.
     pattern: "window",
+    // Sun through a window lands on something. On nothing it is just a warm room.
+    surface: "table",
     sweepCurve: 58,
     sweepHeight: 52,
     sweepLight: 34,
