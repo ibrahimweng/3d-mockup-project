@@ -137,6 +137,15 @@ export class RasterRenderer {
       finish: readFinishId(settings.finish),
       floor: settings.floor,
       lighting: settings.lighting,
+      // A tabletop's maps land after the frame that asked for them, so the
+      // frame has to be asked for again. Without this the slab sits
+      // untextured until something else happens to invalidate it, which on a
+      // preset applied at load is "until the user touches a control".
+      onSurfaceReady: () => {
+        if (this.disposed) return;
+        this.invalidateShadow();
+        this.onEnvironmentReady?.();
+      },
       renderer: this.renderer,
       showGround: settings.showBackground,
       surface: settings.surface,

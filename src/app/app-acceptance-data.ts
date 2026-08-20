@@ -563,16 +563,16 @@ export const appAcceptance: readonly ToolcraftComponentAcceptance[] = [
   },
   {
     automated: true,
-    automatedTestName: "surface stands the device on a table with a visible edge",
+    automatedTestName: "surface stands the device on a named material",
     browser: true,
     browserTestName:
-      "browser: choosing a table replaces the endless floor with a slab that ends in frame",
+      "browser: each surface replaces the endless floor with a slab of that material",
     componentType: "select",
     evidence: "rendered-pixels",
     expectedObservable:
-      "Choosing Table replaces the floor that fades away at its rim with a slab that ends: a lit top, a hard edge across the frame, and a face below it falling into shadow, with the backdrop moved behind its far edge. Returning to None restores the endless floor. On devices offered no table the control leaves the floor alone.",
+      "Choosing a surface replaces the floor that fades away at its rim with a slab that ends: a lit top, a hard edge across the frame, and a face below it falling into shadow, with the backdrop moved behind its far edge. Concrete arrives grey, matte and finely aggregated; Oak arrives warm, with grain running across the top and continuing over the front edge — and the scene relights, because a pale board throws a warm underlight back into the device that a grey slab does not. Returning to None restores the endless floor. On devices offered no surface the control leaves the floor alone.",
     fixture: "a device the catalog gives a table, on a visible background",
-    id: "surface.kind.table",
+    id: "surface.kind.material",
     kind: "control",
     optionCoverage: "each-visible-item",
     target: "surface.kind",

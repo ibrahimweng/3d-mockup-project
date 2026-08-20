@@ -1,9 +1,9 @@
 import {
   DEFAULT_DEVICE,
   DEFAULT_FINISH,
-  DEFAULT_SURFACE,
   readLightPatternId,
 } from "../product-domain";
+import { DEFAULT_SURFACE } from "../surfaces";
 import type { ScreenTransform } from "./device-scene";
 import type { RasterSettings } from "./raster-renderer";
 

@@ -11,6 +11,7 @@ import type {
   FinishId,
   LightPatternId,
 } from "../product-domain";
+import { readSurfaceDefinition, type SurfaceDefinition } from "../surfaces";
 
 /**
  * A device scene: a real GLB lit entirely by a prefiltered environment.
@@ -602,16 +603,35 @@ function createSurfaceGeometry(
 
   const positions = new Float32Array(profile.length * 2 * 3);
   const uvs = new Float32Array(profile.length * 2 * 2);
-  const span = back + front;
+  const width = halfWidth * 2;
+  /**
+   * V runs along the profile by distance walked, not by depth.
+   *
+   * Two of the four profile points sit at the same depth — the top of the
+   * front face and the bottom of it — so a V taken from depth hands the whole
+   * face a single value, and any map on it arrives as one row of pixels
+   * smeared down the front of the table. Measuring the walk gives the face its
+   * own run of map, and it comes out continuous with the top, which is what a
+   * grain does when it turns an edge.
+   *
+   * Both axes are divided by the same width, so texels stay square and a
+   * material has one repeat count to declare rather than two.
+   */
+  let travelled = 0;
   for (let index = 0; index < profile.length; index += 1) {
     const [up, depth] = profile[index];
+    if (index > 0) {
+      const [wasUp, wasDepth] = profile[index - 1];
+      travelled += Math.hypot(up - wasUp, depth - wasDepth);
+    }
     for (let side = 0; side < 2; side += 1) {
       const vertex = index * 2 + side;
-      positions[vertex * 3] = side === 0 ? -halfWidth : halfWidth;
+      const across = side === 0 ? -halfWidth : halfWidth;
+      positions[vertex * 3] = across;
       positions[vertex * 3 + 1] = up;
       positions[vertex * 3 + 2] = depth;
-      uvs[vertex * 2] = ((side === 0 ? -halfWidth : halfWidth) + halfWidth) / (halfWidth * 2);
-      uvs[vertex * 2 + 1] = (depth + back) / span;
+      uvs[vertex * 2] = (across + halfWidth) / width;
+      uvs[vertex * 2 + 1] = travelled / width;
     }
   }
 
@@ -985,6 +1005,49 @@ function findScene(
   return scenes.find((entry) => sanitizeSceneName(entry.name) === sanitized);
 }
 
+/**
+ * The surface maps, fetched once per session and shared by every scene.
+ *
+ * Cached as promises rather than as textures so that two scenes asking at the
+ * same moment — the preview and the export renderer do exactly this — make one
+ * request between them rather than one each. Nothing here is disposed: these
+ * outlive any scene that uses them, and a table switched off and on again
+ * should not pay for its own maps twice.
+ */
+const surfaceTextures = new Map<string, Promise<THREE.Texture>>();
+
+function loadSurfaceTexture(
+  renderer: THREE.WebGLRenderer,
+  file: string,
+  color: boolean,
+): Promise<THREE.Texture> {
+  const cached = surfaceTextures.get(file);
+  if (cached) return cached;
+  const pending = new THREE.TextureLoader()
+    .loadAsync(`${import.meta.env.BASE_URL}textures/${file}`)
+    .then((texture) => {
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      // Colour is the only one of the three that is a colour. A normal is a
+      // direction and a roughness is a number, and putting either through the
+      // sRGB curve bends values the shader reads literally.
+      if (color) texture.colorSpace = THREE.SRGBColorSpace;
+      // A tabletop is the one surface in this scene always seen at a grazing
+      // angle, which is precisely the case trilinear filtering handles worst:
+      // the mip is chosen for the axis that is compressed, so the axis that is
+      // not goes to mush a few centimetres past the front edge.
+      texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      return texture;
+    })
+    .catch((error: unknown) => {
+      // Not left in the cache, so the next attempt is a real attempt.
+      surfaceTextures.delete(file);
+      throw error;
+    });
+  surfaceTextures.set(file, pending);
+  return pending;
+}
+
 export async function buildDeviceScene(options: {
   backgroundColor: string;
   device: DeviceDefinition;
@@ -992,6 +1055,8 @@ export async function buildDeviceScene(options: {
   finish: FinishId;
   floor: FloorSettings;
   lighting: LightingSettings;
+  /** Called when a surface's maps land, so the frame can be drawn again. */
+  onSurfaceReady?: () => void;
   renderer: THREE.WebGLRenderer;
   showGround: boolean;
   surface: SurfaceSettings;
@@ -1301,11 +1366,73 @@ export async function buildDeviceScene(options: {
   /** Remembered so a table can re-place the paper without being handed it. */
   let lastSweep: SweepSettings = options.sweep;
   const surfaceSurface = new THREE.MeshStandardMaterial({
-    // A plain neutral, deliberately. This is the step that proves an edge
-    // reads; a material would only make it harder to tell whether it does.
-    color: new THREE.Color("#8C8781"),
-    roughness: 0.68,
+    color: new THREE.Color("#ffffff"),
+    roughness: 1,
   });
+  /** Which material the slab is currently wearing, so it is dressed once. */
+  let surfaceDressed = "";
+  /**
+   * The maps still in flight, so a caller can wait for a finished slab.
+   *
+   * The preview does not wait — it shows the untextured slab for a frame and
+   * then the textured one, which is what progressive loading is for. An export
+   * cannot: it takes one frame and writes it to a file, and a file is not
+   * something the user can wait a moment longer for. So the build resolves
+   * only once the surface it was asked for is actually wearing its maps.
+   */
+  let surfaceReady: Promise<unknown> = Promise.resolve();
+
+  /**
+   * Put a material on the slab, and its maps on when they arrive.
+   *
+   * The maps are fetched rather than bundled, so there is a window where the
+   * table exists and its texture does not. That window is handled rather than
+   * hidden: the untextured slab is already the right colour and roughness, so
+   * what lands is detail rather than a different object, and the frame is
+   * redrawn when it does. Switching away mid-flight is checked for, because a
+   * texture that arrives after the user has chosen something else would dress
+   * the slab as the material they just left.
+   */
+  const dressSurface = (definition: SurfaceDefinition): void => {
+    if (surfaceDressed === definition.value) return;
+    surfaceDressed = definition.value;
+    surfaceSurface.color.set(definition.color);
+    surfaceSurface.metalness = definition.metalness;
+    surfaceSurface.roughness = definition.roughness;
+    surfaceSurface.normalScale.set(
+      definition.normalScale,
+      definition.normalScale,
+    );
+    surfaceSurface.map = null;
+    surfaceSurface.normalMap = null;
+    surfaceSurface.roughnessMap = null;
+    surfaceSurface.needsUpdate = true;
+    const maps = definition.maps;
+    if (!maps) return;
+    surfaceReady = Promise.all([
+      loadSurfaceTexture(options.renderer, maps.albedo, true),
+      loadSurfaceTexture(options.renderer, maps.normal, false),
+      loadSurfaceTexture(options.renderer, maps.roughness, false),
+    ])
+      .then(([albedo, normal, roughness]) => {
+        if (surfaceDressed !== definition.value) return;
+        for (const texture of [albedo, normal, roughness]) {
+          texture.repeat.set(definition.tiles, definition.tiles);
+        }
+        surfaceSurface.map = albedo;
+        surfaceSurface.normalMap = normal;
+        surfaceSurface.roughnessMap = roughness;
+        surfaceSurface.needsUpdate = true;
+        applyFloorEnvironment();
+        options.onSurfaceReady?.();
+      })
+      .catch(() => {
+        // A map that will not load leaves a slab of the right colour and
+        // roughness, which is a plain material rather than a broken one.
+        // Clearing the record lets the next choice of this surface retry.
+        if (surfaceDressed === definition.value) surfaceDressed = "";
+      });
+  };
   {
     const mesh = new THREE.Mesh(new THREE.BufferGeometry(), surfaceSurface);
     // It takes the device's shadow and throws none of its own. A block this
@@ -1337,10 +1464,14 @@ export async function buildDeviceScene(options: {
    * furniture.
    */
   const applySurface = (surface: SurfaceSettings): void => {
-    const wanted = options.device.surface ? surface.kind : "none";
+    const definition = readSurfaceDefinition(
+      options.device.surface ? surface.kind : "none",
+    );
+    const wanted = definition.value;
     const on = wanted !== "none";
     if (wanted !== surfaceKind) {
       surfaceKind = wanted;
+      dressSurface(definition);
       if (on && options.device.surface) {
         surfaceGeometry?.dispose();
         surfaceGeometry = createSurfaceGeometry(
@@ -1353,6 +1484,8 @@ export async function buildDeviceScene(options: {
     if (surfaceMesh) surfaceMesh.visible = on && groundVisible;
     updateMirrorVisibility();
     applyGroundVisibility();
+    applyFloorEnvironment();
+    applyBounce();
   };
 
   /** How much reflection the floor is currently letting through. */
@@ -1376,7 +1509,18 @@ export async function buildDeviceScene(options: {
   const applyFloorEnvironment = (): void => {
     const map = scene.environment;
     const share = floorEnvironment * scene.environmentIntensity;
-    for (const surface of [groundSurface, sweepSurface]) {
+    // The table takes the same control as the floor it replaced — it is the
+    // surface the device is standing on, and that is what the control is about
+    // — scaled by how much of the room a material of its finish would actually
+    // return. A matte slab shows the room as a wash and a sealed board shows
+    // it as a reflection, and handing both the same share flattens one or
+    // gilds the other.
+    const table = readSurfaceDefinition(surfaceKind).environmentShare;
+    for (const [surface, own] of [
+      [groundSurface, 1],
+      [sweepSurface, 1],
+      [surfaceSurface, table],
+    ] as const) {
       if (!surface) continue;
       if (surface.envMap !== map) {
         surface.envMap = map;
@@ -1385,7 +1529,7 @@ export async function buildDeviceScene(options: {
         // uniform.
         surface.needsUpdate = true;
       }
-      surface.envMapIntensity = share;
+      surface.envMapIntensity = share * own;
     }
   };
 
@@ -1628,6 +1772,63 @@ export async function buildDeviceScene(options: {
   );
   scene.add(rim);
 
+  /**
+   * The surface, as a light.
+   *
+   * This is the half of a material that a texture cannot carry. Light that
+   * lands on a table does not stop there — it scatters back up, coloured by
+   * whatever it hit, into every face of the subject that points downward. It
+   * is why a watch on oak has a warm underside and the same watch on concrete
+   * has a grey one, and it arrives from the one direction a three-point rig
+   * has no light in, so nothing else in the scene can stand in for it.
+   *
+   * Directional rather than a lamp under the table, because a bounce has no
+   * position worth speaking of: it comes off an area far larger than the
+   * subject and reaches it as very nearly parallel rays. It casts nothing —
+   * a shadow thrown upward from beneath the floor is the giveaway of a rig
+   * built out of lights rather than out of a room.
+   */
+  const bounce = new THREE.DirectionalLight(0xffffff, 0);
+  bounce.castShadow = false;
+  scene.add(bounce);
+
+  /**
+   * Aim it where the key would have landed, mirrored in the table.
+   *
+   * The bright patch on a surface is on the far side of the subject from the
+   * light, and that patch is what does the bouncing, so the return travels
+   * back across the same line the key came down. Mirroring the key's direction
+   * about the horizontal is the whole calculation.
+   */
+  const placeBounce = (direction: { x: number; y: number }): void => {
+    const across = new THREE.Vector3(direction.x, -direction.y, 1);
+    if (across.lengthSq() < 1e-6) across.set(0, 0, 1);
+    across.normalize();
+    bounce.position.set(
+      across.x * sphere.radius * 2,
+      -sphere.radius * 2.4,
+      across.z * sphere.radius * 2,
+    );
+  };
+  placeBounce(options.lighting.keyDirection);
+
+  /**
+   * How much comes back, as a share of what went out.
+   *
+   * Tied to the key rather than set outright, because bounce is light that has
+   * already arrived once. A rig whose bounce holds steady while the key falls
+   * is why so many renders have a subject that will not go dark — the fill
+   * that was meant to be a consequence of the key becomes a floor under it.
+   */
+  const applyBounce = (): void => {
+    const definition = readSurfaceDefinition(surfaceKind);
+    bounce.color.set(definition.bounce.color);
+    bounce.intensity =
+      surfaceKind === "none" || !groundVisible
+        ? 0
+        : key.intensity * definition.bounce.share;
+  };
+
   const screenMaterials = findScreenMaterials(
     subject,
     options.device.screenMaterial,
@@ -1676,6 +1877,10 @@ export async function buildDeviceScene(options: {
   // depends on which side of the floor the camera is on.
   applyFloor(options.floor);
   applySurface(options.surface);
+  // Only ever a real wait when the scene is built with a surface already
+  // chosen, which is the export path; the preview builds with none and dresses
+  // the slab afterwards.
+  await surfaceReady;
   applySweep(options.sweep);
   disposables.push({ dispose: () => floorFade?.dispose() });
 
@@ -1729,6 +1934,7 @@ export async function buildDeviceScene(options: {
       // hands the floor back its other job.
       if (surfaceMesh) surfaceMesh.visible = surfaceKind !== "none" && visible;
       applyGroundVisibility();
+      applyBounce();
       // The reflection lives on the backdrop, so it goes when the backdrop
       // does: there is nothing for it to be seen through.
       updateMirrorVisibility();
@@ -1740,6 +1946,9 @@ export async function buildDeviceScene(options: {
       key.intensity = next.keyIntensity;
       key.color.set(next.keyColor);
       key.position.copy(placeKey(next.keyDirection));
+      placeBounce(next.keyDirection);
+      // After the key, because it is a share of it.
+      applyBounce();
       applyPattern(next.pattern);
       fill.intensity = next.fillIntensity;
       rim.intensity = next.rimIntensity;

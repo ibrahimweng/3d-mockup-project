@@ -514,28 +514,6 @@ export function readLightPatternId(value: unknown): LightPatternId {
     : DEFAULT_LIGHT_PATTERN;
 }
 
-/**
- * What the device is standing on.
- *
- * Separate from the studio, because a light rig and a piece of furniture are
- * different decisions: concrete under a hard key and concrete under a softbox
- * are both things a photographer would shoot on purpose.
- */
-export const SURFACE_OPTIONS = [
-  { label: "None", value: "none" },
-  { label: "Table", value: "table" },
-] as const;
-
-export type SurfaceId = (typeof SURFACE_OPTIONS)[number]["value"];
-
-export const DEFAULT_SURFACE: SurfaceId = "none";
-
-export function readSurfaceId(value: unknown): SurfaceId {
-  return SURFACE_OPTIONS.some((option) => option.value === value)
-    ? (value as SurfaceId)
-    : DEFAULT_SURFACE;
-}
-
 export const ENVIRONMENT_OPTIONS = [
   { label: "Studio soft", value: "studio-soft" },
   { label: "Hard key", value: "hard-key" },

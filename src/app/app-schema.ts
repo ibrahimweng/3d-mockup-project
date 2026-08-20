@@ -3,12 +3,11 @@ import { defineToolcraft } from "@/toolcraft/runtime";
 import { appIdentity } from "./app-identity";
 import {
   DEFAULT_LIGHT_PATTERN,
-  DEFAULT_SURFACE,
   LIGHT_PATTERN_OPTIONS,
   SURFACE_DEVICES,
-  SURFACE_OPTIONS,
 } from "./product-domain";
 import { DEFAULT_SCENE_PRESET, SCENE_PRESET_OPTIONS } from "./scene-presets";
+import { DEFAULT_SURFACE, SURFACE_OPTIONS } from "./surfaces";
 import {
   DEFAULT_DEVICE,
   DEFAULT_FINISH,

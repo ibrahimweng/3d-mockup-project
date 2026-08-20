@@ -1,6 +1,7 @@
 import type { ToolcraftOrientationPose } from "@/toolcraft/runtime/react";
 
-import type { LightPatternId, SurfaceId } from "./product-domain";
+import type { LightPatternId } from "./product-domain";
+import type { SurfaceId } from "./surfaces";
 
 /**
  * Studio presets: a backdrop, a floor, a light rig and a framing, together.
@@ -253,8 +254,11 @@ export const SCENE_PRESETS: Readonly<Record<ScenePresetId, ScenePreset>> = {
     // everything else in this preset exists to keep that edge legible.
     shadowSoftness: 3,
     pattern: "none",
-    // Your MacBook reference is a plinth, and the shadow across it is the shot.
-    surface: "table",
+    // The reference is a device on a pale slab with one hard shadow drawn
+    // across it. Concrete is what takes that shadow without arguing: it is
+    // matte, it is neutral, and it bounces almost nothing back into the shadow
+    // side, which is the only reason the edge stays as black as it does.
+    surface: "concrete",
     // A low wall, mostly to give the frame a top. The shadow belongs on the
     // floor, so the paper stays out of the way of it.
     sweepCurve: 26,
@@ -333,8 +337,11 @@ export const SCENE_PRESETS: Readonly<Record<ScenePresetId, ScenePreset>> = {
     // wash indoors — it arrives through something, and the shape of that
     // something on the floor is most of what tells you where you are.
     pattern: "window",
-    // Sun through a window lands on something. On nothing it is just a warm room.
-    surface: "table",
+    // Sun through a window lands on something. On nothing it is just a warm
+    // room. Oak, because this is the one preset with a room in it, and the
+    // amber a board throws back up is the difference between sun indoors and a
+    // warm lamp anywhere.
+    surface: "oak",
     sweepCurve: 58,
     sweepHeight: 52,
     sweepLight: 34,

@@ -6,7 +6,7 @@ import {
   type ToolcraftOrientationPose,
 } from "@/toolcraft/runtime/react";
 
-import { DEFAULT_SURFACE, readSurfaceId, type SurfaceId } from "./product-domain";
+import { DEFAULT_SURFACE, readSurfaceId, type SurfaceId } from "./surfaces";
 
 /**
  * Lift the camera enough to see the table it is now standing on.
