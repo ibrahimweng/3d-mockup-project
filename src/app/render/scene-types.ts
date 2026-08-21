@@ -129,6 +129,14 @@ export type DeviceScene = {
    * read rather than a rule per surface.
    */
   framing: THREE.Box3;
+  /**
+   * The height the device is standing at.
+   *
+   * Everything below it is furniture: the table's sides and its legs. A frame
+   * that has to hold all of that spends its height on legs, which reads well
+   * on a square canvas and leaves a wide one mostly floor.
+   */
+  standTop: number;
   target: THREE.Vector3;
 };
 export type LightingSettings = {

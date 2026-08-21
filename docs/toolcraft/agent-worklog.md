@@ -428,6 +428,14 @@ Zooming out and shifting the frame were the two new risks: both widen what the c
 - Evidence: Checked rather than assumed. The runtime exposes no URL-based loader to product source; importing its model-import internals is caught by the same rule; and the boundary checker has no waiver or allowlist. `RGBELoader` is not a model loader at all — it loads the environment — but the rule catches it too.
 - Risk: So the product boundary check fails, on three imports, in one module. Everything else it checks now passes: no line budget violation anywhere in the app, and no escape hatches.
 
+### A wide canvas was mostly floor
+
+- Decision: The frame stops having to hold the table's legs as the canvas gets wider — all of them up to four by three, none of them by sixteen by nine.
+- Reason: Reported as the aspect ratio squeezing the scene. Nothing was squeezed: the device's rendered proportions are identical at every ratio, 0.98 wide over tall at both one by one and sixteen by nine. What changes is the share of the frame it gets. The fit fills the *short* axis to eighty-one percent at every ratio and gives the long axis away as margin, so on a sixteen by nine canvas the height goes on the drop of the table's legs and the device is left occupying six and a half percent of the picture with dead room either side.
+- Evidence: Measured as the bounding box of the device's own dark screen against the frame. At sixteen by nine the subject went from 45 percent of the width to 68, and from 6.6 percent of the frame's area to 13.8. Four by three and everything squarer or taller is untouched, and the default portrait canvas renders byte-for-byte identically.
+- Reason: Letting the legs run out of the bottom of the frame is what a photograph of a desk does, and there is nothing left to expose by doing it — the set has no rim to find any more. Eased across the range rather than switched at a threshold, because the canvas size is a control somebody drags and a step change halfway through a drag reads as a fault.
+- Risk: It trades against "make the whole table fit in the frame", which is what the framing was built for in the first place. It only gives that up where the alternative is a picture that is mostly floor.
+
 ## Verification
 
 - `npm run typecheck` passes.

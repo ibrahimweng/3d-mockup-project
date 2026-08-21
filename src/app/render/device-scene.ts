@@ -612,6 +612,7 @@ export async function buildDeviceScene(options: {
     },
     subject,
     framing,
+    standTop: groundY,
     subjectRadius: sphere.radius,
     target,
   };

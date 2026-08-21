@@ -331,7 +331,34 @@ export class RasterRenderer {
     const tallness = Math.tan(halfFov);
     const wideness = tallness * Math.max(0.001, built.camera.aspect);
 
-    const centre = built.target;
+    /**
+     * How much of the furniture underneath the device still has to be in shot.
+     *
+     * All of it on a square or tall canvas, none of it by sixteen by nine.
+     *
+     * The frame fills its short axis with the subject and gives the long axis
+     * away as margin, so on a wide canvas the height goes on the table's legs
+     * and the device ends up occupying a fifteenth of the picture. Letting the
+     * legs run out of the bottom of the frame is what a photograph of a desk
+     * does anyway, and there is nothing left to expose by doing it: the set has
+     * no rim to find any more.
+     *
+     * Eased across the range rather than switched at a threshold, because the
+     * canvas size is a control somebody drags and a step change in the framing
+     * halfway through a drag reads as a fault.
+     */
+    const wideness01 = THREE.MathUtils.clamp(
+      (built.camera.aspect - 4 / 3) / (16 / 9 - 4 / 3),
+      0,
+      1,
+    );
+    const held = new THREE.Box3().copy(built.framing);
+    held.min.y = THREE.MathUtils.lerp(
+      held.min.y,
+      Math.min(built.standTop, held.max.y),
+      wideness01,
+    );
+    const centre = held.getCenter(new THREE.Vector3());
     const corner = new THREE.Vector3();
     // Never tighter than the framing the studios were built against: a device
     // standing on nothing is composed against its own radius with room around
@@ -341,7 +368,7 @@ export class RasterRenderer {
     let distance =
       ((built.subjectRadius * 1.25) / Math.tan(halfFov)) *
       (built.camera.aspect < 1 ? 1 / built.camera.aspect : 1);
-    const box = built.framing;
+    const box = held;
     for (const x of [box.min.x, box.max.x]) {
       for (const y of [box.min.y, box.max.y]) {
         for (const z of [box.min.z, box.max.z]) {
@@ -363,7 +390,7 @@ export class RasterRenderer {
       .multiplyScalar(distance)
       .add(centre);
     built.camera.up.copy(up);
-    built.camera.lookAt(built.target);
+    built.camera.lookAt(centre);
 
     /**
      * Crop, rather than move.
