@@ -4,9 +4,7 @@ import { appSchema } from "./app-schema";
 import { mockupExportRenderer } from "./export-renderer";
 import { MockupPreview } from "./preview";
 import { rendererPipeline } from "./render/pipeline";
-
-/** Output size when the workspace is unbounded, matching the finite default. */
-const INFINITE_SCENE = { height: 1350, width: 1080 };
+import { getMockupSceneRect } from "./scene-bounds";
 
 export const appComposition: ToolcraftAppComposition = {
   canvasContent: <MockupPreview />,
@@ -17,15 +15,8 @@ export const appComposition: ToolcraftAppComposition = {
   rendererPipelineRegistration: rendererPipeline,
   schema: appSchema,
   // Required in Infinity mode: the runtime resolves the product scene frame
-  // from this. Without it the frame reports `unavailable`, the preview never
-  // learns its size, and the camera keeps a 1:1 aspect — which renders a tall
-  // phone as a square.
-  sceneBoundsProvider: () => [
-    {
-      height: INFINITE_SCENE.height,
-      width: INFINITE_SCENE.width,
-      x: -INFINITE_SCENE.width / 2,
-      y: -INFINITE_SCENE.height / 2,
-    },
-  ],
+  // from this, for the preview and for the crop an export is cut to. Without
+  // it the frame reports `unavailable`, the preview never learns its size, and
+  // the camera keeps a 1:1 aspect — which renders a tall phone as a square.
+  sceneBoundsProvider: ({ state }) => [getMockupSceneRect(state)],
 };

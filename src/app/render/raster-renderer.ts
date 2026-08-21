@@ -2,6 +2,12 @@ import * as THREE from "three";
 
 import { readDeviceDefinition, readFinishId } from "../product-domain";
 import {
+  fitDistance,
+  fovDegreesFor,
+  heldBox,
+  readFitBasis,
+} from "./camera-fit";
+import {
   buildDeviceScene,
   loadEnvironment,
   type DeviceScene,
@@ -23,9 +29,17 @@ export type RasterSettings = {
   environment: string;
   exposure: number;
   finish: string;
+  /**
+   * What decides the frame: an artboard somebody chose, or the set itself.
+   *
+   * An artboard is composed into — the subject is placed inside a shape it did
+   * not pick, with room around it — and Infinity canvas has no artboard, so the
+   * frame is cut from the set instead and the set has to fill it.
+   */
+  fit: "artboard" | "scene";
   floor: FloorSettings;
   focalLength: number;
-  /** Where the subject sits in the picture, each axis 0 to 1 with 0.5 centred. */
+  /** Where the subject sits in the picture, each axis -1 to 1 with 0 centred. */
   framing: { x: number; y: number };
   lighting: LightingSettings;
   showBackground: boolean;
@@ -295,101 +309,32 @@ export class RasterRenderer {
     const settings = this.settings;
     if (!built || !settings) return;
 
-    const direction = new THREE.Vector3(
-      pose.position[0],
-      pose.position[1],
-      pose.position[2],
-    );
-    if (direction.lengthSq() < 1e-6) direction.set(0, 0.6, 3.4);
-    direction.normalize();
+    const basis = readFitBasis(pose);
 
     // 36mm full-frame equivalent, so the focal length control means what it
     // means on a real camera body.
-    built.camera.fov =
-      2 * Math.atan(36 / (2 * settings.focalLength)) * (180 / Math.PI);
+    built.camera.fov = fovDegreesFor(settings.focalLength);
+    const halfFovRad = THREE.MathUtils.degToRad(built.camera.fov) / 2;
 
-    /**
-     * Stand back far enough that every corner of the set is inside the frame.
-     *
-     * A radius and a margin is the usual shortcut and it is only right for a
-     * ball. What the camera has to hold here is a long low box — a laptop on a
-     * table is four times wider than it is deep — and a sphere drawn round
-     * that box has to reach its corners, which pushes the camera much further
-     * back than the picture needs. So each of the eight corners is asked
-     * directly how far away the camera would have to be for it to clear the
-     * edge of frame, and the answer is the largest of them.
-     *
-     * Both axes are asked separately, because the frame is not square and the
-     * thing being framed is not either.
-     */
-    const halfFov = THREE.MathUtils.degToRad(built.camera.fov) / 2;
-    const up = new THREE.Vector3(pose.up[0], pose.up[1], pose.up[2]);
-    if (up.lengthSq() < 1e-6) up.set(0, 1, 0);
-    const across = new THREE.Vector3().crossVectors(up, direction).normalize();
-    if (across.lengthSq() < 1e-6) across.set(1, 0, 0);
-    const upright = new THREE.Vector3().crossVectors(direction, across).normalize();
-    const tallness = Math.tan(halfFov);
-    const wideness = tallness * Math.max(0.001, built.camera.aspect);
-
-    /**
-     * How much of the furniture underneath the device still has to be in shot.
-     *
-     * All of it on a square or tall canvas, none of it by sixteen by nine.
-     *
-     * The frame fills its short axis with the subject and gives the long axis
-     * away as margin, so on a wide canvas the height goes on the table's legs
-     * and the device ends up occupying a fifteenth of the picture. Letting the
-     * legs run out of the bottom of the frame is what a photograph of a desk
-     * does anyway, and there is nothing left to expose by doing it: the set has
-     * no rim to find any more.
-     *
-     * Eased across the range rather than switched at a threshold, because the
-     * canvas size is a control somebody drags and a step change in the framing
-     * halfway through a drag reads as a fault.
-     */
-    const wideness01 = THREE.MathUtils.clamp(
-      (built.camera.aspect - 4 / 3) / (16 / 9 - 4 / 3),
-      0,
-      1,
-    );
-    const held = new THREE.Box3().copy(built.framing);
-    held.min.y = THREE.MathUtils.lerp(
-      held.min.y,
-      Math.min(built.standTop, held.max.y),
-      wideness01,
-    );
+    const held = heldBox(built.framing, built.standTop, built.camera.aspect);
     const centre = held.getCenter(new THREE.Vector3());
-    const corner = new THREE.Vector3();
-    // Never tighter than the framing the studios were built against: a device
-    // standing on nothing is composed against its own radius with room around
-    // it, and a box drawn round the same device is smaller than the sphere
-    // was, so fitting the box alone would quietly crop in on every preset that
-    // has no furniture in it. This only ever stands further back.
-    let distance =
-      ((built.subjectRadius * 1.25) / Math.tan(halfFov)) *
-      (built.camera.aspect < 1 ? 1 / built.camera.aspect : 1);
-    const box = held;
-    for (const x of [box.min.x, box.max.x]) {
-      for (const y of [box.min.y, box.max.y]) {
-        for (const z of [box.min.z, box.max.z]) {
-          corner.set(x, y, z).sub(centre);
-          const depth = corner.dot(direction);
-          distance = Math.max(
-            distance,
-            depth + Math.abs(corner.dot(across)) / wideness,
-            depth + Math.abs(corner.dot(upright)) / tallness,
-          );
-        }
-      }
-    }
-    // A hair of air, so nothing sits exactly on the edge of the picture.
-    distance *= 1.02;
+    const distance = fitDistance({
+      aspect: built.camera.aspect,
+      basis,
+      box: held,
+      halfFovRad,
+      // A frame cut from the set has no composition rule to obey: the whole
+      // point of it is that the set reaches its edges. Standing back far enough
+      // to leave the usual air would make the picture smaller than the frame it
+      // was measured for, which on a tall subject is most of the picture.
+      subjectRadius: settings.fit === "scene" ? 0 : built.subjectRadius,
+    });
 
     built.camera.position
-      .copy(direction)
+      .copy(basis.direction)
       .multiplyScalar(distance)
       .add(centre);
-    built.camera.up.copy(up);
+    built.camera.up.copy(basis.up);
     built.camera.lookAt(centre);
 
     /**

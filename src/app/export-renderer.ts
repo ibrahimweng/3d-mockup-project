@@ -28,7 +28,7 @@ export const mockupExportRenderer: ToolcraftProductExportRenderer = {
   baseFileName: "mockup",
   renderFrame: async ({ context, frame, pixelRatio, state }) => {
     const values = state.values as Record<string, unknown>;
-    const settings = readRasterSettings(values);
+    const settings = readRasterSettings(values, state.canvas.mode);
     const pose = readToolcraftOrientationPose(values["camera.orbit"]);
 
     const width = Math.round(frame.width);

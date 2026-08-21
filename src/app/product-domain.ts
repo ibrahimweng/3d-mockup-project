@@ -139,6 +139,25 @@ export type DeviceDefinition = {
    * device pushes the camera back and floats the object above its own shadow.
    */
   excludedNodes: readonly string[];
+  /**
+   * Half the device's own bounding box, in multiples of the radius of the
+   * sphere drawn round it.
+   *
+   * Measured out of the GLB once the excluded nodes are hidden and the yaw is
+   * applied — the same box `buildDeviceScene` measures when it frames the shot,
+   * and the reason it is written down rather than measured on demand is that
+   * Infinity canvas has to know the shape of the picture before there is a
+   * scene to measure. Normalising by the sphere makes it a proportion rather
+   * than a size, which is the only part of it that survives a re-export at a
+   * different scale, and the only part the framing needs.
+   *
+   * Two things catch a number that has gone stale against its model. Being a
+   * proportion of the sphere makes it a unit vector by construction, which
+   * `scene-bounds.test.ts` checks and which a mistyped digit breaks; and the
+   * browser proof measures the device inside the frame this produces, which a
+   * shape that no longer matches the model stops filling.
+   */
+  frame: readonly [number, number, number];
   /** Human-readable name, used for the export file name. */
   label: string;
   modelFile: string;
@@ -317,6 +336,7 @@ const WATCH_BAND = (hex: string): Readonly<Record<string, string>> => ({
 export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
   "apple-watch-ultra": {
     excludedNodes: [],
+    frame: [0.402621, 0.675827, 0.617378],
     // Case and band are separate materials, so each colourway sets both.
     bodyMaterials: ["Watch Body", "Watch Crown"],
     finishes: {
@@ -343,6 +363,7 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
   },
   "iphone-17-pro-max": {
     excludedNodes: [],
+    frame: [0.435034, 0.897482, 0.072596],
     // Every material carrying the phone's finish.
     bodyMaterials: PHONE_BODY_MATERIALS,
     finishes: PHONE_FINISHES,
@@ -372,6 +393,7 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
   },
   macbook: {
     excludedNodes: [],
+    frame: [0.652455, 0.437213, 0.618989],
     // The two aluminium materials: the lid shell and the deck around the keys.
     bodyMaterials: ["CRQixVLpahJzhJc", "LpqXZqhaGCeSzdu"],
     finishes: {
@@ -412,6 +434,7 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
     // names the front and carries the back as an accent.
     bodyMaterials: ["LightBlue"],
     excludedNodes: [],
+    frame: [0.751662, 0.628690, 0.199380],
     finishes: {
       blue: {
         accents: { DarkBlue: "#2b5f96" },
@@ -481,6 +504,7 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
     // ring on the enclosure, which is the same metal polished.
     bodyMaterials: ["Main", "Side circle"],
     excludedNodes: [],
+    frame: [0.776712, 0.580502, 0.244410],
     finishes: {
       blue: { body: "#8fa4bd" },
       gold: { body: "#d9c3a1" },

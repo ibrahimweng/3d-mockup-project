@@ -436,6 +436,26 @@ Zooming out and shifting the frame were the two new risks: both widen what the c
 - Reason: Letting the legs run out of the bottom of the frame is what a photograph of a desk does, and there is nothing left to expose by doing it — the set has no rim to find any more. Eased across the range rather than switched at a threshold, because the canvas size is a control somebody drags and a step change halfway through a drag reads as a fault.
 - Risk: It trades against "make the whole table fit in the frame", which is what the framing was built for in the first place. It only gives that up where the alternative is a picture that is mostly floor.
 
+### Infinity canvas exports the picture, not a stand-in rectangle
+
+- Decision: The scene bounds provider measures the set and reports the shape the picture wants, instead of returning a fixed 1080 by 1350.
+- Reason: That constant was the finite default wearing a different hat. Infinity canvas removes the artboard precisely so the output stops being a shape somebody picked, and handing the runtime a hard-coded rectangle put the shape back — a portrait phone exported into a portrait artboard again, whichever device was in the scene. The acceptance row claimed the export was cropped to the union of the visible scene; it was cropped to a number in a file.
+- Decision: The camera fit moved out of the renderer into `camera-fit.ts`, and the provider and the renderer both call it.
+- Reason: The frame is measured by one and filled by the other, so any drift between two nearly-identical fits shows up as a sliver of missing table. There is now one answer to "where does the camera stand", and the provider solves it backwards: guess a square frame, ask where the camera goes, measure what the set subtends there, and repeat until the frame answers itself. It settles in a handful of rounds because each answer is much closer than the guess.
+- Evidence: The device's own bounding box is now recorded per device in the catalog, measured out of each GLB through the app's own loading path with the excluded nodes hidden and the yaw applied. Normalised by the bounding sphere it is a unit vector by construction, which is what `scene-bounds.test.ts` checks: a mistyped digit cannot survive it.
+
+- Decision: The composition rule that keeps a device clear of the edges of an artboard does not apply to a frame cut from the set.
+- Reason: Found by measuring, not by reasoning about it. That rule stands the camera back far enough to hold 1.25 of the subject's bounding *sphere*, and below a square frame it stands back further still, by one over the aspect. A phone is nothing like a sphere, so the rule already dominated the real fit — 7.4 units of distance against the 4.2 the box needed — and narrowing the frame to fit the phone pushed the camera back faster than the frame closed in. The picture got *emptier*: 57 percent of the height at the artboard's shape, 34 percent at the phone's own. Cropping to content while making the content smaller is the opposite of the feature.
+- Decision: So `RasterSettings` carries whether the frame came from an artboard or from the set, and it is read in `readRasterSettings` alongside everything else.
+- Reason: That function exists so the preview and the export cannot disagree about what they are drawing. A framing rule that lived at the two call sites instead would be the one thing they could still differ on.
+- Evidence: Measured as the bounding box of the device against the frame, at the artifact's own resolution. Every device now fills 80 to 98 percent of both axes of its infinite export, against 33 by 59 for the phone and 64 by 34 for the laptop inside the artboard. The two axes come out within a few points of each other in every case, which is the fixed point doing its job. Finite mode is untouched: the default canvas renders byte-for-byte identically, and the phone still measures 0.331 by 0.590 inside it.
+
+- Decision: The backdrop, the floor and the shadow do not expand the frame.
+- Reason: They are not elements the frame has to hold; they are what fills whatever frame it is given, and a set with no rim to find has no outer edge to union with. Zoom and the framing pad stay out of it for a different reason — both are choices made inside the picture, and a frame that grew to chase a subject the user had just pushed out of it would make either control impossible to use.
+- Evidence: The browser proof reads the rectangle from the runtime's own product scene element rather than from any app selector, then checks the exported PNG is that rectangle at the runtime's own ratio on both axes, that the device fills more of both axes than it does in the artboard, and that switching to a laptop turns the crop from portrait to landscape and the export with it.
+- Risk: A grazing view of a flat device subtends almost nothing across, and the honest frame there is a ribbon. It is clamped to three to one, which is a judgement about what is useful rather than a measurement.
+- Risk: The frame is symmetric about the box centre, so a subject whose near corners project larger than its far ones sits very slightly off centre in its own crop. Visible on the laptop as a little more air at the back of the lid than at the front of the palm rest.
+
 ## Verification
 
 - `npm run typecheck` passes.

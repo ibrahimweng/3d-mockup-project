@@ -62,7 +62,13 @@ export function MockupPreview(): React.ReactElement {
   );
   const urls = useToolcraftMediaPresentationUrls(artworkAssets);
 
-  const settings = React.useMemo(() => readRasterSettings(values), [values]);
+  // Infinity mode hands the renderer a frame cut from the set rather than an
+  // artboard, and the camera composes for the two differently.
+  const canvasMode = frame.kind === "infinite" ? "infinite" : "finite";
+  const settings = React.useMemo(
+    () => readRasterSettings(values, canvasMode),
+    [canvasMode, values],
+  );
   const screen = React.useMemo(() => readScreenTransform(values), [values]);
   const screenRef = React.useRef(screen);
   screenRef.current = screen;
@@ -178,7 +184,7 @@ export function MockupPreview(): React.ReactElement {
   React.useEffect(() => {
     rendererRef.current?.setPose(pose);
     dirtyRef.current = true;
-  }, [pose, sceneVersion, settings.focalLength]);
+  }, [pose, sceneVersion, settings.fit, settings.focalLength]);
 
   // Fit, scale, stretch and position only remap the display texture, so they
   // redraw a frame without touching the model or the environment.

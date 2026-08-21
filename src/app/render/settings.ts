@@ -77,9 +77,16 @@ export function readScreenTransform(
  * Exposure is fixed rather than exposed as a control. The environment is the
  * lighting model now, and a separate brightness slider invites correcting a
  * badly-chosen HDRI instead of choosing a better one.
+ *
+ * The canvas mode arrives as an argument rather than out of `values` because
+ * it is runtime state rather than a control the product owns, and it is here
+ * rather than at the two call sites for the reason everything else is: this is
+ * the one place the preview and the export both read, so it is the one place
+ * they cannot disagree about how the shot is framed.
  */
 export function readRasterSettings(
   values: Record<string, unknown>,
+  canvasMode: "finite" | "infinite" = "finite",
 ): RasterSettings {
   return {
     backgroundColor: str(values, "scene.background", "#0d0d10"),
@@ -87,6 +94,7 @@ export function readRasterSettings(
     environment: str(values, "studio.environment", "studio-soft"),
     exposure: 100,
     finish: str(values, "device.finish", DEFAULT_FINISH),
+    fit: canvasMode === "infinite" ? "scene" : "artboard",
     floor: {
       environment: num(values, "floor.environment", 100) / 100,
       reflection: num(values, "floor.reflection", 0) / 100,
