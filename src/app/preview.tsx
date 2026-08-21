@@ -18,6 +18,7 @@ import { useDesignDrag } from "./design-drag";
 import { useViewOrbit } from "./view-orbit";
 import { useViewPan } from "./view-pan";
 import { readDeviceDefinition } from "./product-domain";
+import { fingerprint } from "./render/fingerprint";
 import { RasterRenderer } from "./render/raster-renderer";
 import { createScreenTexture } from "./render/screen-texture";
 import { readRasterSettings, readScreenTransform } from "./render/settings";
@@ -80,6 +81,61 @@ export function MockupPreview(): React.ReactElement {
     () => readToolcraftOrientationPose(values["camera.orbit"]),
     [values],
   );
+
+  /**
+   * What the app can say about the frame it is showing.
+   *
+   * The runtime cannot see inside a WebGL canvas, so an orientation proof is
+   * only worth anything if the product reports its own output: that the pose it
+   * was given is the pose it drew, which model it drew, and — separately —
+   * what actually came out. `outputSignature` is the frame that was asked for,
+   * `pixelSignature` is the frame that arrived, and the pair is the point.
+   * Either one alone can move while the picture does not.
+   *
+   * The viewport offset is here because the same proof has to tell a rotation
+   * apart from a pan: one changes the pose and leaves the board alone, the
+   * other does the opposite.
+   */
+  const observation = React.useMemo(
+    () => ({
+      outputSignature: fingerprint(JSON.stringify([settings, screen, pose])),
+      pose,
+      poseTarget: "camera.orbit",
+      // The URL is the key `loadModel` caches the parsed device under, so this
+      // is the shared entry rather than a name for one.
+      presentationCacheKey: `${import.meta.env.BASE_URL}models/${
+        readDeviceDefinition(settings.device).modelFile
+      }`,
+      presentationDocumentId: settings.device,
+      viewportOffsetX: state.canvas.offset.x,
+      viewportOffsetY: state.canvas.offset.y,
+    }),
+    [pose, screen, settings, state.canvas.offset.x, state.canvas.offset.y],
+  );
+  const observationRef = React.useRef(observation);
+  observationRef.current = observation;
+  const pixelSignatureRef = React.useRef("");
+
+  /**
+   * Publish it, with whichever sampled frame is current.
+   *
+   * Written from two places because the two halves change on different beats:
+   * a rotation redraws, and a pan moves the board with CSS and draws nothing at
+   * all. Publishing only on a redraw would leave a pan invisible here.
+   */
+  const publishObservation = React.useCallback((pixelSignature?: string) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    if (pixelSignature) pixelSignatureRef.current = pixelSignature;
+    canvas.dataset.mockupOrientation = JSON.stringify({
+      ...observationRef.current,
+      pixelSignature: pixelSignatureRef.current,
+    });
+  }, []);
+
+  React.useEffect(() => {
+    publishObservation();
+  }, [observation, publishObservation]);
 
   // The renderer owns a WebGL context, so it is created once against the canvas
   // and torn down only on unmount.
@@ -318,15 +374,16 @@ export function MockupPreview(): React.ReactElement {
       if (!renderer?.ready) return;
       dirtyRef.current = false;
       renderer.render();
-      // Only a drag is timed. A frame drawn because a slider moved says
-      // nothing about whether the machine can hold a rotation.
+      // Sampled here rather than anywhere else because the drawing buffer is
+      // only readable in the same task as the draw that filled it.
+      publishObservation(renderer.sampleSignature());
       // Only a drag is timed. A frame drawn because a slider moved says
       // nothing about whether the machine can hold a rotation.
       if (interactingRef.current) quality.sample(now);
     };
     handle = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(handle);
-  }, [quality]);
+  }, [publishObservation, quality]);
 
   return (
     <canvas

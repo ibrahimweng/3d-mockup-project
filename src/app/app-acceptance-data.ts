@@ -92,16 +92,18 @@ export const appTransferMode: ToolcraftTransferMode = {
     {
       acceptanceId: "camera.orbit.pose",
       behaviorEvidence:
-        "Dragging the phone in the running reference rotates it; dragging the empty background pans the viewport instead.",
+        "Dragging anywhere on the canvas rotates the device, the empty space beside it included; the middle button moves the board without touching the pose; the gizmo writes the same pose the renderer draws.",
       featureName: "Orbit by direct drag and gizmo",
       id: "camera-orbit",
       referenceBehavior:
         "A geometry hit test claims primary drag for rotation and lets a miss fall through to viewport pan; the gizmo writes the same pose.",
       sourceEvidence:
         "useToolcraftModelOrbitInteraction plus RasterRenderer.hitTest in src/app/preview.tsx and src/app/render/raster-renderer.ts; the dirty-flag requestAnimationFrame loop in preview.tsx draws only invalidated frames.",
-      status: "ported",
+      status: "intentionally-changed",
       toolcraftMapping:
-        "Same `camera.orbit` orientationGizmo target and the same hit test, raycast against the selected device's subtree.",
+        "Same `camera.orbit` orientationGizmo target, the same pose writes through runtime dispatch with one history group per gesture, and the same dirty-flag render loop. What differs is which pointer claims the rotation: `src/app/view-orbit.ts` takes any plain primary drag rather than only one that hits the device, and the board moves on the middle button rather than on a miss.",
+      userApprovedChangeReason:
+        "The user was shown the divergence and the alternative of reverting to the reference hit test, and approved keeping it and correcting this record to say so. It exists because a phone's whole front face belongs to the design drag and its body is a thin rail, which leaves almost nothing to grab when only a hit rotates — and requiring the pointer to find the object first is what makes a 3D viewer feel fiddly.",
     },
     {
       acceptanceId: "background.include.toggle",

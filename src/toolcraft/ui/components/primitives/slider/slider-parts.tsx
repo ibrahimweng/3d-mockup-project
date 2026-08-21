@@ -137,14 +137,38 @@ function SliderThumbs({
   count,
   disabled = false,
   getAriaLabel,
+  max,
+  min,
   onDoubleClick,
 }: {
   count: number;
   disabled?: boolean;
   getAriaLabel?: (index: number) => string;
+  max: number;
+  min: number;
   onDoubleClick?: SliderThumbDoubleClickHandler;
 }): React.JSX.Element {
   const { activeDragIndex, handlePointerDown } = useActiveSliderThumbDrag(disabled);
+  /**
+   * State the range on the element that carries the slider role.
+   *
+   * The nested input is a native `range`, so a screen reader already reads its
+   * bounds off `min` and `max` and this adds nothing to the accessibility
+   * tree. What it fixes is an inconsistency: the thumb states `aria-valuenow`
+   * explicitly, which is redundant for the same reason, and then leaves the two
+   * ends of the scale to be inferred. Anything reading the markup rather than
+   * the tree — the orientation proof does — sees a slider that says where it is
+   * but not what it is out of. Re-applied when the bounds change, because the
+   * ref identity changes with them.
+   */
+  const stateRange = React.useCallback(
+    (input: HTMLInputElement | null) => {
+      if (!input) return;
+      input.setAttribute("aria-valuemin", String(min));
+      input.setAttribute("aria-valuemax", String(max));
+    },
+    [max, min],
+  );
   const lastPointerDownRef = React.useRef<SliderThumbPointerSnapshot | null>(null);
   const suppressNextDoubleClickRef = React.useRef(false);
 
@@ -217,6 +241,7 @@ function SliderThumbs({
           data-slot="slider-thumb"
           getAriaLabel={getAriaLabel}
           index={index}
+          inputRef={stateRange}
           key={index}
           onDoubleClick={(event) => handleDoubleClick(event, index)}
           onPointerDownCapture={(event) => handlePointerDownCapture(event, index)}
@@ -294,6 +319,8 @@ function SliderControlContent({
         count={count}
         disabled={disabled}
         getAriaLabel={getAriaLabel}
+        max={max}
+        min={min}
         onDoubleClick={onThumbDoubleClick}
       />
     </SliderPrimitive.Control>

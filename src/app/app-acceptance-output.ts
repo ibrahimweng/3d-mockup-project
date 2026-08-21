@@ -200,7 +200,7 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
     componentType: "orientationGizmo",
     evidence: "product-output",
     expectedObservable:
-      "Dragging the device rotates it live, dragging empty canvas pans the viewport instead, the gizmo writes the same pose, undo and reset restore it, and an exported PNG shows the same orientation with no gizmo in it.",
+      "Dragging the device rotates it live, the middle button moves the board without touching the pose, the gizmo writes the same pose, undo and reset restore it, and an exported PNG shows the same orientation with no gizmo in it.",
     fixture: "the default device with a screenshot applied",
     id: "camera.orbit.pose",
     interactionId: "camera-orbit",
@@ -209,7 +209,7 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
     referenceCoverage: "renderer-loop",
     target: "camera.orbit",
     userAction:
-      "Drag the device to rotate, drag the empty background, click a gizmo axis, undo, and export a PNG.",
+      "Drag the device to rotate, drag with the middle button, click a gizmo axis, undo, and export a PNG.",
   },
   {
     automated: true,

@@ -1,6 +1,7 @@
 import * as THREE from "three";
 
 import { readDeviceDefinition, readFinishId } from "../product-domain";
+import { fingerprint } from "./fingerprint";
 import {
   fitDistance,
   fovDegreesFor,
@@ -17,6 +18,9 @@ import {
   type SurfaceSettings,
   type SweepSettings,
 } from "./device-scene";
+
+/** How many rows of the frame the output signature is read from. */
+const SIGNATURE_ROWS = 4;
 
 type Pose = Readonly<{
   position: readonly [number, number, number];
@@ -64,6 +68,8 @@ export class RasterRenderer {
   private pointer = new THREE.Vector2();
   private raycaster = new THREE.Raycaster();
   private settings: RasterSettings | null = null;
+  /** Reused across frames, because a fresh one per frame is garbage per frame. */
+  private signature: Uint8Array | null = null;
   // Remembered so a scene that finishes loading after the canvas was sized
   // still adopts the correct aspect. Without this the camera keeps its
   // constructor default of 1 and renders a tall phone square.
@@ -495,6 +501,52 @@ export class RasterRenderer {
   render(): void {
     if (this.disposed || !this.built) return;
     this.renderer.render(this.built.scene, this.built.camera);
+  }
+
+  /**
+   * A signature of the frame just drawn, read back off the drawing buffer.
+   *
+   * The app has to be able to say what came out, not only what it asked for:
+   * the orientation proof turns on the rendered pixels changing while the
+   * pointer is still down, and a signature derived from the settings would
+   * report a change whether or not anything was drawn.
+   *
+   * A strip the full width of the frame and four rows tall, across its middle.
+   * That crosses the device, both of its edges and the backdrop either side of
+   * it, so nothing can turn without changing it — a small square in the centre
+   * can sit on a flat part of a screenshot and hold still through a rotation.
+   * Shape is free: the cost here is the pipeline stall that reading at all
+   * forces, measured at 0.21ms for anything from one pixel up to a full-width
+   * strip, against 24ms for the whole frame. So the strip is as much of the
+   * picture as can be had for the price of the cheapest possible read.
+   *
+   * Valid only in the same task as `render`. Once the frame is presented the
+   * buffer is cleared, and without `preserveDrawingBuffer` — which costs a
+   * copy of every frame whether or not anyone reads it — there is nothing left
+   * to sample.
+   */
+  sampleSignature(): string {
+    if (this.disposed || !this.built) return "";
+    const context = this.renderer.getContext();
+    const width = this.renderer.domElement.width;
+    const height = this.renderer.domElement.height;
+    if (width <= 0 || height <= 0) return "";
+
+    const wanted = width * SIGNATURE_ROWS * 4;
+    if (!this.signature || this.signature.length !== wanted) {
+      this.signature = new Uint8Array(wanted);
+    }
+    context.readPixels(
+      0,
+      Math.max(0, Math.floor(height / 2) - SIGNATURE_ROWS / 2),
+      width,
+      SIGNATURE_ROWS,
+      context.RGBA,
+      context.UNSIGNED_BYTE,
+      this.signature,
+    );
+
+    return fingerprint(this.signature);
   }
 
   dispose(): void {
