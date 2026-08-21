@@ -9,7 +9,7 @@ import {
   observeInfinityCanvas,
 } from "./browser-infinity-canvas-evidence";
 import { inspectToolcraftImageDownload } from "./image-artifact-inspection";
-import { pickOption, toggleSwitch } from "./mockup-controls";
+import { pickOption, subjectBox, toggleSwitch } from "./mockup-controls";
 import { test } from "./toolcraft-product-test";
 
 test.setTimeout(600_000);
@@ -97,22 +97,10 @@ test("browser: enabling Infinity canvas removes the artboard and disabling resto
 });
 
 /**
- * How much of a frame the device itself takes up, per axis.
+ * How much of an exported frame the device itself takes up, per axis.
  *
- * A luma threshold rather than a background colour match, because the set
- * wears the background colour and returns it shaded: the backdrop in this
- * scene runs from 0 to 20 and reaches every edge of every frame, so counting
- * pixels by distance from the background colour classifies the whole picture
- * as content and measures nothing. The device sits well clear of that — the
- * box it reports is unchanged anywhere from a threshold of 32 up to 128 — so
- * 32 is the gap between the two rather than a tuned number.
- *
- * Measured at the artifact's own resolution rather than on the 64-pixel sample
- * the runtime's inspector resamples to. That sample is nearest-neighbour, and
- * a MacBook's lid is a hairline of aluminium around a black screen: sampling
- * every twentieth row steps straight over it and reports the laptop as a tenth
- * shorter than it is. The instrument has to be finer than the thinnest edge it
- * is asked to find.
+ * The same instrument the framing proof uses on a preview frame, pointed at a
+ * decoded artifact instead.
  */
 async function deviceFill(
   page: Page,
@@ -120,54 +108,7 @@ async function deviceFill(
 ): Promise<Readonly<{ height: number; width: number }>> {
   const downloadPath = await download.path();
   if (!downloadPath) throw new Error("Playwright did not expose the download path.");
-  const base64 = (await fs.readFile(downloadPath)).toString("base64");
-  const measured = await page.evaluate(async (encoded) => {
-    const binary = atob(encoded);
-    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
-    const bitmap = await createImageBitmap(new Blob([bytes], { type: "image/png" }));
-    // Read once and held: closing a bitmap sets its width and height to zero,
-    // and dividing by that afterwards reports every frame as filled infinitely
-    // rather than failing, which is a measurement that cannot be believed and
-    // does not look wrong.
-    const { height, width } = bitmap;
-    const canvas = new OffscreenCanvas(width, height);
-    const context = canvas.getContext("2d");
-    if (!context) throw new Error("No 2D context to decode the artifact into.");
-    context.drawImage(bitmap, 0, 0);
-    bitmap.close();
-    const { data } = context.getImageData(0, 0, width, height);
-    let minX = width;
-    let minY = height;
-    let maxX = -1;
-    let maxY = -1;
-    for (let y = 0; y < height; y += 1) {
-      for (let x = 0; x < width; x += 1) {
-        const offset = (y * width + x) * 4;
-        const luma =
-          0.299 * data[offset] +
-          0.587 * data[offset + 1] +
-          0.114 * data[offset + 2];
-        if (luma <= 32) continue;
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-        if (y < minY) minY = y;
-        if (y > maxY) maxY = y;
-      }
-    }
-    return maxX < 0
-      ? null
-      : { height: (maxY - minY + 1) / height, width: (maxX - minX + 1) / width };
-  }, base64);
-  if (!measured) throw new Error("The exported frame holds no device pixels.");
-  // A fraction of a frame cannot exceed the frame. Checked rather than assumed
-  // because a broken instrument that reports a number is worse than one that
-  // reports nothing: every assertion below it would pass.
-  for (const [axis, value] of Object.entries(measured)) {
-    if (!(value > 0 && value <= 1)) {
-      throw new Error(`Measured ${axis} fill of ${value} is not a fraction of a frame.`);
-    }
-  }
-  return measured;
+  return subjectBox(page, await fs.readFile(downloadPath));
 }
 
 test("browser: infinite-mode PNG export crops to the product scene bounds union", async ({

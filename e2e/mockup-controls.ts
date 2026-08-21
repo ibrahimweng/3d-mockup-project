@@ -186,3 +186,94 @@ export async function toggleSwitch(page: Page, target: string): Promise<boolean>
   await page.waitForTimeout(1_200);
   return (await control.getAttribute("aria-checked")) === "true";
 }
+
+/**
+ * The box the device's own pixels occupy in a frame, as fractions of that
+ * frame.
+ *
+ * A luma threshold rather than a background colour match, because the set
+ * wears the background colour and hands it back shaded: the backdrop runs from
+ * 0 to 20 and reaches every edge of every frame, so counting pixels by
+ * distance from the background colour calls the whole picture content and
+ * measures nothing. The device sits well clear of that — the box it reports is
+ * unchanged anywhere from a threshold of 32 up to 128 — so 32 is the gap
+ * between the two rather than a tuned number.
+ *
+ * Decoded at the frame's own resolution. A resampled copy is no use here: a
+ * MacBook's lid is a hairline of aluminium around a black screen, and a sample
+ * that steps over it reports the laptop a tenth shorter than it is.
+ */
+export async function subjectBox(
+  page: Page,
+  png: Buffer,
+): Promise<
+  Readonly<{
+    /** The frame itself, in pixels, so a shape can be compared across frames. */
+    frame: Readonly<{ height: number; width: number }>;
+    height: number;
+    width: number;
+    x: number;
+    y: number;
+  }>
+> {
+  const measured = await page.evaluate(async (encoded) => {
+    const binary = atob(encoded);
+    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+    const bitmap = await createImageBitmap(new Blob([bytes], { type: "image/png" }));
+    // Read once and held: closing a bitmap zeroes its width and height, and
+    // dividing by that afterwards reports every frame as filled infinitely
+    // rather than failing — a measurement that cannot be believed and does not
+    // look wrong.
+    const { height, width } = bitmap;
+    const canvas = new OffscreenCanvas(width, height);
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("No 2D context to decode the frame into.");
+    context.drawImage(bitmap, 0, 0);
+    bitmap.close();
+    const { data } = context.getImageData(0, 0, width, height);
+    let minX = width;
+    let minY = height;
+    let maxX = -1;
+    let maxY = -1;
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const offset = (y * width + x) * 4;
+        const luma =
+          0.299 * data[offset] +
+          0.587 * data[offset + 1] +
+          0.114 * data[offset + 2];
+        if (luma <= 32) continue;
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+    return maxX < 0
+      ? null
+      : {
+          frame: { height, width },
+          height: (maxY - minY + 1) / height,
+          width: (maxX - minX + 1) / width,
+          x: minX / width,
+          y: minY / height,
+        };
+  }, png.toString("base64"));
+  if (!measured) throw new Error("The frame holds no device pixels.");
+  // A fraction of a frame cannot exceed the frame. Checked rather than assumed,
+  // because a broken instrument that still reports a number is worse than one
+  // that reports nothing: every assertion resting on it would pass.
+  for (const [axis, value] of Object.entries(measured)) {
+    if (axis !== "frame" && !((value as number) >= 0 && (value as number) <= 1)) {
+      throw new Error(`Measured ${axis} of ${value} is not a fraction of a frame.`);
+    }
+  }
+  return measured;
+}
+
+/** How wide the subject is against how tall, in pixels rather than fractions. */
+export function subjectShape(
+  box: Awaited<ReturnType<typeof subjectBox>>,
+): number {
+  return (box.width * box.frame.width) / (box.height * box.frame.height);
+}

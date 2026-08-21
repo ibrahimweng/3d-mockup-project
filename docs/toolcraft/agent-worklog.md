@@ -456,6 +456,21 @@ Zooming out and shifting the frame were the two new risks: both widen what the c
 - Risk: A grazing view of a flat device subtends almost nothing across, and the honest frame there is a ribbon. It is clamped to three to one, which is a judgement about what is useful rather than a measurement.
 - Risk: The frame is symmetric about the box centre, so a subject whose near corners project larger than its far ones sits very slightly off centre in its own crop. Visible on the laptop as a little more air at the back of the lid than at the front of the palm rest.
 
+### The framing pad was squashing the whole scene
+
+- Decision: `setViewOffset` is handed the frame's own shape instead of a unit square, and `setPose` takes the aspect from the viewport rather than reading it back off the camera.
+- Reason: Reported as the scene squashing when the aspect ratio changed. It was not the aspect ratio control — it was the Framing pad, and the aspect ratio only decided how badly it showed. `PerspectiveCamera.setViewOffset(fullWidth, fullHeight, ...)` assigns `camera.aspect = fullWidth / fullHeight` before it does anything else, which is documented in the three.js source and easy to miss because the offset is the part you are there for. Passing one by one therefore projected a square picture into whatever shape the canvas actually was, every time the pad left centre.
+- Reason: `clearViewOffset` does not put the aspect back, so centring the pad again left the squash in place until something resized the canvas. And `setPose` read `built.camera.aspect` to work out how far back to stand, so a stale aspect fitted every later pose to a frame that was not the one being drawn.
+- Evidence: Measured as the device's own bounding box across the frame, on a MacBook at two by three. Centred it is 692 by 453. Shifted it was 462 by 454 — the width collapsed by exactly two thirds, the frame's own aspect — and centring the pad again gave 694 by 684, still wrong. After the fix, shifted is 693 by 454 against 692 by 453 centred, and the subject simply moves: 151 pixels across and 171 up.
+- Evidence: At one by one nothing changes, because a square frame divided by a square aspect is one. That is why it went unseen: every aspect-ratio sweep run against this app moved the aspect ratio with the pad centred, and every pad sweep moved the pad on the default canvas without measuring the shape of what came back.
+- Decision: The framing browser proof now measures the claim its own acceptance row makes.
+- Reason: The row says the projection is shifted rather than the camera turned. The test proved that *something* about the output changed, and a scene squashed to two thirds of its width is certainly something changing.
+- Decision: The proof is that the subject's shape does not depend on the shape of the frame, measured with the pad held in one place.
+- Reason: The obvious test was written first and it does not work. Comparing a shifted frame against a centred one passes on the broken build, because the fault survives `clearViewOffset` too: once the pad has been touched, every later frame is equally squashed and the comparison cancels the fault out. Backing the fix out and watching the guard pass anyway is the only reason that was found rather than shipped. Two different frame shapes cannot cancel, because the amount of squash is the frame's own aspect.
+- Evidence: Run against the build with the fix backed out, the guard fails with a ratio of 0.667 — the 2:3 aspect itself. Against the fixed build the whole pad spec passes.
+- Evidence: The default portrait canvas renders byte-for-byte identically, because with the pad centred there is no view offset to take. Every other pad, the infinite scene-bounds proof, and 454 unit tests are unaffected.
+- Risk: The sideways shift is now a true fraction of the frame's width rather than of a square of its height, so at a given pad position a wide canvas moves the subject further across than it used to. That is the control doing what it says; the old number was a side effect of the fault.
+
 ## Verification
 
 - `npm run typecheck` passes.

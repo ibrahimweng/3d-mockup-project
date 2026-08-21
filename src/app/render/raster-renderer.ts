@@ -311,15 +311,31 @@ export class RasterRenderer {
 
     const basis = readFitBasis(pose);
 
+    /**
+     * The shape of the frame, taken from the frame rather than from the camera.
+     *
+     * `setViewOffset` assigns `camera.aspect` from the full size it is handed,
+     * and `clearViewOffset` never puts the old value back. Reading the camera
+     * therefore means one shifted framing can leave a stale aspect behind and
+     * every later pose gets fitted to a frame that is not the one being drawn.
+     * The viewport is what the picture is actually going into, so it is what
+     * the camera is told.
+     */
+    const aspect =
+      this.viewport.width > 0 && this.viewport.height > 0
+        ? this.viewport.width / this.viewport.height
+        : built.camera.aspect;
+    built.camera.aspect = aspect;
+
     // 36mm full-frame equivalent, so the focal length control means what it
     // means on a real camera body.
     built.camera.fov = fovDegreesFor(settings.focalLength);
     const halfFovRad = THREE.MathUtils.degToRad(built.camera.fov) / 2;
 
-    const held = heldBox(built.framing, built.standTop, built.camera.aspect);
+    const held = heldBox(built.framing, built.standTop, aspect);
     const centre = held.getCenter(new THREE.Vector3());
     const distance = fitDistance({
-      aspect: built.camera.aspect,
+      aspect,
       basis,
       box: held,
       halfFovRad,
@@ -368,9 +384,15 @@ export class RasterRenderer {
     const across2 = -settings.framing.x * shift;
     const down = -settings.framing.y * shift;
     if (Math.abs(across2) > 1e-4 || Math.abs(down) > 1e-4) {
-      // Full size and window size are the same, so only the offset counts and
-      // the units can be anything as long as they agree.
-      built.camera.setViewOffset(1, 1, across2, down, 1, 1);
+      // Full size and window size are the same, so only the offset counts —
+      // but the units cannot be anything, because `setViewOffset` takes the
+      // full size as the camera's aspect. Handing it a unit square projected a
+      // square picture into whatever shape the canvas actually was, which
+      // squashed the entire scene sideways on every frame that was not itself
+      // square, in the preview and in the export. The full size is the frame's
+      // shape, and the sideways offset carries that shape with it so it stays
+      // the same fraction of the picture it always was.
+      built.camera.setViewOffset(aspect, 1, across2 * aspect, down, aspect, 1);
     } else if (built.camera.view?.enabled) {
       built.camera.clearViewOffset();
     }
@@ -412,11 +434,16 @@ export class RasterRenderer {
   private applyViewport(): void {
     const { height, width } = this.viewport;
     if (!this.built || width <= 0 || height <= 0) return;
+    // A narrower viewport needs the camera further back to keep the device in
+    // frame, so the pose is re-derived against the new aspect. `setPose` reads
+    // the aspect off the viewport itself, so it needs nothing set up first;
+    // with no pose to re-derive there is only the projection to match.
+    if (this.pose) {
+      this.setPose(this.pose);
+      return;
+    }
     this.built.camera.aspect = width / height;
     this.built.camera.updateProjectionMatrix();
-    // A narrower viewport needs the camera further back to keep the device in
-    // frame, so the pose is re-derived against the new aspect.
-    if (this.pose) this.setPose(this.pose);
   }
 
   /** Is the device under this client point? Misses fall through to viewport pan. */
