@@ -100,15 +100,24 @@ export async function settleProductRaster(page: Page): Promise<void> {
       ].join(", "),
     )
     .first();
+  const attempts = 150;
   let previous: Buffer | null = null;
 
-  for (let attempt = 0; attempt < 60; attempt += 1) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
     const shot = await target.screenshot();
 
     if (previous && Buffer.compare(previous, shot) === 0) return;
     previous = shot;
     await page.waitForTimeout(400);
   }
+
+  // Giving up quietly would hand back a frame that is still arriving, and the
+  // proof downstream would then report an unstable baseline — true, but about
+  // the wrong thing. Software rendering gets slower over a long run, so the
+  // budget is generous and running out of it is worth saying out loud.
+  throw new Error(
+    `The picture never held still across two reads in ${(attempts * 400) / 1000}s, so no proof can measure it.`,
+  );
 }
 
 /** Wait for the scene to stop changing, so a comparison is against a finished frame. */
