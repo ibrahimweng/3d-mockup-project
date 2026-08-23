@@ -49,7 +49,26 @@ export function MockupPreview(): React.ReactElement {
   // And lifts the camera when a table appears under one too low to see it.
   useSurfaceFraming();
 
-  const values = useToolcraftEvaluatedValues();
+  /**
+   * The evaluated values, held still while they say the same thing.
+   *
+   * The runtime rebuilds this object on every store change, so its identity
+   * says nothing about whether the scene changed. Everything below derives from
+   * it — the scene settings, the camera pose, the screen transform — and each
+   * is memoized on the object, so a fresh identity alone invalidated the frame
+   * and bought a full redraw of a picture that had not moved. Two of those
+   * derivations already worked around this privately; holding the values
+   * themselves fixes all of them at once, and a change that really does move
+   * something still produces a new object and still redraws.
+   */
+  const evaluatedValues = useToolcraftEvaluatedValues();
+  const evaluatedValuesKey = JSON.stringify(evaluatedValues);
+  const evaluatedValuesRef = React.useRef(evaluatedValues);
+  evaluatedValuesRef.current = evaluatedValues;
+  const values = React.useMemo(
+    () => evaluatedValuesRef.current,
+    [evaluatedValuesKey],
+  );
   const frame = useToolcraftProductSceneFrame();
   const { state } = useToolcraft();
 
