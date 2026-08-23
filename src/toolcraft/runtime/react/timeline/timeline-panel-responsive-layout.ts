@@ -70,11 +70,17 @@ function getTimelinePanelResponsiveLayout(panel: HTMLElement): TimelinePanelResp
     }
   }
 
+  /**
+   * As wide as the room it is given.
+   *
+   * The panel used to stop at a fixed width and sit centred, which left a
+   * timeline floating in the middle of the screen with empty space either
+   * side. A timeline is a ruler: the more of the window it spans, the finer
+   * the time a person can actually point at. It now fills the space between
+   * whatever side panels are open, which is the width of the canvas above it.
+   */
   const availableWidth = Math.floor(Math.max(0, rightLimit - leftLimit));
-  const width =
-    availableWidth >= timelinePanelExpandedWidthPx
-      ? timelinePanelExpandedWidthPx
-      : Math.max(timelinePanelMinResponsiveWidthPx, availableWidth);
+  const width = Math.max(timelinePanelMinResponsiveWidthPx, availableWidth);
   const halfWidth = width / 2;
   const minCenterX = leftLimit + halfWidth;
   const maxCenterX = rightLimit - halfWidth;

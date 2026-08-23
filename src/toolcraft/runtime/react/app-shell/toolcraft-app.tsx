@@ -54,9 +54,6 @@ const toolcraftMinAppWidthPx = 1024;
 
 const selectAppSurfaces = (state: ToolcraftState) =>
   state.schema.assembly.surfaces;
-const selectTimelinePanelExtended = (state: ToolcraftState) =>
-  state.panels.timeline.extended === true;
-
 function cn(...classNames: Array<string | false | null | undefined>): string {
   return classNames.filter(Boolean).join(" ");
 }
@@ -78,10 +75,16 @@ function ToolcraftAppContent({
   | "schema"
 > & Readonly<{ sceneExport: ToolcraftControlsSceneExport }>): React.JSX.Element {
   const surfaces = useToolcraftCommittedSelector(selectAppSurfaces);
-  const timelinePanelVariant =
-    useToolcraftCommittedSelector(selectTimelinePanelExtended)
-      ? "extended"
-      : "compact";
+  /**
+   * One timeline, opened and closed by one control.
+   *
+   * There used to be two gates: a switch in the controls panel that turned the
+   * compact transport into a real panel, and then a toggle inside that panel
+   * which revealed the tracks. Two controls for one idea, and neither of them
+   * where a person looks for a timeline. The panel is now always the full
+   * thing, and its own chevron is the single open/close.
+   */
+  const timelinePanelVariant = "extended" as const;
   const modelRendererStatus = useToolcraftModelRenderPreparationStatus();
   const persistenceStatus = useToolcraftPersistenceStatus();
 

@@ -349,20 +349,31 @@ export function TimelinePanel({
   };
   const resolvedPanelPlacement = panelPlacement ?? (framed ? 'frame' : 'surface');
   const shouldConstrainToContainer = resolvedPanelPlacement === 'surface';
+  // Measured whether or not the tracks are showing, because the bar is the
+  // full width of the canvas in both states — closing it lowers the panel, it
+  // does not shrink it back to a floating stub.
   const { panelRef: timelineSurfaceRef, responsiveLayout } = useTimelinePanelResponsiveLayout(
-    isExpanded && !shouldConstrainToContainer,
+    !shouldConstrainToContainer,
   );
   const unconstrainedTimelinePanelWidth = isCompact
     ? timelinePanelCompactWidthPx
     : isExpanded
     ? expandedPanelSize.width
     : timelinePanelCollapsedWidthPx;
+  /**
+   * The measured width wins.
+   *
+   * Capping it against the old fixed width was what kept the panel at six
+   * hundred and eighty-eight pixels no matter how much room it had. The
+   * measurement already accounts for whatever side panels are open, so it is
+   * the answer rather than an upper bound on one.
+   */
   const timelinePanelWidth =
-    isExpanded && responsiveLayout !== null
-      ? Math.min(unconstrainedTimelinePanelWidth, responsiveLayout.width)
+    !isCompact && responsiveLayout !== null
+      ? responsiveLayout.width
       : unconstrainedTimelinePanelWidth;
   const timelinePanelOffsetX =
-    isExpanded && responsiveLayout !== null ? responsiveLayout.offsetX : 0;
+    !isCompact && responsiveLayout !== null ? responsiveLayout.offsetX : 0;
   const timelinePanelLayoutStyle: CSSProperties = {
     transform: timelinePanelOffsetX !== 0 ? `translateX(${timelinePanelOffsetX}px)` : undefined,
   };
