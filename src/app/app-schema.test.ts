@@ -31,7 +31,11 @@ describe("appSchema", () => {
       type: "text",
     });
     expect(appSchema.panels.layers).toBeUndefined();
-    expect(appSchema.panels.timeline).toBeUndefined();
+    expect(appSchema.panels.timeline).toEqual({
+      defaultDurationSeconds: 6,
+      enabled: true,
+      mode: "keyframes",
+    });
     expect(appSchema.toolbar).toEqual({
       history: true,
       radar: true,
@@ -41,6 +45,7 @@ describe("appSchema", () => {
     expect(appSchema.assembly.components).toEqual([
       "canvas",
       "controlsPanel",
+      "timelinePanel",
       "toolbar",
     ]);
     expect(appSchema.assembly.capabilities).toEqual(
@@ -56,8 +61,8 @@ describe("appSchema", () => {
         "toolbar.zoom",
       ]),
     );
-    expect(appSchema.assembly.capabilities).not.toContain("timeline.playback");
-    expect(appSchema.assembly.capabilities).not.toContain("timeline.keyframes");
+    expect(appSchema.assembly.capabilities).toContain("timeline.playback");
+    expect(appSchema.assembly.capabilities).toContain("timeline.keyframes");
     expect(appSchema.assembly.commands).toEqual(
       expect.arrayContaining([
         "canvas.center",
@@ -71,7 +76,7 @@ describe("appSchema", () => {
         "media.import",
       ]),
     );
-    expect(appSchema.assembly.commands).not.toContain("timeline.setCurrentTime");
+    expect(appSchema.assembly.commands).toContain("timeline.setCurrentTime");
   });
 
   it("renders the product sections after runtime setup without splitting them", () => {
@@ -97,14 +102,14 @@ describe("appSchema", () => {
       "image-export",
     ]);
     expect(appSchema.panels.layers).toBeUndefined();
-    expect(appSchema.panels.timeline).toBeUndefined();
+    expect(appSchema.panels.timeline?.enabled).toBe(true);
   });
 
-  it("does not imply timeline behavior before a product needs it", () => {
-    expect(appSchema.assembly.capabilities).not.toContain("timeline.playback");
-    expect(appSchema.assembly.capabilities).not.toContain("timeline.keyframes");
-    expect(appSchema.assembly.commands).not.toContain("timeline.toggleControlKeyframes");
-    expect(appSchema.assembly.commands).not.toContain("timeline.moveKeyframe");
+  it("declares the timeline behavior the animation depends on", () => {
+    expect(appSchema.assembly.capabilities).toContain("timeline.playback");
+    expect(appSchema.assembly.capabilities).toContain("timeline.keyframes");
+    expect(appSchema.assembly.commands).toContain("timeline.toggleControlKeyframes");
+    expect(appSchema.assembly.commands).toContain("timeline.moveKeyframe");
   });
 
   it("covers every derived renderer path with one scenario", () => {

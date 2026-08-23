@@ -105,6 +105,7 @@ export const subjectAcceptance: readonly ToolcraftComponentAcceptance[] = [
     kind: "control",
     referenceCoverage: "control-mapping",
     target: "artwork.offset",
+    timelineCoverage: "keyframes",
     userAction:
       "Drag the Screen position pad, move the Screen scale slider, and drag the Screen stretch pad.",
   },
@@ -121,6 +122,7 @@ export const subjectAcceptance: readonly ToolcraftComponentAcceptance[] = [
     id: "artwork.scale.zoom",
     kind: "control",
     target: "artwork.scale",
+    timelineCoverage: "keyframes",
     userAction: "Drag the Screen scale slider and watch the display.",
   },
   {
@@ -138,6 +140,7 @@ export const subjectAcceptance: readonly ToolcraftComponentAcceptance[] = [
     id: "artwork.stretch.axes",
     kind: "control",
     target: "artwork.stretch",
+    timelineCoverage: "keyframes",
     userAction: "Drag the Screen stretch pad along each axis.",
   },
   {
@@ -188,6 +191,7 @@ export const subjectAcceptance: readonly ToolcraftComponentAcceptance[] = [
     id: "light.shadowSoftness.edge",
     kind: "control",
     target: "light.shadowSoftness",
+    timelineCoverage: "keyframes",
     userAction: "Drag the Lights shadow softness slider from 0 to 100.",
   },
   {
@@ -221,6 +225,7 @@ export const subjectAcceptance: readonly ToolcraftComponentAcceptance[] = [
     id: "backdrop.height.raises",
     kind: "control",
     target: "backdrop.height",
+    timelineCoverage: "keyframes",
     userAction: "Drag the Backdrop sweep height slider from 0 to 100 and back.",
   },
   {
@@ -237,6 +242,7 @@ export const subjectAcceptance: readonly ToolcraftComponentAcceptance[] = [
     id: "backdrop.curve.bend",
     kind: "control",
     target: "backdrop.curve",
+    timelineCoverage: "keyframes",
     userAction: "Raise Sweep height, then drag Sweep curve across its range.",
   },
   {
@@ -253,6 +259,7 @@ export const subjectAcceptance: readonly ToolcraftComponentAcceptance[] = [
     id: "backdrop.light.graduates",
     kind: "control",
     target: "backdrop.light",
+    timelineCoverage: "keyframes",
     userAction: "Drag the Backdrop light slider from 0 to 100, with and without a sweep raised.",
   },
   {
@@ -269,6 +276,7 @@ export const subjectAcceptance: readonly ToolcraftComponentAcceptance[] = [
     id: "floor.environment.pickup",
     kind: "control",
     target: "floor.environment",
+    timelineCoverage: "keyframes",
     userAction: "Drag the Floor room light slider from 100 to 0.",
   },
   {
@@ -285,6 +293,7 @@ export const subjectAcceptance: readonly ToolcraftComponentAcceptance[] = [
     id: "floor.reflection.mirrors",
     kind: "control",
     target: "floor.reflection",
+    timelineCoverage: "keyframes",
     userAction: "Drag the Floor reflection slider from 0 to 100 and back.",
   },
   {
@@ -301,6 +310,7 @@ export const subjectAcceptance: readonly ToolcraftComponentAcceptance[] = [
     id: "floor.roughness.finish",
     kind: "control",
     target: "floor.roughness",
+    timelineCoverage: "keyframes",
     userAction: "Drag the Floor roughness slider across its range.",
   },
   {

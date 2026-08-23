@@ -637,6 +637,19 @@ export const appSchema = defineToolcraft({
       ],
       title: "Mockup Studio",
     },
+    /**
+     * Six seconds, because that is one unhurried revolution.
+     *
+     * The animation this product exists to make is a turntable, and the length
+     * of a turntable loop is the length of one turn. Six seconds reads as
+     * deliberate rather than frantic at a full 360, and it divides evenly into
+     * the thirtieth-of-a-second frames a video export is cut into.
+     */
+    timeline: {
+      defaultDurationSeconds: 6,
+      enabled: true,
+      mode: "keyframes",
+    },
   },
   toolbar: {
     history: true,

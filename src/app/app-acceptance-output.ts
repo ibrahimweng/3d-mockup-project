@@ -53,6 +53,7 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
     id: "studio.intensity.level",
     kind: "control",
     target: "studio.intensity",
+    timelineCoverage: "keyframes",
     userAction: "Drag the Environment slider from 0% to 300%.",
   },
   {
@@ -69,6 +70,7 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
     id: "light.key.intensity",
     kind: "control",
     target: "light.keyIntensity",
+    timelineCoverage: "keyframes",
     userAction: "Drag the Key slider from 0% to 400%.",
   },
   {
@@ -84,6 +86,7 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
     id: "light.key.color",
     kind: "control",
     target: "light.keyColor",
+    timelineCoverage: "keyframes",
     userAction: "Pick a clearly warm key color.",
   },
   {
@@ -101,6 +104,7 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
     id: "light.key.direction",
     kind: "control",
     target: "light.keyDirection",
+    timelineCoverage: "keyframes",
     userAction: "Drag the Key light direction pad to each corner.",
   },
   {
@@ -116,6 +120,7 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
     id: "light.fill.level",
     kind: "control",
     target: "light.fill",
+    timelineCoverage: "keyframes",
     userAction: "Drag the Fill slider from 0% to 200%.",
   },
   {
@@ -131,6 +136,7 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
     id: "light.rim.level",
     kind: "control",
     target: "light.rim",
+    timelineCoverage: "keyframes",
     userAction: "Drag the Rim slider from 0% to 400%.",
   },
   {
@@ -148,7 +154,57 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
     kind: "control",
     referenceCoverage: "control-mapping",
     target: "camera.focalLength",
+    timelineCoverage: "keyframes",
     userAction: "Drag the Focal length slider from 24mm to 200mm.",
+  },
+  {
+    automated: true,
+    automatedTestName: "timeline playback scrubs, pauses, loops and redraws",
+    browser: true,
+    browserTestName:
+      "browser: the timeline scrubs, pauses, changes duration, and loops back to the frame it started on",
+    componentType: "canvas",
+    evidence: "product-output",
+    expectedObservable:
+      "Playing runs the animation forward and the rendered frame changes with it; pausing stops it where it stands and resuming carries on from there rather than restarting. Scrubbing to a time draws that time. Editing the duration changes how long the loop takes without changing the animation itself. The loop only ever runs forward, and the frame it ends on is the frame it began on.",
+    fixture: "the default device with Spin keyframed a full turn",
+    id: "timeline.playback",
+    kind: "runtime",
+    target: "panels.timeline",
+    timelineCoverage: "playback",
+    timelineLoopProof: {
+      direction: "forward-only",
+      durationChange: "reproved-after-edit",
+      reversePlayback: "forbidden",
+      seam: "first-last-match",
+    },
+    timelinePlaybackCoverage: [
+      "duration",
+      "loop",
+      "pause-resume",
+      "rendered-frame",
+      "scrub",
+    ],
+    userAction:
+      "Play, pause, resume, scrub to a time, edit the duration, and let the loop come round.",
+  },
+  {
+    automated: true,
+    automatedTestName: "keyframes edit and the renderer evaluates them",
+    browser: true,
+    browserTestName:
+      "browser: keyframing Spin puts diamonds on its timeline row and the frame follows them",
+    componentType: "canvas",
+    evidence: "product-output",
+    expectedObservable:
+      "Keyframing Spin gives it a row on the expanded timeline with a diamond at each keyed time. Editing the value with a keyframe selected updates that keyframe rather than adding another. The rendered frame at any time is the value the keyframes evaluate to there, not the value the control was last left at.",
+    fixture: "the default device with Spin keyframed a full turn",
+    id: "timeline.keyframes",
+    kind: "runtime",
+    target: "panels.timeline",
+    timelineCoverage: "keyframes",
+    userAction:
+      "Key Spin at the start and end, scrub between them, and edit the value with one selected.",
   },
   {
     automated: true,
@@ -164,6 +220,7 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
     id: "device.spin.turn",
     kind: "control",
     target: "device.spin",
+    timelineCoverage: "keyframes",
     userAction: "Drag the Spin slider from 0\u00b0 to 90\u00b0, then to 360\u00b0.",
   },
   {
@@ -180,6 +237,7 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
     id: "camera.zoom.crop",
     kind: "control",
     target: "camera.zoom",
+    timelineCoverage: "keyframes",
     userAction: "Drag the Zoom slider from 40% to 260%.",
   },
   {
@@ -197,6 +255,7 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
     id: "camera.framing.shift",
     kind: "control",
     target: "camera.framing",
+    timelineCoverage: "keyframes",
     userAction: "Drag the Framing pad from centre to each corner.",
   },
   {
@@ -260,6 +319,7 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
     id: "background.color.value",
     kind: "control",
     target: "scene.background",
+    timelineCoverage: "keyframes",
     userAction: "Pick a clearly different background color.",
   },
   {
@@ -330,7 +390,7 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
     kind: "runtime",
     renderScaleCoverage: {
       kind: "selected-backing-pixels",
-      states: ["interaction", "steady"],
+      states: ["interaction", "playback", "steady"],
     },
     target: "canvas.renderScale",
     userAction:
