@@ -20,6 +20,7 @@ import type {
 import { isTimelineReadyForPlayback } from '../../state/timeline-readiness';
 import {
   clampToolcraftTimelineDurationSeconds,
+  clampToolcraftTimelineTime,
   getToolcraftTimelineKeyframeId,
 } from '../../state/timeline-values';
 import {
@@ -333,6 +334,18 @@ export function TimelinePanel({
     };
   }, [selectedKeyframeId]);
 
+  const commitCurrentTimeValue = (nextValue: string): void => {
+    const parsed = Number.parseFloat(nextValue);
+
+    if (!Number.isFinite(parsed)) {
+      return;
+    }
+
+    dispatch({
+      currentTimeSeconds: clampToolcraftTimelineTime(parsed, durationSeconds),
+      type: 'timeline.setCurrentTime',
+    });
+  };
   const commitDurationValue = (nextValue: string): void => {
     const nextDuration = clampToolcraftTimelineDurationSeconds(Number.parseFloat(nextValue));
 
@@ -444,6 +457,7 @@ export function TimelinePanel({
           isPlaying={displayedIsPlaying}
           isScrubbing={scrubber.isScrubbing}
           playbackReady={playbackReady}
+          onCurrentTimeCommit={commitCurrentTimeValue}
           onDurationCommit={commitDurationValue}
           onScrubKeyDown={scrubber.handleScrubKeyDown}
           onScrubLostPointerCapture={scrubber.handleScrubLostPointerCapture}

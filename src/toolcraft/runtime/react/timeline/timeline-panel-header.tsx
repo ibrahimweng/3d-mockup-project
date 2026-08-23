@@ -17,6 +17,7 @@ type TimelinePanelHeaderProps = {
   isPlaying: boolean;
   isScrubbing: boolean;
   playbackReady: boolean;
+  onCurrentTimeCommit: (value: string) => void;
   onDurationCommit: (value: string) => void;
   onScrubKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void;
   onScrubLostPointerCapture: () => void;
@@ -213,16 +214,27 @@ function selectTimelineEditableText(node: HTMLElement): void {
   selection.addRange(range);
 }
 
-function TimelineDurationValue({
-  durationSeconds,
+/**
+ * A number of seconds you can type over.
+ *
+ * Both ends of "1.44s of 6s" are editable — the head of the playhead as much
+ * as the length of the loop — so this takes whichever it is being used for
+ * rather than owning the duration specifically.
+ */
+function TimelineTimeValue({
+  editLabel,
   onCommit,
+  slot,
+  valueSeconds,
 }: {
-  durationSeconds: number;
+  editLabel: string;
   onCommit: (value: string) => void;
+  slot: string;
+  valueSeconds: number;
 }): React.JSX.Element {
   const [isEditing, setIsEditing] = useState(false);
   const editorRef = useRef<HTMLSpanElement>(null);
-  const valueLabel = formatDurationValueLabel(durationSeconds);
+  const valueLabel = formatDurationValueLabel(valueSeconds);
 
   useEffect(() => {
     if (!isEditing) {
@@ -248,11 +260,11 @@ function TimelineDurationValue({
   if (isEditing) {
     return (
       <span
-        aria-label="timeline duration"
+        aria-label={editLabel}
         className="block h-5 min-w-[3ch] !cursor-text overflow-hidden whitespace-nowrap rounded bg-[color:color-mix(in_oklab,var(--foreground)_8%,transparent)] px-1 font-sans text-xs leading-5 text-[color:var(--foreground)] outline-none tabular-nums"
         contentEditable
-        data-slot="timeline-duration-editor"
-        key="duration-editor"
+        data-slot={`${slot}-editor`}
+        key={`${slot}-editor`}
         onBlur={commitDraft}
         onFocus={(event) => selectTimelineEditableText(event.currentTarget)}
         onKeyDown={(event) => {
@@ -277,10 +289,10 @@ function TimelineDurationValue({
 
   return (
     <button
-      aria-label="Edit timeline duration"
+      aria-label={editLabel}
       className="block h-5 min-w-[3ch] shrink-0 !cursor-text overflow-hidden rounded px-1 font-sans text-xs leading-5 text-[color:var(--muted-foreground)] tabular-nums transition-colors duration-150 ease-out group-hover/timeline-panel-header:bg-[color:color-mix(in_oklab,var(--foreground)_8%,transparent)] focus-visible:bg-[color:color-mix(in_oklab,var(--foreground)_8%,transparent)] focus-visible:outline-none"
-      data-slot="timeline-duration-display"
-      key="duration-display"
+      data-slot={`${slot}-display`}
+      key={`${slot}-display`}
       onClick={(event) => {
         event.stopPropagation();
         setIsEditing(true);
@@ -297,6 +309,7 @@ export function TimelinePanelHeader({
   canExpand,
   currentTimeSeconds,
   durationSeconds,
+  onCurrentTimeCommit,
   isExpanded,
   isLooping,
   isPlaying,
@@ -366,21 +379,31 @@ export function TimelinePanelHeader({
         </TimelineIconButton>
       </div>
       <TimelinePanelDivider />
-      <div className="ml-2 inline-flex shrink-0 items-center gap-1 text-xs leading-5 text-[color:color-mix(in_oklab,var(--foreground)_90%,transparent)]">
-        <span>{isExpanded ? 'Duration:' : 'Dur:'}</span>
-        <TimelineDurationValue
-          durationSeconds={durationSeconds}
+      <span className="flex-1" />
+      {/*
+        Where you are, and how long the whole thing is — both typeable.
+        The time used to be a read-only "5.40 / 6s" at one end of the bar with
+        a separate editable "Duration:" at the other, which meant the number
+        you most often want to set exactly was the one you could not type.
+      */}
+      <div
+        className="mr-1 inline-flex shrink-0 items-center gap-1 text-xs leading-5 text-[color:var(--muted-foreground)]"
+        data-slot="timeline-time-fields"
+      >
+        <TimelineTimeValue
+          editLabel="Edit current time"
+          onCommit={onCurrentTimeCommit}
+          slot="timeline-current-time"
+          valueSeconds={currentTimeSeconds}
+        />
+        <span className="select-none">of</span>
+        <TimelineTimeValue
+          editLabel="Edit timeline duration"
           onCommit={onDurationCommit}
+          slot="timeline-duration"
+          valueSeconds={durationSeconds}
         />
       </div>
-      <span
-        className={cn(
-          'flex-1 cursor-default overflow-hidden text-right font-sans text-[11px] leading-5 whitespace-nowrap text-[color:var(--muted-foreground)] tabular-nums [contain:paint] select-none',
-          isExpanded ? 'min-w-[5.5rem]' : 'min-w-0',
-        )}
-      >
-        {formatTimelineHeaderTimeLabel({ currentTimeSeconds, durationSeconds })}
-      </span>
       {canExpand ? (
         <span className="relative z-10 flex shrink-0" data-slot="timeline-panel-expand-toggle">
           <TimelineIconButton
