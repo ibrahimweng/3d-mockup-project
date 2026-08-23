@@ -64,25 +64,28 @@ export async function scrubToFraction(page: Page, fraction: number): Promise<voi
     });
 
   /**
-   * A drag can miss, so it says whether it landed.
+   * Grab the playhead's handle, above the rows, and say whether it landed.
    *
-   * At the ends of the strip the playhead's hit area hangs off the ruler and a
-   * press aimed at its centre can fall outside anything that listens, which
-   * leaves the playhead where it was and the test comparing against a time it
-   * never reached. Reading the phase back is what turns that from a silent
-   * miss into a retry.
+   * The keyframe diamonds sit at the same coordinates as the playhead and
+   * stack above its hit area, so a press aimed at the playhead's centre picks
+   * up whichever diamond is under it and drags that along the track instead.
+   * That silently rewrote the fixture: a turn keyed at each end collapsed onto
+   * one time, leaving nothing to animate and every frame identical. The handle
+   * sits in the ruler band above the rows, which is the one part of the
+   * playhead no diamond covers. Reading the phase back afterwards turns a miss
+   * into a retry rather than a wrong answer.
    */
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    const hit = await page
-      .locator('[data-slot="timeline-expanded-playhead-hit-area"]')
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const handle = await page
+      .locator('[data-slot="timeline-expanded-playhead-handle"]')
       .first()
       .boundingBox();
     const ruler = await page.locator('[data-slot="timeline-expanded-ruler"]').first().boundingBox();
-    if (!hit || !ruler) throw new Error("The expanded timeline has no playhead to drag.");
-    const y = hit.y + hit.height / 2;
+    if (!handle || !ruler) throw new Error("The expanded timeline has no playhead to drag.");
+    const y = handle.y + 2;
     const from = Math.min(
       ruler.x + ruler.width - 1,
-      Math.max(ruler.x + 1, hit.x + hit.width / 2),
+      Math.max(ruler.x + 1, handle.x + handle.width / 2),
     );
     await page.mouse.move(from, y);
     await page.mouse.down();
@@ -91,7 +94,10 @@ export async function scrubToFraction(page: Page, fraction: number): Promise<voi
     await page.waitForTimeout(2_200);
 
     const landed = await readPhase();
-    if (landed === null || Math.abs(landed - target) < 0.06) return;
+    // Tight, because the frame is what is being compared. A sixth of a second
+    // of drift on a six second turn is a visibly different angle, so a proof
+    // that returns to a time has to return to the same time.
+    if (landed === null || Math.abs(landed - target) < 0.012) return;
   }
   throw new Error(`Scrubbing never reached ${Math.round(target * 100)}% of the timeline.`);
 }

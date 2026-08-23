@@ -628,6 +628,10 @@ export async function buildDeviceScene(options: {
       const radians = (degrees * Math.PI) / 180;
       if (spinner.rotation.y === radians) return false;
       spinner.rotation.y = radians;
+      // The floor's reflection is a separate clone of the device, so it has to
+      // be turned too or the device rotates while its reflection faces the way
+      // it started.
+      room.setMirrorSpin(radians);
       return true;
     },
     subjectRadius: sphere.radius,

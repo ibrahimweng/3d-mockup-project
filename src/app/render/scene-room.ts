@@ -34,6 +34,16 @@ export type Room = {
   sweepLight: () => THREE.PointLight | null;
   sweepMesh: () => THREE.Mesh | null;
   sweepSurface: () => THREE.MeshStandardMaterial | null;
+  /**
+   * Turn the reflection with the device.
+   *
+   * The mirror is a clone of the subject flipped through the floor, and it
+   * lives in the scene rather than under the turntable, so spinning the device
+   * left its reflection facing the way it started. Reflecting through a
+   * horizontal plane leaves a rotation about the upright axis alone, so the
+   * reflection takes the same angle rather than the opposite one.
+   */
+  setMirrorSpin: (radians: number) => void;
   updateMirrorVisibility: () => void;
   visible: () => boolean;
   /** Repaint and re-show the ground and the paper, without deciding anything else. */
@@ -376,6 +386,10 @@ export function createRoom(
    * exposed, upside down and at full strength. A low hero angle is a normal
    * thing to want, so this has to be handled rather than avoided.
    */
+  const setMirrorSpin = (radians: number): void => {
+    mirror.rotation.y = radians;
+  };
+
   const updateMirrorVisibility = (): void => {
     mirror.visible =
       floorReflection > 0 &&
@@ -497,6 +511,7 @@ export function createRoom(
     sweepLight: () => sweepLight,
     sweepMesh: () => sweepMesh,
     sweepSurface: () => sweepSurface,
+    setMirrorSpin,
     updateMirrorVisibility,
     visible: () => groundVisible,
     wearGround: (visible: boolean, color: string) => {

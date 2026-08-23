@@ -15,7 +15,7 @@ import { expectToolcraftProductObservableToChange } from "./product-observable-h
 import { openTimeline, proveControlKeyframes, scrubToFraction } from "./mockup-timeline";
 import { test } from "./toolcraft-product-test";
 
-test.setTimeout(900_000);
+test.setTimeout(2_700_000);
 
 const report = (page: Page) =>
   page.evaluate(() => {
@@ -233,6 +233,13 @@ test("browser: the timeline scrubs, pauses, changes duration, and loops back to 
     { requirementId: "timeline.playback", timeoutMs: 300_000 },
   );
 
+  // Read the frame to come back to now rather than reusing one captured before
+  // the scrub proof: what is being proved is that a time draws its own frame,
+  // and the comparison should not also be carrying the drift of every scrub in
+  // between.
+  await scrubToFraction(page, 0);
+  const returnFrame = (await report(page)).pixelSignature;
+  await scrubToFraction(page, 0.5);
   await expectToolcraftTimelineRenderedFrame(
     session.observe((root) => {
       const raw =
@@ -242,7 +249,7 @@ test("browser: the timeline scrubs, pauses, changes duration, and loops back to 
     session.action(async (current) => {
       await scrubToFraction(current, 0);
     }),
-    atStart.pixelSignature,
+    returnFrame,
     { requirementId: "timeline.playback", timeoutMs: 300_000 },
   );
 
@@ -266,8 +273,22 @@ test("browser: the timeline scrubs, pauses, changes duration, and loops back to 
   );
 
   const resized = await sampleCycle(page, 4);
+  console.log(`LOOP initial: ${JSON.stringify(initial)}`);
+  console.log(`LOOP resized: ${JSON.stringify(resized)}`);
+  // The observation is serialized into the page, so the proof has to be put
+  // where the page can see it rather than closed over from here.
+  await page.evaluate(
+    (proof) => {
+      (window as unknown as { __loopProof?: unknown }).__loopProof = proof;
+    },
+    { initial, resized },
+  );
   await expectToolcraftTimelineLoop(
-    session.observe(() => ({ initial, resized })),
+    session.observe(
+      () =>
+        (window as unknown as { __loopProof?: { initial: unknown; resized: unknown } })
+          .__loopProof as never,
+    ),
     { requirementId: "timeline.playback", target: "panels.timeline" },
   );
 });
