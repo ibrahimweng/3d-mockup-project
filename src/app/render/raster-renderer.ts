@@ -47,6 +47,8 @@ export type RasterSettings = {
   framing: { x: number; y: number };
   lighting: LightingSettings;
   showBackground: boolean;
+  /** How far the device is turned about its own upright axis, in degrees. */
+  spin: number;
   surface: SurfaceSettings;
   sweep: SweepSettings;
   /** How tightly the picture is cropped on the fitted framing, 1 being it. */
@@ -258,6 +260,7 @@ export class RasterRenderer {
       settings.floor,
       settings.lighting,
       settings.showBackground,
+      settings.spin,
       settings.surface,
       settings.sweep,
     ]);
@@ -271,6 +274,7 @@ export class RasterRenderer {
     built.setSweep(settings.sweep);
     built.setGround(settings.showBackground, settings.backgroundColor);
     built.setFloor(settings.floor);
+    built.setSpin(settings.spin);
     // Colour, lights and the ground plane all feed the depth map.
     this.invalidateShadow();
   }

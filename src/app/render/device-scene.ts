@@ -265,7 +265,18 @@ export async function buildDeviceScene(options: {
   // Recentre on the origin so orbiting turns the device about itself rather
   // than swinging it around wherever it sat in the source file.
   subject.position.sub(centre);
-  scene.add(subject);
+  /**
+   * The turntable the device stands on.
+   *
+   * Spin has to turn the device where it stands. Rotating the subject itself
+   * would not do that: it has just been translated so its centre sits on the
+   * origin, and a rotation applies before that translation, so the device
+   * would swing around the model's own origin instead of turning on the spot.
+   * A parent at the world origin puts the axis where the device is.
+   */
+  const spinner = new THREE.Group();
+  spinner.add(subject);
+  scene.add(spinner);
 
   const groundY = bounds.min.y - centre.y;
   /**
@@ -613,6 +624,12 @@ export async function buildDeviceScene(options: {
     subject,
     framing,
     standTop: groundY,
+    setSpin: (degrees: number): boolean => {
+      const radians = (degrees * Math.PI) / 180;
+      if (spinner.rotation.y === radians) return false;
+      spinner.rotation.y = radians;
+      return true;
+    },
     subjectRadius: sphere.radius,
     target,
   };

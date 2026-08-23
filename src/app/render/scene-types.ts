@@ -106,6 +106,13 @@ export type DeviceScene = {
   onCameraMoved: () => boolean;
   /** Swap the captured studio without rebuilding anything. */
   setEnvironment: (environment: THREE.Texture) => void;
+  /**
+   * Turn the device about its own upright axis, in degrees.
+   *
+   * Returns whether the angle actually moved, so a redraw is only spent when
+   * there is something new to draw.
+   */
+  setSpin: (degrees: number) => boolean;
   /** The device geometry, so a hit test can ignore the ground. */
   subject: THREE.Object3D;
   /** Set the artwork shown on the display, or null to leave it dark. */

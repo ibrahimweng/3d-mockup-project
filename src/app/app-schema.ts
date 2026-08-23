@@ -57,6 +57,23 @@ export const appSchema = defineToolcraft({
               target: "device.finish",
               type: "select",
             },
+            spin: {
+              applicability: { mode: "always" },
+              defaultValue: 0,
+              description:
+                "Turn the device on the spot, about its own upright axis. Separate from dragging the canvas, which moves the camera around a standing subject: this turns the subject while the camera holds still, which is what makes a turntable read as the object rotating rather than the room. Keyframe it to animate; two keyframes a revolution apart give a constant turn.",
+              label: "Spin",
+              max: 360,
+              min: -360,
+              performanceReason:
+                "Spin rotates the subject and redraws one frame; the model, its materials and the environment are untouched.",
+              performanceRole: "responsiveness",
+              sliderValueKind: "continuous",
+              step: 1,
+              target: "device.spin",
+              type: "slider",
+              unit: "\u00b0",
+            },
           },
           id: "device",
           title: "Device",

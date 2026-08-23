@@ -265,9 +265,9 @@ export const appControlSectionInventory: readonly ToolcraftControlSectionInvento
       entity: "Device",
       entityId: "device",
       groupingReason:
-        "Which product is being mocked up and what colour it is are one decision about the same object; the finish is meaningless without the model it repaints.",
+        "Which product is being mocked up, what colour it is, and which way it is turned are one decision about the same object; the finish is meaningless without the model it repaints, and the spin turns that same body.",
       id: "device",
-      targets: ["device.model", "device.finish"],
+      targets: ["device.model", "device.finish", "device.spin"],
       title: "Device",
     },
     {

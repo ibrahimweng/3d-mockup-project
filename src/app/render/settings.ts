@@ -102,6 +102,7 @@ export function readRasterSettings(
     },
     focalLength: num(values, "camera.focalLength", 85),
     framing: pad(values, "camera.framing"),
+    spin: num(values, "device.spin", 0),
     surface: { kind: str(values, "surface.kind", DEFAULT_SURFACE) },
     zoom: num(values, "camera.zoom", 100) / 100,
     sweep: {

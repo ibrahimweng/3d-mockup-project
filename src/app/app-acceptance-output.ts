@@ -152,6 +152,22 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
   },
   {
     automated: true,
+    automatedTestName: "spin turns the subject without moving the camera",
+    browser: true,
+    browserTestName:
+      "browser: spin turns the device on the spot and the camera holds still",
+    componentType: "slider",
+    evidence: "product-output",
+    expectedObservable:
+      "Moving Spin turns the device about its own upright axis. The camera does not move with it: the light stays where it was, so the lit side travels around the device rather than following it, and the shadow swings across the floor instead of staying put. At 0 and at 360 the picture is identical.",
+    fixture: "the default device in the default studio",
+    id: "device.spin.turn",
+    kind: "control",
+    target: "device.spin",
+    userAction: "Drag the Spin slider from 0\u00b0 to 90\u00b0, then to 360\u00b0.",
+  },
+  {
+    automated: true,
     automatedTestName: "zoom crops the frame without moving the camera",
     browser: true,
     browserTestName:
