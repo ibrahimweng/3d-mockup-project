@@ -134,6 +134,9 @@ export function MockupPreview(): React.ReactElement {
   const observationRef = React.useRef(observation);
   observationRef.current = observation;
   const pixelSignatureRef = React.useRef("");
+  const timelineReport = `${state.timeline.currentTimeSeconds}|${state.timeline.durationSeconds}|${String(state.timeline.isPlaying)}`;
+  const timelineRef = React.useRef(state.timeline);
+  timelineRef.current = state.timeline;
 
   /**
    * Publish it, with whichever sampled frame is current.
@@ -150,11 +153,26 @@ export function MockupPreview(): React.ReactElement {
       ...observationRef.current,
       pixelSignature: pixelSignatureRef.current,
     });
+    /**
+     * Where the product is in the animation, said by the product.
+     *
+     * The runtime owns the clock, but only the renderer can say which frame it
+     * drew for a given tick, and a proof that reads the runtime's own state
+     * back to itself proves nothing. The cycle is the timeline's duration
+     * because that is exactly what one loop of this animation is: keyframes are
+     * evaluated against it, so there is no separate local period to drift from.
+     */
+    canvas.dataset.mockupTimeline = JSON.stringify({
+      cycleSeconds: timelineRef.current.durationSeconds,
+      pixelSignature: pixelSignatureRef.current,
+      playing: timelineRef.current.isPlaying,
+      timeSeconds: timelineRef.current.currentTimeSeconds,
+    });
   }, []);
 
   React.useEffect(() => {
     publishObservation();
-  }, [observation, publishObservation]);
+  }, [observation, publishObservation, timelineReport]);
 
   // The renderer owns a WebGL context, so it is created once against the canvas
   // and torn down only on unmount.
