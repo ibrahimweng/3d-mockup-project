@@ -198,20 +198,19 @@ function createInfinityCanvasControl(
   };
 }
 
+/**
+ * Nothing. The timeline opens from the timeline.
+ *
+ * This put a "Timeline" switch among the canvas settings, which had to be
+ * found and turned on before the panel at the bottom of the screen became a
+ * real timeline — and then a second control inside it revealed the tracks. The
+ * panel is now always the full thing and its own chevron opens and closes it,
+ * so a switch in another panel is one control too many for one idea.
+ */
 function createTimelineExtendedControl(
-  timeline: ResolvedToolcraftTimelinePanelSchema | undefined,
+  _timeline: ResolvedToolcraftTimelinePanelSchema | undefined,
 ): ToolcraftControlSchema | undefined {
-  if (!timeline?.enabled) {
-    return undefined;
-  }
-
-  return {
-    applicability: alwaysApplicable,
-    defaultValue: false,
-    label: "Timeline",
-    target: toolcraftTimelinePanelExtendedTarget,
-    type: "switch",
-  };
+  return undefined;
 }
 
 function createRuntimeSetupBackgroundControls({

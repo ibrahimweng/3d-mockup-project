@@ -211,7 +211,7 @@ describe("Toolcraft starter setup and readiness acceptance coverage", () => {
       acceptance: [],
     })).toEqual(
       expect.arrayContaining([
-        'Runtime Setup must not include the Timeline switch unless panels.timeline is enabled.',
+        'Runtime Setup must not include a Timeline switch; the timeline panel opens and closes from its own header.',
         'Runtime Duplicates / manualWidth uses runtime Setup target "canvas.size.width". Runtime Setup owns Export Settings, Import Settings, Infinity canvas, Aspect ratio, Canvas width, Canvas height, Resolution scale, and Timeline; do not declare these controls in app-authored sections.',
         'Runtime Duplicates / manualRenderScale uses runtime Setup target "canvas.renderScale". Runtime Setup owns Export Settings, Import Settings, Infinity canvas, Aspect ratio, Canvas width, Canvas height, Resolution scale, and Timeline; do not declare these controls in app-authored sections.',
         'Runtime Duplicates / manualTimeline uses runtime Setup target "panels.timeline.extended". Runtime Setup owns Export Settings, Import Settings, Infinity canvas, Aspect ratio, Canvas width, Canvas height, Resolution scale, and Timeline; do not declare these controls in app-authored sections.',

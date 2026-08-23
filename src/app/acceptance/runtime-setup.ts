@@ -81,13 +81,16 @@ export function getToolcraftRuntimeSetupSectionErrors(
     );
   }
 
-  if (schema.panels.timeline?.enabled) {
-    if (!hasSetupTarget("panels.timeline.extended")) {
-      errors.push(
-        'Runtime Setup must include the Timeline switch at target "panels.timeline.extended" whenever panels.timeline is enabled.',
-      );
-    }
-  } else if (
+  /**
+   * A timeline is opened from the timeline, not from the canvas settings.
+   *
+   * This used to require a "Timeline" switch in Runtime Setup, which had to be
+   * found and turned on before the panel along the bottom became a real
+   * timeline — and a second control inside it then revealed the tracks. The
+   * panel is now always the full thing and its own chevron opens and closes
+   * it, so Setup must not carry a switch for it at all.
+   */
+  if (
     sections.some((section) =>
       Object.values(section.controls).some(
         (control) => control.target === "panels.timeline.extended",
@@ -95,7 +98,7 @@ export function getToolcraftRuntimeSetupSectionErrors(
     )
   ) {
     errors.push(
-      'Runtime Setup must not include the Timeline switch unless panels.timeline is enabled.',
+      'Runtime Setup must not include a Timeline switch; the timeline panel opens and closes from its own header.',
     );
   }
 
