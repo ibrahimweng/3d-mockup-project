@@ -99,6 +99,22 @@ The quoted evidence must be an exact nontrivial raw substring of `Request` with 
 - Reason: No control makes a frame more expensive. Device selection changes which model is decoded, but that is a one-off scene build rather than a per-frame magnitude, and the raster pass is constant-cost for every device.
 - Evidence: `workloadEnvelope: { dimensions: [] }` and the scenarios derived from `deriveToolcraftPerformancePaths` in `src/app/app-performance.ts`.
 
+- Decision: The animation is a keyframe timeline with a Spin angle, and it comes out as a video file.
+- Reason: The user asked to animate finished mockups the way Rotato does, with a full timeline they can set keyframes on, and was asked what the animation should come out as; they chose a video file first, then a transparent-background video, then an image sequence. Spin is the one new parameter it needed: orbit already moves the camera around a standing subject, and a turntable is the opposite — the subject turns while the camera holds still. Everything else that can be animated was already a control, and enabling keyframe mode obliges all twenty-one of them to declare coverage.
+- Evidence: Verified in the browser. Twenty-one diamonds appear once the timeline is expanded; Spin keyed at each end of the timeline gives two diamonds on its row; scrubbing across it draws four distinct frames; a playthrough draws ten distinct frames with the clock wrapping forward. At four fixed angles the picture changes each time and the published camera pose is byte-identical, which is what separates spin from orbit.
+- Risk: Spin needs a parent to turn about. The subject is translated so its centre sits on the origin, and a rotation applies before that translation, so rotating the subject itself would swing it around the model's own origin. A group at the world origin puts the axis under the device.
+- Risk: A turning device sweeps a wider cylinder than a standing one — about 38% wider for a laptop and 83% for a watch and its strap, though barely 1% for a phone — so a frame cut to the standing device would clip those as they come round. The frame widens when the angle is keyframed rather than when it leaves zero, so the shot settles once, when the user asks for motion, instead of popping on the first frame of a turn keyed from zero.
+
+- Decision: One renderer is held across an export instead of one per frame.
+- Reason: Every frame used to build its own renderer, decode the model, convolve the HDR environment, render once and dispose the lot. For a still that is invisible. For a video it was about seven seconds a frame, so a six-second loop — a hundred and eighty frames — never finished at all.
+- Evidence: A one-second WebM writes 30,975 bytes in 48 seconds where nothing completed before. Single-image export went from 10 seconds cold to 3 warm, and the background proof still decodes an exported PNG that matches the preview.
+- Risk: Holding the renderer exposed a second fault that had been hidden by throwing it away. `update` announces readiness through its callback only when it actually builds a scene, and returns early once it already holds the device asked for — so awaiting that callback unconditionally waited forever from the second frame onwards. Image export hung too, which is how it was found. The cache remembers which device its scene is of and waits only when that changes.
+- Risk: Exactly one export renderer is alive at a time and it outlives the export that made it, so the next one starts warm. That is one WebGL context held for the life of the page in addition to the preview's.
+
+- Decision: The evaluated values are held still while they serialize the same way.
+- Reason: The runtime rebuilds that object on every store change, and once the timeline is playing that is every tick. The preview memoizes the scene settings, the camera pose and the screen transform on it, so a fresh identity alone invalidated the frame and bought a full redraw of a picture that had not moved. Two derivations in the file already worked around this privately, each with a comment saying why.
+- Evidence: With a keyframe timeline running, the page went from 2 requestAnimationFrame ticks in 20 seconds to 481 in 8.2, and a trivial round trip from 3494ms to 1ms. The main thread had been entirely consumed redrawing identical frames — Playwright could not click anything at all. Checked that it suppresses only waste: zoom, key intensity, sweep height and focal length were each driven to a new value and each still produced a new frame.
+
 ## Evidence
 
 - Source reviewed: `src/app/app-schema.ts`, `app-composition.tsx`, `product-domain.ts`, `preview.tsx`, `export-renderer.ts`, `artwork-store.ts` and all of `src/app/render` in the reference repository at commit c2b67e6.
@@ -494,6 +510,8 @@ Zooming out and shifting the frame were the two new risks: both widen what the c
 - Evidence: One run of the Spin proof settled it. The test passed, and across its ten applicability branches the reporter accepted all ten `control-applicability-visible` and all ten `product-observable-change` — both from helpers that forward the target — while rejecting all ten `timeline-keyframes` from the helper that does not. Same test, same run, same requirement ids; the only difference was the forwarded target.
 - Risk: This edits an integrity-protected file, and an earlier entry in this log says weakening a framework check to make a product pass is the wrong direction. That principle still holds and this is not that: no assertion changed, nothing became easier to satisfy, and a proof that fails still fails. What changed is that evidence from a passing proof is now labelled with the control it is about, so the reporter can match it. The user was shown the alternative — leaving roughly fifty-nine timeline requirements permanently unprovable and documenting them as blocked — and chose to make the change and write it down. It belongs upstream in the source runtime; this folder is downstream of it.
 - Risk: Checked for collateral damage rather than assumed. The framework's own `timeline recipes` test in `app-browser-semantic-evidence.spec.ts` calls these helpers without a target; it fails identically with and without this change (a pre-existing 30s timeout at `locator.elementHandle`), so the change neither fixes nor breaks it. A requirement with no target still matches evidence regardless of what the evidence carries, so target-less callers are unaffected.
+- Risk: This container's Chromium has no AVC encoder, so an MP4 export falls back to WebM here. The runtime does that fallback itself and nothing hangs, but it means MP4 output cannot be proved in this environment.
+- Risk: The evidence reporter's failures do not appear in the test tally. A run can report "230 passed, 18 failed" while the reporter separately rejects 136 pieces of evidence across 61 requirements — 55 of them applicability-scoped, and predating the animation work. Reading the tally alone overstates how green the suite is.
 - Risk: Found late, and worth writing down: `--reporter=list` replaces the configured reporters, which silently removes the Toolcraft evidence reporter. Several runs during this work reported green while checking no evidence at all. Runs that are meant to prove coverage have to leave the reporter alone.
 
 ## Verification
@@ -502,6 +520,7 @@ Zooming out and shifting the frame were the two new risks: both widen what the c
 - `npm run build` produces a production bundle.
 - The product acceptance, schema, layout, reference-clone and performance validators pass under `vitest run src`.
 - First product delivery still requires one bare `npm run verify:delivery`; measured performance has not been run.
+- The browser proofs for the animation are written but not yet all passing; the spin matrix, the timeline playback recipe and the keyframe recipe are the outstanding ones.
 
 ## Risks
 
