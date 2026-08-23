@@ -10,7 +10,7 @@ import { appSchema } from "../src/app/app-schema";
 import { expectToolcraftControlApplicabilityState } from "./browser-control-applicability-evidence";
 import { createToolcraftBrowserProofSession } from "./browser-proof-session";
 import { pickOption, typeSliderValue } from "./mockup-controls";
-import { openTimeline, proveControlKeyframes } from "./mockup-timeline";
+import { openTimeline, proveControlKeyframes, settlePicture } from "./mockup-timeline";
 import { expectToolcraftProductObservableToChange } from "./product-observable-helpers";
 import { test } from "./toolcraft-product-test";
 
@@ -138,6 +138,12 @@ for (const proof of transformProofs) {
         applicabilityCase,
         { baseRequirementId: proof.baseRequirementId, timeoutMs: 30_000 },
       );
+
+      // Switching branches can swap the model, and parsing twenty megabytes of
+      // geometry outlasts any fixed wait. The next check asks for a baseline
+      // that holds still before the action, so it has to start from a frame
+      // that has stopped changing rather than one still arriving.
+      await settlePicture(page);
 
       await expectToolcraftProductObservableToChange(
         session,
