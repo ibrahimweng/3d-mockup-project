@@ -91,7 +91,7 @@ function ToolcraftAppContent({
   return (
     <div
       className={cn(
-        "relative min-h-[640px] w-full overflow-hidden bg-[color:var(--background)]",
+        "relative flex min-h-[640px] w-full flex-col overflow-hidden bg-[color:var(--background)]",
         className,
       )}
       data-slot="toolcraft-runtime-app"
@@ -107,30 +107,39 @@ function ToolcraftAppContent({
         minWidth: toolcraftMinAppWidthPx,
       }}
     >
-      {surfaces.canvas.enabled ? (
-        <CanvasShell
-          infiniteCanvasContent={infiniteCanvasContent}
-          renderDefaultMedia={renderDefaultCanvasMedia}
-        >
-          {canvasContent}
-        </CanvasShell>
-      ) : null}
-      {surfaces.panels.layers?.enabled ? (
-        <LayersPanel panelPlacement="floating" />
-      ) : null}
-      {surfaces.panels.controls?.enabled ? (
-        <ControlsPanel
-          controlRenderers={controlRenderers}
-          onPanelAction={onPanelAction}
-          panelPlacement="floating"
-          sceneExport={sceneExport}
-        />
-      ) : null}
+      {/*
+        The stage: everything that floats over the picture. It gives up
+        whatever height the timeline band below it takes, so the two occupy
+        separate bands rather than the timeline covering the bottom of the
+        shot — a strip of the canvas you cannot see is a strip you cannot
+        compose in.
+      */}
+      <div className="relative min-h-0 flex-1" data-slot="toolcraft-runtime-stage">
+        {surfaces.canvas.enabled ? (
+          <CanvasShell
+            infiniteCanvasContent={infiniteCanvasContent}
+            renderDefaultMedia={renderDefaultCanvasMedia}
+          >
+            {canvasContent}
+          </CanvasShell>
+        ) : null}
+        {surfaces.panels.layers?.enabled ? (
+          <LayersPanel panelPlacement="floating" />
+        ) : null}
+        {surfaces.panels.controls?.enabled ? (
+          <ControlsPanel
+            controlRenderers={controlRenderers}
+            onPanelAction={onPanelAction}
+            panelPlacement="floating"
+            sceneExport={sceneExport}
+          />
+        ) : null}
+        {surfaces.panels.toolbar.enabled ? (
+          <ToolbarPanel panelPlacement="floating" />
+        ) : null}
+      </div>
       {surfaces.panels.timeline?.enabled ? (
         <TimelinePanel panelPlacement="floating" variant={timelinePanelVariant} />
-      ) : null}
-      {surfaces.panels.toolbar.enabled ? (
-        <ToolbarPanel panelPlacement="floating" />
       ) : null}
     </div>
   );

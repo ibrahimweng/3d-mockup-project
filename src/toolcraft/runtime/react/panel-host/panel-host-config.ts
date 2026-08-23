@@ -28,19 +28,17 @@ export const panelHostConfig = {
     panelId: "timeline",
     snapEdges: ["top", "bottom"],
     stageClassName: "min-h-[320px]",
-    // Along the bottom, where a timeline belongs, and starting at the left
-    // edge because it now spans the whole width rather than floating centred.
-    wrapperClassName: "absolute bottom-2.5 left-2.5 z-40",
+    // A band of its own beneath the stage rather than a panel floating over
+    // it, so the canvas ends where the timeline begins.
+    wrapperClassName: "relative z-40 w-full shrink-0 px-2.5 pb-2.5",
   },
   toolbar: {
     dragMode: "panel",
     panelId: "toolbar",
     snapEdges: ["top", "bottom"],
     stageClassName: "min-h-[180px]",
-    // Lifted clear of the timeline beneath it. The timeline is 110px tall with
-    // its tracks showing, so this clears the taller of its two states rather
-    // than jumping when it opens.
-    wrapperClassName: "absolute bottom-[136px] left-1/2 z-[70] -translate-x-1/2",
+    // Back at the foot of the stage: the timeline is no longer over it.
+    wrapperClassName: "absolute bottom-2.5 left-1/2 z-[70] -translate-x-1/2",
   },
 } satisfies Record<ToolcraftPanelType, PanelTypeConfig>;
 

@@ -361,19 +361,19 @@ export function TimelinePanel({
     ? expandedPanelSize.width
     : timelinePanelCollapsedWidthPx;
   /**
-   * The measured width wins.
+   * As wide as the canvas above it, and never sideways.
    *
-   * Capping it against the old fixed width was what kept the panel at six
-   * hundred and eighty-eight pixels no matter how much room it had. The
-   * measurement already accounts for whatever side panels are open, so it is
-   * the answer rather than an upper bound on one.
+   * The measurement excludes whatever side panels are open, which is exactly
+   * where the band should stop: run it the full width of the window instead
+   * and it passes beneath the properties panel and cuts off the export buttons
+   * at its foot. The sideways offset was for a panel that floated centred over
+   * the canvas; in a band it only pushed it off the left edge.
    */
   const timelinePanelWidth =
     !isCompact && responsiveLayout !== null
       ? responsiveLayout.width
       : unconstrainedTimelinePanelWidth;
-  const timelinePanelOffsetX =
-    !isCompact && responsiveLayout !== null ? responsiveLayout.offsetX : 0;
+  const timelinePanelOffsetX = 0;
   const timelinePanelLayoutStyle: CSSProperties = {
     transform: timelinePanelOffsetX !== 0 ? `translateX(${timelinePanelOffsetX}px)` : undefined,
   };
@@ -394,9 +394,11 @@ export function TimelinePanel({
       )}
       data-expanded-height={isExpanded ? expandedPanelSize.height : undefined}
       data-responsive-width={
-        timelinePanelWidth < unconstrainedTimelinePanelWidth ? timelinePanelWidth : undefined
+        typeof timelinePanelWidth === "number" &&
+        timelinePanelWidth < unconstrainedTimelinePanelWidth
+          ? timelinePanelWidth
+          : undefined
       }
-      data-responsive-offset-x={timelinePanelOffsetX !== 0 ? timelinePanelOffsetX : undefined}
       data-hover-paused={isHoverPaused ? 'true' : 'false'}
       data-playback-ready={playbackReady ? 'true' : 'false'}
       data-scrubbing={scrubber.isScrubbing ? 'true' : 'false'}
