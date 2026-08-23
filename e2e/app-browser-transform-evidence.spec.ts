@@ -10,7 +10,11 @@ import { appSchema } from "../src/app/app-schema";
 import { expectToolcraftControlApplicabilityState } from "./browser-control-applicability-evidence";
 import { createToolcraftBrowserProofSession } from "./browser-proof-session";
 import { pickOption, settleProductRaster, typeSliderValue } from "./mockup-controls";
-import { openTimeline, proveControlKeyframes } from "./mockup-timeline";
+import {
+  clearControlKeyframes,
+  openTimeline,
+  proveControlKeyframes,
+} from "./mockup-timeline";
 import { expectToolcraftProductObservableToChange } from "./product-observable-helpers";
 import { test } from "./toolcraft-product-test";
 
@@ -41,6 +45,7 @@ type TransformProof = {
   keyframeValue: number;
   label: string;
   reason: string;
+  resetValue: number;
   target: string;
   value: number;
 };
@@ -51,6 +56,7 @@ const transformProofs: readonly TransformProof[] = [
     keyframeValue: 60,
     label: "Tilt",
     reason: "Tilt should pitch the device and redraw the frame.",
+    resetValue: 0,
     target: "device.tilt",
     value: 45,
   },
@@ -59,6 +65,7 @@ const transformProofs: readonly TransformProof[] = [
     keyframeValue: 45,
     label: "Roll",
     reason: "Roll should cant the device and redraw the frame.",
+    resetValue: 0,
     target: "device.roll",
     value: 30,
   },
@@ -67,6 +74,7 @@ const transformProofs: readonly TransformProof[] = [
     keyframeValue: 120,
     label: "Position X",
     reason: "Position X should slide the device across the set.",
+    resetValue: 0,
     target: "device.positionX",
     value: 75,
   },
@@ -75,6 +83,7 @@ const transformProofs: readonly TransformProof[] = [
     keyframeValue: 120,
     label: "Position Y",
     reason: "Position Y should lift the device off the floor.",
+    resetValue: 0,
     target: "device.positionY",
     value: 75,
   },
@@ -83,6 +92,7 @@ const transformProofs: readonly TransformProof[] = [
     keyframeValue: 120,
     label: "Position Z",
     reason: "Position Z should move the device through the set.",
+    resetValue: 0,
     target: "device.positionZ",
     value: 75,
   },
@@ -91,6 +101,7 @@ const transformProofs: readonly TransformProof[] = [
     keyframeValue: 250,
     label: "Scale",
     reason: "Scale should resize the device in frame.",
+    resetValue: 100,
     target: "device.scale",
     value: 200,
   },
@@ -135,6 +146,14 @@ for (const proof of transformProofs) {
         applicabilityCase,
       );
 
+      // Start each branch from the product's own default rather than from
+      // wherever the previous branch left the control keyframed.
+      await clearControlKeyframes(page, proof.label);
+      await typeSliderValue(
+        page.locator(`[data-toolcraft-control-target="${proof.target}"]`).first(),
+        proof.resetValue,
+      );
+
       await expectToolcraftControlApplicabilityState(
         session,
         session.targetAction(applicabilityCase.selectorTarget, async (current) => {
@@ -170,7 +189,7 @@ for (const proof of transformProofs) {
         name: proof.label,
         requirementId: scoped,
         reset: async (control) => {
-          await typeSliderValue(control, proof.target === "device.scale" ? 100 : 0);
+          await typeSliderValue(control, proof.resetValue);
         },
         setValue: async (control) => {
           await typeSliderValue(control, proof.keyframeValue);

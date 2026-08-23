@@ -155,6 +155,24 @@ export async function settlePicture(page: Page): Promise<string> {
 }
 
 /**
+ * Put a control back the way it was found.
+ *
+ * A proof that walks every branch of a section leaves the control keyframed
+ * and holding whatever the last branch set, and the next branch then starts
+ * from that rather than from the product's own default. Clearing between
+ * branches keeps each one a measurement of the branch instead of a
+ * measurement of everything that ran before it.
+ */
+export async function clearControlKeyframes(page: Page, name: string): Promise<void> {
+  const off = page.getByRole("button", { name: `Disable ${name} keyframes` });
+
+  if (await off.count()) {
+    await off.first().click();
+    await page.waitForTimeout(1_000);
+  }
+}
+
+/**
  * One control's keyframes, its value, and the frame it produced.
  *
  * This runs inside the page — the proof session serializes it and evaluates it
