@@ -50,6 +50,30 @@ export async function setSlider(control: Locator, value: number): Promise<number
   return Number(await input.inputValue());
 }
 
+/**
+ * Type a slider's value rather than dragging for it.
+ *
+ * A drag lands wherever the track's arithmetic puts it, which is close enough
+ * for a proof that something moved and useless for one about a number. These
+ * controls exist to be typed into, so the proof types into them: click the
+ * value, replace it, commit, and read back what the control now holds.
+ */
+export async function typeSliderValue(control: Locator, value: number): Promise<number> {
+  const page = control.page();
+  const display = control.locator('button[aria-label^="Edit "][aria-label$=" value"]').first();
+
+  await display.scrollIntoViewIfNeeded();
+  await display.click();
+  const editor = control.locator('[contenteditable="true"]').first();
+  await editor.waitFor({ state: "visible" });
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.type(String(value));
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(400);
+
+  return Number(await control.locator("input[type=range]").first().inputValue());
+}
+
 /** The value a slider is holding. */
 export async function readSlider(control: Locator): Promise<number> {
   return Number(await control.locator("input[type=range]").first().inputValue());

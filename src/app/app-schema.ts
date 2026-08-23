@@ -41,6 +41,7 @@ export const appSchema = defineToolcraft({
               performanceReason:
                 "Switching device decodes a different GLB once and reframes the camera; frames themselves stay one constant-cost raster pass.",
               performanceRole: "responsiveness",
+              semanticGroup: "identity",
               target: "device.model",
               type: "select",
             },
@@ -54,23 +55,10 @@ export const appSchema = defineToolcraft({
               performanceReason:
                 "A finish rewrites base colours on the loaded model; it does not re-decode geometry or re-convolve the environment.",
               performanceRole: "responsiveness",
+              semanticGroup: "identity",
               target: "device.finish",
               type: "select",
             },
-          },
-          id: "device",
-          title: "Device",
-        },
-        /**
-         * Where the device is and how it is turned, kept apart from what it is.
-         *
-         * Picking a model and repainting it is one decision; posing it is
-         * another, and the pose is the half you come back to. Together they
-         * would be nine controls in one section, past the size a section is
-         * meant to be and past the point the panel reads at a glance.
-         */
-        {
-          controls: {
             spin: {
               applicability: { mode: "always" },
               defaultValue: 0,
@@ -84,6 +72,7 @@ export const appSchema = defineToolcraft({
               performanceRole: "responsiveness",
               sliderValueKind: "continuous",
               step: 1,
+              semanticGroup: "rotation",
               target: "device.spin",
               type: "slider",
               unit: "\u00b0",
@@ -101,6 +90,7 @@ export const appSchema = defineToolcraft({
               performanceRole: "responsiveness",
               sliderValueKind: "continuous",
               step: 1,
+              semanticGroup: "rotation",
               target: "device.tilt",
               type: "slider",
               unit: "\u00b0",
@@ -118,6 +108,7 @@ export const appSchema = defineToolcraft({
               performanceRole: "responsiveness",
               sliderValueKind: "continuous",
               step: 1,
+              semanticGroup: "rotation",
               target: "device.roll",
               type: "slider",
               unit: "\u00b0",
@@ -135,6 +126,7 @@ export const appSchema = defineToolcraft({
               performanceRole: "responsiveness",
               sliderValueKind: "continuous",
               step: 1,
+              semanticGroup: "placement",
               target: "device.positionX",
               type: "slider",
               unit: "%",
@@ -152,6 +144,7 @@ export const appSchema = defineToolcraft({
               performanceRole: "responsiveness",
               sliderValueKind: "continuous",
               step: 1,
+              semanticGroup: "placement",
               target: "device.positionY",
               type: "slider",
               unit: "%",
@@ -169,6 +162,7 @@ export const appSchema = defineToolcraft({
               performanceRole: "responsiveness",
               sliderValueKind: "continuous",
               step: 1,
+              semanticGroup: "placement",
               target: "device.positionZ",
               type: "slider",
               unit: "%",
@@ -186,13 +180,14 @@ export const appSchema = defineToolcraft({
               performanceRole: "responsiveness",
               sliderValueKind: "continuous",
               step: 1,
+              semanticGroup: "placement",
               target: "device.scale",
               type: "slider",
               unit: "%",
             },
           },
-          id: "transform",
-          title: "Transform",
+          id: "device",
+          title: "Device",
         },
         {
           controls: {

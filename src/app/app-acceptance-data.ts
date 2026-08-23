@@ -284,18 +284,11 @@ export const appControlSectionInventory: readonly ToolcraftControlSectionInvento
       entity: "Device",
       entityId: "device",
       groupingReason:
-        "Which product is being mocked up and what colour it is are one decision about the same object; the finish is meaningless without the model it repaints.",
+        "Which product is being mocked up, what colour it is, and how it is posed are one decision about the same object: the finish is meaningless without the model it repaints, and every angle, offset and size turns that same body. Nine controls is past the usual section size, so each says which part of the one entity it is \u2014 what it is, which way it is turned, where it stands.",
       id: "device",
-      targets: ["device.model", "device.finish"],
-      title: "Device",
-    },
-    {
-      entity: "Device Transform",
-      entityId: "transform",
-      groupingReason:
-        "Turning the device, standing it somewhere and sizing it are the one act of posing the same body: each is read against the others, and none of them means anything on its own.",
-      id: "transform",
       targets: [
+        "device.model",
+        "device.finish",
         "device.spin",
         "device.tilt",
         "device.roll",
@@ -304,7 +297,7 @@ export const appControlSectionInventory: readonly ToolcraftControlSectionInvento
         "device.positionZ",
         "device.scale",
       ],
-      title: "Transform",
+      title: "Device",
     },
     {
       entity: "Video Export",
