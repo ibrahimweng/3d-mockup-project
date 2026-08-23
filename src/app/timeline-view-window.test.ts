@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   clampToolcraftTimelineZoom,
   createToolcraftTimelineViewWindow,
+  getToolcraftTimelinePannedViewStart,
   getToolcraftTimelineViewRatio,
   getToolcraftTimelineViewStartForAnchor,
   getToolcraftTimelineViewStartForVisibleTime,
@@ -135,6 +136,19 @@ describe("timeline view window", () => {
         getToolcraftTimelineZoomSliderRatio(getToolcraftTimelineZoomFromSliderRatio(ratio)),
       ).toBeCloseTo(ratio, 10);
     }
+  });
+
+  it("pans the window without leaving the loop", () => {
+    const view = createToolcraftTimelineViewWindow({
+      durationSeconds: 8,
+      startSeconds: 3,
+      zoom: 4,
+    });
+
+    expect(getToolcraftTimelinePannedViewStart({ deltaSeconds: 1, view })).toBe(4);
+    expect(getToolcraftTimelinePannedViewStart({ deltaSeconds: -1, view })).toBe(2);
+    expect(getToolcraftTimelinePannedViewStart({ deltaSeconds: -99, view })).toBe(0);
+    expect(getToolcraftTimelinePannedViewStart({ deltaSeconds: 99, view })).toBe(6);
   });
 
   it("clamps zoom to the supported range", () => {

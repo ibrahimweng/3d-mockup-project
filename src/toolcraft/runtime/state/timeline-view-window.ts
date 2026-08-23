@@ -130,6 +130,24 @@ export function getToolcraftTimelineViewStartForAnchor({
   return anchorSeconds - nextSpanSeconds * anchorRatio;
 }
 
+/** Slide the window along the loop, stopping at either end. */
+export function getToolcraftTimelinePannedViewStart({
+  deltaSeconds,
+  view,
+}: {
+  deltaSeconds: number;
+  view: ToolcraftTimelineViewWindow;
+}): number {
+  if (!Number.isFinite(deltaSeconds)) {
+    return view.startSeconds;
+  }
+
+  return Math.max(
+    0,
+    Math.min(view.durationSeconds - view.spanSeconds, view.startSeconds + deltaSeconds),
+  );
+}
+
 /** Follow the playhead when it leaves the window, keeping a margin so it never rides the edge. */
 export function getToolcraftTimelineViewStartForVisibleTime({
   timeSeconds,

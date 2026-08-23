@@ -13,9 +13,11 @@ import {
  * Playback runs from the first paint — the runtime's default, not this
  * product's choice — and it leaves the canvas redrawing under anything that
  * expects a settled picture, so every proof pauses first. The diamonds are
- * behind two separate switches: `panels.timeline.extended` grows the compact
- * transport into a real panel, and the expand toggle inside that panel is what
- * sets the timeline expanded, which is the flag the diamonds actually read.
+ * behind the expand toggle in the timeline's own header, which is what sets
+ * the timeline expanded — the flag the diamonds actually read. The panel used
+ * to also need a `panels.timeline.extended` switch in Runtime Setup to grow
+ * from a compact transport into a real panel; the panel is always the full
+ * one now, so that switch is gone and this only clicks it where it survives.
  * Idempotent, so a test can call it without knowing what ran before.
  */
 export async function openTimeline(page: Page): Promise<void> {
@@ -28,7 +30,7 @@ export async function openTimeline(page: Page): Promise<void> {
   const extended = page
     .locator('[data-toolcraft-control-target="panels.timeline.extended"] [role="switch"]')
     .first();
-  if ((await extended.getAttribute("aria-checked")) !== "true") {
+  if ((await extended.count()) && (await extended.getAttribute("aria-checked")) !== "true") {
     await extended.click();
     await page.waitForTimeout(1_200);
   }

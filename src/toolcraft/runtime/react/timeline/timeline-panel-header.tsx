@@ -270,7 +270,7 @@ function TimelineZoomControl({
         }
         onClick={(event) => event.stopPropagation()}
         onPointerDown={(event) => event.stopPropagation()}
-        step={0.001}
+        step={0.01}
         title={`Timeline zoom (${formatTimelineZoomLabel(zoom)})`}
         type="range"
         value={sliderRatio}

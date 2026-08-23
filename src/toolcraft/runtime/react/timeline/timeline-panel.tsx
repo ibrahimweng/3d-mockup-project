@@ -27,6 +27,7 @@ import {
 import {
   clampToolcraftTimelineZoom,
   createToolcraftTimelineViewWindow,
+  getToolcraftTimelinePannedViewStart,
   getToolcraftTimelineViewStartForAnchor,
   getToolcraftTimelineViewStartForVisibleTime,
   toolcraftTimelineMinZoom,
@@ -180,6 +181,7 @@ export function TimelinePanel({
     [durationSeconds, isExpanded, viewStartSeconds, zoom],
   );
   const previousIsExpandedRef = useRef(isExpanded);
+  const followedTimeRef = useRef(currentTimeSeconds);
   const isExpandCollapseTransition = previousIsExpandedRef.current !== isExpanded;
   const timelinePanelTransition = isExpandCollapseTransition
     ? timelinePanelExpandCollapseTransition
@@ -259,10 +261,18 @@ export function TimelinePanel({
   });
   useEffect(() => {
     // A zoomed window would otherwise sit still while the playhead ran off the
-    // end of it, so the window trails the playhead once it nears an edge.
-    if (!displayedIsPlaying || scrubber.isScrubbing) {
+    // end of it, so the window trails the playhead once it nears an edge. This
+    // is also how you pan by hand: drag the playhead into the edge and the
+    // window follows it into the part of the loop you were reaching for.
+    //
+    // Only a move of the playhead pulls the window, never a move of the window
+    // itself — otherwise panning away from the playhead would be undone on the
+    // very next render, and the loop beyond the current slice unreachable.
+    if (followedTimeRef.current === currentTimeSeconds) {
       return;
     }
+
+    followedTimeRef.current = currentTimeSeconds;
 
     const nextStartSeconds = getToolcraftTimelineViewStartForVisibleTime({
       timeSeconds: currentTimeSeconds,
@@ -272,7 +282,7 @@ export function TimelinePanel({
     if (nextStartSeconds !== view.startSeconds) {
       setViewStartSeconds(nextStartSeconds);
     }
-  }, [currentTimeSeconds, displayedIsPlaying, scrubber.isScrubbing, view]);
+  }, [currentTimeSeconds, view]);
   const deleteKeyframe = useCallback(
     (keyframeId: string): void => {
       dispatch({ keyframeId, type: 'timeline.deleteKeyframe' });
@@ -408,6 +418,9 @@ export function TimelinePanel({
         valueLabel: String(track.to),
       });
     }
+  };
+  const panView = (deltaSeconds: number): void => {
+    setViewStartSeconds(getToolcraftTimelinePannedViewStart({ deltaSeconds, view }));
   };
   const changeZoom = (nextZoom: number): void => {
     const clampedZoom = clampToolcraftTimelineZoom(nextZoom);
@@ -591,7 +604,9 @@ export function TimelinePanel({
             onPointerDown={scrubber.handleScrubPointerDown}
             onPointerMove={scrubber.handleScrubPointerMove}
             onPointerUp={scrubber.handleScrubPointerUp}
+            onPanView={panView}
             onSelectedKeyframeChange={setSelectedKeyframeId}
+            onZoomChange={changeZoom}
             selectedKeyframeId={selectedKeyframeId}
             stripRef={scrubber.stripRef}
             view={view}

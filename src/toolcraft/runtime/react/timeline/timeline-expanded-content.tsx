@@ -15,6 +15,7 @@ import {
 } from '../../state/timeline-values';
 import {
   getToolcraftTimelineViewRatio,
+  getToolcraftTimelineViewZoom,
   isToolcraftTimelineTimeInView,
   type ToolcraftTimelineViewWindow,
 } from '../../state/timeline-view-window';
@@ -54,7 +55,9 @@ type TimelineExpandedContentProps = {
   onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
   onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;
   onPointerUp: (event: React.PointerEvent<HTMLDivElement>) => void;
+  onPanView: (deltaSeconds: number) => void;
   onSelectedKeyframeChange: (keyframeId: string | null) => void;
+  onZoomChange: (zoom: number) => void;
   selectedKeyframeId: string | null;
   stripRef: React.RefObject<HTMLDivElement | null>;
   view: ToolcraftTimelineViewWindow;
@@ -74,12 +77,26 @@ function getTimelineRulerTicks(view: ToolcraftTimelineViewWindow): number[] {
   );
 }
 
-function formatTimelineRulerTick(tick: number, view: ToolcraftTimelineViewWindow): string {
-  // Whole seconds read cleanly across the full loop, but a tight window can span
-  // less than a second, where every label would otherwise round to the same number.
-  const decimals = view.spanSeconds >= 4 ? 0 : view.spanSeconds >= 1 ? 1 : 2;
+/**
+ * The fewest decimals that still tell the truth about every tick.
+ *
+ * Whole seconds read cleanly across an eight second loop, whose quarters land
+ * on 0, 2, 4, 6 and 8. A six second loop has quarters on the halves, and whole
+ * seconds turned that ruler into "0 2 3 5 6" — five labels, three of them
+ * wrong. A zoomed window can be tighter still.
+ */
+function getTimelineRulerTickDecimals(ticks: readonly number[]): number {
+  for (const decimals of [0, 1]) {
+    const isFaithful = ticks.every(
+      (tick) => Math.abs(Number(tick.toFixed(decimals)) - tick) <= 0.005,
+    );
 
-  return tick.toFixed(decimals);
+    if (isFaithful) {
+      return decimals;
+    }
+  }
+
+  return 2;
 }
 
 function getTimelineRulerMarkRatios(): number[] {
@@ -113,13 +130,17 @@ export function TimelineExpandedContent({
   onPointerDown,
   onPointerMove,
   onPointerUp,
+  onPanView,
   onSelectedKeyframeChange,
+  onZoomChange,
   selectedKeyframeId,
   stripRef,
   view,
 }: TimelineExpandedContentProps): React.JSX.Element {
   const trackPlayheadStyle = getTimelineTrackPositionStyle(currentTimeSeconds, view);
   const isPlayheadInView = isToolcraftTimelineTimeInView(currentTimeSeconds, view);
+  const rulerTicks = getTimelineRulerTicks(view);
+  const rulerTickDecimals = getTimelineRulerTickDecimals(rulerTicks);
   const selectedKeyframe = findTimelineKeyframe(keyframeGroups, selectedKeyframeId);
   const deleteSelectedKeyframe = (): void => {
     if (!selectedKeyframeId) {
@@ -184,6 +205,34 @@ export function TimelineExpandedContent({
 
     onKeyDown(event);
   };
+  const handleExpandedWheel = (event: React.WheelEvent<HTMLDivElement>): void => {
+    if (event.ctrlKey || event.metaKey) {
+      const zoomStep = Math.exp(-event.deltaY / 400);
+
+      event.preventDefault();
+      onZoomChange(getToolcraftTimelineViewZoom(view) * zoomStep);
+      return;
+    }
+
+    if (view.spanSeconds >= view.durationSeconds) {
+      return;
+    }
+
+    const trackWidth = stripRef.current?.getBoundingClientRect().width ?? 0;
+    const trackSpanPx = Math.max(
+      1,
+      trackWidth - timelineExpandedTrackStartOffsetPx - timelineExpandedTrackEndOffsetPx,
+    );
+    const deltaPx =
+      Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+
+    if (deltaPx === 0) {
+      return;
+    }
+
+    event.preventDefault();
+    onPanView((deltaPx / trackSpanPx) * view.spanSeconds);
+  };
   const handleExpandedPointerDown = (event: React.PointerEvent<HTMLDivElement>): void => {
     const targetElement = getTimelineEventTargetElement(event.target);
     const clickedKeyframe = targetElement?.closest('[data-slot="timeline-keyframe"]');
@@ -212,13 +261,13 @@ export function TimelineExpandedContent({
             data-slot="timeline-expanded-ruler-labels"
             style={{ left: timelineRulerLeftInsetPx, right: timelineRulerRightInsetPx }}
           >
-            {getTimelineRulerTicks(view).map((tick, index, ticks) => (
+            {rulerTicks.map((tick, index, ticks) => (
               <span
                 className="absolute top-0 -translate-x-1/2 text-center"
                 key={`${index}:${tick.toFixed(3)}`}
                 style={{ left: `${(index / (ticks.length - 1)) * 100}%` }}
               >
-                {formatTimelineRulerTick(tick, view)}
+                {tick.toFixed(rulerTickDecimals)}
               </span>
             ))}
           </div>
@@ -261,6 +310,7 @@ export function TimelineExpandedContent({
         onPointerDown={handleExpandedPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
+        onWheel={handleExpandedWheel}
         ref={stripRef}
         role="slider"
         tabIndex={0}
