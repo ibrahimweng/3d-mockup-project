@@ -8,6 +8,10 @@ import {
   clampToolcraftTimelineTime,
   toolcraftTimelineScrubStepSeconds,
 } from '../../state/timeline-values';
+import {
+  getToolcraftTimelineViewTime,
+  type ToolcraftTimelineViewWindow,
+} from '../../state/timeline-view-window';
 
 type TimelineClockOptions = {
   durationSeconds: number;
@@ -27,6 +31,7 @@ type TimelineScrubberOptions = {
   durationSeconds: number;
   setCurrentTimeSeconds: React.Dispatch<React.SetStateAction<number>>;
   setIsPlaying: React.Dispatch<React.SetStateAction<boolean>>;
+  view: ToolcraftTimelineViewWindow;
 };
 
 type TimelineScrubberResult = {
@@ -139,6 +144,7 @@ export function useTimelineScrubber({
   durationSeconds,
   setCurrentTimeSeconds,
   setIsPlaying,
+  view,
 }: TimelineScrubberOptions): TimelineScrubberResult {
   const [isScrubbing, setIsScrubbing] = useState(false);
   const isScrubbingRef = useRef(false);
@@ -226,7 +232,7 @@ export function useTimelineScrubber({
     const ratio = Math.max(0, Math.min(1, (clientX - rect.left - trackStart) / trackWidth));
 
     setCurrentTimeSeconds(
-      clampToolcraftTimelineTime(durationSeconds * ratio, durationSeconds),
+      clampToolcraftTimelineTime(getToolcraftTimelineViewTime(ratio, view), durationSeconds),
     );
   };
   const handleScrubKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {

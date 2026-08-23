@@ -4,6 +4,7 @@ import * as React from 'react';
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type CSSProperties,
@@ -23,6 +24,13 @@ import {
   clampToolcraftTimelineTime,
   getToolcraftTimelineKeyframeId,
 } from '../../state/timeline-values';
+import {
+  clampToolcraftTimelineZoom,
+  createToolcraftTimelineViewWindow,
+  getToolcraftTimelineViewStartForAnchor,
+  getToolcraftTimelineViewStartForVisibleTime,
+  toolcraftTimelineMinZoom,
+} from '../../state/timeline-view-window';
 import {
   getTimelineEventTargetElement,
   isEditableTimelineEventTarget,
@@ -154,10 +162,23 @@ export function TimelinePanel({
   } = timeline;
   const [defaultExpandedPending, setDefaultExpandedPending] = useState(defaultExpanded);
   const [isHoverPaused, setIsHoverPaused] = useState(false);
+  const [zoom, setZoom] = useState(toolcraftTimelineMinZoom);
+  const [viewStartSeconds, setViewStartSeconds] = useState(0);
   const displayedIsPlaying = playbackReady && isPlaying;
   const isCompact = variant === 'compact';
   const isExpanded = !isCompact && keyframesEnabled && (expanded || defaultExpandedPending);
   const expandedPanelSize = getTimelinePanelExpandedSize(keyframeGroups);
+  // Only the expanded track can be zoomed; the collapsed header always draws the
+  // whole loop, so it asks for a window that covers all of it.
+  const view = useMemo(
+    () =>
+      createToolcraftTimelineViewWindow({
+        durationSeconds,
+        startSeconds: viewStartSeconds,
+        zoom: isExpanded ? zoom : toolcraftTimelineMinZoom,
+      }),
+    [durationSeconds, isExpanded, viewStartSeconds, zoom],
+  );
   const previousIsExpandedRef = useRef(isExpanded);
   const isExpandCollapseTransition = previousIsExpandedRef.current !== isExpanded;
   const timelinePanelTransition = isExpandCollapseTransition
@@ -234,7 +255,24 @@ export function TimelinePanel({
     durationSeconds,
     setCurrentTimeSeconds,
     setIsPlaying,
+    view,
   });
+  useEffect(() => {
+    // A zoomed window would otherwise sit still while the playhead ran off the
+    // end of it, so the window trails the playhead once it nears an edge.
+    if (!displayedIsPlaying || scrubber.isScrubbing) {
+      return;
+    }
+
+    const nextStartSeconds = getToolcraftTimelineViewStartForVisibleTime({
+      timeSeconds: currentTimeSeconds,
+      view,
+    });
+
+    if (nextStartSeconds !== view.startSeconds) {
+      setViewStartSeconds(nextStartSeconds);
+    }
+  }, [currentTimeSeconds, displayedIsPlaying, scrubber.isScrubbing, view]);
   const deleteKeyframe = useCallback(
     (keyframeId: string): void => {
       dispatch({ keyframeId, type: 'timeline.deleteKeyframe' });
@@ -370,6 +408,21 @@ export function TimelinePanel({
         valueLabel: String(track.to),
       });
     }
+  };
+  const changeZoom = (nextZoom: number): void => {
+    const clampedZoom = clampToolcraftTimelineZoom(nextZoom);
+
+    // Zoom about the playhead rather than about the start of the loop, so the
+    // frame you are looking at is still the frame you are looking at.
+    setViewStartSeconds(
+      getToolcraftTimelineViewStartForAnchor({
+        anchorSeconds: currentTimeSeconds,
+        durationSeconds,
+        view,
+        zoom: clampedZoom,
+      }),
+    );
+    setZoom(clampedZoom);
   };
   const commitCurrentTimeValue = (nextValue: string): void => {
     const parsed = Number.parseFloat(nextValue);
@@ -517,8 +570,10 @@ export function TimelinePanel({
 
             dispatch({ type: 'timeline.togglePlayback' });
           }}
+          onZoomChange={changeZoom}
           stripRef={scrubber.stripRef}
           variant={variant}
+          view={view}
         />
         {isExpanded && keyframesEnabled ? (
           <TimelineExpandedContent
@@ -539,6 +594,7 @@ export function TimelinePanel({
             onSelectedKeyframeChange={setSelectedKeyframeId}
             selectedKeyframeId={selectedKeyframeId}
             stripRef={scrubber.stripRef}
+            view={view}
           />
         ) : null}
       </PanelSurface>

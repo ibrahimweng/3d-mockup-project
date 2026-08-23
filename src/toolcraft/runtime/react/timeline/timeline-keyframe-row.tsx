@@ -15,6 +15,11 @@ import {
   getToolcraftTimelineKeyframeId,
   roundToolcraftTimelineKeyframeTime,
 } from '../../state/timeline-values';
+import {
+  getToolcraftTimelineViewRatio,
+  getToolcraftTimelineViewTime,
+  type ToolcraftTimelineViewWindow,
+} from '../../state/timeline-view-window';
 import { TimelineIconButton } from './timeline-icon-button';
 import { TimelineKeyframeEasingPopover } from './timeline-easing-popover';
 import {
@@ -46,6 +51,7 @@ type TimelineKeyframeRowProps = {
   onMoveKeyframe: (keyframeId: string, timeSeconds: number) => string | null;
   onSelectedKeyframeChange: (keyframeId: string | null) => void;
   selectedKeyframeId: string | null;
+  view: ToolcraftTimelineViewWindow;
 };
 
 function cn(...classNames: Array<string | false | null | undefined>): string {
@@ -58,9 +64,9 @@ function formatTimelineSeconds(value: number): string {
 
 function getTimelineKeyframePositionStyle(
   timeSeconds: number,
-  durationSeconds: number,
+  view: ToolcraftTimelineViewWindow,
 ): CSSProperties {
-  const ratio = Math.max(0, Math.min(1, timeSeconds / durationSeconds));
+  const ratio = getToolcraftTimelineViewRatio(timeSeconds, view);
 
   return getTimelineCalcPositionStyle(ratio, timelineTrackStartVisualOffsetPx * (1 - ratio));
 }
@@ -69,10 +75,12 @@ function getTimelineTrackTimeFromClientX({
   clientX,
   durationSeconds,
   trackElement,
+  view,
 }: {
   clientX: number;
   durationSeconds: number;
   trackElement: HTMLElement;
+  view: ToolcraftTimelineViewWindow;
 }): number {
   const rect = trackElement.getBoundingClientRect();
   const trackLeft = rect.left + timelineTrackStartVisualOffsetPx;
@@ -83,7 +91,7 @@ function getTimelineTrackTimeFromClientX({
   const ratio = Math.max(0, Math.min(1, (clientX - trackLeft) / trackWidth));
 
   return roundToolcraftTimelineKeyframeTime(
-    clampToolcraftTimelineTime(durationSeconds * ratio, durationSeconds),
+    clampToolcraftTimelineTime(getToolcraftTimelineViewTime(ratio, view), durationSeconds),
   );
 }
 
@@ -97,6 +105,7 @@ export function TimelineKeyframeRow({
   onMoveKeyframe,
   onSelectedKeyframeChange,
   selectedKeyframeId,
+  view,
 }: TimelineKeyframeRowProps): React.JSX.Element {
   const [isVisible, setIsVisible] = useState(true);
   const [draftKeyframeTimes, setDraftKeyframeTimes] = useState<Record<string, number>>({});
@@ -158,6 +167,7 @@ export function TimelineKeyframeRow({
       clientX: event.clientX,
       durationSeconds,
       trackElement: dragState.trackElement,
+      view,
     });
 
     dragState.latestTimeSeconds = nextTimeSeconds;
@@ -285,6 +295,13 @@ export function TimelineKeyframeRow({
               {group.keyframes.map((keyframe) => {
                 const isSelected = keyframe.id === selectedKeyframeId;
                 const displayTimeSeconds = draftKeyframeTimes[keyframe.id] ?? keyframe.timeSeconds;
+                const viewRatio = getToolcraftTimelineViewRatio(displayTimeSeconds, view);
+
+                // The track does not clip, so a keyframe outside a zoomed window
+                // would otherwise be drawn over the properties column beside it.
+                if (viewRatio < -0.001 || viewRatio > 1.001) {
+                  return null;
+                }
 
                 return (
                   <motion.button
@@ -323,7 +340,7 @@ export function TimelineKeyframeRow({
                     onPointerDown={(event) => handleKeyframePointerDown(event, keyframe)}
                     onPointerMove={handleKeyframePointerMove}
                     onPointerUp={endKeyframeDrag}
-                    style={getTimelineKeyframePositionStyle(displayTimeSeconds, durationSeconds)}
+                    style={getTimelineKeyframePositionStyle(displayTimeSeconds, view)}
                     title={keyframe.valueLabel}
                     transition={timelineKeyframePresenceTransition}
                     type="button"

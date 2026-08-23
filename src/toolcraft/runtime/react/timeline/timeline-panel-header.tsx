@@ -3,10 +3,17 @@
 import * as React from 'react';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { PrimitiveArrowIcon } from '@/toolcraft/ui';
-import { Pause, Play, Plus, Repeat, Repeat1 } from 'lucide-react';
+import { Pause, Play, Plus, Repeat, Repeat1, Search } from 'lucide-react';
 
 import type { ToolcraftTimelineAnimationSchema } from '../../schema/types';
 import { clampToolcraftTimelineTime } from '../../state/timeline-values';
+import {
+  getToolcraftTimelineViewZoom,
+  getToolcraftTimelineZoomFromSliderRatio,
+  getToolcraftTimelineZoomSliderRatio,
+  toolcraftTimelineMinZoom,
+  type ToolcraftTimelineViewWindow,
+} from '../../state/timeline-view-window';
 import { TimelineIconButton } from './timeline-icon-button';
 
 type TimelinePanelHeaderProps = {
@@ -30,8 +37,10 @@ type TimelinePanelHeaderProps = {
   onToggleExpanded: () => void;
   onToggleLoop: () => void;
   onTogglePlayback: () => void;
+  onZoomChange: (zoom: number) => void;
   stripRef: React.RefObject<HTMLDivElement | null>;
   variant: 'compact' | 'extended';
+  view: ToolcraftTimelineViewWindow;
 };
 
 type TimelinePanelMaskProps = {
@@ -217,6 +226,69 @@ function selectTimelineEditableText(node: HTMLElement): void {
   selection.addRange(range);
 }
 
+function formatTimelineZoomLabel(zoom: number): string {
+  return `${Number.parseFloat(zoom.toFixed(2))}x`;
+}
+
+/**
+ * How much of the loop the track is showing.
+ *
+ * At rest the whole loop is on screen and the readout stays out of the way;
+ * once you are zoomed in, the factor is worth showing because the ruler is no
+ * longer telling you the length of anything you can see end to end.
+ */
+function TimelineZoomControl({
+  onZoomChange,
+  view,
+}: {
+  onZoomChange: (zoom: number) => void;
+  view: ToolcraftTimelineViewWindow;
+}): React.JSX.Element {
+  const zoom = getToolcraftTimelineViewZoom(view);
+  const sliderRatio = getToolcraftTimelineZoomSliderRatio(zoom);
+  const isZoomed = zoom > toolcraftTimelineMinZoom;
+
+  return (
+    <div
+      className="mr-1 inline-flex shrink-0 items-center gap-1.5"
+      data-slot="timeline-zoom"
+      data-zoom={formatTimelineSeconds(zoom)}
+    >
+      <Search
+        aria-hidden="true"
+        className="size-3 shrink-0 text-[color:var(--muted-foreground)] opacity-70"
+      />
+      <input
+        aria-label="Timeline zoom"
+        aria-valuetext={formatTimelineZoomLabel(zoom)}
+        className="h-1 w-16 shrink-0 cursor-ew-resize appearance-none rounded-full bg-[color:color-mix(in_oklab,var(--foreground)_16%,transparent)] outline-none focus-visible:ring-1 focus-visible:ring-[color:var(--link)] [&::-moz-range-thumb]:size-2.5 [&::-moz-range-thumb]:cursor-ew-resize [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-[color:var(--foreground)] [&::-webkit-slider-thumb]:size-2.5 [&::-webkit-slider-thumb]:cursor-ew-resize [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[color:var(--foreground)]"
+        data-slot="timeline-zoom-slider"
+        max={1}
+        min={0}
+        onChange={(event) =>
+          onZoomChange(getToolcraftTimelineZoomFromSliderRatio(event.currentTarget.valueAsNumber))
+        }
+        onClick={(event) => event.stopPropagation()}
+        onPointerDown={(event) => event.stopPropagation()}
+        step={0.001}
+        title={`Timeline zoom (${formatTimelineZoomLabel(zoom)})`}
+        type="range"
+        value={sliderRatio}
+      />
+      <span
+        aria-hidden="true"
+        className={cn(
+          'w-[4ch] shrink-0 font-sans text-xs leading-5 text-[color:var(--muted-foreground)] tabular-nums transition-opacity duration-150 ease-out select-none',
+          isZoomed ? 'opacity-100' : 'opacity-0',
+        )}
+        data-slot="timeline-zoom-value"
+      >
+        {formatTimelineZoomLabel(zoom)}
+      </span>
+    </div>
+  );
+}
+
 /**
  * A number of seconds you can type over.
  *
@@ -329,8 +401,10 @@ export function TimelinePanelHeader({
   onToggleExpanded,
   onToggleLoop,
   onTogglePlayback,
+  onZoomChange,
   stripRef,
   variant,
+  view,
 }: TimelinePanelHeaderProps): React.JSX.Element {
   if (variant === 'compact') {
     return (
@@ -432,6 +506,7 @@ export function TimelinePanelHeader({
           valueSeconds={durationSeconds}
         />
       </div>
+      {isExpanded ? <TimelineZoomControl onZoomChange={onZoomChange} view={view} /> : null}
       {canExpand ? (
         <span className="relative z-10 flex shrink-0" data-slot="timeline-panel-expand-toggle">
           <TimelineIconButton

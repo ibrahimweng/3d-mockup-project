@@ -14,6 +14,11 @@ import {
   toolcraftTimelineScrubStepSeconds,
 } from '../../state/timeline-values';
 import {
+  getToolcraftTimelineViewRatio,
+  isToolcraftTimelineTimeInView,
+  type ToolcraftTimelineViewWindow,
+} from '../../state/timeline-view-window';
+import {
   getTimelineEventTargetElement,
   isEditableTimelineEventTarget,
   isTimelineInteractiveElement,
@@ -52,6 +57,7 @@ type TimelineExpandedContentProps = {
   onSelectedKeyframeChange: (keyframeId: string | null) => void;
   selectedKeyframeId: string | null;
   stripRef: React.RefObject<HTMLDivElement | null>;
+  view: ToolcraftTimelineViewWindow;
 };
 
 function cn(...classNames: Array<string | false | null | undefined>): string {
@@ -62,8 +68,18 @@ function formatTimelineSeconds(value: number): string {
   return value.toFixed(2);
 }
 
-function getTimelineRulerTicks(durationSeconds: number): number[] {
-  return [0, 0.25, 0.5, 0.75, 1].map((ratio) => durationSeconds * ratio);
+function getTimelineRulerTicks(view: ToolcraftTimelineViewWindow): number[] {
+  return [0, 0.25, 0.5, 0.75, 1].map(
+    (ratio) => view.startSeconds + view.spanSeconds * ratio,
+  );
+}
+
+function formatTimelineRulerTick(tick: number, view: ToolcraftTimelineViewWindow): string {
+  // Whole seconds read cleanly across the full loop, but a tight window can span
+  // less than a second, where every label would otherwise round to the same number.
+  const decimals = view.spanSeconds >= 4 ? 0 : view.spanSeconds >= 1 ? 1 : 2;
+
+  return tick.toFixed(decimals);
 }
 
 function getTimelineRulerMarkRatios(): number[] {
@@ -72,9 +88,9 @@ function getTimelineRulerMarkRatios(): number[] {
 
 function getTimelineTrackPositionStyle(
   currentTimeSeconds: number,
-  durationSeconds: number,
+  view: ToolcraftTimelineViewWindow,
 ): CSSProperties {
-  const ratio = Math.max(0, Math.min(1, currentTimeSeconds / durationSeconds));
+  const ratio = Math.max(0, Math.min(1, getToolcraftTimelineViewRatio(currentTimeSeconds, view)));
 
   return getTimelineCalcPositionStyle(
     ratio,
@@ -100,8 +116,10 @@ export function TimelineExpandedContent({
   onSelectedKeyframeChange,
   selectedKeyframeId,
   stripRef,
+  view,
 }: TimelineExpandedContentProps): React.JSX.Element {
-  const trackPlayheadStyle = getTimelineTrackPositionStyle(currentTimeSeconds, durationSeconds);
+  const trackPlayheadStyle = getTimelineTrackPositionStyle(currentTimeSeconds, view);
+  const isPlayheadInView = isToolcraftTimelineTimeInView(currentTimeSeconds, view);
   const selectedKeyframe = findTimelineKeyframe(keyframeGroups, selectedKeyframeId);
   const deleteSelectedKeyframe = (): void => {
     if (!selectedKeyframeId) {
@@ -194,13 +212,13 @@ export function TimelineExpandedContent({
             data-slot="timeline-expanded-ruler-labels"
             style={{ left: timelineRulerLeftInsetPx, right: timelineRulerRightInsetPx }}
           >
-            {getTimelineRulerTicks(durationSeconds).map((tick, index, ticks) => (
+            {getTimelineRulerTicks(view).map((tick, index, ticks) => (
               <span
                 className="absolute top-0 -translate-x-1/2 text-center"
-                key={tick.toFixed(2)}
+                key={`${index}:${tick.toFixed(3)}`}
                 style={{ left: `${(index / (ticks.length - 1)) * 100}%` }}
               >
-                {Math.round(tick)}
+                {formatTimelineRulerTick(tick, view)}
               </span>
             ))}
           </div>
@@ -249,7 +267,11 @@ export function TimelineExpandedContent({
       >
         <span
           aria-hidden="true"
-          className="absolute top-0 bottom-0 z-20 w-px -translate-x-1/2 bg-[color:var(--foreground)]"
+          className={cn(
+            'absolute top-0 bottom-0 z-20 w-px -translate-x-1/2 bg-[color:var(--foreground)]',
+            !isPlayheadInView && 'opacity-30',
+          )}
+          data-out-of-view={isPlayheadInView ? undefined : 'true'}
           data-slot="timeline-expanded-playhead"
           style={trackPlayheadStyle}
         />
@@ -267,7 +289,9 @@ export function TimelineExpandedContent({
           className={cn(
             'absolute top-[-1px] z-30 size-[9px] -translate-x-1/2 -translate-y-1/2 cursor-ew-resize rounded-[2px] bg-[color:var(--foreground)] shadow-[0_2px_2px_color-mix(in_oklab,var(--background)_20%,transparent)] transition-transform duration-[120ms] ease-out',
             isScrubbing && 'scale-[1.25] cursor-grabbing',
+            !isPlayheadInView && 'opacity-40',
           )}
+          data-out-of-view={isPlayheadInView ? undefined : 'true'}
           data-slot="timeline-expanded-playhead-handle"
           style={trackPlayheadStyle}
         />
@@ -293,6 +317,7 @@ export function TimelineExpandedContent({
               onMoveKeyframe={onMoveKeyframe}
               onSelectedKeyframeChange={onSelectedKeyframeChange}
               selectedKeyframeId={selectedKeyframeId}
+              view={view}
             />
           ))}
         </AnimatePresence>
