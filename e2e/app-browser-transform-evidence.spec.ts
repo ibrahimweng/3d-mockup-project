@@ -5,7 +5,7 @@ import {
   getToolcraftApplicabilityRequirementId,
   type ToolcraftControlApplicabilityCase,
 } from "../src/app/app-acceptance";
-import { appControlSectionInventory } from "../src/app/app-acceptance-data";
+import { appAcceptance, appControlSectionInventory } from "../src/app/app-acceptance-data";
 import { appSchema } from "../src/app/app-schema";
 import { expectToolcraftControlApplicabilityState } from "./browser-control-applicability-evidence";
 import { createToolcraftBrowserProofSession } from "./browser-proof-session";
@@ -24,6 +24,18 @@ test.setTimeout(1_800_000);
  * the proof has to hold under every device and every colourway rather than
  * only the one the app happens to open on.
  */
+function browserTestNameFor(requirementId: string): string {
+  const entry = appAcceptance.find((row) => row.id === requirementId);
+
+  if (!entry?.browserTestName) {
+    throw new Error(
+      `No acceptance row declares a browser test for "${requirementId}", so no test can satisfy it.`,
+    );
+  }
+
+  return entry.browserTestName;
+}
+
 type TransformProof = {
   baseRequirementId: string;
   keyframeValue: number;
@@ -106,7 +118,7 @@ for (const proof of transformProofs) {
     target: proof.target,
   });
 
-  test(`browser: ${proof.label} places the device and keyframes with it`, async ({ page }) => {
+  test(browserTestNameFor(proof.baseRequirementId), async ({ page }) => {
     await page.goto("/");
     const session = await createToolcraftBrowserProofSession(page);
     await page.waitForTimeout(4_000);
