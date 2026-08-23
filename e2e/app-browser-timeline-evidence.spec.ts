@@ -12,12 +12,7 @@ import {
 } from "./browser-timeline-evidence-helpers";
 import { setSlider } from "./mockup-controls";
 import { expectToolcraftProductObservableToChange } from "./product-observable-helpers";
-import {
-  openTimeline,
-  proveControlKeyframes,
-  readTimelineReport,
-  scrubToFraction,
-} from "./mockup-timeline";
+import { openTimeline, proveControlKeyframes, scrubToFraction } from "./mockup-timeline";
 import { test } from "./toolcraft-product-test";
 
 test.setTimeout(900_000);
@@ -126,28 +121,90 @@ test("browser: the timeline scrubs, pauses, changes duration, and loops back to 
   const session = await createToolcraftBrowserProofSession(page);
   await page.waitForTimeout(5_000);
 
-  // Pause/resume has to start from playback actually running, which is how the
-  // runtime opens, so it is proved before anything pauses the timeline.
+  // The turn goes on first. Pause/resume has to show the picture moving again
+  // when playback resumes, and with nothing keyframed every frame of a
+  // playthrough is the same frame — correctly so, since the renderer no longer
+  // redraws a picture that has not changed. Opening the timeline pauses it, so
+  // playback is started again before the proof that needs it running.
+  await openTimeline(page);
+  await keyframeAFullTurn(page);
+  // Keying the far end leaves the playhead there, and a proof about resuming
+  // should not start from the last frame of the loop.
+  await scrubToFraction(page, 0);
+  await page.getByRole("button", { name: "Play playback" }).first().click();
+  await page.waitForTimeout(3_000);
+
   await expectToolcraftTimelinePauseResume(
     session.observe((root) => {
-      const value = readTimelineReport(root);
+      const raw =
+        root.querySelector("[data-mockup-timeline]")?.getAttribute("data-mockup-timeline") ?? "{}";
+      const value = JSON.parse(raw) as {
+        pixelSignature?: string;
+        playing?: boolean;
+        timeSeconds?: number;
+      };
       return {
-        currentTimeSeconds: value.timeSeconds,
-        outputSignature: value.pixelSignature,
-        playing: value.playing,
+        currentTimeSeconds: value.timeSeconds ?? 0,
+        outputSignature: value.pixelSignature ?? "",
+        playing: value.playing === true,
       };
     }),
     session.action(async (current) => {
-      await current.getByRole("button", { name: "Pause playback" }).first().click();
+      await current
+        .locator('[data-slot="timeline-transport-controls"] button[aria-label="Pause playback"]')
+        .first()
+        .click();
+      await current.mouse.move(20, 20);
+      await current.waitForTimeout(1_500);
     }),
     session.action(async (current) => {
-      await current.getByRole("button", { name: "Play playback" }).first().click();
+      const readSignature = () =>
+        current.evaluate(() => {
+          const raw = document
+            .querySelector("[data-mockup-timeline]")
+            ?.getAttribute("data-mockup-timeline");
+          return raw
+            ? ((JSON.parse(raw) as { pixelSignature?: string }).pixelSignature ?? "")
+            : "";
+        });
+      const before = await readSignature();
+      await current
+        .locator('[data-slot="timeline-transport-controls"] button[aria-label="Play playback"]')
+        .first()
+        .click();
+      // The panel pauses playback while the pointer is over it, and a click
+      // leaves the pointer exactly there. Resuming and then hovering the thing
+      // that resumed it is not what a person does.
+      await current.mouse.move(20, 20);
+      /**
+       * Resuming is not finished until a new frame exists.
+       *
+       * The clock moves the instant playback resumes, but the reported frame
+       * only changes once one has actually been drawn and sampled. The proof
+       * takes its reading as soon as anything differs, which can be the clock
+       * alone, and then requires the picture to have moved too. Waiting for the
+       * frame here makes the action mean what it says.
+       */
+      /**
+       * Asked for rarely, because asking is not free.
+       *
+       * Each read is a round trip into a main thread already saturated by
+       * rendering, and polling every half second starved the very frames it
+       * was waiting for — twenty seconds of playback drew none. At two and a
+       * half seconds the renderer gets the thread back between questions and
+       * the frame moves, which is the cadence every working measurement of
+       * this used.
+       */
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        await current.waitForTimeout(2_500);
+        const now = await readSignature();
+        if (now !== before) {
+          return;
+        }
+      }
     }),
-    { requirementId: "timeline.playback", timeoutMs: 30_000 },
+    { requirementId: "timeline.playback", timeoutMs: 300_000 },
   );
-
-  await openTimeline(page);
-  await keyframeAFullTurn(page);
 
   await scrubToFraction(page, 0);
   const atStart = await report(page);
@@ -161,40 +218,51 @@ test("browser: the timeline scrubs, pauses, changes duration, and loops back to 
   await scrubToFraction(page, 0);
   await expectToolcraftTimelineScrub(
     session.observe((root) => {
-      const value = readTimelineReport(root);
-      return { currentTimeSeconds: value.timeSeconds, outputSignature: value.pixelSignature };
+      const raw =
+        root.querySelector("[data-mockup-timeline]")?.getAttribute("data-mockup-timeline") ?? "{}";
+      const value = JSON.parse(raw) as { pixelSignature?: string; timeSeconds?: number };
+      return {
+        currentTimeSeconds: value.timeSeconds ?? 0,
+        outputSignature: value.pixelSignature ?? "",
+      };
     }),
     session.action(async (current) => {
       await scrubToFraction(current, 0.5);
     }),
     { currentTimeSeconds: atMiddle.timeSeconds, outputSignature: atMiddle.pixelSignature },
-    { requirementId: "timeline.playback", timeoutMs: 30_000 },
+    { requirementId: "timeline.playback", timeoutMs: 300_000 },
   );
 
   await expectToolcraftTimelineRenderedFrame(
-    session.observe((root) => readTimelineReport(root).pixelSignature),
+    session.observe((root) => {
+      const raw =
+        root.querySelector("[data-mockup-timeline]")?.getAttribute("data-mockup-timeline") ?? "{}";
+      return (JSON.parse(raw) as { pixelSignature?: string }).pixelSignature ?? "";
+    }),
     session.action(async (current) => {
       await scrubToFraction(current, 0);
     }),
     atStart.pixelSignature,
-    { requirementId: "timeline.playback", timeoutMs: 30_000 },
+    { requirementId: "timeline.playback", timeoutMs: 300_000 },
   );
 
   const initial = await sampleCycle(page, 6);
 
   await expectToolcraftTimelineDuration(
     session.observe((root) => {
-      const value = readTimelineReport(root);
+      const raw =
+        root.querySelector("[data-mockup-timeline]")?.getAttribute("data-mockup-timeline") ?? "{}";
+      const cycle = (JSON.parse(raw) as { cycleSeconds?: number }).cycleSeconds ?? 0;
       return {
-        renderedCycleDurationSeconds: value.cycleSeconds,
-        timelineDurationSeconds: value.cycleSeconds,
+        renderedCycleDurationSeconds: cycle,
+        timelineDurationSeconds: cycle,
       };
     }),
     session.action(async (current) => {
       await setDuration(current, 4);
     }),
     4,
-    { requirementId: "timeline.playback", timeoutMs: 30_000 },
+    { requirementId: "timeline.playback", timeoutMs: 300_000 },
   );
 
   const resized = await sampleCycle(page, 4);

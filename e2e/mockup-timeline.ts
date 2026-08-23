@@ -52,22 +52,48 @@ export async function openTimeline(page: Page): Promise<void> {
  * playhead's own hit area is above both.
  */
 export async function scrubToFraction(page: Page, fraction: number): Promise<void> {
-  const hit = await page
-    .locator('[data-slot="timeline-expanded-playhead-hit-area"]')
-    .first()
-    .boundingBox();
-  const ruler = await page.locator('[data-slot="timeline-expanded-ruler"]').first().boundingBox();
-  if (!hit || !ruler) throw new Error("The expanded timeline has no playhead to drag.");
-  const y = hit.y + hit.height / 2;
-  await page.mouse.move(hit.x + hit.width / 2, y);
-  await page.mouse.down();
-  await page.mouse.move(
-    ruler.x + ruler.width * Math.min(0.995, Math.max(0.005, fraction)),
-    y,
-    { steps: 12 },
-  );
-  await page.mouse.up();
-  await page.waitForTimeout(2_200);
+  const target = Math.min(0.995, Math.max(0.005, fraction));
+  const readPhase = () =>
+    page.evaluate(() => {
+      const raw = document
+        .querySelector("[data-mockup-timeline]")
+        ?.getAttribute("data-mockup-timeline");
+      if (!raw) return null;
+      const value = JSON.parse(raw) as { cycleSeconds?: number; timeSeconds?: number };
+      return value.cycleSeconds ? (value.timeSeconds ?? 0) / value.cycleSeconds : null;
+    });
+
+  /**
+   * A drag can miss, so it says whether it landed.
+   *
+   * At the ends of the strip the playhead's hit area hangs off the ruler and a
+   * press aimed at its centre can fall outside anything that listens, which
+   * leaves the playhead where it was and the test comparing against a time it
+   * never reached. Reading the phase back is what turns that from a silent
+   * miss into a retry.
+   */
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const hit = await page
+      .locator('[data-slot="timeline-expanded-playhead-hit-area"]')
+      .first()
+      .boundingBox();
+    const ruler = await page.locator('[data-slot="timeline-expanded-ruler"]').first().boundingBox();
+    if (!hit || !ruler) throw new Error("The expanded timeline has no playhead to drag.");
+    const y = hit.y + hit.height / 2;
+    const from = Math.min(
+      ruler.x + ruler.width - 1,
+      Math.max(ruler.x + 1, hit.x + hit.width / 2),
+    );
+    await page.mouse.move(from, y);
+    await page.mouse.down();
+    await page.mouse.move(ruler.x + ruler.width * target, y, { steps: 12 });
+    await page.mouse.up();
+    await page.waitForTimeout(2_200);
+
+    const landed = await readPhase();
+    if (landed === null || Math.abs(landed - target) < 0.06) return;
+  }
+  throw new Error(`Scrubbing never reached ${Math.round(target * 100)}% of the timeline.`);
 }
 
 /** What the product says about where it is in the animation. */
