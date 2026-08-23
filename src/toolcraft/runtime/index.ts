@@ -25,6 +25,7 @@ export * from "./state/keyframe-evaluation";
 export * from "./state/persistence";
 export * from "./state/reducer";
 export * from "./state/timeline-loop";
+export * from "./state/timeline-object-tracks";
 export * from "./state/timeline-values";
 export * from "./state/timeline-view-window";
 export * from "./state/types";

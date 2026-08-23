@@ -19,6 +19,7 @@ import type {
   ToolcraftTimelineKeyframeGroup,
 } from '../../state/types';
 import { isTimelineReadyForPlayback } from '../../state/timeline-readiness';
+import { getToolcraftTimelineObjectTracks } from '../../state/timeline-object-tracks';
 import {
   clampToolcraftTimelineDurationSeconds,
   clampToolcraftTimelineTime,
@@ -80,7 +81,9 @@ const timelinePanelSurfaceBorderHeightPx = 2;
 const timelinePanelHeaderHeightPx = 36;
 const timelineExpandedRulerHeightPx = 36;
 const timelineEmptyStateHeightPx = timelineKeyframeRowHeightPx;
-const maxVisibleTimelineKeyframeRows = 8;
+// Grouping put an object row above each property row, so the same number of
+// keyed controls now asks for more rows than it used to.
+const maxVisibleTimelineKeyframeRows = 10;
 const timelineKeyframeListMaxHeightPx =
   maxVisibleTimelineKeyframeRows * timelineKeyframeRowHeightPx;
 const timelinePanelExpandCollapseTransition = {
@@ -100,11 +103,10 @@ const selectCommittedTimeline = (state: ToolcraftState) => state.timeline;
 const selectCurrentTimeSeconds = (state: ToolcraftState) =>
   state.timeline.currentTimeSeconds;
 
-function getTimelinePanelExpandedSize(keyframeGroups: readonly ToolcraftTimelineKeyframeGroup[]): {
+function getTimelinePanelExpandedSize(rowCount: number): {
   height: number;
   width: number;
 } {
-  const rowCount = keyframeGroups.length;
   const rowAreaHeight =
     rowCount > 0
       ? Math.min(rowCount * timelineKeyframeRowHeightPx, timelineKeyframeListMaxHeightPx)
@@ -165,10 +167,20 @@ export function TimelinePanel({
   const [isHoverPaused, setIsHoverPaused] = useState(false);
   const [zoom, setZoom] = useState(toolcraftTimelineMinZoom);
   const [viewStartSeconds, setViewStartSeconds] = useState(0);
+  const [collapsedObjectIds, setCollapsedObjectIds] = useState<readonly string[]>([]);
   const displayedIsPlaying = playbackReady && isPlaying;
   const isCompact = variant === 'compact';
   const isExpanded = !isCompact && keyframesEnabled && (expanded || defaultExpandedPending);
-  const expandedPanelSize = getTimelinePanelExpandedSize(keyframeGroups);
+  const objectTracks = useMemo(
+    () => getToolcraftTimelineObjectTracks(keyframeGroups),
+    [keyframeGroups],
+  );
+  const visibleRowCount = objectTracks.reduce(
+    (total, track) =>
+      total + 1 + (collapsedObjectIds.includes(track.objectId) ? 0 : track.groups.length),
+    0,
+  );
+  const expandedPanelSize = getTimelinePanelExpandedSize(visibleRowCount);
   // Only the expanded track can be zoomed; the collapsed header always draws the
   // whole loop, so it asks for a window that covers all of it.
   const view = useMemo(
@@ -419,6 +431,20 @@ export function TimelinePanel({
       });
     }
   };
+  const toggleObjectExpanded = (objectId: string): void => {
+    setCollapsedObjectIds((currentIds) =>
+      currentIds.includes(objectId)
+        ? currentIds.filter((id) => id !== objectId)
+        : [...currentIds, objectId],
+    );
+  };
+  const scrubToTime = (timeSeconds: number): void => {
+    setIsPlaying(false);
+    dispatch({
+      currentTimeSeconds: clampToolcraftTimelineTime(timeSeconds, durationSeconds),
+      type: 'timeline.setCurrentTime',
+    });
+  };
   const panView = (deltaSeconds: number): void => {
     setViewStartSeconds(getToolcraftTimelinePannedViewStart({ deltaSeconds, view }));
   };
@@ -604,8 +630,12 @@ export function TimelinePanel({
             onPointerDown={scrubber.handleScrubPointerDown}
             onPointerMove={scrubber.handleScrubPointerMove}
             onPointerUp={scrubber.handleScrubPointerUp}
+            collapsedObjectIds={collapsedObjectIds}
+            objectTracks={objectTracks}
             onPanView={panView}
+            onScrubToTime={scrubToTime}
             onSelectedKeyframeChange={setSelectedKeyframeId}
+            onToggleObjectExpanded={toggleObjectExpanded}
             onZoomChange={changeZoom}
             selectedKeyframeId={selectedKeyframeId}
             stripRef={scrubber.stripRef}

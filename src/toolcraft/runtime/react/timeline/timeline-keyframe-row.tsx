@@ -44,6 +44,7 @@ type TimelineKeyframeDragState = {
 type TimelineKeyframeRowProps = {
   durationSeconds: number;
   group: ToolcraftTimelineKeyframeGroup;
+  isNested?: boolean;
   isScrubbing: boolean;
   onChangeKeyframeEasing: (keyframeId: string, easing: ToolcraftTimelineKeyframeEasing) => void;
   onDeleteControlKeyframes: (controlId: string) => void;
@@ -98,6 +99,7 @@ function getTimelineTrackTimeFromClientX({
 export function TimelineKeyframeRow({
   durationSeconds,
   group,
+  isNested = false,
   isScrubbing,
   onChangeKeyframeEasing,
   onDeleteControlKeyframes,
@@ -236,7 +238,13 @@ export function TimelineKeyframeRow({
       transition={timelineKeyframePresenceTransition}
     >
       <div className="grid h-9 w-full grid-cols-[164px_minmax(0,1fr)_36px] overflow-visible">
-        <div className="flex h-full min-w-0 items-center gap-1.5 border-r border-[color:color-mix(in_oklab,var(--border)_6%,transparent)] pr-1.5 pl-1 text-[11px] leading-4 text-[color:color-mix(in_oklab,var(--foreground)_75%,transparent)] select-none">
+        <div
+          className={cn(
+            'flex h-full min-w-0 items-center gap-1.5 border-r border-[color:color-mix(in_oklab,var(--border)_6%,transparent)] pr-1.5 text-[11px] leading-4 text-[color:color-mix(in_oklab,var(--foreground)_75%,transparent)] select-none',
+            // Indented under the object it belongs to, so the tree reads as one.
+            isNested ? 'pl-6' : 'pl-1',
+          )}
+        >
           <TimelineIconButton
             label={`Toggle ${group.label} visibility`}
             onClick={() => setIsVisible((currentValue) => !currentValue)}

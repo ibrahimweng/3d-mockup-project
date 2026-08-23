@@ -13,6 +13,7 @@ import {
   roundToolcraftTimelineKeyframeTime,
   toolcraftTimelineScrubStepSeconds,
 } from '../../state/timeline-values';
+import type { ToolcraftTimelineObjectTrack } from '../../state/timeline-object-tracks';
 import {
   getToolcraftTimelineViewRatio,
   getToolcraftTimelineViewZoom,
@@ -26,6 +27,7 @@ import {
 } from './timeline-event-targets';
 import { findTimelineKeyframe } from './timeline-keyframes';
 import { TimelineKeyframeRow } from './timeline-keyframe-row';
+import { TimelineObjectTrackRow } from './timeline-object-track-row';
 import {
   getTimelineCalcPositionStyle,
   timelineExpandedTrackEndOffsetPx,
@@ -55,8 +57,12 @@ type TimelineExpandedContentProps = {
   onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
   onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;
   onPointerUp: (event: React.PointerEvent<HTMLDivElement>) => void;
+  collapsedObjectIds: readonly string[];
+  objectTracks: readonly ToolcraftTimelineObjectTrack[];
   onPanView: (deltaSeconds: number) => void;
+  onScrubToTime: (timeSeconds: number) => void;
   onSelectedKeyframeChange: (keyframeId: string | null) => void;
+  onToggleObjectExpanded: (objectId: string) => void;
   onZoomChange: (zoom: number) => void;
   selectedKeyframeId: string | null;
   stripRef: React.RefObject<HTMLDivElement | null>;
@@ -116,6 +122,7 @@ function getTimelineTrackPositionStyle(
 }
 
 export function TimelineExpandedContent({
+  collapsedObjectIds,
   currentTimeSeconds,
   durationSeconds,
   isScrubbing,
@@ -129,9 +136,12 @@ export function TimelineExpandedContent({
   onMoveKeyframe,
   onPointerDown,
   onPointerMove,
+  objectTracks,
   onPointerUp,
   onPanView,
+  onScrubToTime,
   onSelectedKeyframeChange,
+  onToggleObjectExpanded,
   onZoomChange,
   selectedKeyframeId,
   stripRef,
@@ -214,7 +224,12 @@ export function TimelineExpandedContent({
       return;
     }
 
-    if (view.spanSeconds >= view.durationSeconds) {
+    // A plain vertical wheel scrolls the rows, which is what a list of rows
+    // owes the wheel. Panning takes the across gesture: a trackpad swipe
+    // sideways, or shift with a wheel that only turns one way.
+    const isPanGesture = event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY);
+
+    if (!isPanGesture || view.spanSeconds >= view.durationSeconds) {
       return;
     }
 
@@ -223,8 +238,7 @@ export function TimelineExpandedContent({
       1,
       trackWidth - timelineExpandedTrackStartOffsetPx - timelineExpandedTrackEndOffsetPx,
     );
-    const deltaPx =
-      Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+    const deltaPx = event.deltaX !== 0 ? event.deltaX : event.deltaY;
 
     if (deltaPx === 0) {
       return;
@@ -354,23 +368,53 @@ export function TimelineExpandedContent({
         >
           Add your first keyframe from the properties panel.
         </motion.div>
-        <AnimatePresence initial={false}>
-          {keyframeGroups.map((group) => (
-            <TimelineKeyframeRow
-              durationSeconds={durationSeconds}
-              group={group}
-              isScrubbing={isScrubbing}
-              key={group.controlId}
-              onChangeKeyframeEasing={onChangeKeyframeEasing}
-              onDeleteControlKeyframes={onDeleteControlKeyframes}
-              onKeyframeDragStart={onKeyframeDragStart}
-              onMoveKeyframe={onMoveKeyframe}
-              onSelectedKeyframeChange={onSelectedKeyframeChange}
-              selectedKeyframeId={selectedKeyframeId}
-              view={view}
-            />
-          ))}
-        </AnimatePresence>
+        <div
+          className="absolute inset-0 overflow-x-hidden overflow-y-auto"
+          data-slot="timeline-expanded-rows"
+        >
+          <AnimatePresence initial={false}>
+          {objectTracks.flatMap((track) => {
+            const isTrackExpanded = !collapsedObjectIds.includes(track.objectId);
+
+            return [
+              <TimelineObjectTrackRow
+                isExpanded={isTrackExpanded}
+                isScrubbing={isScrubbing}
+                key={`object:${track.objectId}`}
+                onDeleteObjectKeyframes={(deletedTrack) => {
+                  onSelectedKeyframeChange(null);
+
+                  for (const group of deletedTrack.groups) {
+                    onDeleteControlKeyframes(group.controlId);
+                  }
+                }}
+                onScrubToTime={onScrubToTime}
+                onToggleExpanded={onToggleObjectExpanded}
+                track={track}
+                view={view}
+              />,
+              ...(isTrackExpanded
+                ? track.groups.map((group) => (
+                    <TimelineKeyframeRow
+                      durationSeconds={durationSeconds}
+                      group={group}
+                      isNested
+                      isScrubbing={isScrubbing}
+                      key={group.controlId}
+                      onChangeKeyframeEasing={onChangeKeyframeEasing}
+                      onDeleteControlKeyframes={onDeleteControlKeyframes}
+                      onKeyframeDragStart={onKeyframeDragStart}
+                      onMoveKeyframe={onMoveKeyframe}
+                      onSelectedKeyframeChange={onSelectedKeyframeChange}
+                      selectedKeyframeId={selectedKeyframeId}
+                      view={view}
+                    />
+                  ))
+                : []),
+            ];
+          })}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );

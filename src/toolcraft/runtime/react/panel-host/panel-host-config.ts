@@ -1,7 +1,8 @@
 import type { ToolcraftPanelType, PanelDragMode, PanelSnapEdge } from "./panel-host-types";
 
-type PanelTypeConfig = {
+export type PanelTypeConfig = {
   dragMode: PanelDragMode;
+  innerClassName?: string;
   panelId: ToolcraftPanelType;
   snapEdges: readonly PanelSnapEdge[];
   stageClassName: string;
@@ -28,6 +29,11 @@ export const panelHostConfig = {
     panelId: "timeline",
     snapEdges: ["top", "bottom"],
     stageClassName: "min-h-[320px]",
+    // The band runs the width of the window, but the panel inside it stops
+    // where the controls panel begins. Without this the host stayed full width
+    // and took pointer events across a strip where it draws nothing, which put
+    // an invisible lid over the bottom of the controls panel.
+    innerClassName: "w-fit",
     // A band of its own beneath the stage rather than a panel floating over
     // it, so the canvas ends where the timeline begins.
     wrapperClassName: "relative z-40 w-full shrink-0 px-2.5 pb-2.5",

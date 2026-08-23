@@ -15,6 +15,7 @@ import {
   panelDragIgnoredTargetSelector,
   panelDragTransition,
   panelHostConfig,
+  type PanelTypeConfig,
   panelSnapAnimation,
 } from "./panel-host-config";
 import {
@@ -244,7 +245,7 @@ export function PanelHost({
   snapEdge,
   style,
 }: PanelHostProps): React.JSX.Element {
-  const config = panelHostConfig[panelType];
+  const config: PanelTypeConfig = panelHostConfig[panelType];
   const resolvedDragMode = dragMode ?? config.dragMode;
   const resolvedSnap = snap ?? { edges: config.snapEdges };
   const resolvedPanelId = panelId ?? config.panelId;
@@ -308,7 +309,12 @@ export function PanelHost({
   return (
     <div className={cn("pointer-events-none", config.wrapperClassName, className)} style={style}>
       <motion.div
-        className={cn("pointer-events-auto", isDragging && "cursor-grabbing", innerClassName)}
+        className={cn(
+          "pointer-events-auto",
+          isDragging && "cursor-grabbing",
+          config.innerClassName,
+          innerClassName,
+        )}
         data-dragging={isDragging ? "true" : "false"}
         data-drag-mode={resolvedDragMode}
         data-panel-id={resolvedPanelId}
@@ -398,7 +404,7 @@ export function PanelContainer({
   placement,
   ...props
 }: PanelContainerProps): React.JSX.Element {
-  const config = panelHostConfig[panelType];
+  const config: PanelTypeConfig = panelHostConfig[panelType];
 
   if (placement === "surface") {
     return <>{children}</>;
