@@ -114,6 +114,40 @@ async function sampleCycle(
   };
 }
 
+/**
+ * A time's frame, once it has proved it draws the same way twice.
+ *
+ * The renderer is very slightly history-sensitive: the same time reached by
+ * different routes can differ in texture detail on the device, stably and
+ * reproducibly, which is recorded as a defect in its own right. A proof that
+ * scrubs to a time and expects that time's frame therefore has to expect a
+ * frame it has actually seen twice from the same approach, rather than one
+ * captured earlier by a different road. Repeating the approach until two
+ * arrivals agree is what makes the expectation honest rather than hopeful.
+ */
+async function reproducibleFrameAt(
+  page: Page,
+  fraction: number,
+): Promise<{ pixelSignature: string; timeSeconds: number }> {
+  let previous: { pixelSignature: string; timeSeconds: number } | null = null;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    await scrubToFraction(page, 0);
+    await scrubToFraction(page, fraction);
+    const arrival = await report(page);
+    if (
+      previous &&
+      previous.pixelSignature === arrival.pixelSignature &&
+      Math.abs(previous.timeSeconds - arrival.timeSeconds) < 0.001
+    ) {
+      return arrival;
+    }
+    previous = arrival;
+  }
+  throw new Error(
+    `Scrubbing to ${Math.round(fraction * 100)}% never drew the same frame twice running.`,
+  );
+}
+
 test("browser: the timeline scrubs, pauses, changes duration, and loops back to the frame it started on", async ({
   page,
 }) => {
@@ -206,10 +240,8 @@ test("browser: the timeline scrubs, pauses, changes duration, and loops back to 
     { requirementId: "timeline.playback", timeoutMs: 300_000 },
   );
 
-  await scrubToFraction(page, 0);
-  const atStart = await report(page);
-  await scrubToFraction(page, 0.5);
-  const atMiddle = await report(page);
+  const atStart = await reproducibleFrameAt(page, 0.01);
+  const atMiddle = await reproducibleFrameAt(page, 0.5);
   expect(
     atMiddle.pixelSignature,
     "Half way through a full turn must not draw the frame it started on.",
@@ -237,8 +269,7 @@ test("browser: the timeline scrubs, pauses, changes duration, and loops back to 
   // the scrub proof: what is being proved is that a time draws its own frame,
   // and the comparison should not also be carrying the drift of every scrub in
   // between.
-  await scrubToFraction(page, 0);
-  const returnFrame = (await report(page)).pixelSignature;
+  const returnFrame = (await reproducibleFrameAt(page, 0.01)).pixelSignature;
   await scrubToFraction(page, 0.5);
   await expectToolcraftTimelineRenderedFrame(
     session.observe((root) => {
@@ -248,6 +279,7 @@ test("browser: the timeline scrubs, pauses, changes duration, and loops back to 
     }),
     session.action(async (current) => {
       await scrubToFraction(current, 0);
+      await scrubToFraction(current, 0.01);
     }),
     returnFrame,
     { requirementId: "timeline.playback", timeoutMs: 300_000 },
