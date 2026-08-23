@@ -9,8 +9,8 @@ import { appControlSectionInventory } from "../src/app/app-acceptance-data";
 import { appSchema } from "../src/app/app-schema";
 import { expectToolcraftControlApplicabilityState } from "./browser-control-applicability-evidence";
 import { createToolcraftBrowserProofSession } from "./browser-proof-session";
-import { pickOption, typeSliderValue } from "./mockup-controls";
-import { openTimeline, proveControlKeyframes, settlePicture } from "./mockup-timeline";
+import { pickOption, settleProductRaster, typeSliderValue } from "./mockup-controls";
+import { openTimeline, proveControlKeyframes } from "./mockup-timeline";
 import { expectToolcraftProductObservableToChange } from "./product-observable-helpers";
 import { test } from "./toolcraft-product-test";
 
@@ -139,11 +139,12 @@ for (const proof of transformProofs) {
         { baseRequirementId: proof.baseRequirementId, timeoutMs: 30_000 },
       );
 
-      // Switching branches can swap the model, and parsing twenty megabytes of
-      // geometry outlasts any fixed wait. The next check asks for a baseline
-      // that holds still before the action, so it has to start from a frame
-      // that has stopped changing rather than one still arriving.
-      await settlePicture(page);
+      // Switching branches can swap the model, and the frame takes five or six
+      // seconds to arrive afterwards — longer than the fixed wait the branch
+      // selection ends on, and longer than the timeline's own signature takes
+      // to stop changing. The next check needs a baseline that holds still, so
+      // it waits on the same whole-canvas picture that check reads.
+      await settleProductRaster(page);
 
       await expectToolcraftProductObservableToChange(
         session,

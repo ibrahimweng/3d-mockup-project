@@ -79,6 +79,38 @@ export async function readSlider(control: Locator): Promise<number> {
   return Number(await control.locator("input[type=range]").first().inputValue());
 }
 
+/**
+ * Wait on the same picture the product-observable proofs hash.
+ *
+ * Those proofs screenshot the whole canvas and require the baseline to hold
+ * still before the interaction they measure. The timeline's published
+ * signature is a four-row strip across the middle of the frame, which stops
+ * changing sooner than the frame does: after a model swap the strip repeats
+ * within a couple of seconds while the raster is still arriving five or six
+ * seconds in. Settling on the strip therefore hands those proofs a baseline
+ * that is still moving. This settles on what they actually read.
+ */
+export async function settleProductRaster(page: Page): Promise<void> {
+  const target = page
+    .locator(
+      [
+        "[data-toolcraft-product-output]",
+        "[data-toolcraft-canvas-slot] canvas",
+        "[data-toolcraft-canvas-world] canvas",
+      ].join(", "),
+    )
+    .first();
+  let previous: Buffer | null = null;
+
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    const shot = await target.screenshot();
+
+    if (previous && Buffer.compare(previous, shot) === 0) return;
+    previous = shot;
+    await page.waitForTimeout(400);
+  }
+}
+
 /** Wait for the scene to stop changing, so a comparison is against a finished frame. */
 export async function settle(page: Page, canvas: Locator): Promise<void> {
   let previous: Buffer | null = null;
