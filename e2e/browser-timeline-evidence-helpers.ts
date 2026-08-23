@@ -83,6 +83,7 @@ export async function expectToolcraftTimelineDuration(
   await attachToolcraftBrowserRuntimeEvidence({
     evidenceType: "timeline-duration",
     requirementId: options.requirementId,
+    target: options.target,
   });
   return after;
 }
@@ -115,6 +116,7 @@ export async function expectToolcraftTimelineScrub(
   await attachToolcraftBrowserRuntimeEvidence({
     evidenceType: "timeline-scrub",
     requirementId: options.requirementId,
+    target: options.target,
   });
   return after;
 }
@@ -137,10 +139,12 @@ export async function expectToolcraftTimelineRenderedFrame<T>(
   await attachToolcraftBrowserRuntimeEvidence({
     evidenceType: "timeline-rendered-frame",
     requirementId: options.requirementId,
+    target: options.target,
   });
   await attachToolcraftBrowserRuntimeEvidence({
     evidenceType: "product-observable-change",
     requirementId: options.requirementId,
+    target: options.target,
   });
   return after;
 }
@@ -177,6 +181,7 @@ export async function expectToolcraftTimelineKeyframes(
   await attachToolcraftBrowserRuntimeEvidence({
     evidenceType: "timeline-keyframes",
     requirementId: options.requirementId,
+    target: options.target,
   });
   return after;
 }
@@ -233,7 +238,7 @@ function validateLoopCycle(
 
 export async function expectToolcraftTimelineLoop(
   collectProof: ToolcraftBrowserObservation<ToolcraftTimelineLoopProof>,
-  options: Pick<ToolcraftSemanticEvidenceOptions, "requirementId">,
+  options: Pick<ToolcraftSemanticEvidenceOptions, "requirementId" | "target">,
 ): Promise<ToolcraftTimelineLoopProof> {
   const proof = await readToolcraftBrowserObservation(collectProof);
   validateLoopCycle(proof.initial, `Timeline loop "${options.requirementId}"`);
@@ -248,6 +253,7 @@ export async function expectToolcraftTimelineLoop(
   await attachToolcraftBrowserRuntimeEvidence({
     evidenceType: "timeline-loop",
     requirementId: options.requirementId,
+    target: options.target,
   });
   return proof;
 }
@@ -318,6 +324,7 @@ export async function expectToolcraftTimelinePauseResume(
   await attachToolcraftBrowserRuntimeEvidence({
     evidenceType: "timeline-pause-resume",
     requirementId: options.requirementId,
+    target: options.target,
   });
   return resumed;
 }
