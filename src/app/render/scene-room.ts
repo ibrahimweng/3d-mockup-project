@@ -43,7 +43,7 @@ export type Room = {
    * horizontal plane leaves a rotation about the upright axis alone, so the
    * reflection takes the same angle rather than the opposite one.
    */
-  setMirrorSpin: (radians: number) => void;
+  setMirrorPose: (subjectWorldMatrix: THREE.Matrix4) => void;
   updateMirrorVisibility: () => void;
   visible: () => boolean;
   /** Repaint and re-show the ground and the paper, without deciding anything else. */
@@ -99,8 +99,15 @@ export function createRoom(
    */
   let ground: THREE.Mesh;
   const mirror = subject.clone(true);
-  mirror.scale.y *= -1;
-  mirror.position.y = 2 * groundY - subject.position.y;
+  const mirrorSourcePosition = new THREE.Vector3();
+  const mirrorSourceQuaternion = new THREE.Quaternion();
+  const mirrorSourceScale = new THREE.Vector3(1, 1, 1);
+  subject.updateWorldMatrix(true, false);
+  subject.matrixWorld.decompose(
+    mirrorSourcePosition,
+    mirrorSourceQuaternion,
+    mirrorSourceScale,
+  );
   mirror.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
     object.castShadow = false;
@@ -386,9 +393,46 @@ export function createRoom(
    * exposed, upside down and at full strength. A low hero angle is a normal
    * thing to want, so this has to be handled rather than avoided.
    */
-  const setMirrorSpin = (radians: number): void => {
-    mirror.rotation.y = radians;
+  /**
+   * Put the reflection wherever the device now is.
+   *
+   * Reflecting a transform through the floor plane is not the same as copying
+   * it and flipping the height. The position mirrors about the floor, the
+   * height inverts, and the rotation inverts about the two axes that lie in
+   * the plane while the one standing perpendicular to it is left alone —
+   * spinning is the same seen from below, leaning is not. Copying the rotation
+   * outright was right only while spin was the only rotation there was.
+   */
+  const refreshMirror = (): void => {
+    mirror.position.set(
+      mirrorSourcePosition.x,
+      2 * floorY - mirrorSourcePosition.y,
+      mirrorSourcePosition.z,
+    );
+    mirror.quaternion.set(
+      -mirrorSourceQuaternion.x,
+      mirrorSourceQuaternion.y,
+      -mirrorSourceQuaternion.z,
+      mirrorSourceQuaternion.w,
+    );
+    mirror.scale.set(
+      mirrorSourceScale.x,
+      -mirrorSourceScale.y,
+      mirrorSourceScale.z,
+    );
   };
+
+  const setMirrorPose = (subjectWorldMatrix: THREE.Matrix4): void => {
+    subjectWorldMatrix.decompose(
+      mirrorSourcePosition,
+      mirrorSourceQuaternion,
+      mirrorSourceScale,
+    );
+    refreshMirror();
+  };
+
+  // The clone is built before the floor is known, so it starts unreflected.
+  refreshMirror();
 
   const updateMirrorVisibility = (): void => {
     mirror.visible =
@@ -401,7 +445,7 @@ export function createRoom(
   /** Move the room to wherever its floor now is. */
   const placeFloor = (): void => {
     if (groundMesh) groundMesh.position.y = floorY - sphere.radius * 0.002;
-    mirror.position.y = 2 * floorY - subject.position.y;
+    refreshMirror();
   };
 
   /**
@@ -511,7 +555,7 @@ export function createRoom(
     sweepLight: () => sweepLight,
     sweepMesh: () => sweepMesh,
     sweepSurface: () => sweepSurface,
-    setMirrorSpin,
+    setMirrorPose,
     updateMirrorVisibility,
     visible: () => groundVisible,
     wearGround: (visible: boolean, color: string) => {

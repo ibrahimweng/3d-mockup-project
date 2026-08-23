@@ -49,6 +49,20 @@ export type RasterSettings = {
   showBackground: boolean;
   /** How far the device is turned about its own upright axis, in degrees. */
   spin: number;
+  /**
+   * Where the device stands and how big it is.
+   *
+   * The offsets are fractions of the device's own radius rather than scene
+   * units, so the same numbers place a watch and a laptop the same way.
+   */
+  transform: {
+    offsetX: number;
+    offsetY: number;
+    offsetZ: number;
+    roll: number;
+    scale: number;
+    tilt: number;
+  };
   surface: SurfaceSettings;
   sweep: SweepSettings;
   /** How tightly the picture is cropped on the fitted framing, 1 being it. */
@@ -261,6 +275,7 @@ export class RasterRenderer {
       settings.lighting,
       settings.showBackground,
       settings.spin,
+      settings.transform,
       settings.surface,
       settings.sweep,
     ]);
@@ -274,7 +289,7 @@ export class RasterRenderer {
     built.setSweep(settings.sweep);
     built.setGround(settings.showBackground, settings.backgroundColor);
     built.setFloor(settings.floor);
-    built.setSpin(settings.spin);
+    built.setTransform({ ...settings.transform, spin: settings.spin });
     // Colour, lights and the ground plane all feed the depth map.
     this.invalidateShadow();
   }

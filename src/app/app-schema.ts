@@ -57,6 +57,20 @@ export const appSchema = defineToolcraft({
               target: "device.finish",
               type: "select",
             },
+          },
+          id: "device",
+          title: "Device",
+        },
+        /**
+         * Where the device is and how it is turned, kept apart from what it is.
+         *
+         * Picking a model and repainting it is one decision; posing it is
+         * another, and the pose is the half you come back to. Together they
+         * would be nine controls in one section, past the size a section is
+         * meant to be and past the point the panel reads at a glance.
+         */
+        {
+          controls: {
             spin: {
               applicability: { mode: "always" },
               defaultValue: 0,
@@ -74,9 +88,111 @@ export const appSchema = defineToolcraft({
               type: "slider",
               unit: "\u00b0",
             },
+            tilt: {
+              applicability: { mode: "always" },
+              defaultValue: 0,
+              description:
+                "Pitch the device forward or back, as though tipping the top of it towards the camera. Spin turns it on the spot; this leans it.",
+              label: "Tilt",
+              max: 90,
+              min: -90,
+              performanceReason:
+                "Tilt rotates the subject and redraws one frame; the model, its materials and the environment are untouched.",
+              performanceRole: "responsiveness",
+              sliderValueKind: "continuous",
+              step: 1,
+              target: "device.tilt",
+              type: "slider",
+              unit: "\u00b0",
+            },
+            roll: {
+              applicability: { mode: "always" },
+              defaultValue: 0,
+              description:
+                "Cant the device sideways, the way a hand holds a phone off square. Small amounts read as a casual angle; ninety degrees lays it flat on its side.",
+              label: "Roll",
+              max: 180,
+              min: -180,
+              performanceReason:
+                "Roll rotates the subject and redraws one frame; the model, its materials and the environment are untouched.",
+              performanceRole: "responsiveness",
+              sliderValueKind: "continuous",
+              step: 1,
+              target: "device.roll",
+              type: "slider",
+              unit: "\u00b0",
+            },
+            positionX: {
+              applicability: { mode: "always" },
+              defaultValue: 0,
+              description:
+                "Slide the device across the set, left or right of centre. Measured against the device's own size, so the same number places any model the same way.",
+              label: "Position X",
+              max: 200,
+              min: -200,
+              performanceReason:
+                "Position moves the subject and redraws one frame; the model, its materials and the environment are untouched.",
+              performanceRole: "responsiveness",
+              sliderValueKind: "continuous",
+              step: 1,
+              target: "device.positionX",
+              type: "slider",
+              unit: "%",
+            },
+            positionY: {
+              applicability: { mode: "always" },
+              defaultValue: 0,
+              description:
+                "Lift the device off the floor or sink it into one. Zero stands it on the surface it belongs on, whether that is the ground or a table top.",
+              label: "Position Y",
+              max: 200,
+              min: -200,
+              performanceReason:
+                "Position moves the subject and redraws one frame; the model, its materials and the environment are untouched.",
+              performanceRole: "responsiveness",
+              sliderValueKind: "continuous",
+              step: 1,
+              target: "device.positionY",
+              type: "slider",
+              unit: "%",
+            },
+            positionZ: {
+              applicability: { mode: "always" },
+              defaultValue: 0,
+              description:
+                "Move the device towards the camera or back into the set. Nearer reads larger and throws its shadow further behind it.",
+              label: "Position Z",
+              max: 200,
+              min: -200,
+              performanceReason:
+                "Position moves the subject and redraws one frame; the model, its materials and the environment are untouched.",
+              performanceRole: "responsiveness",
+              sliderValueKind: "continuous",
+              step: 1,
+              target: "device.positionZ",
+              type: "slider",
+              unit: "%",
+            },
+            scale: {
+              applicability: { mode: "always" },
+              defaultValue: 100,
+              description:
+                "Resize the device without moving the camera. It grows from its feet rather than its middle, so it stays standing on the surface as it changes size.",
+              label: "Scale",
+              max: 400,
+              min: 25,
+              performanceReason:
+                "Scale resizes the subject and redraws one frame; the model, its materials and the environment are untouched.",
+              performanceRole: "responsiveness",
+              sliderValueKind: "continuous",
+              step: 1,
+              target: "device.scale",
+              type: "slider",
+              unit: "%",
+            },
           },
-          id: "device",
-          title: "Device",
+          id: "transform",
+          title: "Transform",
         },
         {
           controls: {

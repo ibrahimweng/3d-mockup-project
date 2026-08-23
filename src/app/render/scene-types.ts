@@ -77,6 +77,23 @@ export type FloorSettings = {
   /** Surface roughness of the floor itself, 0 polished to 1 matte. */
   roughness: number;
 };
+/**
+ * How the device is standing.
+ *
+ * Angles are degrees, scale is a multiplier where 1 is the model's own size,
+ * and the offsets are fractions of the device's radius rather than scene
+ * units, so the same numbers place any model the same way.
+ */
+export type DeviceTransform = {
+  offsetX: number;
+  offsetY: number;
+  offsetZ: number;
+  roll: number;
+  scale: number;
+  spin: number;
+  tilt: number;
+};
+
 export type DeviceScene = {
   camera: THREE.PerspectiveCamera;
   dispose: () => void;
@@ -107,12 +124,12 @@ export type DeviceScene = {
   /** Swap the captured studio without rebuilding anything. */
   setEnvironment: (environment: THREE.Texture) => void;
   /**
-   * Turn the device about its own upright axis, in degrees.
+   * Stand the device somewhere, turned some way, at some size.
    *
-   * Returns whether the angle actually moved, so a redraw is only spent when
+   * Returns whether the pose actually changed, so a redraw is only spent when
    * there is something new to draw.
    */
-  setSpin: (degrees: number) => boolean;
+  setTransform: (transform: DeviceTransform) => boolean;
   /** The device geometry, so a hit test can ignore the ground. */
   subject: THREE.Object3D;
   /** Set the artwork shown on the display, or null to leave it dark. */

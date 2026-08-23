@@ -99,6 +99,7 @@ describe("appSchema", () => {
     // the runtime into unlabelled fragments, so the authored ids must survive.
     expect(productSections.map((section) => section.id)).toEqual([
       "device",
+      "transform",
       "artwork",
       "screen-fit",
       "studio",

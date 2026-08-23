@@ -14,6 +14,7 @@ import { createTable } from "./scene-table";
 import { createSurfaceGeometry } from "./surface-geometry";
 import type {
   DeviceScene,
+  DeviceTransform,
   FloorSettings,
   LightingSettings,
   SurfaceSettings,
@@ -22,6 +23,7 @@ import type {
 
 export type {
   DeviceScene,
+  DeviceTransform,
   FloorSettings,
   LightingSettings,
   SurfaceSettings,
@@ -624,14 +626,58 @@ export async function buildDeviceScene(options: {
     subject,
     framing,
     standTop: groundY,
-    setSpin: (degrees: number): boolean => {
-      const radians = (degrees * Math.PI) / 180;
-      if (spinner.rotation.y === radians) return false;
-      spinner.rotation.y = radians;
-      // The floor's reflection is a separate clone of the device, so it has to
-      // be turned too or the device rotates while its reflection faces the way
-      // it started.
-      room.setMirrorSpin(radians);
+    /**
+     * Stand the device somewhere, turned some way, at some size.
+     *
+     * Everything here happens on the turntable group rather than the device
+     * itself, because the device has been translated so its centre sits on the
+     * origin and a rotation would apply before that translation — it would
+     * swing around the model's own origin instead of turning on the spot.
+     *
+     * Scale grows the device from its feet, not its middle. Scaling about the
+     * centre would sink half the growth through the floor, so the group is
+     * lifted by whatever the scaling moved the feet.
+     *
+     * Offsets are fractions of the device's own radius, so the same numbers
+     * place any model the same way rather than meaning something different for
+     * every model that comes through.
+     */
+    setTransform: (transform: DeviceTransform): boolean => {
+      const scale = Math.max(0.01, transform.scale);
+      const offsetScale = sphere.radius;
+      const footLift = groundY * (1 - scale);
+      const nextPosition = new THREE.Vector3(
+        transform.offsetX * offsetScale,
+        transform.offsetY * offsetScale + footLift,
+        transform.offsetZ * offsetScale,
+      );
+      // Spin last, about the room's vertical, so it stays a turntable however
+      // the device is posed: a leaning device sweeps around like something on
+      // a display stand. Tilting last instead would keep the lean pointed at
+      // the camera through the whole turn, which is a gimbal, not a turntable.
+      const nextRotation = new THREE.Euler(
+        THREE.MathUtils.degToRad(transform.tilt),
+        THREE.MathUtils.degToRad(transform.spin),
+        THREE.MathUtils.degToRad(transform.roll),
+        "YXZ",
+      );
+
+      if (
+        spinner.position.equals(nextPosition) &&
+        spinner.rotation.equals(nextRotation) &&
+        spinner.scale.x === scale
+      ) {
+        return false;
+      }
+
+      spinner.position.copy(nextPosition);
+      spinner.rotation.copy(nextRotation);
+      spinner.scale.setScalar(scale);
+      // The floor's reflection is a separate clone of the device rather than a
+      // child of it, so it has to be posed too or the device moves while its
+      // reflection stays where it started.
+      spinner.updateWorldMatrix(false, true);
+      room.setMirrorPose(subject.matrixWorld);
       return true;
     },
     subjectRadius: sphere.radius,
