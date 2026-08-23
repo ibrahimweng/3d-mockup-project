@@ -264,6 +264,24 @@ export async function proveControlKeyframes(
    * defect in its own right and is recorded in the worklog; controlling for it
    * here keeps this proof about keyframes rather than about that.
    */
+  /**
+   * Draw the value once and throw the frame away.
+   *
+   * The first frame drawn at a size or position the renderer has not used
+   * before is not the frame it settles on. Measured three passes running at
+   * one value, the first gives one signature and every pass after it gives
+   * another, each stable through a further six seconds — so it is not an
+   * unsettled frame but a warm-up, and the same one behind the logo detail
+   * this app's worklog records as crisp by one route and smeared by another.
+   * Both halves of this proof have to be drawn warm, or the measurement is
+   * taken cold and compared against a proof that is not.
+   */
+  await clearKeyframes();
+  await options.reset(control);
+  await settlePicture(page);
+  await options.setValue(control);
+  await settlePicture(page);
+
   await clearKeyframes();
   await options.reset(control);
   await settlePicture(page);
