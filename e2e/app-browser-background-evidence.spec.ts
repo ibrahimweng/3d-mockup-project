@@ -31,8 +31,8 @@ function readBackgroundPreview(root: HTMLElement): {
   backgroundVisible: boolean;
   outputSignature: string;
 } {
-  const toggle = [...root.querySelectorAll('[role="switch"]')].find(
-    (node) => (node.getAttribute("aria-label") ?? "").trim() === "Background",
+  const toggle = root.querySelector(
+    '[data-toolcraft-control-target="export.includeBackground"] [role="switch"]',
   );
   const backdrop = root.querySelectorAll(
     '[data-toolcraft-control-target="backdrop.height"]',
@@ -55,8 +55,8 @@ test("browser: turning Background off leaves only the device and its shadow, and
   await expectToolcraftReferenceParity(
     () =>
       page.evaluate(() => {
-        const toggle = [...document.querySelectorAll('[role="switch"]')].find(
-          (node) => (node.getAttribute("aria-label") ?? "").trim() === "Background",
+        const toggle = document.querySelector(
+          '[data-toolcraft-control-target="export.includeBackground"] [role="switch"]',
         );
         return toggle?.getAttribute("aria-checked") === "true";
       }),
