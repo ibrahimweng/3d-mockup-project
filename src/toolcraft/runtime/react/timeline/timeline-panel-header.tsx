@@ -3,8 +3,9 @@
 import * as React from 'react';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { PrimitiveArrowIcon } from '@/toolcraft/ui';
-import { Pause, Play, Repeat, Repeat1 } from 'lucide-react';
+import { Pause, Play, Plus, Repeat, Repeat1 } from 'lucide-react';
 
+import type { ToolcraftTimelineAnimationSchema } from '../../schema/types';
 import { clampToolcraftTimelineTime } from '../../state/timeline-values';
 import { TimelineIconButton } from './timeline-icon-button';
 
@@ -17,6 +18,8 @@ type TimelinePanelHeaderProps = {
   isPlaying: boolean;
   isScrubbing: boolean;
   playbackReady: boolean;
+  animations: readonly ToolcraftTimelineAnimationSchema[];
+  onAddAnimation: (animationId: string) => void;
   onCurrentTimeCommit: (value: string) => void;
   onDurationCommit: (value: string) => void;
   onScrubKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void;
@@ -306,9 +309,11 @@ function TimelineTimeValue({
 }
 
 export function TimelinePanelHeader({
+  animations,
   canExpand,
   currentTimeSeconds,
   durationSeconds,
+  onAddAnimation,
   onCurrentTimeCommit,
   isExpanded,
   isLooping,
@@ -379,6 +384,29 @@ export function TimelinePanelHeader({
         </TimelineIconButton>
       </div>
       <TimelinePanelDivider />
+      {/*
+        The move most people came for, as one press. Keying a turntable by hand
+        is four steps for the animation this kind of product exists to make.
+      */}
+      {animations.length > 0 ? (
+        <div className="inline-flex shrink-0 items-center gap-1" data-slot="timeline-add-animation">
+          {animations.map((animation) => (
+            <button
+              className="inline-flex h-6 shrink-0 items-center gap-1 rounded px-2 font-sans text-xs leading-5 text-[color:var(--muted-foreground)] transition-colors duration-150 ease-out hover:bg-[color:color-mix(in_oklab,var(--foreground)_8%,transparent)] hover:text-[color:var(--foreground)] focus-visible:outline-none"
+              key={animation.id}
+              onClick={(event) => {
+                event.stopPropagation();
+                onAddAnimation(animation.id);
+              }}
+              onPointerDown={(event) => event.stopPropagation()}
+              type="button"
+            >
+              <Plus className="size-3" />
+              {animation.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <span className="flex-1" />
       {/*
         Where you are, and how long the whole thing is — both typeable.

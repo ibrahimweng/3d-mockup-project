@@ -70,6 +70,11 @@ export function resolveToolcraftTimelinePanel(
   }
 
   return {
+    // Only present when a product declares presets, so a product without them
+    // resolves to exactly the shape it always did.
+    ...(timeline.animations && timeline.animations.length > 0
+      ? { animations: timeline.animations }
+      : {}),
     defaultDurationSeconds: clampToolcraftTimelineDurationSeconds(
       timeline.defaultDurationSeconds,
     ),

@@ -701,6 +701,23 @@ export const appSchema = defineToolcraft({
      * the thirtieth-of-a-second frames a video export is cut into.
      */
     timeline: {
+      /**
+       * The turn, as one press.
+       *
+       * Keying it by hand is four steps — key the angle at the start, move the
+       * playhead to the end, change the angle, come back — for the animation
+       * this product exists to make. A full revolution over the whole loop is
+       * what a turntable is, so that is what the preset lays down.
+       */
+      animations: [
+        {
+          id: "turntable",
+          label: "Turntable",
+          tracks: [
+            { controlLabel: "Spin", from: 0, target: "device.spin", to: 360 },
+          ],
+        },
+      ],
       defaultDurationSeconds: 6,
       enabled: true,
       mode: "keyframes",

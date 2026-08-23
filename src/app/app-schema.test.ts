@@ -32,6 +32,15 @@ describe("appSchema", () => {
     });
     expect(appSchema.panels.layers).toBeUndefined();
     expect(appSchema.panels.timeline).toEqual({
+      animations: [
+        {
+          id: "turntable",
+          label: "Turntable",
+          tracks: [
+            { controlLabel: "Spin", from: 0, target: "device.spin", to: 360 },
+          ],
+        },
+      ],
       defaultDurationSeconds: 6,
       enabled: true,
       mode: "keyframes",

@@ -200,15 +200,39 @@ export type ToolcraftToolbarSchema = {
 
 export type ToolcraftTimelineMode = "keyframes" | "playback";
 
+/**
+ * A move a product offers as one click.
+ *
+ * Keyframing a turntable by hand is four steps — key the angle, go to the end,
+ * change it, come back — for the animation the product exists to make. A
+ * preset is that spelled out declaratively: which controls move, and what they
+ * move between. The runtime lays the keyframes at each end of the loop and
+ * knows nothing about what the values mean, so a product describes its own
+ * animations rather than the timeline growing opinions about devices.
+ */
+export type ToolcraftTimelineAnimationSchema = {
+  id: string;
+  label: string;
+  tracks: readonly {
+    controlLabel: string;
+    from: unknown;
+    target: string;
+    to: unknown;
+  }[];
+};
+
 export type ToolcraftTimelinePanelSchema =
   | boolean
   | {
+      animations?: readonly ToolcraftTimelineAnimationSchema[];
       defaultDurationSeconds?: number;
       enabled?: boolean;
       mode?: ToolcraftTimelineMode;
     };
 
 export type ResolvedToolcraftTimelinePanelSchema = {
+  /** Optional, so a product with no presets simply declares none. */
+  animations?: readonly ToolcraftTimelineAnimationSchema[];
   defaultDurationSeconds: number;
   enabled: boolean;
   mode: ToolcraftTimelineMode;

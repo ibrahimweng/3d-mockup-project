@@ -334,6 +334,43 @@ export function TimelinePanel({
     };
   }, [selectedKeyframeId]);
 
+  /**
+   * Lay a preset's keyframes at each end of the loop.
+   *
+   * The runtime does not know what a turntable is: it reads the product's own
+   * description of which controls move and between what, keys each at zero,
+   * and moves it to its far value at the end. Anything already keyed on those
+   * controls is cleared first, so pressing it twice gives one animation rather
+   * than two fighting over the same rows.
+   */
+  const timelineAnimations = schema.panels.timeline?.animations ?? [];
+  const addAnimation = (animationId: string): void => {
+    const animation = timelineAnimations.find((entry) => entry.id === animationId);
+
+    if (!animation) {
+      return;
+    }
+
+    for (const track of animation.tracks) {
+      dispatch({ controlId: track.target, type: 'timeline.deleteControlKeyframes' });
+      dispatch({
+        controlId: track.target,
+        controlLabel: track.controlLabel,
+        timeSeconds: 0,
+        type: 'timeline.toggleControlKeyframes',
+        value: track.from,
+        valueLabel: String(track.from),
+      });
+      dispatch({
+        controlId: track.target,
+        controlLabel: track.controlLabel,
+        timeSeconds: durationSeconds,
+        type: 'timeline.upsertControlKeyframe',
+        value: track.to,
+        valueLabel: String(track.to),
+      });
+    }
+  };
   const commitCurrentTimeValue = (nextValue: string): void => {
     const parsed = Number.parseFloat(nextValue);
 
@@ -457,6 +494,8 @@ export function TimelinePanel({
           isPlaying={displayedIsPlaying}
           isScrubbing={scrubber.isScrubbing}
           playbackReady={playbackReady}
+          animations={timelineAnimations}
+          onAddAnimation={addAnimation}
           onCurrentTimeCommit={commitCurrentTimeValue}
           onDurationCommit={commitDurationValue}
           onScrubKeyDown={scrubber.handleScrubKeyDown}
