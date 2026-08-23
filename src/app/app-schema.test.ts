@@ -100,6 +100,7 @@ describe("appSchema", () => {
       "surface",
       "backdrop",
       "image-export",
+      "video-export",
     ]);
     expect(appSchema.panels.layers).toBeUndefined();
     expect(appSchema.panels.timeline?.enabled).toBe(true);

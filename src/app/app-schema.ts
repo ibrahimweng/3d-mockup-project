@@ -616,6 +616,55 @@ export const appSchema = defineToolcraft({
         },
         {
           controls: {
+            format: {
+              applicability: { mode: "always" },
+              defaultValue: "mp4",
+              label: "Format",
+              options: [
+                { label: "MP4", value: "mp4" },
+                { label: "WebM", value: "webm" },
+              ],
+              performanceReason:
+                "The container only selects how the encoded frames are wrapped when an export runs.",
+              performanceRole: "responsiveness",
+              target: "export.video.format",
+              type: "select",
+            },
+            resolution: {
+              applicability: { mode: "always" },
+              defaultValue: "current",
+              /**
+               * Smaller than the image ceiling, deliberately.
+               *
+               * A still is one frame and can afford eight thousand pixels. A
+               * six-second loop is a hundred and eighty of them, so the same
+               * ceiling would be a hundred and eighty times the work; 4K is as
+               * far as that scales while an export still finishes.
+               */
+              label: "Resolution",
+              options: [
+                { label: "Canvas size", value: "current" },
+                { label: "4K", value: "4k" },
+              ],
+              performanceReason:
+                "The export resolution only selects the output size used when an export runs.",
+              performanceRole: "responsiveness",
+              target: "export.video.resolution",
+              type: "select",
+            },
+          },
+          id: "video-export",
+          layoutGroups: [
+            {
+              columns: 2,
+              controls: ["format", "resolution"],
+              layout: "inline",
+            },
+          ],
+          title: "Video Export",
+        },
+        {
+          controls: {
             footer: {
               applicability: { mode: "always" },
               actions: [
@@ -624,6 +673,12 @@ export const appSchema = defineToolcraft({
                   label: "Export PNG",
                   role: "export-image",
                   value: "export-png",
+                },
+                {
+                  icon: "download-simple",
+                  label: "Export Video",
+                  role: "export-video",
+                  value: "export-video",
                 },
               ],
               label: false,

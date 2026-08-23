@@ -357,7 +357,58 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
     userAction: "Choose each Resolution option and run Export PNG.",
   },
   {
-    actionCoverage: ["export-png"],
+    automated: true,
+    automatedTestName: "video export writes the selected container",
+    browser: true,
+    browserTestName:
+      "browser: Export Video writes the selected format at the selected size",
+    componentType: "select",
+    evidence: "exported-bytes",
+    expectedObservable:
+      "Exporting as MP4 downloads a file that decodes as MP4; exporting as WebM downloads one that decodes as WebM. Both run for the timeline's duration and carry one packet every thirtieth of a second.",
+    fixture: "the default device with Spin keyframed a full turn",
+    id: "video-export.settings",
+    kind: "control",
+    optionCoverage: "each-visible-item",
+    target: "export.video.format",
+    userAction: "Choose each Format option and run Export Video.",
+  },
+  {
+    automated: true,
+    automatedTestName: "video export writes the selected size",
+    browser: true,
+    browserTestName:
+      "browser: Export Video writes the selected format at the selected size",
+    componentType: "select",
+    evidence: "exported-bytes",
+    expectedObservable:
+      "Canvas size writes the artboard's own pixels; 4K writes a 3840 pixel long edge. Neither changes what the animation does, only how large it is written.",
+    fixture: "the default device with Spin keyframed a full turn",
+    id: "video-export.resolution",
+    kind: "control",
+    optionCoverage: "each-visible-item",
+    target: "export.video.resolution",
+    userAction: "Choose each Resolution option and run Export Video.",
+  },
+  {
+    automated: true,
+    automatedTestName: "infinite video export holds one scene envelope",
+    browser: true,
+    browserTestName:
+      "browser: infinite-mode video export holds one scene-bounds envelope for every frame",
+    componentType: "canvas",
+    evidence: "exported-bytes",
+    expectedObservable:
+      "With Infinity canvas on, every frame of the exported video is cut to the same envelope — the union of the scene across the whole time range — so the subject moves inside a frame that does not itself resize from frame to frame.",
+    fixture: "Infinity canvas on, with Spin keyframed a full turn",
+    id: "canvas.infinity.scene-video",
+    infinityCanvasCoverage: "scene-bounds-video-export",
+    kind: "runtime",
+    target: "canvas.infinity",
+    userAction: "Turn Infinity canvas on, keyframe a full turn, and run Export Video.",
+  },
+  {
+    actionCoverage: ["export-png", "export-video"],
     automated: true,
     automatedTestName: "sticky delivery action exports the rendered frame",
     browser: true,
@@ -367,7 +418,10 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
     evidence: "exported-bytes",
     expectedObservable:
       "Export PNG shows the sticky footer progress indicator and downloads an artifact that decodes at the selected format and resolution and shows the same device, pose and screenshot as the preview.",
-    exportArtifactCoverage: "all-required-image-export-behavior",
+    exportArtifactCoverage: [
+      "all-required-image-export-behavior",
+      "all-required-video-export-behavior",
+    ],
     fixture: "the default device with a screenshot applied",
     id: "deliver.actions.export",
     kind: "control",

@@ -24,6 +24,77 @@ import { readRasterSettings, readScreenTransform } from "./render/settings";
  * The ratio is applied to the render instead, so every pixel the artifact
  * contains is one the renderer actually drew.
  */
+/**
+ * One renderer, kept between frames.
+ *
+ * A still is one frame, so building a renderer, loading the model, convolving
+ * the environment and throwing it all away again cost nothing anybody noticed.
+ * A video is a hundred and eighty frames of the same scene, and paying that
+ * per frame meant reloading the HDR environment for every one — about seven
+ * seconds each, so a six-second loop never finished at all.
+ *
+ * Holding one renderer makes the model and environment caches inside it do
+ * their job across the whole export: `update` rebuilds only when the device
+ * changes and reapplies live settings only when those change, which is exactly
+ * what varies between frames of an animation and what does not. It is rebuilt
+ * only when multisampling has to change, because that is fixed when the
+ * context is created; `setSize` handles every other size change.
+ *
+ * Exactly one is alive at a time, and it outlives the export that made it so
+ * the next one starts warm.
+ */
+let exportRenderer:
+  | {
+      antialias: boolean;
+      canvas: HTMLCanvasElement;
+      /** Which device the held scene is of, so a frame knows whether to wait. */
+      device: string | null;
+      renderer: RasterRenderer;
+    }
+  | null = null;
+
+function acquireExportRenderer(
+  backingWidth: number,
+  backingHeight: number,
+): {
+  canvas: HTMLCanvasElement;
+  device: string | null;
+  renderer: RasterRenderer;
+  } {
+  // Multisampling on everything the machine can hold it for. An export is
+  // looked at closely, so the cost is worth paying — up to the point where
+  // paying it is why nothing comes out at all.
+  //
+  // A multisample buffer is one allocation per sample: the 8K export is 6554
+  // by 8192, which is already exactly this platform's maximum renderbuffer
+  // size, and four samples of it is about eight hundred megabytes. It did not
+  // finish in ten minutes. Past four thousand pixels there is very little for
+  // multisampling to do anyway — an edge is already resolved by that many
+  // pixels across the frame — so the samples are what gives way, not the
+  // resolution the user asked for.
+  const antialias = backingWidth * backingHeight <= 4096 * 4096;
+  if (exportRenderer && exportRenderer.antialias === antialias) {
+    return exportRenderer;
+  }
+
+  exportRenderer?.renderer.dispose();
+  const canvas = document.createElement("canvas");
+  canvas.width = backingWidth;
+  canvas.height = backingHeight;
+  exportRenderer = {
+    antialias,
+    canvas,
+    device: null,
+    renderer: new RasterRenderer(canvas, {
+      antialias,
+      // Twice the depth map. The preview redraws on every drag and has to hold
+      // a frame rate; this is drawn once and looked at closely.
+      shadowDetail: 2,
+    }),
+  };
+  return exportRenderer;
+}
+
 export const mockupExportRenderer: ToolcraftProductExportRenderer = {
   baseFileName: "mockup",
   renderFrame: async ({ context, frame, pixelRatio, state }) => {
@@ -37,33 +108,30 @@ export const mockupExportRenderer: ToolcraftProductExportRenderer = {
     // not a place to economise.
     const ratio = Math.max(1, Number.isFinite(pixelRatio) ? pixelRatio : 1);
 
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(width * ratio);
-    canvas.height = Math.round(height * ratio);
-
-    // Multisampling on everything the machine can hold it for. An export is
-    // looked at closely and drawn once, so the cost is worth paying — up to the
-    // point where paying it is why nothing comes out at all.
-    //
-    // A multisample buffer is one allocation per sample: the 8K export is 6554
-    // by 8192, which is already exactly this platform's maximum renderbuffer
-    // size, and four samples of it is about eight hundred megabytes. It did not
-    // finish in ten minutes. Past four thousand pixels there is very little for
-    // multisampling to do anyway — an edge is already resolved by that many
-    // pixels across the frame — so the samples are what gives way, not the
-    // resolution the user asked for.
-    const pixels = canvas.width * canvas.height;
-    const renderer = new RasterRenderer(canvas, {
-      antialias: pixels <= 4096 * 4096,
-      // Twice the depth map. The preview redraws on every drag and has to hold
-      // a frame rate; this is drawn once, at four thousand pixels, and looked
-      // at closely.
-      shadowDetail: 2,
-    });
-    try {
-      await new Promise<void>((resolve) => {
-        void renderer.update(settings, resolve);
-      });
+    const held = acquireExportRenderer(
+      Math.round(width * ratio),
+      Math.round(height * ratio),
+    );
+    const { canvas, renderer } = held;
+    {
+      /**
+       * Wait for a scene, but only when there is one being built.
+       *
+       * `update` announces readiness through the callback only when it
+       * actually builds, and returns early once the device it holds is the
+       * device asked for. Awaiting the callback unconditionally therefore
+       * waits forever from the second frame onwards — which is every frame of
+       * a video after the first. What decides it is whether the device
+       * changed, and the cache is what knows that.
+       */
+      if (held.device === settings.device) {
+        await renderer.update(settings, () => undefined);
+      } else {
+        await new Promise<void>((resolve) => {
+          void renderer.update(settings, resolve);
+        });
+        held.device = settings.device;
+      }
 
       const artworkAsset = state.mediaAssets
         .filter(
@@ -98,8 +166,6 @@ export const mockupExportRenderer: ToolcraftProductExportRenderer = {
       renderer.render();
 
       context.drawImage(canvas, frame.x, frame.y, frame.width, frame.height);
-    } finally {
-      renderer.dispose();
     }
   },
 };

@@ -9,7 +9,22 @@ import { outputAcceptance } from "./app-acceptance-output";
 import { subjectAcceptance } from "./app-acceptance-subject";
 
 export const appTransferMode: ToolcraftTransferMode = {
-  animationIntent: { mode: "none" },
+  /**
+   * A turntable, and a loop as long as one turn of it.
+   *
+   * Six seconds is the product decision, not a framework default: it is how
+   * long an unhurried full revolution takes to read, and the timeline panel's
+   * default duration is set from the same number so the two cannot drift.
+   */
+  animationIntent: {
+    loopDuration: {
+      evidence:
+        "One revolution of the device is the whole animation, and six seconds is how long that turn takes to read as deliberate rather than hurried. panels.timeline.defaultDurationSeconds carries the same value.",
+      seconds: 6,
+      source: "product-derived",
+    },
+    mode: "timeline-keyframes",
+  },
   behaviorCoverage: [
     "canvas-sizing",
     "control-mapping",
@@ -185,7 +200,11 @@ export const appProductReadiness: ToolcraftProductReadiness = {
   exportIntent: {
     image: { mode: "toolcraft-default" },
     svg: { mode: "not-requested" },
-    video: { mode: "not-requested" },
+    video: {
+      evidence:
+        "The user asked to animate finished mockups on a timeline with keyframes, and named Rotato — whose output is a video file — as the thing to match. They were asked what the animation should come out as and chose a video file first.",
+      mode: "user-requested",
+    },
   },
   interactionOwnership: [
     {
@@ -269,6 +288,15 @@ export const appControlSectionInventory: readonly ToolcraftControlSectionInvento
       id: "device",
       targets: ["device.model", "device.finish", "device.spin"],
       title: "Device",
+    },
+    {
+      entity: "Video Export",
+      entityId: "video-export",
+      groupingReason:
+        "The container and the frame size are the two things a video file is written with, and neither means anything without the other; they sit together above the action that uses them.",
+      id: "video-export",
+      targets: ["export.video.format", "export.video.resolution"],
+      title: "Video Export",
     },
     {
       entity: "Screenshot",
