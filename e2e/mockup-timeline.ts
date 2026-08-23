@@ -219,7 +219,20 @@ export async function proveControlKeyframes(
       };
     }, options.target);
 
+  /**
+   * Both passes take the same route to the value.
+   *
+   * The scene does not draw a spin angle identically whatever preceded it —
+   * reaching 186 from 90 and from 0 gives pictures differing in a tenth of
+   * their pixels — so a measurement taken from wherever the control happened
+   * to be would be compared against a proof that arrived by a different road.
+   * Resetting first makes the two comparable. The path dependence itself is a
+   * defect in its own right and is recorded in the worklog; controlling for it
+   * here keeps this proof about keyframes rather than about that.
+   */
   await clearKeyframes();
+  await options.reset(control);
+  await settlePicture(page);
   await add().first().click();
   await page.waitForTimeout(900);
   await options.setValue(control);
