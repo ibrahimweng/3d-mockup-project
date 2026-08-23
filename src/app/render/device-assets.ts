@@ -66,6 +66,73 @@ export function loadModel(url: string): Promise<GLTF> {
   void pending.catch(() => modelCache.delete(url));
   return pending;
 }
+/**
+ * The maps a device brings with it, sampled the way the rest of the set is.
+ *
+ * Every other texture in this scene asks for the highest anisotropy the
+ * context supports — the tabletop below and the screenshot on the display —
+ * and the device's own maps were the one thing left at the default of one.
+ * That is the sampler at its worst on exactly the surface that needs it most:
+ * a mip chosen for the compressed axis, so a logo on a back turned away from
+ * the camera dissolves along the axis that is not compressed while the same
+ * logo face on reads sharp. It showed up as a device that looked crisp at one
+ * angle and smeared a few degrees later.
+ *
+ * The textures belong to the parsed model, which is cached and shared by every
+ * scene built from it, so this is a deliberate one-time mutation of shared
+ * state rather than something each scene does to its own copy. Every renderer
+ * wants the same maximum, so whichever asks first is answering for all of them.
+ */
+const anisotropyApplied = new WeakSet<GLTF>();
+
+const anisotropicMapKeys = [
+  "map",
+  "normalMap",
+  "roughnessMap",
+  "metalnessMap",
+  "aoMap",
+  "emissiveMap",
+  "bumpMap",
+  "alphaMap",
+  "clearcoatMap",
+  "clearcoatNormalMap",
+  "clearcoatRoughnessMap",
+] as const;
+
+export function applyModelTextureAnisotropy(
+  gltf: GLTF,
+  maxAnisotropy: number,
+): void {
+  if (anisotropyApplied.has(gltf) || maxAnisotropy <= 1) return;
+  anisotropyApplied.add(gltf);
+
+  const seen = new Set<THREE.Texture>();
+
+  for (const scene of gltf.scenes) {
+    scene.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+
+      const materials = Array.isArray(object.material)
+        ? object.material
+        : [object.material];
+
+      for (const material of materials) {
+        for (const key of anisotropicMapKeys) {
+          const texture = (material as unknown as Record<string, unknown>)[key];
+
+          if (!(texture instanceof THREE.Texture) || seen.has(texture)) continue;
+          seen.add(texture);
+          if (texture.anisotropy >= maxAnisotropy) continue;
+          texture.anisotropy = maxAnisotropy;
+          // The texture is already uploaded by the time anything asks for it,
+          // so the sampler only picks this up when the upload is redone.
+          texture.needsUpdate = true;
+        }
+      }
+    });
+  }
+}
+
 export async function loadEnvironment(
   renderer: THREE.WebGLRenderer,
   url: string,

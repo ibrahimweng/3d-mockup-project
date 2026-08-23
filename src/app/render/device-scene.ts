@@ -50,6 +50,7 @@ import {
 export type { ScreenSlack, ScreenTransform } from "./screen-mapping";
 
 import {
+  applyModelTextureAnisotropy,
   cloneForScene,
   findScene,
   loadEnvironment,
@@ -206,6 +207,13 @@ export async function buildDeviceScene(options: {
     loadModel(`${import.meta.env.BASE_URL}models/${options.device.modelFile}`),
     loadEnvironment(options.renderer, options.environmentUrl),
   ]);
+
+  // Asked for before anything is cloned or drawn, so the first frame is
+  // sampled the same way every later one is.
+  applyModelTextureAnisotropy(
+    gltf,
+    options.renderer.capabilities.getMaxAnisotropy(),
+  );
 
   // The convolved environment is the whole base lighting model: every material
   // samples the mip level matching its roughness, so a polished rail and a
