@@ -14,6 +14,7 @@ import {
 
 import type { QuickActionEntry, QuickActionRunContext } from "./quick-action-entry";
 import { quickActionIndex } from "./quick-action-index";
+import { subscribeToQuickActionOpen } from "./quick-action-open";
 import {
   activateQuickActionPanelButton,
   revealQuickActionControl,
@@ -71,6 +72,23 @@ function QuickActionRow({
     <CommandItem
       data-quick-action-id={entry.id}
       key={entry.id}
+      // Pointer activation is bound to the press, not the click, because the
+      // click never arrives. Measured: `pointerdown` lands on the row, but by
+      // `pointerup` the dialog has stopped hit-testing and both the release and
+      // the click land on the canvas underneath — so the targets differ, the
+      // browser synthesises no click on the row, and cmdk's `onSelect` never
+      // fires. Keyboard selection still comes through `onSelect`; `onRun`
+      // ignores a second activation so the two cannot both run.
+      onPointerDown={(event) => {
+        // Mouse and pen only. A touch press is also the start of a scroll, and
+        // the list scrolls, so activating on press would fire a row every time
+        // someone swiped it. Touch keeps the ordinary click path; the fault
+        // measured here was a mouse one, and guessing at touch would be
+        // inventing a fix for something never observed.
+        if (event.pointerType === "touch") return;
+        event.preventDefault();
+        onRun(entry);
+      }}
       onSelect={() => onRun(entry)}
       // cmdk matches on this string when filtering; the palette does its own
       // ranking, so it only has to be unique.
@@ -91,12 +109,44 @@ export function QuickActionDialog(): React.JSX.Element {
   const [query, setQuery] = React.useState("");
   const dispatch = useToolcraftDispatch();
   const durationSeconds = useToolcraftSelector(selectTimelineDuration);
+  /**
+   * A row can be activated by press and by keyboard, and on a platform where
+   * the click does arrive both would fire for one gesture. Undo twice is not
+   * what anyone asked for, so the first activation of an opening wins.
+   */
+  const hasRunRef = React.useRef(false);
 
   const openPalette = React.useCallback(() => {
+    hasRunRef.current = false;
     setQuery("");
     setIsOpen(true);
   }, []);
   useQuickActionShortcut(openPalette);
+  React.useEffect(() => subscribeToQuickActionOpen(openPalette), [openPalette]);
+
+  /**
+   * Dismissal on an outside press is handled here rather than left to the
+   * dialog.
+   *
+   * The backdrop is rendered inside the dialog's own portal, so the primitive
+   * reads a press on it as a press *inside* the dialog and never dismisses —
+   * measured: the backdrop is full-viewport, it is the element under the
+   * pointer, and pressing it leaves the palette open while Escape closes it.
+   * Listening on the capture phase catches the press before anything below can
+   * swallow it.
+   */
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handlePointerDown = (event: PointerEvent): void => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      const palette = document.querySelector('[data-slot="quick-action-palette"]');
+      if (palette !== null && palette.contains(target)) return;
+      setIsOpen(false);
+    };
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    return () => document.removeEventListener("pointerdown", handlePointerDown, true);
+  }, [isOpen]);
 
   const results = React.useMemo(() => {
     const ranked = searchQuickActions(quickActionIndex, query, quickActionResultLimit);
@@ -108,6 +158,8 @@ export function QuickActionDialog(): React.JSX.Element {
 
   const runEntry = React.useCallback(
     (entry: QuickActionEntry) => {
+      if (hasRunRef.current) return;
+      hasRunRef.current = true;
       setIsOpen(false);
 
       const openSection = (sectionId: string): void => {

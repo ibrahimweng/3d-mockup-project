@@ -19,7 +19,22 @@ import { useToolcraftTheme } from "./theme-runtime";
 import { useToolcraftCommittedSelector } from "./toolcraft-selectors";
 import { useToolcraftDispatch } from "./use-toolcraft";
 
+/**
+ * A product's own entry in the toolbar.
+ *
+ * Everything else the toolbar offers acts on the board — undo, zoom, centre,
+ * theme. A product sometimes has one move that belongs beside them rather than
+ * inside a control section, and before this it had nowhere to put it.
+ */
+export type ToolcraftToolbarAction = {
+  icon: React.ReactNode;
+  id: string;
+  label: string;
+  onSelect: () => void;
+};
+
 export type ToolbarPanelProps = {
+  actions?: readonly ToolcraftToolbarAction[];
   className?: string;
   framed?: boolean;
   onPanelStateChange?: PanelStateChange;
@@ -101,6 +116,7 @@ function ToolbarIconButton({
 }
 
 export function ToolbarPanel({
+  actions,
   className,
   framed = true,
   onPanelStateChange,
@@ -199,6 +215,20 @@ export function ToolbarPanel({
           )}
         </ToolbarIconButton>
       ) : null}
+      {/*
+        Product actions sit with the app-level controls rather than with the
+        canvas ones, because that is what they are: a way into the product, not
+        a way to move the board.
+      */}
+      {(actions ?? []).map((action) => (
+        <ToolbarIconButton
+          key={action.id}
+          label={action.label}
+          onClick={action.onSelect}
+        >
+          {action.icon}
+        </ToolbarIconButton>
+      ))}
       {radarEnabled ? (
         <ToolbarIconButton
           label="Center canvas"

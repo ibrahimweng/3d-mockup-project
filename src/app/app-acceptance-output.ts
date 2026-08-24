@@ -634,12 +634,12 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
     // control's own requirement, proven under its own row.
     evidence: "command-side-effect",
     expectedObservable:
-      "Cmd-K on a Mac or Ctrl-K elsewhere opens a search over the whole studio. Typing what should change rather than what it is called — \u201cmake it gold\u201d — puts the control that produces that outcome at the top, and choosing it applies the value and leaves the control under the cursor to adjust. Escape closes it without changing anything.",
+      "Cmd-K on a Mac, Ctrl-K elsewhere, or the Quick actions button in the toolbar opens a search over the whole studio. Typing what should change rather than what it is called — \u201cmake it gold\u201d — puts the control that produces that outcome at the top, and clicking it applies the value and leaves the control under the cursor to adjust. Escape closes it without changing anything, and so does pressing anywhere outside it.",
     fixture: "the default device in the default studio",
     id: "quick-actions.describe",
     kind: "runtime",
     userAction:
-      "Press Ctrl-K, type \u201cmake it gold\u201d, and press Enter.",
+      "Open the palette from the toolbar button, dismiss it by pressing outside, reopen it with Ctrl-K, type \u201cmake it gold\u201d, and click the first row.",
   },
   {
     automated: true,

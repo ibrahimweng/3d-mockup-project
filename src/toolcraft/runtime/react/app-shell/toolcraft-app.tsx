@@ -26,7 +26,7 @@ import { ToolcraftRoot } from "./toolcraft-root";
 import { LayersPanel } from "../layers/layers-panel";
 import { useToolcraftModelRenderPreparationStatus } from "../model-rendering/model-render-provider";
 import { TimelinePanel } from "../timeline/timeline-panel";
-import { ToolbarPanel } from "./toolbar-panel";
+import { ToolbarPanel, type ToolcraftToolbarAction } from "./toolbar-panel";
 import { useToolcraftCommittedSelector } from "./toolcraft-selectors";
 import type { ToolcraftModelPresentationMode } from "../model-rendering/model-render-binding";
 import { useToolcraftPersistenceStatus } from "./use-toolcraft-persistence";
@@ -43,6 +43,8 @@ export type ToolcraftAppComposition = {
   sceneBoundsProvider?: ToolcraftProductSceneBoundsProvider;
   schema: ResolvedToolcraftAppSchema;
   svgExportRenderer?: ToolcraftProductSvgExportRenderer;
+  /** A product's own buttons in the toolbar, beside undo, zoom and theme. */
+  toolbarActions?: readonly ToolcraftToolbarAction[];
 };
 
 export type ToolcraftAppProps = ToolcraftAppComposition & {
@@ -67,6 +69,7 @@ function ToolcraftAppContent({
   renderDefaultCanvasMedia = true,
   sceneExport,
   style,
+  toolbarActions,
 }: Omit<
   ToolcraftAppProps,
   | "modelPresentation"
@@ -135,7 +138,7 @@ function ToolcraftAppContent({
           />
         ) : null}
         {surfaces.panels.toolbar.enabled ? (
-          <ToolbarPanel panelPlacement="floating" />
+          <ToolbarPanel actions={toolbarActions} panelPlacement="floating" />
         ) : null}
       </div>
       {surfaces.panels.timeline?.enabled ? (

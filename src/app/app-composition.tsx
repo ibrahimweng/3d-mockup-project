@@ -1,9 +1,12 @@
+import { Command } from "lucide-react";
+
 import type { ToolcraftAppComposition } from "@/toolcraft/runtime/react";
 
 import { appSchema } from "./app-schema";
 import { mockupExportRenderer } from "./export-renderer";
 import { MockupPreview } from "./preview";
 import { QuickActionDialog } from "./quick-actions/quick-action-dialog";
+import { openQuickActions } from "./quick-actions/quick-action-open";
 import { rendererPipeline } from "./render/pipeline";
 import { getMockupSceneRect } from "./scene-bounds";
 
@@ -27,4 +30,14 @@ export const appComposition: ToolcraftAppComposition = {
   // it the frame reports `unavailable`, the preview never learns its size, and
   // the camera keeps a 1:1 aspect — which renders a tall phone as a square.
   sceneBoundsProvider: ({ state }) => [getMockupSceneRect(state)],
+  // The shortcut is the fast way in and the button is the only way anyone
+  // finds out the shortcut exists.
+  toolbarActions: [
+    {
+      icon: <Command />,
+      id: "quick-actions",
+      label: "Quick actions",
+      onSelect: openQuickActions,
+    },
+  ],
 };

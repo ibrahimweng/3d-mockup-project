@@ -64,6 +64,18 @@ test(browserTestNameFor("quick-actions.describe"), async ({ page }) => {
   const finish = await getToolcraftControlFieldByTarget(page, "device.finish");
   expect(await readOption(finish)).toBe("Natural");
 
+  // The shortcut is the fast way in; the toolbar button is how anyone finds out
+  // the shortcut exists, so it has to open the same thing.
+  await page.getByRole("button", { name: "Quick actions" }).click();
+  await expect(palette(page)).toBeVisible({ timeout: 15_000 });
+
+  // Pressing outside dismisses. Proven with a real mouse press rather than a
+  // synthetic one, because the fault this guards against was invisible to
+  // synthetic events: the dialog's own backdrop sits inside its portal, so the
+  // primitive read a press on it as a press inside itself and never closed.
+  await page.mouse.click(80, 780);
+  await expect(palette(page)).toBeHidden({ timeout: 10_000 });
+
   // Opening and dismissing must be free: a palette that changes the scene just
   // by being opened is one people stop opening.
   await openPalette(page, "Meta+k");
@@ -79,7 +91,11 @@ test(browserTestNameFor("quick-actions.describe"), async ({ page }) => {
       // control's label nor its description contains the word.
       const topRow = await describeOutcome(page, "make it gold");
       expect(topRow).toBe("value:device:finish:gold");
-      await page.keyboard.press("Enter");
+      // Clicked, not Enter. An earlier version of this proof pressed Enter and
+      // passed while every mouse click in the palette did nothing at all —
+      // the keyboard path and the pointer path fail independently, so the
+      // proof has to walk the one a person actually uses.
+      await page.locator('[data-quick-action-id="value:device:finish:gold"]').click();
       await expect(palette(page)).toBeHidden({ timeout: 10_000 });
     },
     {
@@ -95,7 +111,7 @@ test(browserTestNameFor("quick-actions.describe"), async ({ page }) => {
   await openPalette(page, "Control+k");
   const softnessRow = await describeOutcome(page, "the shadow is too harsh");
   expect(softnessRow).toBe("control:lights:shadowSoftness");
-  await page.keyboard.press("Enter");
+  await page.locator('[data-quick-action-id="control:lights:shadowSoftness"]').click();
   await expect(palette(page)).toBeHidden({ timeout: 10_000 });
   await expect
     .poll(
