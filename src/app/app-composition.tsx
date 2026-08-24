@@ -3,11 +3,19 @@ import type { ToolcraftAppComposition } from "@/toolcraft/runtime/react";
 import { appSchema } from "./app-schema";
 import { mockupExportRenderer } from "./export-renderer";
 import { MockupPreview } from "./preview";
+import { QuickActionDialog } from "./quick-actions/quick-action-dialog";
 import { rendererPipeline } from "./render/pipeline";
 import { getMockupSceneRect } from "./scene-bounds";
 
 export const appComposition: ToolcraftAppComposition = {
-  canvasContent: <MockupPreview />,
+  // The palette renders into a portal, so where it is mounted decides only
+  // that it is always alive to hear its shortcut — not where it appears.
+  canvasContent: (
+    <>
+      <MockupPreview />
+      <QuickActionDialog />
+    </>
+  ),
   exportRenderer: mockupExportRenderer,
   // The product renderer draws the device itself; the runtime's generic image
   // preview would otherwise show the raw screenshot on top of the render.

@@ -621,4 +621,44 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
     userAction:
       "Edit Canvas width and zoom, choose a different device, upload a screenshot, move and collapse Controls, wait for persistence, and reload the page.",
   },
+  {
+    automated: true,
+    automatedTestName: "describing an outcome ranks the control that produces it",
+    browser: true,
+    browserTestName:
+      "browser: the quick action palette opens on the keyboard and a described outcome applies the control that produces it",
+    componentType: "commandPalette",
+    // The observable is the control's value, not the rendered frame. What the
+    // palette is answerable for is finding the right control and writing the
+    // right value to it; that the value then changes the picture is the finish
+    // control's own requirement, proven under its own row.
+    evidence: "command-side-effect",
+    expectedObservable:
+      "Cmd-K on a Mac or Ctrl-K elsewhere opens a search over the whole studio. Typing what should change rather than what it is called — \u201cmake it gold\u201d — puts the control that produces that outcome at the top, and choosing it applies the value and leaves the control under the cursor to adjust. Escape closes it without changing anything.",
+    fixture: "the default device in the default studio",
+    id: "quick-actions.describe",
+    kind: "runtime",
+    userAction:
+      "Press Ctrl-K, type \u201cmake it gold\u201d, and press Enter.",
+  },
+  {
+    automated: true,
+    automatedTestName:
+      "every control, value and action in the schema is reachable from the palette",
+    browser: true,
+    browserTestName:
+      "browser: the quick action palette runs an export by pressing the action it names",
+    componentType: "commandPalette",
+    evidence: "command-side-effect",
+    expectedObservable:
+      "Every control, every option of every picker, every action and every animation preset in the schema has a row in the palette. An action row presses the button the panel already owns rather than running a second copy of it, so choosing the export row downloads the same artifact the Deliver button does.",
+    fixture: "the default device in the default studio",
+    id: "quick-actions.reach",
+    kind: "runtime",
+    // No target: the observable is that a command ran and produced an
+    // artifact, and the generic command-side-effect evidence carries no target
+    // to match one against.
+    userAction:
+      "Press Ctrl-K, type \u201csave it as a picture\u201d, and press Enter.",
+  },
 ];
