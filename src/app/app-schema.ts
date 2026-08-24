@@ -791,6 +791,20 @@ export const appSchema = defineToolcraft({
                   role: "export-video",
                   value: "export-video",
                 },
+                /*
+                 * No role, deliberately.
+                 *
+                 * A role is what hands an action to the runtime's own export
+                 * machinery, which knows how to write an image and a video and
+                 * nothing else. Leaving it off is what lets the product answer
+                 * for this one, which it has to: the runtime has no notion of a
+                 * folder of frames with a player in it.
+                 */
+                {
+                  icon: "export",
+                  label: "Export Embed",
+                  value: "export-embed",
+                },
               ],
               label: false,
               target: "panel.actions",

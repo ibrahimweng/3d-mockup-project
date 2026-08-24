@@ -504,7 +504,23 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
     userAction: "Turn Infinity canvas on, keyframe a full turn, and run Export Video.",
   },
   {
-    actionCoverage: ["export-png", "export-video"],
+    automated: true,
+    automatedTestName: "embed export writes a playable folder of transparent frames",
+    browser: true,
+    browserTestName:
+      "browser: Export Embed downloads a folder that plays the loop on a transparent background",
+    componentType: "panelActions",
+    evidence: "exported-bytes",
+    expectedObservable:
+      "Export Embed downloads a zip holding one WebP frame for each step of the loop, a manifest listing them in order, a readme, and an index.html that plays them. The frames carry alpha, so the device sits on whatever colour the page behind it is rather than in a box. The sequence stops one frame short of the loop's end, because a turn keyed a full revolution draws the same picture at both ends and carrying both would hold it for two frames at the seam.",
+    fixture: "the default device with Spin keyframed a full turn",
+    id: "embed-export.bundle",
+    kind: "control",
+    target: "panel.actions",
+    userAction: "Keyframe a full turn and run Export Embed.",
+  },
+  {
+    actionCoverage: ["export-png", "export-video", "export-embed"],
     automated: true,
     automatedTestName: "sticky delivery action exports the rendered frame",
     browser: true,
