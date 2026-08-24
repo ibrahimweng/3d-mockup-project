@@ -177,29 +177,6 @@ for (const proof of transformProofs) {
       // it waits on the same whole-canvas picture that check reads.
       await settleProductRaster(page);
 
-      /**
-       * Draw the value once on this branch and put it back.
-       *
-       * The keyframe half of this proof already does exactly this, and doing
-       * it is what made that half reliable: the first frame drawn at a size
-       * the renderer has not used before is not the frame it settles on. The
-       * observable half never got the same treatment, and the two proofs that
-       * fail intermittently across a full suite are the two that change the
-       * device's apparent size — which is what triggers it.
-       *
-       * Warming on the branch rather than before it, because the branch is
-       * what chose the model, and a size is only familiar for the model that
-       * was drawn at it.
-       */
-      const field = page
-        .locator(`[data-toolcraft-control-target="${proof.target}"]`)
-        .first();
-
-      await typeSliderValue(field, proof.value);
-      await settleProductRaster(page);
-      await typeSliderValue(field, proof.resetValue);
-      await settleProductRaster(page);
-
       await expectToolcraftProductObservableToChange(
         session,
         session.controlAction(proof.target, async (control) => {
