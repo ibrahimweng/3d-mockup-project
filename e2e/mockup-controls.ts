@@ -100,13 +100,26 @@ export async function settleProductRaster(page: Page): Promise<void> {
       ].join(", "),
     )
     .first();
+  // Three in a row, because three is what the proof downstream asks for.
+  // `expectToolcraftProductObservableToChange` samples its baseline three
+  // times and requires all three to agree; settling on two meant handing it a
+  // frame that had held still once and calling that stable, which is a weaker
+  // test than the one it was meant to satisfy.
   const attempts = 150;
+  const wanted = 3;
   let previous: Buffer | null = null;
+  let matches = 1;
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     const shot = await target.screenshot();
 
-    if (previous && Buffer.compare(previous, shot) === 0) return;
+    if (previous && Buffer.compare(previous, shot) === 0) {
+      matches += 1;
+      if (matches >= wanted) return;
+    } else {
+      matches = 1;
+    }
+
     previous = shot;
     await page.waitForTimeout(400);
   }
@@ -116,7 +129,7 @@ export async function settleProductRaster(page: Page): Promise<void> {
   // the wrong thing. Software rendering gets slower over a long run, so the
   // budget is generous and running out of it is worth saying out loud.
   throw new Error(
-    `The picture never held still across two reads in ${(attempts * 400) / 1000}s, so no proof can measure it.`,
+    `The picture never held still across ${wanted} reads in ${(attempts * 400) / 1000}s, so no proof can measure it.`,
   );
 }
 
