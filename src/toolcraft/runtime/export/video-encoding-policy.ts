@@ -3,9 +3,10 @@ import { ToolcraftArtifactExportError } from "./export-error";
 
 export const TOOLCRAFT_MAX_VIDEO_ARTIFACT_BYTES = 96 * 1024 * 1024;
 
-export type ToolcraftVideoCodec = "avc" | "vp8" | "vp9";
+export type ToolcraftVideoCodec = "av1" | "avc" | "vp8" | "vp9";
 
 export type ToolcraftVideoEncodingSupport = Readonly<{
+  av1: boolean;
   avc: boolean;
   vp8: boolean;
   vp9: boolean;
@@ -24,11 +25,20 @@ type ToolcraftVideoEncodingCandidate = Readonly<{
   mediaType: "video/mp4" | "video/webm";
 }>;
 
-const mp4Candidate: ToolcraftVideoEncodingCandidate = Object.freeze({
-  codec: "avc",
-  extension: ".mp4",
-  mediaType: "video/mp4",
-});
+/**
+ * MP4, in order of how widely the result will play.
+ *
+ * H.264 first, because it plays everywhere. AV1 second, because a browser
+ * without H.264 is common rather than exotic — Chromium builds without the
+ * proprietary decoders, which is most Linux ones, encode AV1 happily and put
+ * it in an MP4 quite legally. Before this the list held only H.264, so asking
+ * for MP4 on such a machine quietly produced a WebM instead: the person chose
+ * a container and got a different one.
+ */
+const mp4Candidates: readonly ToolcraftVideoEncodingCandidate[] = Object.freeze([
+  Object.freeze({ codec: "avc", extension: ".mp4", mediaType: "video/mp4" }),
+  Object.freeze({ codec: "av1", extension: ".mp4", mediaType: "video/mp4" }),
+] as const);
 const webmCandidates: readonly ToolcraftVideoEncodingCandidate[] = Object.freeze([
   Object.freeze({ codec: "vp9", extension: ".webm", mediaType: "video/webm" }),
   Object.freeze({ codec: "vp8", extension: ".webm", mediaType: "video/webm" }),
@@ -69,10 +79,12 @@ export function resolveToolcraftVideoEncodingPolicy({
 }>): ToolcraftVideoEncodingPolicy {
   const bitrate = getToolcraftVideoExportBitrate(width, height);
   assertArtifactBudget(bitrate, durationSeconds);
+  // The requested container is tried in full before falling back to the other
+  // one, so a missing H.264 encoder costs the codec rather than the format.
   const candidates =
     requestedFormat === "mp4"
-      ? [mp4Candidate, ...webmCandidates]
-      : [...webmCandidates, mp4Candidate];
+      ? [...mp4Candidates, ...webmCandidates]
+      : [...webmCandidates, ...mp4Candidates];
   const candidate = candidates.find((item) => support[item.codec]);
 
   if (!candidate) {
