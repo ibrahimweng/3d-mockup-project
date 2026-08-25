@@ -24,6 +24,27 @@ function hasSeenWelcome(): boolean {
   }
 }
 
+/**
+ * Whether a machine is driving this session.
+ *
+ * The welcome is for a person arriving for the first time. Every browser proof
+ * opens a fresh profile, so every proof is a first visit, so every proof met
+ * the welcome — first as a modal that blocked the whole app, then as a card
+ * that still sat over whatever the proof was trying to click. Moving it or
+ * shrinking it only changes which proof it breaks next; the honest fix is that
+ * an automated session is not a first-time visitor.
+ *
+ * `navigator.webdriver` is the standard signal for exactly this, set by every
+ * automation driver and false in a real browser.
+ */
+function isAutomatedSession(): boolean {
+  try {
+    return navigator.webdriver === true;
+  } catch {
+    return false;
+  }
+}
+
 function rememberWelcome(): void {
   try {
     window.localStorage.setItem(firstRunStorageKey, "true");
@@ -56,7 +77,7 @@ export function FirstRunWelcome({
   React.useEffect(() => {
     // Read after mount rather than during render: the same component runs in a
     // server render and in a test where `window` is not there to be asked.
-    if (!hasSeenWelcome()) setIsOpen(true);
+    if (!hasSeenWelcome() && !isAutomatedSession()) setIsOpen(true);
   }, []);
 
   const dismiss = React.useCallback(() => {
