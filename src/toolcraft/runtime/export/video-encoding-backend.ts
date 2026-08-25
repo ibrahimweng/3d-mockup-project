@@ -34,7 +34,7 @@ export async function createToolcraftVideoEncoderBackend(
   request: ToolcraftVideoEncoderBackendFactoryRequest,
 ): Promise<ToolcraftVideoEncoderBackend> {
   const mediabunny = await import("mediabunny");
-  const codecs: readonly ToolcraftVideoCodec[] = ["avc", "vp9", "vp8"];
+  const codecs: readonly ToolcraftVideoCodec[] = ["avc", "vp9", "vp8", "av1"];
   const supportResults = await Promise.all(
     codecs.map((codec) =>
       mediabunny.canEncodeVideo(codec, {
@@ -49,6 +49,7 @@ export async function createToolcraftVideoEncoderBackend(
     height: request.height,
     requestedFormat: request.requestedFormat,
     support: {
+      av1: supportResults[3] === true,
       avc: supportResults[0] === true,
       vp8: supportResults[2] === true,
       vp9: supportResults[1] === true,
