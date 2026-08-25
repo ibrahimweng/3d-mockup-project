@@ -66,10 +66,13 @@ test("timeline playback scrubs, pauses, loops and redraws", () => {
   const duration = state.timeline.durationSeconds;
   expect(duration).toBeGreaterThan(0);
 
+  // A new timeline opens paused, because a loop with nothing keyed has nothing
+  // to play — and one that ran anyway kept the preview redrawing a picture
+  // that never changed, which is what made every proof waiting for the frame
+  // to hold still unreliable.
+  expect(fresh().timeline.isPlaying).toBe(false);
+
   // Playing runs it; pausing stops it where it stands rather than rewinding.
-  // Driven explicitly rather than by toggling, because the runtime opens with
-  // playback already on — a loop with nothing keyed shows nothing, so the app
-  // starts ready to run rather than waiting to be started.
   state = run(state, { isPlaying: true, type: "timeline.setPlaying" });
   expect(state.timeline.isPlaying).toBe(true);
   state = run(state, { currentTimeSeconds: duration / 2, type: "timeline.setCurrentTime" });
