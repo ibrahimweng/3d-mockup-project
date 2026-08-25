@@ -72,13 +72,12 @@ function QuickActionRow({
     <CommandItem
       data-quick-action-id={entry.id}
       key={entry.id}
-      // Pointer activation is bound to the press, not the click, because the
-      // click never arrives. Measured: `pointerdown` lands on the row, but by
-      // `pointerup` the dialog has stopped hit-testing and both the release and
-      // the click land on the canvas underneath — so the targets differ, the
-      // browser synthesises no click on the row, and cmdk's `onSelect` never
-      // fires. Keyboard selection still comes through `onSelect`; `onRun`
-      // ignores a second activation so the two cannot both run.
+      // Kept as a press rather than a click, belt and braces. The cause of the
+      // missing click is now understood and stopped at the palette's root
+      // above: a press here used to bubble through the React tree into the
+      // canvas, which captured the pointer, so the release never came back to
+      // the row. Keyboard selection still arrives as `onSelect`; `onRun`
+      // ignores a second activation so one gesture cannot fire a row twice.
       onPointerDown={(event) => {
         // Mouse and pen only. A touch press is also the start of a scroll, and
         // the list scrolls, so activating on press would fire a row every time
@@ -204,7 +203,21 @@ export function QuickActionDialog(): React.JSX.Element {
       open={isOpen}
       title="Quick actions"
     >
-      <Command data-slot="quick-action-palette" shouldFilter={false}>
+      <Command
+        data-slot="quick-action-palette"
+        /*
+         * Pointer events stop here. A React portal bubbles through the React
+         * tree, not the DOM one, and this is mounted inside the canvas content —
+         * so without this a press travels on into the preview's handlers, which
+         * claim the pointer with `setPointerCapture`. The release then belongs to
+         * the canvas, no click is synthesised, and a press meant for this surface
+         * turns the device behind it.
+         */
+        onPointerDown={(event) => event.stopPropagation()}
+        onPointerMove={(event) => event.stopPropagation()}
+        onPointerUp={(event) => event.stopPropagation()}
+        shouldFilter={false}
+      >
         <CommandInput
           onValueChange={setQuery}
           placeholder="What do you want to change? Try “make it shiny” or “no background”."

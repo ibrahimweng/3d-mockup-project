@@ -19,6 +19,12 @@ test("browser: a first-time visitor is welcomed, and can open the guide from it"
   page,
 }) => {
   await page.setViewportSize({ height: 900, width: 1440 });
+  // The welcome stands down for automated sessions, because otherwise it sits
+  // over whatever every other proof is trying to click. This is the one test
+  // that wants to see it, so it presents itself as an ordinary browser.
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "webdriver", { get: () => false });
+  });
   await page.goto("/");
   await page.waitForTimeout(6_000);
 
