@@ -11,6 +11,7 @@ import {
 } from "@/toolcraft/runtime/react";
 
 import { forgetArtworkUrl, publishArtworkUrl } from "./artwork-store";
+import { resolveCanvasCursor } from "./canvas-cursor";
 import { useAdaptiveQuality } from "./adaptive-quality";
 import { useScenePreset } from "./apply-scene-preset";
 import { useSurfaceFraming } from "./apply-surface-framing";
@@ -360,6 +361,33 @@ export function MockupPreview(): React.ReactElement {
   //   primary elsewhere  -> rotate the device, including the empty space
   //                         beside it, so there is nothing to aim at
   //
+  /**
+   * Which gesture is in progress, if any, so the cursor can say what a press
+   * is doing as well as what it would do.
+   */
+  const draggingRef = React.useRef<false | "design" | "turn" | "view">(false);
+  const hasDesign = artworkUrl !== null;
+
+  /**
+   * Written straight onto the node rather than held in state. The cursor
+   * changes as the pointer crosses onto the display, which is every few
+   * pixels of a mouse move; re-rendering the preview that often to change one
+   * CSS property would cost far more than the hint is worth.
+   */
+  const applyCursor = React.useCallback(
+    (clientX: number, clientY: number): void => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const dragging = draggingRef.current;
+      const overScreen =
+        dragging === false && hasDesign
+          ? rendererRef.current?.hitScreenUV(clientX, clientY) != null
+          : false;
+      canvas.style.cursor = resolveCanvasCursor({ hasDesign, isDragging: dragging, overScreen });
+    },
+    [hasDesign],
+  );
+
   // Order matters only between the middle two: the design drag has to see a
   // press before the orbit claims everything primary. Each declines what is
   // not its own and the rest falls through to the runtime.
@@ -367,6 +395,7 @@ export function MockupPreview(): React.ReactElement {
     () => ({
       onPointerCancel: (event: React.PointerEvent<HTMLCanvasElement>) => {
         interactingRef.current = false;
+        draggingRef.current = false;
         quality.reset();
         if (viewPan.onPointerCancel(event)) return;
         if (designDrag.onPointerCancel(event)) return;
@@ -374,17 +403,31 @@ export function MockupPreview(): React.ReactElement {
         orbitHandlers.onPointerCancel?.(event);
       },
       onPointerDown: (event: React.PointerEvent<HTMLCanvasElement>) => {
-        const claimed =
-          viewPan.onPointerDown(event) ||
-          designDrag.onPointerDown(event) ||
-          viewOrbit.onPointerDown(event);
-        if (claimed) {
+        if (viewPan.onPointerDown(event)) {
           interactingRef.current = true;
+          draggingRef.current = "view";
+          applyCursor(event.clientX, event.clientY);
+          return;
+        }
+        if (designDrag.onPointerDown(event)) {
+          interactingRef.current = true;
+          draggingRef.current = "design";
+          applyCursor(event.clientX, event.clientY);
+          return;
+        }
+        if (viewOrbit.onPointerDown(event)) {
+          interactingRef.current = true;
+          draggingRef.current = "turn";
+          applyCursor(event.clientX, event.clientY);
           return;
         }
         orbitHandlers.onPointerDown?.(event);
       },
       onPointerMove: (event: React.PointerEvent<HTMLCanvasElement>) => {
+        // Only while nothing is being dragged: mid-gesture the shape is already
+        // decided, and asking the scene what is under the pointer costs a
+        // raycast that the drag path deliberately budgets for once a frame.
+        if (draggingRef.current === false) applyCursor(event.clientX, event.clientY);
         if (viewPan.onPointerMove(event)) return;
         if (designDrag.onPointerMove(event)) return;
         if (viewOrbit.onPointerMove(event)) return;
@@ -392,6 +435,8 @@ export function MockupPreview(): React.ReactElement {
       },
       onPointerUp: (event: React.PointerEvent<HTMLCanvasElement>) => {
         interactingRef.current = false;
+        draggingRef.current = false;
+        applyCursor(event.clientX, event.clientY);
         quality.reset();
         if (viewPan.onPointerUp(event)) return;
         if (designDrag.onPointerUp(event)) return;
@@ -399,7 +444,7 @@ export function MockupPreview(): React.ReactElement {
         orbitHandlers.onPointerUp?.(event);
       },
     }),
-    [designDrag, orbitHandlers, quality, viewOrbit, viewPan],
+    [applyCursor, designDrag, orbitHandlers, quality, viewOrbit, viewPan],
   );
 
   React.useEffect(() => {

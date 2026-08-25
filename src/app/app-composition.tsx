@@ -1,10 +1,12 @@
-import { Command } from "lucide-react";
+import { CircleHelp, Command } from "lucide-react";
 
 import type { ToolcraftAppComposition } from "@/toolcraft/runtime/react";
 
 import { appSchema } from "./app-schema";
 import { mockupExportRenderer } from "./export-renderer";
 import { MockupPreview } from "./preview";
+import { GuideRuntime } from "./guide/guide-runtime";
+import { guideSignal } from "./guide/open-signal";
 import { QuickActionDialog } from "./quick-actions/quick-action-dialog";
 import { openQuickActions } from "./quick-actions/quick-action-open";
 import { rendererPipeline } from "./render/pipeline";
@@ -17,6 +19,7 @@ export const appComposition: ToolcraftAppComposition = {
     <>
       <MockupPreview />
       <QuickActionDialog />
+      <GuideRuntime />
     </>
   ),
   exportRenderer: mockupExportRenderer,
@@ -38,6 +41,12 @@ export const appComposition: ToolcraftAppComposition = {
       id: "quick-actions",
       label: "Quick actions",
       onSelect: openQuickActions,
+    },
+    {
+      icon: <CircleHelp />,
+      id: "guide",
+      label: "How to use this",
+      onSelect: () => guideSignal.open(),
     },
   ],
 };
