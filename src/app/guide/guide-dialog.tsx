@@ -60,6 +60,17 @@ export function GuideDialog({
         data-slot="mockup-guide"
         portalContainer={portalContainer}
         layout="sections"
+        /*
+         * Pointer events stop here. A portal bubbles through the React tree,
+         * not the DOM one, and this is mounted inside the canvas content — so
+         * without this a press travels on into the preview's handlers, which
+         * claim the pointer with `setPointerCapture`. The release then belongs
+         * to the canvas, no click is synthesised, and a press meant for this
+         * surface turns the device behind it.
+         */
+        onPointerDown={(event) => event.stopPropagation()}
+        onPointerMove={(event) => event.stopPropagation()}
+        onPointerUp={(event) => event.stopPropagation()}
       >
         <DialogHeader>
           <DialogTitle>How to use Mockup Studio</DialogTitle>
