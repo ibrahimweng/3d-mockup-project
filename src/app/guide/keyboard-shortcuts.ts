@@ -1,0 +1,89 @@
+import * as React from "react";
+
+import type { ToolcraftCommand } from "@/toolcraft/runtime";
+import { useToolcraftDispatch } from "@/toolcraft/runtime/react";
+
+import { activateQuickActionPanelButton } from "../quick-actions/quick-action-reveal";
+
+/**
+ * Whether a keystroke belongs to whatever the person is typing into.
+ *
+ * Space is play/pause and the arrows nudge the device — both of which would be
+ * infuriating while typing a canvas width or a hex colour. Every shortcut here
+ * stands down when the focus is in a field.
+ */
+function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  const tag = target.tagName;
+  // A range input is a slider, not a field: the arrows are its own and it
+  // handles them itself, so this only has to stay out of text entry.
+  if (tag === "INPUT") return (target as HTMLInputElement).type !== "range";
+  return tag === "TEXTAREA" || tag === "SELECT";
+}
+
+/** How far one arrow press moves the device, as a percentage of its own size. */
+const nudgeStep = 1;
+const nudgeStepWithShift = 10;
+
+const nudgeTargets: Readonly<Record<string, { axis: string; sign: number }>> = {
+  ArrowDown: { axis: "device.positionY", sign: -1 },
+  ArrowLeft: { axis: "device.positionX", sign: -1 },
+  ArrowRight: { axis: "device.positionX", sign: 1 },
+  ArrowUp: { axis: "device.positionY", sign: 1 },
+};
+
+/**
+ * The keys an experienced user expects, and a beginner never has to learn.
+ *
+ * Everything here is reachable by pointer somewhere else in the app; none of
+ * it is the only way to do anything.
+ */
+export function useMockupKeyboardShortcuts(values: Record<string, unknown>): void {
+  const dispatch = useToolcraftDispatch();
+  // Read through a ref so the listener is attached once rather than rebound on
+  // every value change, which would be every frame of a drag.
+  const valuesRef = React.useRef(values);
+  valuesRef.current = values;
+
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (isTypingTarget(event.target)) return;
+      const accel = event.metaKey || event.ctrlKey;
+
+      if (accel && event.key.toLowerCase() === "e") {
+        event.preventDefault();
+        activateQuickActionPanelButton("Export PNG");
+        return;
+      }
+      if (accel || event.altKey) return;
+
+      if (event.key === " " || event.code === "Space") {
+        event.preventDefault();
+        dispatch({ type: "timeline.togglePlayback" });
+        return;
+      }
+
+      const nudge = nudgeTargets[event.key];
+      if (nudge) {
+        event.preventDefault();
+        const current = Number(valuesRef.current[nudge.axis]);
+        const base = Number.isFinite(current) ? current : 0;
+        const step = event.shiftKey ? nudgeStepWithShift : nudgeStep;
+        const command: ToolcraftCommand = {
+          // Grouped, so holding an arrow down collapses into one undo step
+          // rather than fifty.
+          historyGroup: `nudge-${nudge.axis}`,
+          label: "Nudge device",
+          target: nudge.axis,
+          type: "controls.setValue",
+          value: base + nudge.sign * step,
+        };
+        dispatch(command);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [dispatch]);
+}
