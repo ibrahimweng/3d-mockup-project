@@ -1,4 +1,6 @@
 import * as React from "react";
+
+import { claimsViewPan } from "./pointer-ownership";
 import { useToolcraftDispatch } from "@/toolcraft/runtime/react";
 
 /**
@@ -24,9 +26,7 @@ export type ViewPanHandlers = {
   onPointerUp: (event: React.PointerEvent<HTMLCanvasElement>) => boolean;
 };
 
-function claimsPan(event: React.PointerEvent<HTMLCanvasElement>): boolean {
-  return event.button === 1;
-}
+const claimsPan = claimsViewPan;
 
 type Gesture = {
   frame: number;

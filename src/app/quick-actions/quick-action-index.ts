@@ -207,6 +207,16 @@ function buildQuickActionAnimationEntries(): readonly QuickActionEntry[] {
             value: track.to,
             valueLabel: String(track.to),
           });
+          // The easing belongs to the keyframe the segment leaves from. A
+          // looping preset that inherits the editor's ease-in-out stops dead
+          // once a cycle, which is not what a turntable is.
+          if (track.easing) {
+            dispatch({
+              easing: track.easing,
+              keyframeId: `${track.target}::0`,
+              type: "timeline.changeKeyframeEasing",
+            });
+          }
         }
         dispatch({ expanded: true, type: "timeline.setExpanded" });
       },

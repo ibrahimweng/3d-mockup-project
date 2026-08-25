@@ -37,7 +37,15 @@ describe("appSchema", () => {
           id: "turntable",
           label: "Turntable",
           tracks: [
-            { controlLabel: "Spin", from: 0, target: "device.spin", to: 360 },
+            {
+              controlLabel: "Spin",
+              // Linear: a looping turn eased at both ends stops dead once a
+              // revolution, which is not what a turntable is.
+              easing: { controlPoints: [0, 0, 1, 1], type: "bezier" },
+              from: 0,
+              target: "device.spin",
+              to: 360,
+            },
           ],
         },
       ],

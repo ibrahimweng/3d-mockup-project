@@ -54,7 +54,7 @@ export type ScenePreset = {
   /** Bounce, 0 to 400. */
   fill: number;
   keyColor: string;
-  /** Where the key sits, each axis 0 to 1 with 0.5 straight on. */
+  /** Where the key sits, each axis -1 to 1 with 0 straight on. */
   keyDirection: { x: number; y: number };
   keyIntensity: number;
   /** Camera direction from the subject, and which way is up. */

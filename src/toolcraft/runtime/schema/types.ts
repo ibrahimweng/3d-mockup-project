@@ -4,6 +4,8 @@ import type {
   ToolcraftSectionLayout,
 } from "../contracts/types";
 import type { ToolcraftCollectionItemControlType } from "./collection-item-controls";
+// Type-only, so this does not create a runtime cycle with the state module.
+import type { ToolcraftTimelineKeyframeEasing } from "../state/types";
 
 export type ToolcraftCanvasSize = {
   height: number;
@@ -215,6 +217,14 @@ export type ToolcraftTimelineAnimationSchema = {
   label: string;
   tracks: readonly {
     controlLabel: string;
+    /**
+     * How the track gets from `from` to `to`. Omitted, keyframes take the
+     * editor's default ease-in-out, which is right for a move that starts and
+     * stops and wrong for one that loops: a turn eased at both ends stops dead
+     * every revolution. A preset that is meant to run continuously has to be
+     * able to say so.
+     */
+    easing?: ToolcraftTimelineKeyframeEasing;
     from: unknown;
     target: string;
     to: unknown;

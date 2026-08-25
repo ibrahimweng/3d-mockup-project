@@ -10,6 +10,7 @@ import {
 } from "./model-appearance";
 import { createKeyLight } from "./scene-key";
 import { createRoom } from "./scene-room";
+import { getDevicePose } from "./device-pose";
 import { createTable } from "./scene-table";
 import { createSurfaceGeometry } from "./surface-geometry";
 import type {
@@ -651,24 +652,11 @@ export async function buildDeviceScene(options: {
      * every model that comes through.
      */
     setTransform: (transform: DeviceTransform): boolean => {
-      const scale = Math.max(0.01, transform.scale);
-      const offsetScale = sphere.radius;
-      const footLift = groundY * (1 - scale);
-      const nextPosition = new THREE.Vector3(
-        transform.offsetX * offsetScale,
-        transform.offsetY * offsetScale + footLift,
-        transform.offsetZ * offsetScale,
-      );
-      // Spin last, about the room's vertical, so it stays a turntable however
-      // the device is posed: a leaning device sweeps around like something on
-      // a display stand. Tilting last instead would keep the lean pointed at
-      // the camera through the whole turn, which is a gimbal, not a turntable.
-      const nextRotation = new THREE.Euler(
-        THREE.MathUtils.degToRad(transform.tilt),
-        THREE.MathUtils.degToRad(transform.spin),
-        THREE.MathUtils.degToRad(transform.roll),
-        "YXZ",
-      );
+      const {
+        position: nextPosition,
+        rotation: nextRotation,
+        scale,
+      } = getDevicePose({ groundY, radius: sphere.radius, transform });
 
       if (
         spinner.position.equals(nextPosition) &&

@@ -18,7 +18,7 @@ export type ScreenTransform = {
   offset: { x: number; y: number };
   /** Uniform zoom, as a percentage. */
   scale: number;
-  /** Independent width/height, 0..1 per axis with 0.5 unstretched. */
+  /** Independent width/height, -1..1 per axis with 0 unstretched. */
   stretch: { x: number; y: number };
 };
 export type ScreenSlack = { x: number; y: number };

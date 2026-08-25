@@ -429,6 +429,16 @@ export function TimelinePanel({
         value: track.to,
         valueLabel: String(track.to),
       });
+      // The easing belongs to the keyframe the segment leaves from, so it is
+      // set on the first one. Without this a looping preset inherits the
+      // editor's ease-in-out and stops dead once a cycle.
+      if (track.easing) {
+        dispatch({
+          easing: track.easing,
+          keyframeId: `${track.target}::0`,
+          type: 'timeline.changeKeyframeEasing',
+        });
+      }
     }
   };
   const toggleObjectExpanded = (objectId: string): void => {
