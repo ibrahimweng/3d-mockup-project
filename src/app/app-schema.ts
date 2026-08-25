@@ -825,7 +825,20 @@ export const appSchema = defineToolcraft({
           id: "turntable",
           label: "Turntable",
           tracks: [
-            { controlLabel: "Spin", from: 0, target: "device.spin", to: 360 },
+            {
+              controlLabel: "Spin",
+              // Linear, and this is the whole reason the track can say so. The
+              // editor's default easing is a strong ease-in-out, which is right
+              // for a move that starts and stops and wrong for one that loops:
+              // eased at both ends the device accelerates away, slows to a dead
+              // stop at the top of the revolution, and jerks as the loop
+              // repeats. A turntable turns at one speed, which is exactly what
+              // this control's own description promises.
+              easing: { controlPoints: [0, 0, 1, 1], type: "bezier" },
+              from: 0,
+              target: "device.spin",
+              to: 360,
+            },
           ],
         },
       ],

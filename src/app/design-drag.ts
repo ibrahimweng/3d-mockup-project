@@ -1,6 +1,7 @@
 import * as React from "react";
 import { useToolcraft, useToolcraftDispatch } from "@/toolcraft/runtime/react";
 
+import { claimsDesignDrag } from "./pointer-ownership";
 import type { RasterRenderer } from "./render/raster-renderer";
 
 /**
@@ -37,16 +38,6 @@ export type DesignDragHandlers = {
   onPointerUp: (event: React.PointerEvent<HTMLCanvasElement>) => boolean;
 };
 
-function isPlainPrimary(event: React.PointerEvent<HTMLCanvasElement>): boolean {
-  return (
-    event.button === 0 &&
-    !event.altKey &&
-    !event.ctrlKey &&
-    !event.metaKey &&
-    !event.shiftKey
-  );
-}
-
 /** The pad's range: -1..1 about a centred design. */
 function clampPad(value: number): number {
   return Math.max(-1, Math.min(1, value));
@@ -80,9 +71,10 @@ export function useDesignDrag(
 
   const onPointerDown = React.useCallback(
     (event: React.PointerEvent<HTMLCanvasElement>): boolean => {
-      if (!hasDesign || !isPlainPrimary(event)) return false;
       const uv = rendererRef.current?.hitScreenUV(event.clientX, event.clientY);
-      if (!uv) return false;
+      if (!claimsDesignDrag({ event, hasDesign, hitScreen: Boolean(uv) }) || !uv) {
+        return false;
+      }
 
       groupRef.current += 1;
       gestureRef.current = {

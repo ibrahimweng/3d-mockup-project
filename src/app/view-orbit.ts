@@ -1,4 +1,6 @@
 import * as React from "react";
+
+import { claimsViewOrbit } from "./pointer-ownership";
 import {
   readToolcraftOrientationPose,
   useToolcraft,
@@ -49,21 +51,7 @@ export type ViewOrbitHandlers = {
   onPointerUp: (event: React.PointerEvent<HTMLCanvasElement>) => boolean;
 };
 
-/**
- * A plain primary press, unmodified.
- *
- * Modifier combinations are left alone so the browser's and the runtime's own
- * shortcuts keep working, and the middle button is left to the pan.
- */
-function claimsOrbit(event: React.PointerEvent<HTMLCanvasElement>): boolean {
-  return (
-    event.button === 0 &&
-    !event.altKey &&
-    !event.ctrlKey &&
-    !event.metaKey &&
-    !event.shiftKey
-  );
-}
+const claimsOrbit = claimsViewOrbit;
 
 /**
  * Turn a pose by a pointer delta.
