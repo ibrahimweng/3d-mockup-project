@@ -7,7 +7,14 @@ import { getToolcraftControlFieldByTarget } from "./browser-control-target-helpe
 import { readOption } from "./mockup-controls";
 import { test } from "./toolcraft-product-test";
 
-test.setTimeout(600_000);
+/**
+ * Generous, because an export here is bound by software rendering rather than
+ * by anything the palette does. Measured: the same export takes 38 seconds on
+ * an idle machine and had not finished after five minutes with two other
+ * browsers running, which is exactly the condition a full suite creates. A
+ * budget tuned on an idle machine is a proof that only passes alone.
+ */
+test.setTimeout(1_800_000);
 
 /**
  * The palette, proven the way everything else here is: by the requirement it
@@ -139,14 +146,14 @@ test(browserTestNameFor("quick-actions.reach"), async ({ page }) => {
       const topRow = await describeOutcome(page, "save it as a picture");
       expect(topRow).toBe("action:runtime.export:footer:export-png");
       await Promise.all([
-        page.waitForEvent("download", { timeout: 300_000 }),
+        page.waitForEvent("download", { timeout: 900_000 }),
         page.keyboard.press("Enter"),
       ]);
     },
     {
       evidenceType: "command-side-effect",
       requirementId: "quick-actions.reach",
-      timeoutMs: 300_000,
+      timeoutMs: 900_000,
     },
   );
 
