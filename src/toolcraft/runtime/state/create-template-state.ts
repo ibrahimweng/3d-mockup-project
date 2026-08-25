@@ -78,7 +78,18 @@ function createDefaultTimelineState({
     durationSeconds: defaultDurationSeconds,
     expanded: false,
     isLooping: true,
-    isPlaying: true,
+    /**
+     * Paused, because a new timeline has nothing to play.
+     *
+     * This used to open running, which looked harmless: with no keyframes
+     * nothing moves. It was not harmless. The transport read "Pause" on a
+     * fresh app with nothing to pause, and the preview kept redrawing a
+     * picture that never changed — measured as ten different frames out of ten
+     * samples while playing against one out of ten while paused, which is what
+     * made every proof that waits for the picture to hold still unreliable.
+     * Adding an animation starts playback, which is where that belongs.
+     */
+    isPlaying: false,
     selectedKeyframeId: null,
     ...timeline,
     keyframeGroups: cloneTimelineKeyframeGroups(

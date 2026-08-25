@@ -440,6 +440,10 @@ export function TimelinePanel({
         });
       }
     }
+    // Laying down an animation is the moment there is something to play, so it
+    // is the moment playback starts. The timeline opens paused because a loop
+    // with nothing keyed has nothing to show.
+    dispatch({ isPlaying: true, type: 'timeline.setPlaying' });
   };
   const toggleObjectExpanded = (objectId: string): void => {
     setCollapsedObjectIds((currentIds) =>

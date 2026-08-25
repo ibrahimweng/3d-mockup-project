@@ -218,6 +218,9 @@ function buildQuickActionAnimationEntries(): readonly QuickActionEntry[] {
             });
           }
         }
+        // There is something to play now, so play it. The timeline opens
+        // paused because a loop with nothing keyed has nothing to show.
+        dispatch({ isPlaying: true, type: "timeline.setPlaying" });
         dispatch({ expanded: true, type: "timeline.setExpanded" });
       },
       subtitle: "Animation · lay it down as keyframes",
