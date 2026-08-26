@@ -20,7 +20,15 @@ export function TimelineEasingCurveIcon({
   easing: ToolcraftTimelineKeyframeEasing;
   size?: number;
 }): React.JSX.Element {
-  if (easing.type === 'step') {
+  if (easing.type !== 'bezier') {
+    /**
+     * A hold turns the corner; a continuous keyframe runs straight through it.
+     * Neither is a curve, which is the point — the continuous mark also carries
+     * a dot on the line, because what it says is that the motion does not stop
+     * where the keyframe is.
+     */
+    const isStep = easing.type === 'step';
+
     return (
       <svg
         aria-hidden="true"
@@ -31,11 +39,12 @@ export function TimelineEasingCurveIcon({
         width={size}
       >
         <path
-          d={`M 3 ${size - 3} H ${size - 3} V 3`}
+          d={isStep ? `M 3 ${size - 3} H ${size - 3} V 3` : `M 3 ${size - 3} L ${size - 3} 3`}
           stroke="currentColor"
           strokeLinecap="round"
           strokeWidth={1.5}
         />
+        {isStep ? null : <circle cx={size / 2} cy={size / 2} fill="currentColor" r={1.75} />}
       </svg>
     );
   }
@@ -130,6 +139,38 @@ export function TimelineEasingStepPresetIcon(): React.JSX.Element {
         strokeLinecap="round"
         strokeWidth={1}
       />
+    </svg>
+  );
+}
+
+export function TimelineEasingContinuousPresetIcon(): React.JSX.Element {
+  return (
+    <svg
+      aria-hidden="true"
+      className="pointer-events-none shrink-0"
+      data-slot="timeline-easing-continuous-icon"
+      fill="none"
+      height={timelineEasingPresetIconSize}
+      viewBox="0 0 28 28"
+      width={timelineEasingPresetIconSize}
+    >
+      <rect
+        fill="color-mix(in oklab, currentColor 8%, transparent)"
+        height={20}
+        rx={2}
+        stroke="color-mix(in oklab, currentColor 18%, transparent)"
+        strokeWidth={1}
+        width={20}
+        x={4}
+        y={4}
+      />
+      <path
+        d="M 4 24 L 24 4"
+        stroke={timelineEasingPresetIconLineColor}
+        strokeLinecap="round"
+        strokeWidth={1}
+      />
+      <circle cx={14} cy={14} fill={timelineEasingPresetIconLineColor} r={2} />
     </svg>
   );
 }

@@ -8,12 +8,18 @@ import type { ToolcraftTimelineKeyframeEasing } from '../../state/types';
 import {
   findTimelineEasingPresetName,
   getEasingInputValue,
+  getTimelineKeyframeEasingKind,
   parseToolcraftTimelineKeyframeEasing,
   timelineEasingPresetCategories,
   timelineEasingPresets,
+  timelineKeyframeEasingKindOptions,
 } from './timeline-easing-model';
 import { TimelineEasingEditor } from './timeline-easing-editor';
-import { TimelineEasingPresetIcon, TimelineEasingStepPresetIcon } from './timeline-easing-icons';
+import {
+  TimelineEasingContinuousPresetIcon,
+  TimelineEasingPresetIcon,
+  TimelineEasingStepPresetIcon,
+} from './timeline-easing-icons';
 import { useTimelineEasingPopoverWidth } from './timeline-easing-popover-layout';
 
 function cn(...classNames: Array<string | false | null | undefined>): string {
@@ -49,7 +55,7 @@ export function TimelineEasingPopoverContent({
   const [inputEditing, setInputEditing] = useState(false);
   const activePresetName = findTimelineEasingPresetName(easing);
   const committedInputValue = getEasingInputValue(easing);
-  const isStep = easing.type === 'step';
+  const activeKind = getTimelineKeyframeEasingKind(easing);
   const popoverWidth = useTimelineEasingPopoverWidth();
 
   useEffect(() => {
@@ -74,7 +80,7 @@ export function TimelineEasingPopoverContent({
         return;
       }
 
-      setInputError('Use cubic-bezier(x1, y1, x2, y2) or step.');
+      setInputError('Use cubic-bezier(x1, y1, x2, y2), continuous, or step.');
       return;
     }
 
@@ -107,13 +113,53 @@ export function TimelineEasingPopoverContent({
         visibilityMode="terminal"
       >
         <div className="flex flex-col gap-4">
+          {/*
+            The six shapes a keyframe usually wants, in the words people use for
+            them, ahead of the curve library. Choosing how a keyframe moves was
+            a hunt through five categories of nineteen named curves; the ones
+            almost every keyframe actually wants are these.
+          */}
+          <div className="flex flex-col gap-1.5">
+            <span
+              className="text-[11px] leading-4 opacity-60"
+              data-slot="timeline-easing-section-label"
+            >
+              Keyframe
+            </span>
+            <div className="grid grid-cols-2 gap-1.5">
+              {timelineKeyframeEasingKindOptions.map((option) => (
+                <button
+                  className={getTimelineEasingPresetButtonClassName(option.kind === activeKind)}
+                  data-slot="timeline-easing-kind"
+                  data-timeline-easing-kind={option.kind}
+                  key={option.kind}
+                  onClick={() =>
+                    onChange(
+                      option.easing.type === 'bezier'
+                        ? { controlPoints: [...option.easing.controlPoints], type: 'bezier' }
+                        : { type: option.easing.type },
+                    )
+                  }
+                  title={option.description}
+                  type="button"
+                >
+                  {option.kind === 'continuous' ? (
+                    <TimelineEasingContinuousPresetIcon />
+                  ) : option.kind === 'hold' ? (
+                    <TimelineEasingStepPresetIcon />
+                  ) : (
+                    <TimelineEasingPresetIcon controlPoints={option.easing.controlPoints} />
+                  )}
+                  <span>{option.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
           {timelineEasingPresetCategories.map(([category, categoryLabel]) => {
             const presets = timelineEasingPresets.filter(
               (preset) => preset.category === category,
             );
-            const showStepPreset = category === 'basic';
-
-            if (presets.length === 0 && !showStepPreset) {
+            if (presets.length === 0) {
               return null;
             }
 
@@ -126,16 +172,6 @@ export function TimelineEasingPopoverContent({
                   {categoryLabel}
                 </span>
                 <div className="grid grid-cols-2 gap-1.5">
-                  {showStepPreset ? (
-                    <button
-                      className={getTimelineEasingPresetButtonClassName(isStep)}
-                      onClick={() => onChange({ type: 'step' })}
-                      type="button"
-                    >
-                      <TimelineEasingStepPresetIcon />
-                      <span>Step Hold</span>
-                    </button>
-                  ) : null}
                   {presets.map((preset) => {
                     const isActive = activePresetName === preset.name;
 
@@ -210,7 +246,7 @@ export function TimelineEasingPopoverContent({
                   event.currentTarget.blur();
                 }
               }}
-              placeholder="0.19, 1, 0.22, 1 or step"
+              placeholder="0.19, 1, 0.22, 1, continuous or step"
               type="text"
               value={inputValue}
             />

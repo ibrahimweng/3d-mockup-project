@@ -106,9 +106,9 @@ function clampEasingValue(value: number, min: number, max: number): number {
 function cloneToolcraftTimelineKeyframeEasing(
   easing: ToolcraftTimelineKeyframeEasing,
 ): ToolcraftTimelineKeyframeEasing {
-  return easing.type === 'step'
-    ? { type: 'step' }
-    : { controlPoints: [...easing.controlPoints], type: 'bezier' };
+  return easing.type === 'bezier'
+    ? { controlPoints: [...easing.controlPoints], type: 'bezier' }
+    : { type: easing.type };
 }
 
 export function getToolcraftTimelineKeyframeEasing(
@@ -128,6 +128,10 @@ export function normalizeToolcraftTimelineKeyframeEasing(
 
   if (easingRecord.type === 'step') {
     return { type: 'step' };
+  }
+
+  if (easingRecord.type === 'continuous') {
+    return { type: 'continuous' };
   }
 
   if (easingRecord.type !== 'bezier' || !Array.isArray(easingRecord.controlPoints)) {
@@ -176,8 +180,12 @@ export function parseToolcraftTimelineKeyframeEasing(
     return null;
   }
 
-  if (/^step(?:\s+hold)?$/i.test(trimmedValue)) {
+  if (/^step(?:\s+hold)?$/i.test(trimmedValue) || /^hold$/i.test(trimmedValue)) {
     return { type: 'step' };
+  }
+
+  if (/^continuous$/i.test(trimmedValue)) {
+    return { type: 'continuous' };
   }
 
   const cubicBezierMatch = trimmedValue.match(/^cubic-bezier\((.+)\)$/i);
@@ -215,7 +223,7 @@ function formatTimelineBezierControlPoints(
 export function findTimelineEasingPresetName(
   easing: ToolcraftTimelineKeyframeEasing,
 ): string | null {
-  if (easing.type === 'step') {
+  if (easing.type !== 'bezier') {
     return null;
   }
 
@@ -238,7 +246,18 @@ export function findTimelineEasingPresetName(
 export function getEasingEditorControlPoints(
   easing: ToolcraftTimelineKeyframeEasing,
 ): TimelineBezierControlPoints {
-  return easing.type === 'step' ? [0, 0, 1, 1] : easing.controlPoints;
+  if (easing.type === 'bezier') {
+    return easing.controlPoints;
+  }
+
+  /**
+   * Neither of these is a curve the editor can draw. A hold has no curve at
+   * all, and a continuous keyframe's curve is only solved once its neighbours
+   * are known, which is at evaluation and not here. Both fall back to the
+   * straight line, and the editor shows itself as inactive rather than
+   * pretending the line is what will run.
+   */
+  return [0, 0, 1, 1];
 }
 
 export function areEasingControlPointsEqual(
@@ -265,7 +284,100 @@ export function interpolateTimelineEasingControlPoints(
 }
 
 export function getEasingInputValue(easing: ToolcraftTimelineKeyframeEasing): string {
-  return easing.type === 'step'
-    ? 'step'
-    : formatTimelineBezierControlPoints(easing.controlPoints);
+  if (easing.type === 'step') {
+    return 'step';
+  }
+
+  if (easing.type === 'continuous') {
+    return 'continuous';
+  }
+
+  return formatTimelineBezierControlPoints(easing.controlPoints);
+}
+
+/**
+ * The handful of shapes a keyframe usually wants, named in the words people
+ * actually use for them.
+ *
+ * The nineteen presets and the curve editor stay where they are — this is the
+ * short list that sits above them, so choosing how a keyframe moves is one
+ * press rather than a hunt through five categories. Anything not on the list
+ * still reads back as Custom, and the library below is how you get there.
+ */
+export type TimelineKeyframeEasingKind =
+  | 'continuous'
+  | 'custom'
+  | 'easeIn'
+  | 'easeOut'
+  | 'hold'
+  | 'linear'
+  | 'smooth';
+
+export type TimelineKeyframeEasingKindOption = {
+  /** Plain-language description of the motion, for the control's tooltip. */
+  description: string;
+  easing: ToolcraftTimelineKeyframeEasing;
+  kind: Exclude<TimelineKeyframeEasingKind, 'custom'>;
+  label: string;
+};
+
+export const timelineKeyframeEasingKindOptions = [
+  {
+    description: 'Same speed the whole way. No acceleration at either end.',
+    easing: { controlPoints: [0, 0, 1, 1], type: 'bezier' },
+    kind: 'linear',
+    label: 'Linear',
+  },
+  {
+    description: 'Starts slowly and speeds up towards the next keyframe.',
+    easing: { controlPoints: [0.42, 0, 1, 1], type: 'bezier' },
+    kind: 'easeIn',
+    label: 'Ease In',
+  },
+  {
+    description: 'Leaves at full speed and slows down into the next keyframe.',
+    easing: { controlPoints: [0, 0, 0.58, 1], type: 'bezier' },
+    kind: 'easeOut',
+    label: 'Ease Out',
+  },
+  {
+    description: 'Eases at both ends, so it settles on the next keyframe.',
+    easing: { controlPoints: [0.65, 0, 0.35, 1], type: 'bezier' },
+    kind: 'smooth',
+    label: 'Smooth',
+  },
+  {
+    description: 'Passes straight through without stopping here.',
+    easing: { type: 'continuous' },
+    kind: 'continuous',
+    label: 'Continuous',
+  },
+  {
+    description: 'Holds this value, then jumps at the next keyframe.',
+    easing: { type: 'step' },
+    kind: 'hold',
+    label: 'Hold',
+  },
+] as const satisfies readonly TimelineKeyframeEasingKindOption[];
+
+export function getTimelineKeyframeEasingKind(
+  easing: ToolcraftTimelineKeyframeEasing | undefined,
+): TimelineKeyframeEasingKind {
+  const resolvedEasing = getToolcraftTimelineKeyframeEasing(easing);
+
+  if (resolvedEasing.type === 'continuous') {
+    return 'continuous';
+  }
+
+  if (resolvedEasing.type === 'step') {
+    return 'hold';
+  }
+
+  return (
+    timelineKeyframeEasingKindOptions.find(
+      (option) =>
+        option.easing.type === 'bezier' &&
+        areEasingControlPointsEqual(option.easing.controlPoints, resolvedEasing.controlPoints),
+    )?.kind ?? 'custom'
+  );
 }

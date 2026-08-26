@@ -43,6 +43,14 @@ export function TimelineEasingEditor({
   const animationFrameRef = useRef<number | null>(null);
   const [isCurveAnimating, setIsCurveAnimating] = useState(false);
   const isStep = easing.type === 'step';
+  /**
+   * A continuous keyframe has no curve to draw or drag here: the one it runs
+   * on is solved from its neighbours at evaluation, and it changes whenever
+   * either of them moves. The editor shows the straight line through the
+   * keyframe and withholds the handles, rather than offering a curve that a
+   * drag would silently turn back into an ordinary one.
+   */
+  const isContinuous = easing.type === 'continuous';
   const renderedControlPoints = dragTarget ? targetControlPoints : displayedControlPoints;
   const [startX, startY] = getEasingEditorPoint(0, 0);
   const [endX, endY] = getEasingEditorPoint(1, 1);
@@ -304,6 +312,26 @@ export function TimelineEasingEditor({
               x2={endX}
               y1={startY}
               y2={endY}
+            />
+          </>
+        ) : isContinuous ? (
+          <>
+            <line
+              data-slot="timeline-easing-continuous-line"
+              stroke="color-mix(in oklab, var(--foreground) 85%, transparent)"
+              strokeLinecap="round"
+              strokeWidth={2}
+              x1={startX}
+              x2={endX}
+              y1={startY}
+              y2={endY}
+            />
+            <circle
+              cx={(startX + endX) / 2}
+              cy={(startY + endY) / 2}
+              data-slot="timeline-easing-continuous-point"
+              fill="color-mix(in oklab, var(--foreground) 85%, transparent)"
+              r={3}
             />
           </>
         ) : (

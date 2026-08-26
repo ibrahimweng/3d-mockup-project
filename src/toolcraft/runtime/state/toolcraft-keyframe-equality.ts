@@ -16,7 +16,7 @@ function keyframeEasingsEqual(
     return false;
   }
 
-  if (previous.type === "step" || next.type === "step") {
+  if (previous.type !== "bezier" || next.type !== "bezier") {
     return previous.type === next.type;
   }
 
