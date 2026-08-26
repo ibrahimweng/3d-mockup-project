@@ -66,11 +66,12 @@ test("timeline playback scrubs, pauses, loops and redraws", () => {
   const duration = state.timeline.durationSeconds;
   expect(duration).toBeGreaterThan(0);
 
-  // The transport opens ready to run, which is what it means for a timeline to
-  // be live. It simply has nothing to do until something is keyed — the clock
-  // itself stands down while no control has keyframes, which is what stops an
-  // empty loop redrawing a picture that never changes.
-  expect(fresh().timeline.isPlaying).toBe(true);
+  // A fresh timeline opens paused, because it has nothing to play. Keying does
+  // not start it either: the playhead staying where it was put is what lets you
+  // key a frame and still see the frame you keyed.
+  expect(fresh().timeline.isPlaying).toBe(false);
+  expect(fresh().timeline.keyframeGroups).toHaveLength(0);
+  expect(state.timeline.isPlaying).toBe(false);
 
   // Playing runs it; pausing stops it where it stands rather than rewinding.
   state = run(state, { isPlaying: true, type: "timeline.setPlaying" });
