@@ -81,13 +81,19 @@ function createDefaultTimelineState({
     /**
      * Paused, because a new timeline has nothing to play.
      *
-     * This used to open running, which looked harmless: with no keyframes
-     * nothing moves. It was not harmless. The transport read "Pause" on a
-     * fresh app with nothing to pause, and the preview kept redrawing a
-     * picture that never changed — measured as ten different frames out of ten
-     * samples while playing against one out of ten while paused, which is what
-     * made every proof that waits for the picture to hold still unreliable.
-     * Adding an animation starts playback, which is where that belongs.
+     * Opening it running looked harmless — with no keyframes nothing moves —
+     * and it was not. The transport read "Pause" on a fresh app with nothing to
+     * pause, the preview redrew a picture that never changed, and the
+     * orientation proofs that take a baseline before touching anything require
+     * a paused transport and failed outright.
+     *
+     * This was briefly reverted to `true` on the theory that a live transport
+     * was the framework's contract, because the timeline playback proof hung
+     * waiting for a "Pause playback" button. The revert was wrong twice over:
+     * it broke the orientation proofs — measured, three runs failing at the
+     * precondition in thirty seconds against two runs passing in one minute
+     * fifty — and it did not fix the proof it was meant to fix, which fails
+     * either way. Playback is something a person starts.
      */
     isPlaying: false,
     selectedKeyframeId: null,

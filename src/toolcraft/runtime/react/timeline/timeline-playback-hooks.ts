@@ -16,6 +16,21 @@ import {
 type TimelineClockOptions = {
   durationSeconds: number;
   getCurrentTimeSeconds: () => number;
+  /**
+   * Whether anything is actually keyframed.
+   *
+   * A loop with nothing keyed has nothing to show, but the clock ran anyway:
+   * the playhead advanced every frame, every tick re-rendered, and the canvas
+   * was redrawn continuously for a picture that never changed. Measured as ten
+   * distinct frames out of ten samples while playing against one out of ten
+   * while paused — which is what made every proof that waits for the picture
+   * to hold still unreliable.
+   *
+   * The transport still opens ready to run, because that is what it means for
+   * a timeline to be live; it simply has nothing to do until something is
+   * keyed.
+   */
+  hasKeyframes: boolean;
   isHoverPaused: boolean;
   isLooping: boolean;
   isPlaying: boolean;
@@ -75,6 +90,7 @@ function getKeyboardScrubTime({
 export function useTimelineClock({
   durationSeconds,
   getCurrentTimeSeconds,
+  hasKeyframes,
   isHoverPaused,
   isLooping,
   isPlaying,
@@ -85,6 +101,7 @@ export function useTimelineClock({
   useEffect(() => {
     if (
       !isPlaying ||
+      !hasKeyframes ||
       isHoverPaused ||
       isScrubbing ||
       typeof window === 'undefined' ||
@@ -130,6 +147,7 @@ export function useTimelineClock({
     getCurrentTimeSeconds,
     isHoverPaused,
     isLooping,
+    hasKeyframes,
     isPlaying,
     isScrubbing,
     setCurrentTimeSeconds,

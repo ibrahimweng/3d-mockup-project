@@ -393,6 +393,16 @@ export type ToolcraftTimelineKeyframeEasing =
       type: "bezier";
     }
   | {
+      /**
+       * Carry the motion through this keyframe at the speed it arrives, rather
+       * than resting at it. The curve is solved from the keyframes on either
+       * side at evaluation time, because the speed to carry through at is not
+       * knowable from this keyframe alone and has to follow its neighbours when
+       * they move.
+       */
+      type: "continuous";
+    }
+  | {
       type: "step";
     };
 

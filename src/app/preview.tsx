@@ -118,6 +118,17 @@ export function MockupPreview(): React.ReactElement {
    */
   const observation = React.useMemo(
     () => ({
+      /**
+       * The device's own pose, in the numbers a person set.
+       *
+       * `pose` below is the camera's, and until this was added it was the only
+       * pose published — so the observation claimed to say what was drawn while
+       * saying nothing about the thing in the middle of the frame. Anything
+       * that animates the device moves these numbers and nothing else, which
+       * makes them the only readout that can tell one frame of an animation
+       * from another without going through the pixels.
+       */
+      deviceTransform: { ...settings.transform, spin: settings.spin },
       outputSignature: fingerprint(JSON.stringify([settings, screen, pose])),
       pose,
       poseTarget: "camera.orbit",

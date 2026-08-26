@@ -40,6 +40,10 @@ function readKeyframeEasing(
     return { type: "step" };
   }
 
+  if (value.type === "continuous") {
+    return { type: "continuous" };
+  }
+
   if (value.type !== "bezier") {
     return undefined;
   }

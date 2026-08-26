@@ -66,11 +66,12 @@ test("timeline playback scrubs, pauses, loops and redraws", () => {
   const duration = state.timeline.durationSeconds;
   expect(duration).toBeGreaterThan(0);
 
-  // A new timeline opens paused, because a loop with nothing keyed has nothing
-  // to play — and one that ran anyway kept the preview redrawing a picture
-  // that never changed, which is what made every proof waiting for the frame
-  // to hold still unreliable.
+  // A fresh timeline opens paused, because it has nothing to play. Keying does
+  // not start it either: the playhead staying where it was put is what lets you
+  // key a frame and still see the frame you keyed.
   expect(fresh().timeline.isPlaying).toBe(false);
+  expect(fresh().timeline.keyframeGroups).toHaveLength(0);
+  expect(state.timeline.isPlaying).toBe(false);
 
   // Playing runs it; pausing stops it where it stands rather than rewinding.
   state = run(state, { isPlaying: true, type: "timeline.setPlaying" });

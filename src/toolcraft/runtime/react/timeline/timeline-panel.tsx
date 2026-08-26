@@ -328,6 +328,7 @@ export function TimelinePanel({
   useTimelineClock({
     durationSeconds,
     getCurrentTimeSeconds,
+    hasKeyframes: keyframeGroups.length > 0,
     isHoverPaused,
     isLooping,
     isPlaying: displayedIsPlaying,

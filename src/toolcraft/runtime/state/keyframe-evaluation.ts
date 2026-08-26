@@ -1,3 +1,4 @@
+import { applyContinuousEasingToSegment } from "./timeline-continuous-easing";
 import type {
   ToolcraftState,
   ToolcraftTimelineBezierControlPoints,
@@ -6,8 +7,12 @@ import type {
   ToolcraftTimelineKeyframeGroup,
 } from "./types";
 
+const defaultTimelineBezierControlPoints: ToolcraftTimelineBezierControlPoints = [
+  0.65, 0, 0.35, 1,
+];
+
 const defaultTimelineKeyframeEasing: ToolcraftTimelineKeyframeEasing = {
-  controlPoints: [0.65, 0, 0.35, 1],
+  controlPoints: defaultTimelineBezierControlPoints,
   type: "bezier",
 };
 
@@ -65,7 +70,45 @@ function easeProgress(
     return clampedProgress >= 1 ? 1 : 0;
   }
 
+  if (resolvedEasing.type === "continuous") {
+    return getBezierYForX(clampedProgress, defaultTimelineBezierControlPoints);
+  }
+
   return getBezierYForX(clampedProgress, resolvedEasing.controlPoints);
+}
+
+/**
+ * The curve a segment actually runs on, once its two ends have had their say.
+ *
+ * A hold is absolute and shortcuts everything else. Otherwise the segment
+ * starts from whatever curve its opening keyframe carries, and each end that
+ * asked to be continuous replaces its own handle with one solved from that
+ * keyframe's neighbours.
+ */
+function getSegmentEasing(
+  keyframes: readonly ToolcraftTimelineKeyframe[],
+  fromIndex: number,
+): ToolcraftTimelineKeyframeEasing {
+  const fromKeyframe = keyframes[fromIndex];
+  const fromEasing = fromKeyframe?.easing ?? defaultTimelineKeyframeEasing;
+
+  if (fromEasing.type === "step") {
+    return fromEasing;
+  }
+
+  const baseControlPoints =
+    fromEasing.type === "bezier"
+      ? fromEasing.controlPoints
+      : defaultTimelineBezierControlPoints;
+
+  return {
+    controlPoints: applyContinuousEasingToSegment(
+      [...baseControlPoints],
+      keyframes,
+      fromIndex,
+    ),
+    type: "bezier",
+  };
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
@@ -159,7 +202,7 @@ function getEvaluatedTimelineGroupValue(
 
     const durationSeconds = toKeyframe.timeSeconds - fromKeyframe.timeSeconds;
     const progress = durationSeconds <= 0 ? 1 : (timeSeconds - fromKeyframe.timeSeconds) / durationSeconds;
-    const easedProgress = easeProgress(progress, fromKeyframe.easing);
+    const easedProgress = easeProgress(progress, getSegmentEasing(keyframes, index));
 
     return interpolateToolcraftValue(
       getKeyframeRuntimeValue(fromKeyframe),
