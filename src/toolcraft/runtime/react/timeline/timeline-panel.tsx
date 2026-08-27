@@ -175,6 +175,23 @@ export function TimelinePanel({
     () => getToolcraftTimelineObjectTracks(keyframeGroups),
     [keyframeGroups],
   );
+  /**
+   * Every time something is keyed at, in order and without repeats.
+   *
+   * Two controls keyed at the same moment are one place to step to, not two,
+   * which is why this is a set before it is a list.
+   */
+  const keyframeTimesSeconds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          keyframeGroups.flatMap((group) =>
+            group.keyframes.map((keyframe) => keyframe.timeSeconds),
+          ),
+        ),
+      ).sort((first, second) => first - second),
+    [keyframeGroups],
+  );
   const visibleRowCount = objectTracks.reduce(
     (total, track) =>
       total + 1 + (collapsedObjectIds.includes(track.objectId) ? 0 : track.groups.length),
@@ -256,6 +273,113 @@ export function TimelinePanel({
     },
     [dispatch, store],
   );
+  /**
+   * One place playback is started and stopped from, because the button and the
+   * spacebar have to do the same thing — including standing the hover pause
+   * down, which is what made a press of the button behave differently from a
+   * press of the key when they were written separately.
+   */
+  const togglePlayback = useCallback((): void => {
+    setIsHoverPaused(false);
+
+    if (store.getState().timeline.isPlaying) {
+      setIsPlaying(false);
+      return;
+    }
+
+    dispatch({ type: 'timeline.togglePlayback' });
+  }, [dispatch, setIsPlaying, store]);
+  /**
+   * Move the playhead to the next or previous time something is keyed.
+   *
+   * A small tolerance keeps a press from landing on the keyframe it is already
+   * sitting on: floating-point times never compare equal to the playhead
+   * exactly, so without it the first press of Next would go nowhere. Playback
+   * stops, because stepping is something a person does to look at one frame.
+   */
+  const stepToKeyframe = useCallback(
+    (direction: -1 | 1): void => {
+      const { timeline } = store.getState();
+      const times = Array.from(
+        new Set(
+          timeline.keyframeGroups.flatMap((group) =>
+            group.keyframes.map((keyframe) => keyframe.timeSeconds),
+          ),
+        ),
+      ).sort((first, second) => first - second);
+
+      if (times.length === 0) {
+        return;
+      }
+
+      const tolerance = 0.001;
+      const from = timeline.currentTimeSeconds;
+      const next =
+        direction === 1
+          ? times.find((time) => time > from + tolerance)
+          : [...times].reverse().find((time) => time < from - tolerance);
+
+      if (next === undefined) {
+        return;
+      }
+
+      setIsPlaying(false);
+      dispatch({ currentTimeSeconds: next, type: 'timeline.setCurrentTime' });
+    },
+    [dispatch, setIsPlaying, store],
+  );
+  /**
+   * Space plays and pauses, from anywhere in the app.
+   *
+   * It listens on the document rather than on the panel because the thing a
+   * person is looking at while they reach for it is the preview, not the
+   * timeline, and a handler on the panel only fires once the panel has focus.
+   *
+   * Two exclusions. Anything that takes typed text keeps its own space — a
+   * duration field, a layer being renamed, a search box. And anything that
+   * already answers to space keeps it too: a focused button, link or switch
+   * would otherwise be pressed and toggle playback in the same keystroke, so
+   * this stands down and lets the control do its own job.
+   *
+   * It lives here rather than beside the app's other shortcuts because of what
+   * `togglePlayback` does above it. The panel stands its clock down while the
+   * pointer is over it, so a dispatch that only flips `isPlaying` turns the
+   * transport to Playing and leaves the playhead exactly where it was — which
+   * is what the app-level handler did, and why space appeared to do nothing.
+   * Clearing that hover pause needs state only the panel has.
+   */
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== ' ' && event.code !== 'Space') {
+        return;
+      }
+
+      if (event.altKey || event.ctrlKey || event.metaKey || event.repeat) {
+        return;
+      }
+
+      const target = event.target instanceof Element ? event.target : null;
+
+      if (
+        target?.closest(
+          'input, textarea, select, [contenteditable="true"], [contenteditable=""], button, a[href], [role="button"], [role="switch"], [role="menuitem"], [role="option"], [role="combobox"]',
+        )
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      togglePlayback();
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [togglePlayback]);
   const setSelectedKeyframeId = useCallback(
     (keyframeId: string | null): void => {
       dispatch({ keyframeId, type: 'timeline.selectKeyframe' });
@@ -329,6 +453,7 @@ export function TimelinePanel({
     durationSeconds,
     getCurrentTimeSeconds,
     hasKeyframes: keyframeGroups.length > 0,
+    playbackRate: timeline.playbackRate,
     isHoverPaused,
     isLooping,
     isPlaying: displayedIsPlaying,
@@ -600,6 +725,8 @@ export function TimelinePanel({
           isLooping={isLooping}
           isPlaying={displayedIsPlaying}
           isScrubbing={scrubber.isScrubbing}
+          keyframeTimesSeconds={keyframeTimesSeconds}
+          playbackRate={timeline.playbackRate}
           playbackReady={playbackReady}
           animations={timelineAnimations}
           onAddAnimation={addAnimation}
@@ -610,20 +737,16 @@ export function TimelinePanel({
           onScrubPointerDown={scrubber.handleScrubPointerDown}
           onScrubPointerMove={scrubber.handleScrubPointerMove}
           onScrubPointerUp={scrubber.handleScrubPointerUp}
+          onSetPlaybackRate={(nextRate) =>
+            dispatch({ playbackRate: nextRate, type: 'timeline.setPlaybackRate' })
+          }
+          onStepToKeyframe={stepToKeyframe}
           onToggleExpanded={() => {
             setDefaultExpandedPending(false);
             dispatch({ expanded: !isExpanded, type: 'timeline.setExpanded' });
           }}
           onToggleLoop={() => dispatch({ type: 'timeline.toggleLoop' })}
-          onTogglePlayback={() => {
-            setIsHoverPaused(false);
-            if (displayedIsPlaying) {
-              setIsPlaying(false);
-              return;
-            }
-
-            dispatch({ type: 'timeline.togglePlayback' });
-          }}
+          onTogglePlayback={togglePlayback}
           onZoomChange={changeZoom}
           stripRef={scrubber.stripRef}
           variant={variant}

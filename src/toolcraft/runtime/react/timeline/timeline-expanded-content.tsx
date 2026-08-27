@@ -265,7 +265,23 @@ export function TimelineExpandedContent({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-slot="timeline-expanded">
-      <div className="relative grid h-9 min-w-0 shrink-0 grid-cols-[164px_minmax(0,1fr)_36px] after:pointer-events-none after:absolute after:inset-x-0 after:-bottom-px after:h-px after:bg-[color:color-mix(in_oklab,var(--border)_20%,transparent)]">
+      {/*
+        The ruler is a scrub surface, which is the one place every editing tool
+        agrees the playhead can be thrown to. Its pointer handlers are the
+        scrubber's own — the geometry they measure comes from the track strip
+        below rather than from whatever was pressed, so a press up here lands on
+        exactly the time it points at.
+      */}
+      <div
+        className="relative grid h-9 min-w-0 shrink-0 cursor-ew-resize touch-none grid-cols-[164px_minmax(0,1fr)_36px] select-none after:pointer-events-none after:absolute after:inset-x-0 after:-bottom-px after:h-px after:bg-[color:color-mix(in_oklab,var(--border)_20%,transparent)]"
+        data-slot="timeline-expanded-ruler-row"
+        data-timeline-scrub-surface="true"
+        onLostPointerCapture={onLostPointerCapture}
+        onPointerCancel={onPointerUp}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+      >
         <div className="flex min-w-0 items-center px-3 text-[11px] leading-4 text-[color:color-mix(in_oklab,var(--foreground)_75%,transparent)] select-none">
           <span className="min-w-0 truncate opacity-60">Properties</span>
         </div>

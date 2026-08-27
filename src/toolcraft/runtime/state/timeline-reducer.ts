@@ -4,6 +4,7 @@ import {
   normalizeToolcraftControlValue,
 } from "./control-value-normalization";
 import {
+  clampToolcraftTimelinePlaybackRate,
   clampToolcraftTimelineDurationSeconds,
   clampToolcraftTimelineTime,
   getToolcraftTimelineKeyframeId,
@@ -29,6 +30,7 @@ type ToolcraftTimelineCommand = Extract<
       | "timeline.setCurrentTime"
       | "timeline.setDuration"
       | "timeline.setExpanded"
+      | "timeline.setPlaybackRate"
       | "timeline.setPlaying"
       | "timeline.toggleControlKeyframes"
       | "timeline.toggleExpanded"
@@ -216,6 +218,20 @@ export function reduceToolcraftTimelineCommand(
           ...state.timeline,
           currentTimeSeconds: shouldRestartPlayback ? 0 : state.timeline.currentTimeSeconds,
           isPlaying: !state.timeline.isPlaying,
+        },
+      };
+    }
+
+    case "timeline.setPlaybackRate": {
+      // Not a history entry, for the same reason scrubbing is not one: review
+      // speed is a way of looking at the work rather than a change to it, and
+      // it leaves the keyframes, their times and the length of the loop exactly
+      // as they were.
+      return {
+        ...state,
+        timeline: {
+          ...state.timeline,
+          playbackRate: clampToolcraftTimelinePlaybackRate(command.playbackRate),
         },
       };
     }

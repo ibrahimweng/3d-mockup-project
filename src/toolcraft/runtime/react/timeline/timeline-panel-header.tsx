@@ -3,10 +3,23 @@
 import * as React from 'react';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { PrimitiveArrowIcon } from '@/toolcraft/ui';
-import { Pause, Play, Plus, Repeat, Repeat1, Search } from 'lucide-react';
+import {
+  ChevronFirst,
+  ChevronLast,
+  Gauge,
+  Pause,
+  Play,
+  Plus,
+  Repeat,
+  Repeat1,
+  Search,
+} from 'lucide-react';
 
 import type { ToolcraftTimelineAnimationSchema } from '../../schema/types';
-import { clampToolcraftTimelineTime } from '../../state/timeline-values';
+import {
+  clampToolcraftTimelineTime,
+  toolcraftTimelinePlaybackRates,
+} from '../../state/timeline-values';
 import {
   getToolcraftTimelineViewZoom,
   getToolcraftTimelineZoomFromSliderRatio,
@@ -24,6 +37,9 @@ type TimelinePanelHeaderProps = {
   isLooping: boolean;
   isPlaying: boolean;
   isScrubbing: boolean;
+  /** The times something is keyed at, in order, for the step controls. */
+  keyframeTimesSeconds: readonly number[];
+  playbackRate: number;
   playbackReady: boolean;
   animations: readonly ToolcraftTimelineAnimationSchema[];
   onAddAnimation: (animationId: string) => void;
@@ -34,6 +50,8 @@ type TimelinePanelHeaderProps = {
   onScrubPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
   onScrubPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;
   onScrubPointerUp: (event: React.PointerEvent<HTMLDivElement>) => void;
+  onSetPlaybackRate: (playbackRate: number) => void;
+  onStepToKeyframe: (direction: -1 | 1) => void;
   onToggleExpanded: () => void;
   onToggleLoop: () => void;
   onTogglePlayback: () => void;
@@ -391,6 +409,8 @@ export function TimelinePanelHeader({
   isLooping,
   isPlaying,
   isScrubbing,
+  keyframeTimesSeconds,
+  playbackRate,
   playbackReady,
   onDurationCommit,
   onScrubKeyDown,
@@ -398,6 +418,8 @@ export function TimelinePanelHeader({
   onScrubPointerDown,
   onScrubPointerMove,
   onScrubPointerUp,
+  onSetPlaybackRate,
+  onStepToKeyframe,
   onToggleExpanded,
   onToggleLoop,
   onTogglePlayback,
@@ -443,6 +465,19 @@ export function TimelinePanelHeader({
         className="relative z-10 inline-flex shrink-0 items-center gap-1"
         data-slot="timeline-transport-controls"
       >
+        {/*
+          Step, play, step — the order every transport uses, so the play button
+          stays where the hand expects it. The step buttons go to the times
+          something is actually keyed rather than to a fixed increment, because
+          the frames worth landing on exactly are the ones that were keyed.
+        */}
+        <TimelineIconButton
+          disabled={keyframeTimesSeconds.length === 0}
+          label="Previous keyframe"
+          onClick={() => onStepToKeyframe(-1)}
+        >
+          <ChevronFirst />
+        </TimelineIconButton>
         <TimelineIconButton
           disabled={!playbackReady}
           label={isPlaying ? 'Pause playback' : 'Play playback'}
@@ -451,11 +486,40 @@ export function TimelinePanelHeader({
           {isPlaying ? <Pause /> : <Play />}
         </TimelineIconButton>
         <TimelineIconButton
+          disabled={keyframeTimesSeconds.length === 0}
+          label="Next keyframe"
+          onClick={() => onStepToKeyframe(1)}
+        >
+          <ChevronLast />
+        </TimelineIconButton>
+        <TimelineIconButton
           label={isLooping ? 'Disable loop' : 'Enable loop'}
           onClick={onToggleLoop}
         >
           {isLooping ? <Repeat data-icon="loop-enabled" /> : <Repeat1 data-icon="loop-disabled" />}
         </TimelineIconButton>
+        {/*
+          Speed cycles rather than opening a menu: there are five of them, the
+          current one is written on the button, and a menu for five numbers is
+          more machinery than the choice deserves.
+        */}
+        <button
+          aria-label={`Playback speed ${playbackRate}x`}
+          className="inline-flex h-6 shrink-0 items-center gap-1 rounded px-1.5 font-sans text-[11px] leading-5 tabular-nums text-[color:var(--muted-foreground)] transition-colors duration-150 ease-out hover:bg-[color:color-mix(in_oklab,var(--foreground)_8%,transparent)] hover:text-[color:var(--foreground)] focus-visible:outline-none"
+          data-slot="timeline-playback-rate"
+          data-timeline-playback-rate={playbackRate}
+          onClick={() => {
+            const rates = toolcraftTimelinePlaybackRates;
+            const index = rates.indexOf(playbackRate as (typeof rates)[number]);
+            onSetPlaybackRate(rates[(index + 1) % rates.length] ?? 1);
+          }}
+          onPointerDown={(event) => event.stopPropagation()}
+          title="Playback speed"
+          type="button"
+        >
+          <Gauge className="size-3" />
+          {playbackRate}x
+        </button>
       </div>
       <TimelinePanelDivider />
       {/*
