@@ -3,7 +3,9 @@ import { expect, type Locator, type Page } from "@playwright/test";
 import { attachToolcraftBrowserRuntimeEvidence } from "./browser-runtime-evidence";
 import {
   assertToolcraftProducedArtifact,
+  compareToolcraftImageArtifacts,
   getToolcraftSemanticArtifactSignature,
+  TOOLCRAFT_IMAGE_ARTIFACT_EQUIVALENCE_TOLERANCE,
   type ToolcraftExportArtifactInspection,
 } from "./export-artifact-helpers";
 
@@ -166,8 +168,9 @@ export async function expectExportExcludesCanvasHandles<TArtifact>(
   const requirementId = options.requirementId ?? "canvas-export-clean";
   const baselineArtifact = await exportAction();
   assertToolcraftProducedArtifact(baselineArtifact, requirementId);
+  const baselineInspection = await inspectArtifact(baselineArtifact);
   const baselineSignature = getToolcraftSemanticArtifactSignature(
-    await inspectArtifact(baselineArtifact),
+    baselineInspection,
     requirementId,
   );
   const originalStyles = await handles.evaluateAll((elements) =>
@@ -175,6 +178,7 @@ export async function expectExportExcludesCanvasHandles<TArtifact>(
   );
 
   let markedSignature: string;
+  let markedInspection: ToolcraftExportArtifactInspection | undefined;
   try {
     await handles.evaluateAll((elements) => {
       for (const element of elements) {
@@ -190,8 +194,9 @@ export async function expectExportExcludesCanvasHandles<TArtifact>(
     });
     const markedArtifact = await exportAction();
     assertToolcraftProducedArtifact(markedArtifact, requirementId);
+    markedInspection = await inspectArtifact(markedArtifact);
     markedSignature = getToolcraftSemanticArtifactSignature(
-      await inspectArtifact(markedArtifact),
+      markedInspection,
       requirementId,
     );
   } finally {
@@ -205,6 +210,31 @@ export async function expectExportExcludesCanvasHandles<TArtifact>(
         }
       });
     }, originalStyles);
+  }
+
+  /*
+    Compared by distance where both sides carry the reduced image, and by exact
+    signature otherwise.
+
+    An exact hash is the wrong instrument for a 3D render. Measured on this
+    product, two exports of a scene nobody touched differ on 7.29 per cent of
+    pixels by a mean of one level and a maximum of five, all of it on the
+    device — invisible, and nothing to do with whether a handle reached the
+    file. A marked handle is a bright fill and a twenty-four pixel halo, which
+    moves whole cells of the reduction by tens to hundreds of levels. The bound
+    below sits just above the noise, an order of magnitude under the signal.
+  */
+  const pixelDistance =
+    baselineInspection.kind === "image" && markedInspection?.kind === "image"
+      ? compareToolcraftImageArtifacts(baselineInspection, markedInspection)
+      : null;
+
+  if (pixelDistance !== null) {
+    expect(
+      pixelDistance,
+      "Exported output changed when editor handles were visually marked, so handles are leaking into the artifact.",
+    ).toBeLessThanOrEqual(TOOLCRAFT_IMAGE_ARTIFACT_EQUIVALENCE_TOLERANCE);
+    return;
   }
 
   expect(

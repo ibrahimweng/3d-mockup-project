@@ -22,6 +22,12 @@ export type ToolcraftImageArtifactInspection = Readonly<{
   height: number;
   kind: "image";
   mediaType: "image/jpeg" | "image/png";
+  /**
+   * The reduced image the hash above is taken of, kept so two artifacts can be
+   * compared by how far apart they are rather than only by whether they are the
+   * same. See `compareToolcraftImageArtifacts`.
+   */
+  normalizedPixels?: readonly number[];
   nonBackgroundBounds: ToolcraftNormalizedPixelBounds | null;
   width: number;
 }>;
@@ -381,3 +387,48 @@ export function getToolcraftSemanticArtifactSignature(
     width: inspection.width,
   });
 }
+
+
+/**
+ * The largest per-channel gap between two exports, over the reduced image.
+ *
+ * A hash answers "identical or not", and for a 3D render the answer is "not",
+ * for reasons that have nothing to do with what any proof is asking. Measured
+ * on this product: two exports of a scene nobody touched differ on 7.29 per
+ * cent of pixels by a mean of 1 and a maximum of 5 out of 255, confined to the
+ * device. Nobody can see that. A proof that a handle is absent from an export
+ * cannot be asking about it, because a marked handle is a bright fill and a
+ * twenty-four pixel halo — tens to hundreds of levels across whole cells of the
+ * reduction, an order of magnitude clear of the noise.
+ */
+export function compareToolcraftImageArtifacts(
+  first: ToolcraftImageArtifactInspection,
+  second: ToolcraftImageArtifactInspection,
+): number | null {
+  const a = first.normalizedPixels;
+  const b = second.normalizedPixels;
+
+  if (!a || !b || a.length === 0 || a.length !== b.length) {
+    return null;
+  }
+
+  let maxDelta = 0;
+
+  for (let index = 0; index < a.length; index += 4) {
+    for (let channel = 0; channel < 3; channel += 1) {
+      const delta = Math.abs((a[index + channel] ?? 0) - (b[index + channel] ?? 0));
+      if (delta > maxDelta) maxDelta = delta;
+    }
+  }
+
+  return maxDelta;
+}
+
+/**
+ * How far two exports may drift and still count as the same picture.
+ *
+ * Six, against a measured maximum of five for the renderer's own noise and a
+ * marked handle worth tens to hundreds. Chosen to sit just above the noise
+ * rather than halfway to the signal, so it stays the tighter of the two bounds.
+ */
+export const TOOLCRAFT_IMAGE_ARTIFACT_EQUIVALENCE_TOLERANCE = 6;
