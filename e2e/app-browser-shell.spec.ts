@@ -145,6 +145,56 @@ test("canvas no-UI helper rejects unclassified canvas text", async ({ page }) =>
   await expectNoForbiddenCanvasUi(page);
 });
 
+/**
+ * The tolerance is only worth having if it still catches what it is for.
+ *
+ * Two synthetic exports of a four-cell image: one pair apart by the renderer's
+ * own noise, one pair apart by a marked handle. The first has to pass and the
+ * second has to fail, or the bound is in the wrong place.
+ */
+function imageInspectionWithPixels(pixels: readonly number[]) {
+  return {
+    byteLength: 128,
+    decodedPixelHash: `hash-${pixels.join("-")}`,
+    height: 2,
+    kind: "image" as const,
+    mediaType: "image/png" as const,
+    nonBackgroundBounds: null,
+    normalizedPixels: pixels,
+    width: 2,
+  };
+}
+
+test("canvas export-clean helper tolerates render noise but not a marked handle", async ({
+  page,
+}) => {
+  await page.setContent(
+    '<div data-toolcraft-canvas-handle data-testid="focus-handle"></div>',
+  );
+
+  const baseline = [120, 120, 120, 255, 120, 120, 120, 255];
+  // Five levels is the most this renderer's own noise was measured to move.
+  const noisy = [125, 118, 121, 255, 116, 124, 120, 255];
+  // A handle marked bright green with a magenta halo.
+  const marked = [1, 254, 3, 255, 254, 1, 253, 255];
+
+  let call = 0;
+  await expectExportExcludesCanvasHandles(
+    page,
+    async () => new Uint8Array([1, 2, 3]),
+    async () => imageInspectionWithPixels(call++ === 0 ? baseline : noisy),
+  );
+
+  call = 0;
+  await expect(
+    expectExportExcludesCanvasHandles(
+      page,
+      async () => new Uint8Array([1, 2, 3]),
+      async () => imageInspectionWithPixels(call++ === 0 ? baseline : marked),
+    ),
+  ).rejects.toThrow(/handles are leaking/i);
+});
+
 test("canvas export-clean helper rejects a no-op export callback", async ({ page }) => {
   await page.setContent(
     '<div data-toolcraft-canvas-handle data-testid="focus-handle"></div>',

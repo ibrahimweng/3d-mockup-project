@@ -91,6 +91,9 @@ export async function inspectToolcraftImageDownload({
       height: decoded.height,
       kind: "image",
       mediaType,
+      // The reduction the hash is taken of, so two exports can be compared by
+      // how far apart they are and not only by whether they match exactly.
+      normalizedPixels: Array.from(observation.normalizedPixels),
       nonBackgroundBounds: observation.nonBackgroundBounds,
       width: decoded.width,
     }),
