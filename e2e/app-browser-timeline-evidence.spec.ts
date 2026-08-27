@@ -79,6 +79,34 @@ async function setDuration(page: Page, seconds: number): Promise<void> {
  * and the frame at the same time after it: if the animation returned to where
  * it began, those are the same picture.
  */
+/**
+ * Put the transport on a given speed, by pressing the control until it reads it.
+ *
+ * The proof needs several reported frames inside one loop, and the product only
+ * reports a frame when it draws one. Under this container's software renderer
+ * that is about a third of a frame a second — roughly two frames per six-second
+ * loop, against the six ordered samples the loop proof has to show. Quarter
+ * speed does not change the animation or anything asserted about it, because
+ * every phase is normalized against the cycle; it just spreads one cycle over
+ * four times as many frames, which is the only lever the test has.
+ */
+async function setPlaybackRate(page: Page, rate: number): Promise<void> {
+  const control = page.locator('[data-slot="timeline-playback-rate"]').first();
+
+  if (!(await control.count())) {
+    return;
+  }
+
+  for (let press = 0; press < 8; press += 1) {
+    if ((await control.getAttribute("data-timeline-playback-rate")) === String(rate)) {
+      return;
+    }
+
+    await control.click();
+    await page.waitForTimeout(200);
+  }
+}
+
 async function sampleCycle(
   page: Page,
   durationSeconds: number,
@@ -86,30 +114,72 @@ async function sampleCycle(
   await scrubToFraction(page, 0.02);
   const seamStart = (await report(page)).pixelSignature;
 
+  await setPlaybackRate(page, 0.25);
   await page.getByRole("button", { name: "Play playback" }).first().click();
   /*
-    Anchored at the start of a cycle, not at the first successful read.
+    Sampled from inside the page, not across the wire.
 
-    The first frames after playback starts are expensive under software
-    rendering, and a read can land seconds late. This used to record whatever
-    phase it first saw: on a six-second loop that was 0.83, so the wrap arrived
-    on the very next sample and the proof ended with two phases where it needs
-    five. The samples were not wrong, they just started in the wrong place.
+    Two earlier versions of this failed for the same underlying reason. The
+    first recorded whatever phase it read after pressing play, and the first
+    frames after a start are expensive under software rendering — on a
+    six-second loop the first read landed at 0.83, the wrap arrived on the next
+    sample, and the proof ended with two phases where it needs five. The second
+    anchored at the start of a cycle and sampled more finely, which fixed that
+    and replaced it with a worse problem: every sample is a round trip, and at
+    a hundred and sixty of them against a loaded renderer the test ran out its
+    forty-five minute budget before finishing.
 
-    So nothing is recorded until a phase lands in the first quarter, and a run
-    that reaches the seam without enough forward samples behind it is thrown
-    away and started again on the next cycle. Sampling is also finer than a
-    ninth of the loop, which leaves room for a stall to cost a sample without
-    costing the whole run.
+    The cost was never the browser, it was the crossing. A sampler installed in
+    the page reads the same published report on a timer with no round trip at
+    all, so a whole loop is watched in the wall-clock time the loop actually
+    takes, and the samples are evenly spaced instead of being spaced by however
+    busy the renderer was.
+  */
+  await page.evaluate((intervalMs) => {
+    const view = window as unknown as {
+      __toolcraftLoopSamples?: number[][];
+      __toolcraftLoopSampler?: number;
+    };
+    window.clearInterval(view.__toolcraftLoopSampler);
+    view.__toolcraftLoopSamples = [];
+    view.__toolcraftLoopSampler = window.setInterval(() => {
+      const raw =
+        document.querySelector("[data-mockup-timeline]")?.getAttribute("data-mockup-timeline") ??
+        "{}";
+      const value = JSON.parse(raw) as { cycleSeconds?: number; timeSeconds?: number };
+      view.__toolcraftLoopSamples?.push([value.timeSeconds ?? 0, value.cycleSeconds ?? 0]);
+    }, intervalMs);
+  }, Math.max(60, Math.round((durationSeconds * 4 * 1000) / 60)));
+
+  // Two and a half loops, so there is a whole cycle to watch however far into
+  // one the transport happened to be when it started.
+  await page.waitForTimeout(Math.round(durationSeconds * 2500 * 4) + 6_000);
+
+  const samples = await page.evaluate(() => {
+    const view = window as unknown as {
+      __toolcraftLoopSamples?: number[][];
+      __toolcraftLoopSampler?: number;
+    };
+    window.clearInterval(view.__toolcraftLoopSampler);
+    const collected = view.__toolcraftLoopSamples ?? [];
+    view.__toolcraftLoopSamples = [];
+    return collected;
+  });
+
+  /*
+    One cycle out of the run: anchored on a phase in the first quarter, carried
+    forward while it advances, and closed by the first clean seam after four
+    forward samples. Anything else starts the count again on the next cycle
+    rather than recording a jump that cannot be told apart from a wrap.
   */
   const phases: number[] = [];
-  const minimumForwardSamples = 4;
-  let wrapped = false;
   let anchored = false;
-  for (let index = 0; index < 160 && !wrapped; index += 1) {
-    await page.waitForTimeout(Math.max(120, (durationSeconds * 1000) / 16));
-    const sample = await report(page);
-    const phase = sample.cycleSeconds > 0 ? sample.timeSeconds / sample.cycleSeconds : 0;
+  let wrapped = false;
+
+  for (const [timeSeconds, cycleSeconds] of samples) {
+    if (wrapped) break;
+
+    const phase = cycleSeconds > 0 ? timeSeconds / cycleSeconds : 0;
 
     if (!anchored) {
       if (phase > 0.25) continue;
@@ -122,15 +192,12 @@ async function sampleCycle(
     if (phase === previous) continue;
 
     if (phase < previous) {
-      if (previous >= 0.75 && phase <= 0.25 && phases.length >= minimumForwardSamples) {
+      if (previous >= 0.75 && phase <= 0.25 && phases.length >= 4) {
         phases.push(phase);
         wrapped = true;
         continue;
       }
 
-      // A backwards step that is not a clean seam means a stall jumped the
-      // playhead across it. Nothing here can be told apart from a real wrap
-      // afterwards, so the run restarts rather than recording the jump.
       phases.length = 0;
       anchored = false;
       continue;
@@ -138,7 +205,9 @@ async function sampleCycle(
 
     phases.push(phase);
   }
+
   await page.getByRole("button", { name: "Pause playback" }).first().click();
+  await setPlaybackRate(page, 1);
   await page.waitForTimeout(1_500);
 
   await scrubToFraction(page, 0.02);
