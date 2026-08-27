@@ -10,16 +10,51 @@ import {
 test("runtime evidence requirements are derived from browser acceptance IDs", () => {
   const requirements = deriveToolcraftBrowserRuntimeRequirements(appAcceptance);
 
+  /*
+    What this has to guarantee is that no browser row is silently uncovered.
+    It used to check for a requirement carrying the row's id exactly, which is
+    not the same thing and is not true of every row: a row that declares
+    coverage across several states has its evidence hung on the qualified ids
+    instead — `canvas.render-scale.backing` carries `#interaction`, `#playback`
+    and `#steady`, and the derivation deliberately withholds the bare one, so
+    the base evidence is not asked for twice. Reading that as a missing
+    requirement made the row look uncovered when it is covered three times
+    over.
+
+    So the id may be the row's own or a qualifier of it, and the test name must
+    match either way. A row that derives nothing at all still fails, which is
+    the thing worth catching.
+  */
   for (const entry of appAcceptance.filter((item) => item.browser)) {
     expect(
       requirements.some(
         (requirement) =>
-          requirement.requirementId === entry.id &&
+          (requirement.requirementId === entry.id ||
+            requirement.requirementId.startsWith(`${entry.id}#`)) &&
           requirement.testName === entry.browserTestName,
       ),
       `Browser acceptance row "${entry.id}" should derive runtime evidence.`,
     ).toBe(true);
   }
+});
+
+test("a browser row that derives nothing is still caught", () => {
+  // The guard above is only worth having if it fails when it should, and the
+  // loosened id rule makes that worth pinning down rather than assuming.
+  const requirements = deriveToolcraftBrowserRuntimeRequirements([
+    {
+      browser: true,
+      browserTestName: "browser: a row with no evidence to derive",
+      evidence: "none",
+      id: "nothing.derives.here",
+    } as unknown as (typeof appAcceptance)[number],
+  ]);
+
+  expect(
+    requirements.some((requirement) =>
+      requirement.requirementId.startsWith("nothing.derives.here"),
+    ),
+  ).toBe(false);
 });
 
 test("derived paths own one canonical browser evidence requirement set", () => {
