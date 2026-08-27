@@ -669,11 +669,29 @@ export async function buildDeviceScene(options: {
       spinner.position.copy(nextPosition);
       spinner.rotation.copy(nextRotation);
       spinner.scale.setScalar(scale);
+      spinner.updateWorldMatrix(false, true);
       // The floor's reflection is a separate clone of the device rather than a
       // child of it, so it has to be posed too or the device moves while its
       // reflection stays where it started.
-      spinner.updateWorldMatrix(false, true);
       room.setMirrorPose(subject.matrixWorld);
+      /**
+       * Re-measure what the camera has to hold, now that the device has moved.
+       *
+       * The framing box is the device's world bounds, and a turned device
+       * occupies a different box from a square-on one. It used to be measured
+       * only when the surface was applied, which in `applyLiveSettings` happens
+       * *before* the transform below — so every frame was fitted to the box of
+       * the pose before it, and the camera never quite returned to where it had
+       * been.
+       *
+       * Measured: scrubbing through five poses and back to the first left the
+       * camera 8.6e-6 away in x and 1.2e-5 in z, with y bit-identical because
+       * spin turns about the vertical and an axis-aligned box does not change
+       * height when it turns. That is a fraction of a pixel, and it showed up
+       * as 6,686 edge pixels differing by a mean of 16 against a flat-surface
+       * mean of 1.25 — a picture that will not come back to itself.
+       */
+      furniture.measureFraming();
       return true;
     },
     subjectRadius: sphere.radius,
