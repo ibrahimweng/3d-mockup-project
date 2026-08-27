@@ -58,9 +58,13 @@ export function useMockupKeyboardShortcuts(values: Record<string, unknown>): voi
       }
       if (accel || event.altKey) return;
 
+      // Space is play/pause and belongs to the timeline, which owns it now.
+      // It used to be dispatched from here, and it did not work: the panel
+      // stands its clock down while the pointer is over it, so pressing space
+      // with the mouse anywhere near the timeline flipped the transport to
+      // Playing and left the playhead where it was. Clearing that hover pause
+      // needs the panel's own state, which product code cannot reach.
       if (event.key === " " || event.code === "Space") {
-        event.preventDefault();
-        dispatch({ type: "timeline.togglePlayback" });
         return;
       }
 

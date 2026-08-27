@@ -96,6 +96,7 @@ function createDefaultTimelineState({
      * either way. Playback is something a person starts.
      */
     isPlaying: false,
+    playbackRate: 1,
     selectedKeyframeId: null,
     ...timeline,
     keyframeGroups: cloneTimelineKeyframeGroups(

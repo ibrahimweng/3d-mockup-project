@@ -1,3 +1,4 @@
+import { clampToolcraftTimelinePlaybackRate } from "./timeline-values";
 import {
   isToolcraftFiniteNumber,
   isToolcraftPersistenceRecord,
@@ -128,6 +129,10 @@ export function readTimeline(value: unknown): Partial<ToolcraftTimelineState> | 
 
   if (typeof value.isLooping === "boolean") {
     timeline.isLooping = value.isLooping;
+  }
+
+  if (isToolcraftFiniteNumber(value.playbackRate)) {
+    timeline.playbackRate = clampToolcraftTimelinePlaybackRate(value.playbackRate);
   }
 
   if (typeof value.isPlaying === "boolean") {

@@ -72,6 +72,7 @@ export function toolcraftReducer(
     case "timeline.setCurrentTime":
     case "timeline.setDuration":
     case "timeline.setExpanded":
+    case "timeline.setPlaybackRate":
     case "timeline.setPlaying":
     case "timeline.toggleControlKeyframes":
     case "timeline.toggleExpanded":

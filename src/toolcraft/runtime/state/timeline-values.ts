@@ -43,3 +43,23 @@ export function getToolcraftTimelineKeyframeId(
 ): string {
   return `${controlId}::${formatToolcraftTimelineKeyframeSeconds(timeSeconds)}`;
 }
+
+/**
+ * The speeds the transport offers, slowest first.
+ *
+ * Quarter speed is there to watch an ease actually ease; double and quadruple
+ * are for sitting through a long loop while judging the shape of it. Anything
+ * outside the list is snapped to the nearest one, so a stored value from
+ * elsewhere cannot leave the transport showing a speed it has no button for.
+ */
+export const toolcraftTimelinePlaybackRates = [0.25, 0.5, 1, 2, 4] as const;
+
+export function clampToolcraftTimelinePlaybackRate(playbackRate: unknown): number {
+  if (typeof playbackRate !== "number" || !Number.isFinite(playbackRate)) {
+    return 1;
+  }
+
+  return toolcraftTimelinePlaybackRates.reduce((closest, rate) =>
+    Math.abs(rate - playbackRate) < Math.abs(closest - playbackRate) ? rate : closest,
+  );
+}

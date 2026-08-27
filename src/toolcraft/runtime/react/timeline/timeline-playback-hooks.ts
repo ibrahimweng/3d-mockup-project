@@ -34,6 +34,8 @@ type TimelineClockOptions = {
   isHoverPaused: boolean;
   isLooping: boolean;
   isPlaying: boolean;
+  /** How fast the clock runs, as a multiple of real time. */
+  playbackRate: number;
   isScrubbing: boolean;
   setCurrentTimeSeconds: React.Dispatch<React.SetStateAction<number>>;
   setIsPlaying: React.Dispatch<React.SetStateAction<boolean>>;
@@ -94,6 +96,7 @@ export function useTimelineClock({
   isHoverPaused,
   isLooping,
   isPlaying,
+  playbackRate,
   isScrubbing,
   setCurrentTimeSeconds,
   setIsPlaying,
@@ -116,7 +119,10 @@ export function useTimelineClock({
       const elapsedSeconds = (timestamp - previousTimestamp) / 1000;
 
       previousTimestamp = timestamp;
-      const nextValue = getCurrentTimeSeconds() + elapsedSeconds;
+      // Review speed scales the clock and nothing else: the keyframes, their
+      // times and the length of the loop are untouched, so half speed is the
+      // same animation watched for twice as long.
+      const nextValue = getCurrentTimeSeconds() + elapsedSeconds * playbackRate;
 
       if (nextValue < durationSeconds) {
         setCurrentTimeSeconds(nextValue);
@@ -148,6 +154,7 @@ export function useTimelineClock({
     isHoverPaused,
     isLooping,
     hasKeyframes,
+    playbackRate,
     isPlaying,
     isScrubbing,
     setCurrentTimeSeconds,
@@ -213,6 +220,21 @@ export function useTimelineScrubber({
 
     return { rect, trackStart, trackWidth };
   };
+  /**
+   * Where a press is allowed to take hold of the playhead.
+   *
+   * This used to be the playhead itself and nothing else, on an expanded
+   * timeline: the keyframe rows sit over the track at the same coordinates, so
+   * letting any press scrub meant a press meant for a diamond moved the
+   * playhead instead. The cost was that moving the playhead needed the person
+   * to find and grab a two-pixel line, when every tool they have used lets them
+   * click the ruler and drag.
+   *
+   * So the rule is by target rather than by region. A press on the playhead
+   * still scrubs, a press anywhere on the ruler scrubs, and a press on empty
+   * track scrubs — a diamond still keeps its own presses, and the expanded
+   * content turns away anything else interactive before this is asked.
+   */
   const canStartScrubbingFromPointerEvent = (
     event: React.PointerEvent<HTMLDivElement>,
   ): boolean => {
@@ -223,20 +245,27 @@ export function useTimelineScrubber({
     }
 
     const isExpandedTimeline = geometry.trackStart > 0;
-    const startedFromExpandedPlayhead =
-      event.target instanceof Element &&
-      event.target.closest(
-        [
-          '[data-slot="timeline-expanded-playhead"]',
-          '[data-slot="timeline-expanded-playhead-handle"]',
-          '[data-slot="timeline-expanded-playhead-hit-area"]',
-        ].join(','),
-      );
+    const target = event.target instanceof Element ? event.target : null;
+    const startedFromScrubSurface = target?.closest(
+      [
+        '[data-slot="timeline-expanded-playhead"]',
+        '[data-slot="timeline-expanded-playhead-handle"]',
+        '[data-slot="timeline-expanded-playhead-hit-area"]',
+        '[data-timeline-scrub-surface="true"]',
+      ].join(','),
+    );
 
-    if (isExpandedTimeline) {
-      return Boolean(startedFromExpandedPlayhead);
+    if (startedFromScrubSurface) {
+      return true;
     }
 
+    if (isExpandedTimeline && target?.closest('[data-slot="timeline-keyframe"]')) {
+      return false;
+    }
+
+    // Everything left of the track is the properties column, and the expanded
+    // content has already turned away anything interactive before this runs, so
+    // what is left here really is empty track.
     return event.clientX >= geometry.rect.left + geometry.trackStart;
   };
   const setCurrentTimeFromClientX = (clientX: number): void => {

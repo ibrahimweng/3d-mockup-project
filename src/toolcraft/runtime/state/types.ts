@@ -144,6 +144,7 @@ export type ToolcraftCommand =
       valueLabel: string;
     }
   | { keyframeId: string; timeSeconds: number; type: "timeline.moveKeyframe" }
+  | { playbackRate: number; type: "timeline.setPlaybackRate" }
   | {
       easing: ToolcraftTimelineKeyframeEasing;
       keyframeId: string;
@@ -202,6 +203,7 @@ export const toolcraftRuntimeCommandTypes = [
   "timeline.toggleControlKeyframes",
   "timeline.upsertControlKeyframe",
   "timeline.moveKeyframe",
+  "timeline.setPlaybackRate",
   "timeline.changeKeyframeEasing",
   "history.undo",
   "history.redo",
@@ -429,6 +431,14 @@ export type ToolcraftTimelineState = {
   isLooping: boolean;
   isPlaying: boolean;
   keyframeGroups: ToolcraftTimelineKeyframeGroup[];
+  /**
+   * How fast playback runs, as a multiple of real time.
+   *
+   * Review speed only. It scales the clock and nothing else, so the animation
+   * itself — the keyframes, their times, the length of the loop — is untouched,
+   * and an export is unaffected by whatever this was left at.
+   */
+  playbackRate: number;
   selectedKeyframeId: string | null;
 };
 

@@ -87,18 +87,56 @@ async function sampleCycle(
   const seamStart = (await report(page)).pixelSignature;
 
   await page.getByRole("button", { name: "Play playback" }).first().click();
+  /*
+    Anchored at the start of a cycle, not at the first successful read.
+
+    The first frames after playback starts are expensive under software
+    rendering, and a read can land seconds late. This used to record whatever
+    phase it first saw: on a six-second loop that was 0.83, so the wrap arrived
+    on the very next sample and the proof ended with two phases where it needs
+    five. The samples were not wrong, they just started in the wrong place.
+
+    So nothing is recorded until a phase lands in the first quarter, and a run
+    that reaches the seam without enough forward samples behind it is thrown
+    away and started again on the next cycle. Sampling is also finer than a
+    ninth of the loop, which leaves room for a stall to cost a sample without
+    costing the whole run.
+  */
   const phases: number[] = [];
+  const minimumForwardSamples = 4;
   let wrapped = false;
-  for (let index = 0; index < 40 && !wrapped; index += 1) {
-    await page.waitForTimeout(Math.max(200, (durationSeconds * 1000) / 9));
+  let anchored = false;
+  for (let index = 0; index < 160 && !wrapped; index += 1) {
+    await page.waitForTimeout(Math.max(120, (durationSeconds * 1000) / 16));
     const sample = await report(page);
     const phase = sample.cycleSeconds > 0 ? sample.timeSeconds / sample.cycleSeconds : 0;
-    const previous = phases.at(-1);
-    if (previous !== undefined && phase < previous) {
-      if (previous < 0.75 || phase > 0.25) continue;
-      wrapped = true;
+
+    if (!anchored) {
+      if (phase > 0.25) continue;
+      anchored = true;
+      phases.push(phase);
+      continue;
     }
-    if (previous === undefined || phase !== previous) phases.push(phase);
+
+    const previous = phases.at(-1)!;
+    if (phase === previous) continue;
+
+    if (phase < previous) {
+      if (previous >= 0.75 && phase <= 0.25 && phases.length >= minimumForwardSamples) {
+        phases.push(phase);
+        wrapped = true;
+        continue;
+      }
+
+      // A backwards step that is not a clean seam means a stall jumped the
+      // playhead across it. Nothing here can be told apart from a real wrap
+      // afterwards, so the run restarts rather than recording the jump.
+      phases.length = 0;
+      anchored = false;
+      continue;
+    }
+
+    phases.push(phase);
   }
   await page.getByRole("button", { name: "Pause playback" }).first().click();
   await page.waitForTimeout(1_500);
