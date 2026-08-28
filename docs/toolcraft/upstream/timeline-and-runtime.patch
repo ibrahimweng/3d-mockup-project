@@ -1,0 +1,3293 @@
+diff -ruN pristine/runtime/export/video-encoding-backend.ts current/runtime/export/video-encoding-backend.ts
+--- a/runtime/export/video-encoding-backend.ts	2026-08-28 21:46:06.514029456 +0000
++++ b/runtime/export/video-encoding-backend.ts	2026-08-28 21:46:06.518029457 +0000
+@@ -34,7 +34,7 @@
+   request: ToolcraftVideoEncoderBackendFactoryRequest,
+ ): Promise<ToolcraftVideoEncoderBackend> {
+   const mediabunny = await import("mediabunny");
+-  const codecs: readonly ToolcraftVideoCodec[] = ["avc", "vp9", "vp8"];
++  const codecs: readonly ToolcraftVideoCodec[] = ["avc", "vp9", "vp8", "av1"];
+   const supportResults = await Promise.all(
+     codecs.map((codec) =>
+       mediabunny.canEncodeVideo(codec, {
+@@ -49,6 +49,7 @@
+     height: request.height,
+     requestedFormat: request.requestedFormat,
+     support: {
++      av1: supportResults[3] === true,
+       avc: supportResults[0] === true,
+       vp8: supportResults[2] === true,
+       vp9: supportResults[1] === true,
+diff -ruN pristine/runtime/export/video-encoding-policy.ts current/runtime/export/video-encoding-policy.ts
+--- a/runtime/export/video-encoding-policy.ts	2026-08-28 21:46:06.534029458 +0000
++++ b/runtime/export/video-encoding-policy.ts	2026-08-28 21:46:06.538029458 +0000
+@@ -3,9 +3,10 @@
+ 
+ export const TOOLCRAFT_MAX_VIDEO_ARTIFACT_BYTES = 96 * 1024 * 1024;
+ 
+-export type ToolcraftVideoCodec = "avc" | "vp8" | "vp9";
++export type ToolcraftVideoCodec = "av1" | "avc" | "vp8" | "vp9";
+ 
+ export type ToolcraftVideoEncodingSupport = Readonly<{
++  av1: boolean;
+   avc: boolean;
+   vp8: boolean;
+   vp9: boolean;
+@@ -24,11 +25,20 @@
+   mediaType: "video/mp4" | "video/webm";
+ }>;
+ 
+-const mp4Candidate: ToolcraftVideoEncodingCandidate = Object.freeze({
+-  codec: "avc",
+-  extension: ".mp4",
+-  mediaType: "video/mp4",
+-});
++/**
++ * MP4, in order of how widely the result will play.
++ *
++ * H.264 first, because it plays everywhere. AV1 second, because a browser
++ * without H.264 is common rather than exotic — Chromium builds without the
++ * proprietary decoders, which is most Linux ones, encode AV1 happily and put
++ * it in an MP4 quite legally. Before this the list held only H.264, so asking
++ * for MP4 on such a machine quietly produced a WebM instead: the person chose
++ * a container and got a different one.
++ */
++const mp4Candidates: readonly ToolcraftVideoEncodingCandidate[] = Object.freeze([
++  Object.freeze({ codec: "avc", extension: ".mp4", mediaType: "video/mp4" }),
++  Object.freeze({ codec: "av1", extension: ".mp4", mediaType: "video/mp4" }),
++] as const);
+ const webmCandidates: readonly ToolcraftVideoEncodingCandidate[] = Object.freeze([
+   Object.freeze({ codec: "vp9", extension: ".webm", mediaType: "video/webm" }),
+   Object.freeze({ codec: "vp8", extension: ".webm", mediaType: "video/webm" }),
+@@ -69,10 +79,12 @@
+ }>): ToolcraftVideoEncodingPolicy {
+   const bitrate = getToolcraftVideoExportBitrate(width, height);
+   assertArtifactBudget(bitrate, durationSeconds);
++  // The requested container is tried in full before falling back to the other
++  // one, so a missing H.264 encoder costs the codec rather than the format.
+   const candidates =
+     requestedFormat === "mp4"
+-      ? [mp4Candidate, ...webmCandidates]
+-      : [...webmCandidates, mp4Candidate];
++      ? [...mp4Candidates, ...webmCandidates]
++      : [...webmCandidates, ...mp4Candidates];
+   const candidate = candidates.find((item) => support[item.codec]);
+ 
+   if (!candidate) {
+diff -ruN pristine/runtime/index.ts current/runtime/index.ts
+--- a/runtime/index.ts	2026-08-28 21:46:06.998029485 +0000
++++ b/runtime/index.ts	2026-08-28 21:46:06.998029485 +0000
+@@ -25,6 +25,8 @@
+ export * from "./state/persistence";
+ export * from "./state/reducer";
+ export * from "./state/timeline-loop";
++export * from "./state/timeline-object-tracks";
+ export * from "./state/timeline-values";
++export * from "./state/timeline-view-window";
+ export * from "./state/types";
+ export * from "./testing/performance";
+diff -ruN pristine/runtime/react/app-shell/toolbar-panel.tsx current/runtime/react/app-shell/toolbar-panel.tsx
+--- a/runtime/react/app-shell/toolbar-panel.tsx	2026-08-28 21:46:07.018029486 +0000
++++ b/runtime/react/app-shell/toolbar-panel.tsx	2026-08-28 21:46:07.018029486 +0000
+@@ -19,7 +19,22 @@
+ import { useToolcraftCommittedSelector } from "./toolcraft-selectors";
+ import { useToolcraftDispatch } from "./use-toolcraft";
+ 
++/**
++ * A product's own entry in the toolbar.
++ *
++ * Everything else the toolbar offers acts on the board — undo, zoom, centre,
++ * theme. A product sometimes has one move that belongs beside them rather than
++ * inside a control section, and before this it had nowhere to put it.
++ */
++export type ToolcraftToolbarAction = {
++  icon: React.ReactNode;
++  id: string;
++  label: string;
++  onSelect: () => void;
++};
++
+ export type ToolbarPanelProps = {
++  actions?: readonly ToolcraftToolbarAction[];
+   className?: string;
+   framed?: boolean;
+   onPanelStateChange?: PanelStateChange;
+@@ -101,6 +116,7 @@
+ }
+ 
+ export function ToolbarPanel({
++  actions,
+   className,
+   framed = true,
+   onPanelStateChange,
+@@ -199,6 +215,20 @@
+           )}
+         </ToolbarIconButton>
+       ) : null}
++      {/*
++        Product actions sit with the app-level controls rather than with the
++        canvas ones, because that is what they are: a way into the product, not
++        a way to move the board.
++      */}
++      {(actions ?? []).map((action) => (
++        <ToolbarIconButton
++          key={action.id}
++          label={action.label}
++          onClick={action.onSelect}
++        >
++          {action.icon}
++        </ToolbarIconButton>
++      ))}
+       {radarEnabled ? (
+         <ToolbarIconButton
+           label="Center canvas"
+diff -ruN pristine/runtime/react/app-shell/toolcraft-app.tsx current/runtime/react/app-shell/toolcraft-app.tsx
+--- a/runtime/react/app-shell/toolcraft-app.tsx	2026-08-28 21:46:07.054029489 +0000
++++ b/runtime/react/app-shell/toolcraft-app.tsx	2026-08-28 21:46:07.054029489 +0000
+@@ -26,7 +26,7 @@
+ import { LayersPanel } from "../layers/layers-panel";
+ import { useToolcraftModelRenderPreparationStatus } from "../model-rendering/model-render-provider";
+ import { TimelinePanel } from "../timeline/timeline-panel";
+-import { ToolbarPanel } from "./toolbar-panel";
++import { ToolbarPanel, type ToolcraftToolbarAction } from "./toolbar-panel";
+ import { useToolcraftCommittedSelector } from "./toolcraft-selectors";
+ import type { ToolcraftModelPresentationMode } from "../model-rendering/model-render-binding";
+ import { useToolcraftPersistenceStatus } from "./use-toolcraft-persistence";
+@@ -43,6 +43,8 @@
+   sceneBoundsProvider?: ToolcraftProductSceneBoundsProvider;
+   schema: ResolvedToolcraftAppSchema;
+   svgExportRenderer?: ToolcraftProductSvgExportRenderer;
++  /** A product's own buttons in the toolbar, beside undo, zoom and theme. */
++  toolbarActions?: readonly ToolcraftToolbarAction[];
+ };
+ 
+ export type ToolcraftAppProps = ToolcraftAppComposition & {
+@@ -54,9 +56,6 @@
+ 
+ const selectAppSurfaces = (state: ToolcraftState) =>
+   state.schema.assembly.surfaces;
+-const selectTimelinePanelExtended = (state: ToolcraftState) =>
+-  state.panels.timeline.extended === true;
+-
+ function cn(...classNames: Array<string | false | null | undefined>): string {
+   return classNames.filter(Boolean).join(" ");
+ }
+@@ -70,6 +69,7 @@
+   renderDefaultCanvasMedia = true,
+   sceneExport,
+   style,
++  toolbarActions,
+ }: Omit<
+   ToolcraftAppProps,
+   | "modelPresentation"
+@@ -78,17 +78,23 @@
+   | "schema"
+ > & Readonly<{ sceneExport: ToolcraftControlsSceneExport }>): React.JSX.Element {
+   const surfaces = useToolcraftCommittedSelector(selectAppSurfaces);
+-  const timelinePanelVariant =
+-    useToolcraftCommittedSelector(selectTimelinePanelExtended)
+-      ? "extended"
+-      : "compact";
++  /**
++   * One timeline, opened and closed by one control.
++   *
++   * There used to be two gates: a switch in the controls panel that turned the
++   * compact transport into a real panel, and then a toggle inside that panel
++   * which revealed the tracks. Two controls for one idea, and neither of them
++   * where a person looks for a timeline. The panel is now always the full
++   * thing, and its own chevron is the single open/close.
++   */
++  const timelinePanelVariant = "extended" as const;
+   const modelRendererStatus = useToolcraftModelRenderPreparationStatus();
+   const persistenceStatus = useToolcraftPersistenceStatus();
+ 
+   return (
+     <div
+       className={cn(
+-        "relative min-h-[640px] w-full overflow-hidden bg-[color:var(--background)]",
++        "relative flex min-h-[640px] w-full flex-col overflow-hidden bg-[color:var(--background)]",
+         className,
+       )}
+       data-slot="toolcraft-runtime-app"
+@@ -104,31 +110,40 @@
+         minWidth: toolcraftMinAppWidthPx,
+       }}
+     >
+-      {surfaces.canvas.enabled ? (
+-        <CanvasShell
+-          infiniteCanvasContent={infiniteCanvasContent}
+-          renderDefaultMedia={renderDefaultCanvasMedia}
+-        >
+-          {canvasContent}
+-        </CanvasShell>
+-      ) : null}
+-      {surfaces.panels.layers?.enabled ? (
+-        <LayersPanel panelPlacement="floating" />
+-      ) : null}
+-      {surfaces.panels.controls?.enabled ? (
+-        <ControlsPanel
+-          controlRenderers={controlRenderers}
+-          onPanelAction={onPanelAction}
+-          panelPlacement="floating"
+-          sceneExport={sceneExport}
+-        />
+-      ) : null}
++      {/*
++        The stage: everything that floats over the picture. It gives up
++        whatever height the timeline band below it takes, so the two occupy
++        separate bands rather than the timeline covering the bottom of the
++        shot — a strip of the canvas you cannot see is a strip you cannot
++        compose in.
++      */}
++      <div className="relative min-h-0 flex-1" data-slot="toolcraft-runtime-stage">
++        {surfaces.canvas.enabled ? (
++          <CanvasShell
++            infiniteCanvasContent={infiniteCanvasContent}
++            renderDefaultMedia={renderDefaultCanvasMedia}
++          >
++            {canvasContent}
++          </CanvasShell>
++        ) : null}
++        {surfaces.panels.layers?.enabled ? (
++          <LayersPanel panelPlacement="floating" />
++        ) : null}
++        {surfaces.panels.controls?.enabled ? (
++          <ControlsPanel
++            controlRenderers={controlRenderers}
++            onPanelAction={onPanelAction}
++            panelPlacement="floating"
++            sceneExport={sceneExport}
++          />
++        ) : null}
++        {surfaces.panels.toolbar.enabled ? (
++          <ToolbarPanel actions={toolbarActions} panelPlacement="floating" />
++        ) : null}
++      </div>
+       {surfaces.panels.timeline?.enabled ? (
+         <TimelinePanel panelPlacement="floating" variant={timelinePanelVariant} />
+       ) : null}
+-      {surfaces.panels.toolbar.enabled ? (
+-        <ToolbarPanel panelPlacement="floating" />
+-      ) : null}
+     </div>
+   );
+ }
+diff -ruN pristine/runtime/react/panel-host/panel-host-config.ts current/runtime/react/panel-host/panel-host-config.ts
+--- a/runtime/react/panel-host/panel-host-config.ts	2026-08-28 21:46:07.086029490 +0000
++++ b/runtime/react/panel-host/panel-host-config.ts	2026-08-28 21:46:07.086029490 +0000
+@@ -1,7 +1,8 @@
+ import type { ToolcraftPanelType, PanelDragMode, PanelSnapEdge } from "./panel-host-types";
+ 
+-type PanelTypeConfig = {
++export type PanelTypeConfig = {
+   dragMode: PanelDragMode;
++  innerClassName?: string;
+   panelId: ToolcraftPanelType;
+   snapEdges: readonly PanelSnapEdge[];
+   stageClassName: string;
+@@ -28,13 +29,21 @@
+     panelId: "timeline",
+     snapEdges: ["top", "bottom"],
+     stageClassName: "min-h-[320px]",
+-    wrapperClassName: "absolute top-2.5 left-1/2 z-40 -translate-x-1/2",
++    // The band runs the width of the window, but the panel inside it stops
++    // where the controls panel begins. Without this the host stayed full width
++    // and took pointer events across a strip where it draws nothing, which put
++    // an invisible lid over the bottom of the controls panel.
++    innerClassName: "w-fit",
++    // A band of its own beneath the stage rather than a panel floating over
++    // it, so the canvas ends where the timeline begins.
++    wrapperClassName: "relative z-40 w-full shrink-0 px-2.5 pb-2.5",
+   },
+   toolbar: {
+     dragMode: "panel",
+     panelId: "toolbar",
+     snapEdges: ["top", "bottom"],
+     stageClassName: "min-h-[180px]",
++    // Back at the foot of the stage: the timeline is no longer over it.
+     wrapperClassName: "absolute bottom-2.5 left-1/2 z-[70] -translate-x-1/2",
+   },
+ } satisfies Record<ToolcraftPanelType, PanelTypeConfig>;
+diff -ruN pristine/runtime/react/panel-host/panel-host.tsx current/runtime/react/panel-host/panel-host.tsx
+--- a/runtime/react/panel-host/panel-host.tsx	2026-08-28 21:46:07.106029492 +0000
++++ b/runtime/react/panel-host/panel-host.tsx	2026-08-28 21:46:07.106029492 +0000
+@@ -15,6 +15,7 @@
+   panelDragIgnoredTargetSelector,
+   panelDragTransition,
+   panelHostConfig,
++  type PanelTypeConfig,
+   panelSnapAnimation,
+ } from "./panel-host-config";
+ import {
+@@ -244,7 +245,7 @@
+   snapEdge,
+   style,
+ }: PanelHostProps): React.JSX.Element {
+-  const config = panelHostConfig[panelType];
++  const config: PanelTypeConfig = panelHostConfig[panelType];
+   const resolvedDragMode = dragMode ?? config.dragMode;
+   const resolvedSnap = snap ?? { edges: config.snapEdges };
+   const resolvedPanelId = panelId ?? config.panelId;
+@@ -308,7 +309,12 @@
+   return (
+     <div className={cn("pointer-events-none", config.wrapperClassName, className)} style={style}>
+       <motion.div
+-        className={cn("pointer-events-auto", isDragging && "cursor-grabbing", innerClassName)}
++        className={cn(
++          "pointer-events-auto",
++          isDragging && "cursor-grabbing",
++          config.innerClassName,
++          innerClassName,
++        )}
+         data-dragging={isDragging ? "true" : "false"}
+         data-drag-mode={resolvedDragMode}
+         data-panel-id={resolvedPanelId}
+@@ -398,7 +404,7 @@
+   placement,
+   ...props
+ }: PanelContainerProps): React.JSX.Element {
+-  const config = panelHostConfig[panelType];
++  const config: PanelTypeConfig = panelHostConfig[panelType];
+ 
+   if (placement === "surface") {
+     return <>{children}</>;
+diff -ruN pristine/runtime/react/timeline/timeline-easing-editor.tsx current/runtime/react/timeline/timeline-easing-editor.tsx
+--- a/runtime/react/timeline/timeline-easing-editor.tsx	2026-08-28 21:46:07.126029493 +0000
++++ b/runtime/react/timeline/timeline-easing-editor.tsx	2026-08-28 21:46:07.130029493 +0000
+@@ -43,6 +43,14 @@
+   const animationFrameRef = useRef<number | null>(null);
+   const [isCurveAnimating, setIsCurveAnimating] = useState(false);
+   const isStep = easing.type === 'step';
++  /**
++   * A continuous keyframe has no curve to draw or drag here: the one it runs
++   * on is solved from its neighbours at evaluation, and it changes whenever
++   * either of them moves. The editor shows the straight line through the
++   * keyframe and withholds the handles, rather than offering a curve that a
++   * drag would silently turn back into an ordinary one.
++   */
++  const isContinuous = easing.type === 'continuous';
+   const renderedControlPoints = dragTarget ? targetControlPoints : displayedControlPoints;
+   const [startX, startY] = getEasingEditorPoint(0, 0);
+   const [endX, endY] = getEasingEditorPoint(1, 1);
+@@ -306,6 +314,26 @@
+               y2={endY}
+             />
+           </>
++        ) : isContinuous ? (
++          <>
++            <line
++              data-slot="timeline-easing-continuous-line"
++              stroke="color-mix(in oklab, var(--foreground) 85%, transparent)"
++              strokeLinecap="round"
++              strokeWidth={2}
++              x1={startX}
++              x2={endX}
++              y1={startY}
++              y2={endY}
++            />
++            <circle
++              cx={(startX + endX) / 2}
++              cy={(startY + endY) / 2}
++              data-slot="timeline-easing-continuous-point"
++              fill="color-mix(in oklab, var(--foreground) 85%, transparent)"
++              r={3}
++            />
++          </>
+         ) : (
+           <>
+             <line
+diff -ruN pristine/runtime/react/timeline/timeline-easing-icons.tsx current/runtime/react/timeline/timeline-easing-icons.tsx
+--- a/runtime/react/timeline/timeline-easing-icons.tsx	2026-08-28 21:46:07.150029494 +0000
++++ b/runtime/react/timeline/timeline-easing-icons.tsx	2026-08-28 21:46:07.150029494 +0000
+@@ -20,7 +20,15 @@
+   easing: ToolcraftTimelineKeyframeEasing;
+   size?: number;
+ }): React.JSX.Element {
+-  if (easing.type === 'step') {
++  if (easing.type !== 'bezier') {
++    /**
++     * A hold turns the corner; a continuous keyframe runs straight through it.
++     * Neither is a curve, which is the point — the continuous mark also carries
++     * a dot on the line, because what it says is that the motion does not stop
++     * where the keyframe is.
++     */
++    const isStep = easing.type === 'step';
++
+     return (
+       <svg
+         aria-hidden="true"
+@@ -31,11 +39,12 @@
+         width={size}
+       >
+         <path
+-          d={`M 3 ${size - 3} H ${size - 3} V 3`}
++          d={isStep ? `M 3 ${size - 3} H ${size - 3} V 3` : `M 3 ${size - 3} L ${size - 3} 3`}
+           stroke="currentColor"
+           strokeLinecap="round"
+           strokeWidth={1.5}
+         />
++        {isStep ? null : <circle cx={size / 2} cy={size / 2} fill="currentColor" r={1.75} />}
+       </svg>
+     );
+   }
+@@ -133,3 +142,35 @@
+     </svg>
+   );
+ }
++
++export function TimelineEasingContinuousPresetIcon(): React.JSX.Element {
++  return (
++    <svg
++      aria-hidden="true"
++      className="pointer-events-none shrink-0"
++      data-slot="timeline-easing-continuous-icon"
++      fill="none"
++      height={timelineEasingPresetIconSize}
++      viewBox="0 0 28 28"
++      width={timelineEasingPresetIconSize}
++    >
++      <rect
++        fill="color-mix(in oklab, currentColor 8%, transparent)"
++        height={20}
++        rx={2}
++        stroke="color-mix(in oklab, currentColor 18%, transparent)"
++        strokeWidth={1}
++        width={20}
++        x={4}
++        y={4}
++      />
++      <path
++        d="M 4 24 L 24 4"
++        stroke={timelineEasingPresetIconLineColor}
++        strokeLinecap="round"
++        strokeWidth={1}
++      />
++      <circle cx={14} cy={14} fill={timelineEasingPresetIconLineColor} r={2} />
++    </svg>
++  );
++}
+diff -ruN pristine/runtime/react/timeline/timeline-easing-model.ts current/runtime/react/timeline/timeline-easing-model.ts
+--- a/runtime/react/timeline/timeline-easing-model.ts	2026-08-28 21:46:07.170029495 +0000
++++ b/runtime/react/timeline/timeline-easing-model.ts	2026-08-28 21:46:07.170029495 +0000
+@@ -106,9 +106,9 @@
+ function cloneToolcraftTimelineKeyframeEasing(
+   easing: ToolcraftTimelineKeyframeEasing,
+ ): ToolcraftTimelineKeyframeEasing {
+-  return easing.type === 'step'
+-    ? { type: 'step' }
+-    : { controlPoints: [...easing.controlPoints], type: 'bezier' };
++  return easing.type === 'bezier'
++    ? { controlPoints: [...easing.controlPoints], type: 'bezier' }
++    : { type: easing.type };
+ }
+ 
+ export function getToolcraftTimelineKeyframeEasing(
+@@ -130,6 +130,10 @@
+     return { type: 'step' };
+   }
+ 
++  if (easingRecord.type === 'continuous') {
++    return { type: 'continuous' };
++  }
++
+   if (easingRecord.type !== 'bezier' || !Array.isArray(easingRecord.controlPoints)) {
+     return undefined;
+   }
+@@ -176,10 +180,14 @@
+     return null;
+   }
+ 
+-  if (/^step(?:\s+hold)?$/i.test(trimmedValue)) {
++  if (/^step(?:\s+hold)?$/i.test(trimmedValue) || /^hold$/i.test(trimmedValue)) {
+     return { type: 'step' };
+   }
+ 
++  if (/^continuous$/i.test(trimmedValue)) {
++    return { type: 'continuous' };
++  }
++
+   const cubicBezierMatch = trimmedValue.match(/^cubic-bezier\((.+)\)$/i);
+   const rawControlPoints = parseTimelineEasingNumberTokens(
+     cubicBezierMatch?.[1] ?? trimmedValue,
+@@ -215,7 +223,7 @@
+ export function findTimelineEasingPresetName(
+   easing: ToolcraftTimelineKeyframeEasing,
+ ): string | null {
+-  if (easing.type === 'step') {
++  if (easing.type !== 'bezier') {
+     return null;
+   }
+ 
+@@ -238,7 +246,18 @@
+ export function getEasingEditorControlPoints(
+   easing: ToolcraftTimelineKeyframeEasing,
+ ): TimelineBezierControlPoints {
+-  return easing.type === 'step' ? [0, 0, 1, 1] : easing.controlPoints;
++  if (easing.type === 'bezier') {
++    return easing.controlPoints;
++  }
++
++  /**
++   * Neither of these is a curve the editor can draw. A hold has no curve at
++   * all, and a continuous keyframe's curve is only solved once its neighbours
++   * are known, which is at evaluation and not here. Both fall back to the
++   * straight line, and the editor shows itself as inactive rather than
++   * pretending the line is what will run.
++   */
++  return [0, 0, 1, 1];
+ }
+ 
+ export function areEasingControlPointsEqual(
+@@ -265,7 +284,100 @@
+ }
+ 
+ export function getEasingInputValue(easing: ToolcraftTimelineKeyframeEasing): string {
+-  return easing.type === 'step'
+-    ? 'step'
+-    : formatTimelineBezierControlPoints(easing.controlPoints);
++  if (easing.type === 'step') {
++    return 'step';
++  }
++
++  if (easing.type === 'continuous') {
++    return 'continuous';
++  }
++
++  return formatTimelineBezierControlPoints(easing.controlPoints);
++}
++
++/**
++ * The handful of shapes a keyframe usually wants, named in the words people
++ * actually use for them.
++ *
++ * The nineteen presets and the curve editor stay where they are — this is the
++ * short list that sits above them, so choosing how a keyframe moves is one
++ * press rather than a hunt through five categories. Anything not on the list
++ * still reads back as Custom, and the library below is how you get there.
++ */
++export type TimelineKeyframeEasingKind =
++  | 'continuous'
++  | 'custom'
++  | 'easeIn'
++  | 'easeOut'
++  | 'hold'
++  | 'linear'
++  | 'smooth';
++
++export type TimelineKeyframeEasingKindOption = {
++  /** Plain-language description of the motion, for the control's tooltip. */
++  description: string;
++  easing: ToolcraftTimelineKeyframeEasing;
++  kind: Exclude<TimelineKeyframeEasingKind, 'custom'>;
++  label: string;
++};
++
++export const timelineKeyframeEasingKindOptions = [
++  {
++    description: 'Same speed the whole way. No acceleration at either end.',
++    easing: { controlPoints: [0, 0, 1, 1], type: 'bezier' },
++    kind: 'linear',
++    label: 'Linear',
++  },
++  {
++    description: 'Starts slowly and speeds up towards the next keyframe.',
++    easing: { controlPoints: [0.42, 0, 1, 1], type: 'bezier' },
++    kind: 'easeIn',
++    label: 'Ease In',
++  },
++  {
++    description: 'Leaves at full speed and slows down into the next keyframe.',
++    easing: { controlPoints: [0, 0, 0.58, 1], type: 'bezier' },
++    kind: 'easeOut',
++    label: 'Ease Out',
++  },
++  {
++    description: 'Eases at both ends, so it settles on the next keyframe.',
++    easing: { controlPoints: [0.65, 0, 0.35, 1], type: 'bezier' },
++    kind: 'smooth',
++    label: 'Smooth',
++  },
++  {
++    description: 'Passes straight through without stopping here.',
++    easing: { type: 'continuous' },
++    kind: 'continuous',
++    label: 'Continuous',
++  },
++  {
++    description: 'Holds this value, then jumps at the next keyframe.',
++    easing: { type: 'step' },
++    kind: 'hold',
++    label: 'Hold',
++  },
++] as const satisfies readonly TimelineKeyframeEasingKindOption[];
++
++export function getTimelineKeyframeEasingKind(
++  easing: ToolcraftTimelineKeyframeEasing | undefined,
++): TimelineKeyframeEasingKind {
++  const resolvedEasing = getToolcraftTimelineKeyframeEasing(easing);
++
++  if (resolvedEasing.type === 'continuous') {
++    return 'continuous';
++  }
++
++  if (resolvedEasing.type === 'step') {
++    return 'hold';
++  }
++
++  return (
++    timelineKeyframeEasingKindOptions.find(
++      (option) =>
++        option.easing.type === 'bezier' &&
++        areEasingControlPointsEqual(option.easing.controlPoints, resolvedEasing.controlPoints),
++    )?.kind ?? 'custom'
++  );
+ }
+diff -ruN pristine/runtime/react/timeline/timeline-easing-popover-content.tsx current/runtime/react/timeline/timeline-easing-popover-content.tsx
+--- a/runtime/react/timeline/timeline-easing-popover-content.tsx	2026-08-28 21:46:07.194029497 +0000
++++ b/runtime/react/timeline/timeline-easing-popover-content.tsx	2026-08-28 21:46:07.194029497 +0000
+@@ -8,12 +8,18 @@
+ import {
+   findTimelineEasingPresetName,
+   getEasingInputValue,
++  getTimelineKeyframeEasingKind,
+   parseToolcraftTimelineKeyframeEasing,
+   timelineEasingPresetCategories,
+   timelineEasingPresets,
++  timelineKeyframeEasingKindOptions,
+ } from './timeline-easing-model';
+ import { TimelineEasingEditor } from './timeline-easing-editor';
+-import { TimelineEasingPresetIcon, TimelineEasingStepPresetIcon } from './timeline-easing-icons';
++import {
++  TimelineEasingContinuousPresetIcon,
++  TimelineEasingPresetIcon,
++  TimelineEasingStepPresetIcon,
++} from './timeline-easing-icons';
+ import { useTimelineEasingPopoverWidth } from './timeline-easing-popover-layout';
+ 
+ function cn(...classNames: Array<string | false | null | undefined>): string {
+@@ -49,7 +55,7 @@
+   const [inputEditing, setInputEditing] = useState(false);
+   const activePresetName = findTimelineEasingPresetName(easing);
+   const committedInputValue = getEasingInputValue(easing);
+-  const isStep = easing.type === 'step';
++  const activeKind = getTimelineKeyframeEasingKind(easing);
+   const popoverWidth = useTimelineEasingPopoverWidth();
+ 
+   useEffect(() => {
+@@ -74,7 +80,7 @@
+         return;
+       }
+ 
+-      setInputError('Use cubic-bezier(x1, y1, x2, y2) or step.');
++      setInputError('Use cubic-bezier(x1, y1, x2, y2), continuous, or step.');
+       return;
+     }
+ 
+@@ -107,13 +113,53 @@
+         visibilityMode="terminal"
+       >
+         <div className="flex flex-col gap-4">
++          {/*
++            The six shapes a keyframe usually wants, in the words people use for
++            them, ahead of the curve library. Choosing how a keyframe moves was
++            a hunt through five categories of nineteen named curves; the ones
++            almost every keyframe actually wants are these.
++          */}
++          <div className="flex flex-col gap-1.5">
++            <span
++              className="text-[11px] leading-4 opacity-60"
++              data-slot="timeline-easing-section-label"
++            >
++              Keyframe
++            </span>
++            <div className="grid grid-cols-2 gap-1.5">
++              {timelineKeyframeEasingKindOptions.map((option) => (
++                <button
++                  className={getTimelineEasingPresetButtonClassName(option.kind === activeKind)}
++                  data-slot="timeline-easing-kind"
++                  data-timeline-easing-kind={option.kind}
++                  key={option.kind}
++                  onClick={() =>
++                    onChange(
++                      option.easing.type === 'bezier'
++                        ? { controlPoints: [...option.easing.controlPoints], type: 'bezier' }
++                        : { type: option.easing.type },
++                    )
++                  }
++                  title={option.description}
++                  type="button"
++                >
++                  {option.kind === 'continuous' ? (
++                    <TimelineEasingContinuousPresetIcon />
++                  ) : option.kind === 'hold' ? (
++                    <TimelineEasingStepPresetIcon />
++                  ) : (
++                    <TimelineEasingPresetIcon controlPoints={option.easing.controlPoints} />
++                  )}
++                  <span>{option.label}</span>
++                </button>
++              ))}
++            </div>
++          </div>
+           {timelineEasingPresetCategories.map(([category, categoryLabel]) => {
+             const presets = timelineEasingPresets.filter(
+               (preset) => preset.category === category,
+             );
+-            const showStepPreset = category === 'basic';
+-
+-            if (presets.length === 0 && !showStepPreset) {
++            if (presets.length === 0) {
+               return null;
+             }
+ 
+@@ -126,16 +172,6 @@
+                   {categoryLabel}
+                 </span>
+                 <div className="grid grid-cols-2 gap-1.5">
+-                  {showStepPreset ? (
+-                    <button
+-                      className={getTimelineEasingPresetButtonClassName(isStep)}
+-                      onClick={() => onChange({ type: 'step' })}
+-                      type="button"
+-                    >
+-                      <TimelineEasingStepPresetIcon />
+-                      <span>Step Hold</span>
+-                    </button>
+-                  ) : null}
+                   {presets.map((preset) => {
+                     const isActive = activePresetName === preset.name;
+ 
+@@ -210,7 +246,7 @@
+                   event.currentTarget.blur();
+                 }
+               }}
+-              placeholder="0.19, 1, 0.22, 1 or step"
++              placeholder="0.19, 1, 0.22, 1, continuous or step"
+               type="text"
+               value={inputValue}
+             />
+diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/runtime/react/timeline/timeline-expanded-content.tsx
+--- a/runtime/react/timeline/timeline-expanded-content.tsx	2026-08-28 21:46:07.234029499 +0000
++++ b/runtime/react/timeline/timeline-expanded-content.tsx	2026-08-28 21:46:07.234029499 +0000
+@@ -13,6 +13,13 @@
+   roundToolcraftTimelineKeyframeTime,
+   toolcraftTimelineScrubStepSeconds,
+ } from '../../state/timeline-values';
++import type { ToolcraftTimelineObjectTrack } from '../../state/timeline-object-tracks';
++import {
++  getToolcraftTimelineViewRatio,
++  getToolcraftTimelineViewZoom,
++  isToolcraftTimelineTimeInView,
++  type ToolcraftTimelineViewWindow,
++} from '../../state/timeline-view-window';
+ import {
+   getTimelineEventTargetElement,
+   isEditableTimelineEventTarget,
+@@ -20,6 +27,7 @@
+ } from './timeline-event-targets';
+ import { findTimelineKeyframe } from './timeline-keyframes';
+ import { TimelineKeyframeRow } from './timeline-keyframe-row';
++import { TimelineObjectTrackRow } from './timeline-object-track-row';
+ import {
+   getTimelineCalcPositionStyle,
+   timelineExpandedTrackEndOffsetPx,
+@@ -49,9 +57,16 @@
+   onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
+   onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;
+   onPointerUp: (event: React.PointerEvent<HTMLDivElement>) => void;
++  collapsedObjectIds: readonly string[];
++  objectTracks: readonly ToolcraftTimelineObjectTrack[];
++  onPanView: (deltaSeconds: number) => void;
++  onScrubToTime: (timeSeconds: number) => void;
+   onSelectedKeyframeChange: (keyframeId: string | null) => void;
++  onToggleObjectExpanded: (objectId: string) => void;
++  onZoomChange: (zoom: number) => void;
+   selectedKeyframeId: string | null;
+   stripRef: React.RefObject<HTMLDivElement | null>;
++  view: ToolcraftTimelineViewWindow;
+ };
+ 
+ function cn(...classNames: Array<string | false | null | undefined>): string {
+@@ -62,8 +77,32 @@
+   return value.toFixed(2);
+ }
+ 
+-function getTimelineRulerTicks(durationSeconds: number): number[] {
+-  return [0, 0.25, 0.5, 0.75, 1].map((ratio) => durationSeconds * ratio);
++function getTimelineRulerTicks(view: ToolcraftTimelineViewWindow): number[] {
++  return [0, 0.25, 0.5, 0.75, 1].map(
++    (ratio) => view.startSeconds + view.spanSeconds * ratio,
++  );
++}
++
++/**
++ * The fewest decimals that still tell the truth about every tick.
++ *
++ * Whole seconds read cleanly across an eight second loop, whose quarters land
++ * on 0, 2, 4, 6 and 8. A six second loop has quarters on the halves, and whole
++ * seconds turned that ruler into "0 2 3 5 6" — five labels, three of them
++ * wrong. A zoomed window can be tighter still.
++ */
++function getTimelineRulerTickDecimals(ticks: readonly number[]): number {
++  for (const decimals of [0, 1]) {
++    const isFaithful = ticks.every(
++      (tick) => Math.abs(Number(tick.toFixed(decimals)) - tick) <= 0.005,
++    );
++
++    if (isFaithful) {
++      return decimals;
++    }
++  }
++
++  return 2;
+ }
+ 
+ function getTimelineRulerMarkRatios(): number[] {
+@@ -72,9 +111,9 @@
+ 
+ function getTimelineTrackPositionStyle(
+   currentTimeSeconds: number,
+-  durationSeconds: number,
++  view: ToolcraftTimelineViewWindow,
+ ): CSSProperties {
+-  const ratio = Math.max(0, Math.min(1, currentTimeSeconds / durationSeconds));
++  const ratio = Math.max(0, Math.min(1, getToolcraftTimelineViewRatio(currentTimeSeconds, view)));
+ 
+   return getTimelineCalcPositionStyle(
+     ratio,
+@@ -83,6 +122,7 @@
+ }
+ 
+ export function TimelineExpandedContent({
++  collapsedObjectIds,
+   currentTimeSeconds,
+   durationSeconds,
+   isScrubbing,
+@@ -96,12 +136,21 @@
+   onMoveKeyframe,
+   onPointerDown,
+   onPointerMove,
++  objectTracks,
+   onPointerUp,
++  onPanView,
++  onScrubToTime,
+   onSelectedKeyframeChange,
++  onToggleObjectExpanded,
++  onZoomChange,
+   selectedKeyframeId,
+   stripRef,
++  view,
+ }: TimelineExpandedContentProps): React.JSX.Element {
+-  const trackPlayheadStyle = getTimelineTrackPositionStyle(currentTimeSeconds, durationSeconds);
++  const trackPlayheadStyle = getTimelineTrackPositionStyle(currentTimeSeconds, view);
++  const isPlayheadInView = isToolcraftTimelineTimeInView(currentTimeSeconds, view);
++  const rulerTicks = getTimelineRulerTicks(view);
++  const rulerTickDecimals = getTimelineRulerTickDecimals(rulerTicks);
+   const selectedKeyframe = findTimelineKeyframe(keyframeGroups, selectedKeyframeId);
+   const deleteSelectedKeyframe = (): void => {
+     if (!selectedKeyframeId) {
+@@ -166,6 +215,38 @@
+ 
+     onKeyDown(event);
+   };
++  const handleExpandedWheel = (event: React.WheelEvent<HTMLDivElement>): void => {
++    if (event.ctrlKey || event.metaKey) {
++      const zoomStep = Math.exp(-event.deltaY / 400);
++
++      event.preventDefault();
++      onZoomChange(getToolcraftTimelineViewZoom(view) * zoomStep);
++      return;
++    }
++
++    // A plain vertical wheel scrolls the rows, which is what a list of rows
++    // owes the wheel. Panning takes the across gesture: a trackpad swipe
++    // sideways, or shift with a wheel that only turns one way.
++    const isPanGesture = event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY);
++
++    if (!isPanGesture || view.spanSeconds >= view.durationSeconds) {
++      return;
++    }
++
++    const trackWidth = stripRef.current?.getBoundingClientRect().width ?? 0;
++    const trackSpanPx = Math.max(
++      1,
++      trackWidth - timelineExpandedTrackStartOffsetPx - timelineExpandedTrackEndOffsetPx,
++    );
++    const deltaPx = event.deltaX !== 0 ? event.deltaX : event.deltaY;
++
++    if (deltaPx === 0) {
++      return;
++    }
++
++    event.preventDefault();
++    onPanView((deltaPx / trackSpanPx) * view.spanSeconds);
++  };
+   const handleExpandedPointerDown = (event: React.PointerEvent<HTMLDivElement>): void => {
+     const targetElement = getTimelineEventTargetElement(event.target);
+     const clickedKeyframe = targetElement?.closest('[data-slot="timeline-keyframe"]');
+@@ -184,7 +265,23 @@
+ 
+   return (
+     <div className="flex min-h-0 flex-1 flex-col" data-slot="timeline-expanded">
+-      <div className="relative grid h-9 min-w-0 shrink-0 grid-cols-[164px_minmax(0,1fr)_36px] after:pointer-events-none after:absolute after:inset-x-0 after:-bottom-px after:h-px after:bg-[color:color-mix(in_oklab,var(--border)_20%,transparent)]">
++      {/*
++        The ruler is a scrub surface, which is the one place every editing tool
++        agrees the playhead can be thrown to. Its pointer handlers are the
++        scrubber's own — the geometry they measure comes from the track strip
++        below rather than from whatever was pressed, so a press up here lands on
++        exactly the time it points at.
++      */}
++      <div
++        className="relative grid h-9 min-w-0 shrink-0 cursor-ew-resize touch-none grid-cols-[164px_minmax(0,1fr)_36px] select-none after:pointer-events-none after:absolute after:inset-x-0 after:-bottom-px after:h-px after:bg-[color:color-mix(in_oklab,var(--border)_20%,transparent)]"
++        data-slot="timeline-expanded-ruler-row"
++        data-timeline-scrub-surface="true"
++        onLostPointerCapture={onLostPointerCapture}
++        onPointerCancel={onPointerUp}
++        onPointerDown={onPointerDown}
++        onPointerMove={onPointerMove}
++        onPointerUp={onPointerUp}
++      >
+         <div className="flex min-w-0 items-center px-3 text-[11px] leading-4 text-[color:color-mix(in_oklab,var(--foreground)_75%,transparent)] select-none">
+           <span className="min-w-0 truncate opacity-60">Properties</span>
+         </div>
+@@ -194,13 +291,13 @@
+             data-slot="timeline-expanded-ruler-labels"
+             style={{ left: timelineRulerLeftInsetPx, right: timelineRulerRightInsetPx }}
+           >
+-            {getTimelineRulerTicks(durationSeconds).map((tick, index, ticks) => (
++            {rulerTicks.map((tick, index, ticks) => (
+               <span
+                 className="absolute top-0 -translate-x-1/2 text-center"
+-                key={tick.toFixed(2)}
++                key={`${index}:${tick.toFixed(3)}`}
+                 style={{ left: `${(index / (ticks.length - 1)) * 100}%` }}
+               >
+-                {Math.round(tick)}
++                {tick.toFixed(rulerTickDecimals)}
+               </span>
+             ))}
+           </div>
+@@ -243,13 +340,18 @@
+         onPointerDown={handleExpandedPointerDown}
+         onPointerMove={onPointerMove}
+         onPointerUp={onPointerUp}
++        onWheel={handleExpandedWheel}
+         ref={stripRef}
+         role="slider"
+         tabIndex={0}
+       >
+         <span
+           aria-hidden="true"
+-          className="absolute top-0 bottom-0 z-20 w-px -translate-x-1/2 bg-[color:var(--foreground)]"
++          className={cn(
++            'absolute top-0 bottom-0 z-20 w-px -translate-x-1/2 bg-[color:var(--foreground)]',
++            !isPlayheadInView && 'opacity-30',
++          )}
++          data-out-of-view={isPlayheadInView ? undefined : 'true'}
+           data-slot="timeline-expanded-playhead"
+           style={trackPlayheadStyle}
+         />
+@@ -267,7 +369,9 @@
+           className={cn(
+             'absolute top-[-1px] z-30 size-[9px] -translate-x-1/2 -translate-y-1/2 cursor-ew-resize rounded-[2px] bg-[color:var(--foreground)] shadow-[0_2px_2px_color-mix(in_oklab,var(--background)_20%,transparent)] transition-transform duration-[120ms] ease-out',
+             isScrubbing && 'scale-[1.25] cursor-grabbing',
++            !isPlayheadInView && 'opacity-40',
+           )}
++          data-out-of-view={isPlayheadInView ? undefined : 'true'}
+           data-slot="timeline-expanded-playhead-handle"
+           style={trackPlayheadStyle}
+         />
+@@ -280,22 +384,53 @@
+         >
+           Add your first keyframe from the properties panel.
+         </motion.div>
+-        <AnimatePresence initial={false}>
+-          {keyframeGroups.map((group) => (
+-            <TimelineKeyframeRow
+-              durationSeconds={durationSeconds}
+-              group={group}
+-              isScrubbing={isScrubbing}
+-              key={group.controlId}
+-              onChangeKeyframeEasing={onChangeKeyframeEasing}
+-              onDeleteControlKeyframes={onDeleteControlKeyframes}
+-              onKeyframeDragStart={onKeyframeDragStart}
+-              onMoveKeyframe={onMoveKeyframe}
+-              onSelectedKeyframeChange={onSelectedKeyframeChange}
+-              selectedKeyframeId={selectedKeyframeId}
+-            />
+-          ))}
+-        </AnimatePresence>
++        <div
++          className="absolute inset-0 overflow-x-hidden overflow-y-auto"
++          data-slot="timeline-expanded-rows"
++        >
++          <AnimatePresence initial={false}>
++          {objectTracks.flatMap((track) => {
++            const isTrackExpanded = !collapsedObjectIds.includes(track.objectId);
++
++            return [
++              <TimelineObjectTrackRow
++                isExpanded={isTrackExpanded}
++                isScrubbing={isScrubbing}
++                key={`object:${track.objectId}`}
++                onDeleteObjectKeyframes={(deletedTrack) => {
++                  onSelectedKeyframeChange(null);
++
++                  for (const group of deletedTrack.groups) {
++                    onDeleteControlKeyframes(group.controlId);
++                  }
++                }}
++                onScrubToTime={onScrubToTime}
++                onToggleExpanded={onToggleObjectExpanded}
++                track={track}
++                view={view}
++              />,
++              ...(isTrackExpanded
++                ? track.groups.map((group) => (
++                    <TimelineKeyframeRow
++                      durationSeconds={durationSeconds}
++                      group={group}
++                      isNested
++                      isScrubbing={isScrubbing}
++                      key={group.controlId}
++                      onChangeKeyframeEasing={onChangeKeyframeEasing}
++                      onDeleteControlKeyframes={onDeleteControlKeyframes}
++                      onKeyframeDragStart={onKeyframeDragStart}
++                      onMoveKeyframe={onMoveKeyframe}
++                      onSelectedKeyframeChange={onSelectedKeyframeChange}
++                      selectedKeyframeId={selectedKeyframeId}
++                      view={view}
++                    />
++                  ))
++                : []),
++            ];
++          })}
++          </AnimatePresence>
++        </div>
+       </div>
+     </div>
+   );
+diff -ruN pristine/runtime/react/timeline/timeline-keyframe-row.tsx current/runtime/react/timeline/timeline-keyframe-row.tsx
+--- a/runtime/react/timeline/timeline-keyframe-row.tsx	2026-08-28 21:46:07.262029501 +0000
++++ b/runtime/react/timeline/timeline-keyframe-row.tsx	2026-08-28 21:46:07.262029501 +0000
+@@ -15,6 +15,11 @@
+   getToolcraftTimelineKeyframeId,
+   roundToolcraftTimelineKeyframeTime,
+ } from '../../state/timeline-values';
++import {
++  getToolcraftTimelineViewRatio,
++  getToolcraftTimelineViewTime,
++  type ToolcraftTimelineViewWindow,
++} from '../../state/timeline-view-window';
+ import { TimelineIconButton } from './timeline-icon-button';
+ import { TimelineKeyframeEasingPopover } from './timeline-easing-popover';
+ import {
+@@ -39,6 +44,7 @@
+ type TimelineKeyframeRowProps = {
+   durationSeconds: number;
+   group: ToolcraftTimelineKeyframeGroup;
++  isNested?: boolean;
+   isScrubbing: boolean;
+   onChangeKeyframeEasing: (keyframeId: string, easing: ToolcraftTimelineKeyframeEasing) => void;
+   onDeleteControlKeyframes: (controlId: string) => void;
+@@ -46,6 +52,7 @@
+   onMoveKeyframe: (keyframeId: string, timeSeconds: number) => string | null;
+   onSelectedKeyframeChange: (keyframeId: string | null) => void;
+   selectedKeyframeId: string | null;
++  view: ToolcraftTimelineViewWindow;
+ };
+ 
+ function cn(...classNames: Array<string | false | null | undefined>): string {
+@@ -58,9 +65,9 @@
+ 
+ function getTimelineKeyframePositionStyle(
+   timeSeconds: number,
+-  durationSeconds: number,
++  view: ToolcraftTimelineViewWindow,
+ ): CSSProperties {
+-  const ratio = Math.max(0, Math.min(1, timeSeconds / durationSeconds));
++  const ratio = getToolcraftTimelineViewRatio(timeSeconds, view);
+ 
+   return getTimelineCalcPositionStyle(ratio, timelineTrackStartVisualOffsetPx * (1 - ratio));
+ }
+@@ -69,10 +76,12 @@
+   clientX,
+   durationSeconds,
+   trackElement,
++  view,
+ }: {
+   clientX: number;
+   durationSeconds: number;
+   trackElement: HTMLElement;
++  view: ToolcraftTimelineViewWindow;
+ }): number {
+   const rect = trackElement.getBoundingClientRect();
+   const trackLeft = rect.left + timelineTrackStartVisualOffsetPx;
+@@ -83,13 +92,14 @@
+   const ratio = Math.max(0, Math.min(1, (clientX - trackLeft) / trackWidth));
+ 
+   return roundToolcraftTimelineKeyframeTime(
+-    clampToolcraftTimelineTime(durationSeconds * ratio, durationSeconds),
++    clampToolcraftTimelineTime(getToolcraftTimelineViewTime(ratio, view), durationSeconds),
+   );
+ }
+ 
+ export function TimelineKeyframeRow({
+   durationSeconds,
+   group,
++  isNested = false,
+   isScrubbing,
+   onChangeKeyframeEasing,
+   onDeleteControlKeyframes,
+@@ -97,6 +107,7 @@
+   onMoveKeyframe,
+   onSelectedKeyframeChange,
+   selectedKeyframeId,
++  view,
+ }: TimelineKeyframeRowProps): React.JSX.Element {
+   const [isVisible, setIsVisible] = useState(true);
+   const [draftKeyframeTimes, setDraftKeyframeTimes] = useState<Record<string, number>>({});
+@@ -158,6 +169,7 @@
+       clientX: event.clientX,
+       durationSeconds,
+       trackElement: dragState.trackElement,
++      view,
+     });
+ 
+     dragState.latestTimeSeconds = nextTimeSeconds;
+@@ -226,7 +238,13 @@
+       transition={timelineKeyframePresenceTransition}
+     >
+       <div className="grid h-9 w-full grid-cols-[164px_minmax(0,1fr)_36px] overflow-visible">
+-        <div className="flex h-full min-w-0 items-center gap-1.5 border-r border-[color:color-mix(in_oklab,var(--border)_6%,transparent)] pr-1.5 pl-1 text-[11px] leading-4 text-[color:color-mix(in_oklab,var(--foreground)_75%,transparent)] select-none">
++        <div
++          className={cn(
++            'flex h-full min-w-0 items-center gap-1.5 border-r border-[color:color-mix(in_oklab,var(--border)_6%,transparent)] pr-1.5 text-[11px] leading-4 text-[color:color-mix(in_oklab,var(--foreground)_75%,transparent)] select-none',
++            // Indented under the object it belongs to, so the tree reads as one.
++            isNested ? 'pl-6' : 'pl-1',
++          )}
++        >
+           <TimelineIconButton
+             label={`Toggle ${group.label} visibility`}
+             onClick={() => setIsVisible((currentValue) => !currentValue)}
+@@ -285,6 +303,13 @@
+               {group.keyframes.map((keyframe) => {
+                 const isSelected = keyframe.id === selectedKeyframeId;
+                 const displayTimeSeconds = draftKeyframeTimes[keyframe.id] ?? keyframe.timeSeconds;
++                const viewRatio = getToolcraftTimelineViewRatio(displayTimeSeconds, view);
++
++                // The track does not clip, so a keyframe outside a zoomed window
++                // would otherwise be drawn over the properties column beside it.
++                if (viewRatio < -0.001 || viewRatio > 1.001) {
++                  return null;
++                }
+ 
+                 return (
+                   <motion.button
+@@ -323,7 +348,7 @@
+                     onPointerDown={(event) => handleKeyframePointerDown(event, keyframe)}
+                     onPointerMove={handleKeyframePointerMove}
+                     onPointerUp={endKeyframeDrag}
+-                    style={getTimelineKeyframePositionStyle(displayTimeSeconds, durationSeconds)}
++                    style={getTimelineKeyframePositionStyle(displayTimeSeconds, view)}
+                     title={keyframe.valueLabel}
+                     transition={timelineKeyframePresenceTransition}
+                     type="button"
+diff -ruN pristine/runtime/react/timeline/timeline-object-track-row.tsx current/runtime/react/timeline/timeline-object-track-row.tsx
+--- a/runtime/react/timeline/timeline-object-track-row.tsx	1970-01-01 00:00:00.000000000 +0000
++++ b/runtime/react/timeline/timeline-object-track-row.tsx	2026-08-28 21:46:28.346872386 +0000
+@@ -0,0 +1,149 @@
++'use client';
++
++import * as React from 'react';
++import { ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
++import { motion } from 'motion/react';
++
++import type { ToolcraftTimelineObjectTrack } from '../../state/timeline-object-tracks';
++import {
++  getToolcraftTimelineViewRatio,
++  type ToolcraftTimelineViewWindow,
++} from '../../state/timeline-view-window';
++import { TimelineIconButton } from './timeline-icon-button';
++import {
++  getTimelineCalcPositionStyle,
++  timelineKeyframePresenceTransition,
++  timelineKeyframeRowHeightPx,
++  timelineTrackStartVisualOffsetPx,
++} from './timeline-panel-layout';
++
++type TimelineObjectTrackRowProps = {
++  isExpanded: boolean;
++  isScrubbing: boolean;
++  onDeleteObjectKeyframes: (track: ToolcraftTimelineObjectTrack) => void;
++  onScrubToTime: (timeSeconds: number) => void;
++  onToggleExpanded: (objectId: string) => void;
++  track: ToolcraftTimelineObjectTrack;
++  view: ToolcraftTimelineViewWindow;
++};
++
++function cn(...classNames: Array<string | false | null | undefined>): string {
++  return classNames.filter(Boolean).join(' ');
++}
++
++function formatTimelineSeconds(value: number): string {
++  return value.toFixed(2);
++}
++
++function formatPropertyCount(count: number): string {
++  return `${count} ${count === 1 ? 'property' : 'properties'}`;
++}
++
++/**
++ * The object's own row: what it is, and every moment it moves.
++ *
++ * Collapsed, the merged marks are the whole summary of the object — clicking
++ * one takes the playhead there. Editing an individual key stays with the
++ * property rows underneath, where it is unambiguous which key you are holding.
++ */
++export function TimelineObjectTrackRow({
++  isExpanded,
++  isScrubbing,
++  onDeleteObjectKeyframes,
++  onScrubToTime,
++  onToggleExpanded,
++  track,
++  view,
++}: TimelineObjectTrackRowProps): React.JSX.Element {
++  const visibleKeyframeTimes = isExpanded
++    ? []
++    : track.keyframeTimes.filter((timeSeconds) => {
++        const ratio = getToolcraftTimelineViewRatio(timeSeconds, view);
++
++        return ratio >= -0.001 && ratio <= 1.001;
++      });
++
++  return (
++    <motion.div
++      animate={{ height: timelineKeyframeRowHeightPx, opacity: 1 }}
++      className="w-full shrink-0 overflow-hidden border-t border-[color:color-mix(in_oklab,var(--border)_10%,transparent)] bg-[color:color-mix(in_oklab,var(--foreground)_4%,transparent)] select-none first:border-t-0"
++      data-object-id={track.objectId}
++      data-slot="timeline-object-track-row"
++      exit={{ height: 0, opacity: 0 }}
++      initial={{ height: 0, opacity: 0 }}
++      transition={timelineKeyframePresenceTransition}
++    >
++      <div className="grid h-full min-w-0 grid-cols-[164px_minmax(0,1fr)_36px]">
++        <div className="flex min-w-0 items-center gap-1 pr-2 pl-1.5 text-[11px] leading-4 text-[color:var(--foreground)]">
++          <TimelineIconButton
++            label={`${isExpanded ? 'Collapse' : 'Expand'} ${track.label} track`}
++            onClick={() => onToggleExpanded(track.objectId)}
++            size="icon-sm"
++            tooltipSide="top"
++          >
++            {isExpanded ? (
++              <ChevronDown data-icon="track-expanded" />
++            ) : (
++              <ChevronRight data-icon="track-collapsed" />
++            )}
++          </TimelineIconButton>
++          <span className="min-w-0 truncate font-medium" title={track.label}>
++            {track.label}
++          </span>
++          {isExpanded ? null : (
++            <span className="ml-auto shrink-0 text-[10px] text-[color:var(--muted-foreground)] tabular-nums">
++              {formatPropertyCount(track.groups.length)}
++            </span>
++          )}
++        </div>
++        <div
++          className="relative h-full min-h-0 overflow-visible border-r border-[color:color-mix(in_oklab,var(--border)_6%,transparent)]"
++          data-slot="timeline-object-track"
++        >
++          {visibleKeyframeTimes.map((timeSeconds) => {
++            const ratio = getToolcraftTimelineViewRatio(timeSeconds, view);
++
++            return (
++              <button
++                aria-label={`${track.label} keyframes at ${formatTimelineSeconds(timeSeconds)}s`}
++                className={cn(
++                  'absolute top-1/2 z-30 m-0 size-2 -translate-x-1/2 -translate-y-1/2 appearance-none border-0 bg-transparent p-0 text-[color:var(--link)] outline-none',
++                  isScrubbing ? 'cursor-default' : 'cursor-pointer',
++                )}
++                data-slot="timeline-object-keyframe"
++                key={timeSeconds}
++                onClick={(event) => {
++                  event.preventDefault();
++                  event.stopPropagation();
++                  onScrubToTime(timeSeconds);
++                }}
++                onPointerDown={(event) => event.stopPropagation()}
++                style={getTimelineCalcPositionStyle(
++                  ratio,
++                  timelineTrackStartVisualOffsetPx * (1 - ratio),
++                )}
++                title={`${formatTimelineSeconds(timeSeconds)}s`}
++                type="button"
++              >
++                <span
++                  aria-hidden="true"
++                  className="absolute top-1/2 left-1/2 block size-[7px] -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-[1px] bg-current"
++                />
++              </button>
++            );
++          })}
++        </div>
++        <div className="flex h-full min-w-0 items-center justify-center">
++          <TimelineIconButton
++            label={`Delete ${track.label} keyframes`}
++            onClick={() => onDeleteObjectKeyframes(track)}
++            size="icon-sm"
++            tooltipSide="top"
++          >
++            <Trash2 />
++          </TimelineIconButton>
++        </div>
++      </div>
++    </motion.div>
++  );
++}
+diff -ruN pristine/runtime/react/timeline/timeline-panel-header.tsx current/runtime/react/timeline/timeline-panel-header.tsx
+--- a/runtime/react/timeline/timeline-panel-header.tsx	2026-08-28 21:46:07.302029503 +0000
++++ b/runtime/react/timeline/timeline-panel-header.tsx	2026-08-28 21:46:07.302029503 +0000
+@@ -3,9 +3,30 @@
+ import * as React from 'react';
+ import { useEffect, useRef, useState, type CSSProperties } from 'react';
+ import { PrimitiveArrowIcon } from '@/toolcraft/ui';
+-import { Pause, Play, Repeat, Repeat1 } from 'lucide-react';
+-
+-import { clampToolcraftTimelineTime } from '../../state/timeline-values';
++import {
++  ChevronFirst,
++  ChevronLast,
++  Gauge,
++  Pause,
++  Play,
++  Plus,
++  Repeat,
++  Repeat1,
++  Search,
++} from 'lucide-react';
++
++import type { ToolcraftTimelineAnimationSchema } from '../../schema/types';
++import {
++  clampToolcraftTimelineTime,
++  toolcraftTimelinePlaybackRates,
++} from '../../state/timeline-values';
++import {
++  getToolcraftTimelineViewZoom,
++  getToolcraftTimelineZoomFromSliderRatio,
++  getToolcraftTimelineZoomSliderRatio,
++  toolcraftTimelineMinZoom,
++  type ToolcraftTimelineViewWindow,
++} from '../../state/timeline-view-window';
+ import { TimelineIconButton } from './timeline-icon-button';
+ 
+ type TimelinePanelHeaderProps = {
+@@ -16,18 +37,28 @@
+   isLooping: boolean;
+   isPlaying: boolean;
+   isScrubbing: boolean;
++  /** The times something is keyed at, in order, for the step controls. */
++  keyframeTimesSeconds: readonly number[];
++  playbackRate: number;
+   playbackReady: boolean;
++  animations: readonly ToolcraftTimelineAnimationSchema[];
++  onAddAnimation: (animationId: string) => void;
++  onCurrentTimeCommit: (value: string) => void;
+   onDurationCommit: (value: string) => void;
+   onScrubKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void;
+   onScrubLostPointerCapture: () => void;
+   onScrubPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
+   onScrubPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;
+   onScrubPointerUp: (event: React.PointerEvent<HTMLDivElement>) => void;
++  onSetPlaybackRate: (playbackRate: number) => void;
++  onStepToKeyframe: (direction: -1 | 1) => void;
+   onToggleExpanded: () => void;
+   onToggleLoop: () => void;
+   onTogglePlayback: () => void;
++  onZoomChange: (zoom: number) => void;
+   stripRef: React.RefObject<HTMLDivElement | null>;
+   variant: 'compact' | 'extended';
++  view: ToolcraftTimelineViewWindow;
+ };
+ 
+ type TimelinePanelMaskProps = {
+@@ -213,16 +244,90 @@
+   selection.addRange(range);
+ }
+ 
+-function TimelineDurationValue({
+-  durationSeconds,
++function formatTimelineZoomLabel(zoom: number): string {
++  return `${Number.parseFloat(zoom.toFixed(2))}x`;
++}
++
++/**
++ * How much of the loop the track is showing.
++ *
++ * At rest the whole loop is on screen and the readout stays out of the way;
++ * once you are zoomed in, the factor is worth showing because the ruler is no
++ * longer telling you the length of anything you can see end to end.
++ */
++function TimelineZoomControl({
++  onZoomChange,
++  view,
++}: {
++  onZoomChange: (zoom: number) => void;
++  view: ToolcraftTimelineViewWindow;
++}): React.JSX.Element {
++  const zoom = getToolcraftTimelineViewZoom(view);
++  const sliderRatio = getToolcraftTimelineZoomSliderRatio(zoom);
++  const isZoomed = zoom > toolcraftTimelineMinZoom;
++
++  return (
++    <div
++      className="mr-1 inline-flex shrink-0 items-center gap-1.5"
++      data-slot="timeline-zoom"
++      data-zoom={formatTimelineSeconds(zoom)}
++    >
++      <Search
++        aria-hidden="true"
++        className="size-3 shrink-0 text-[color:var(--muted-foreground)] opacity-70"
++      />
++      <input
++        aria-label="Timeline zoom"
++        aria-valuetext={formatTimelineZoomLabel(zoom)}
++        className="h-1 w-16 shrink-0 cursor-ew-resize appearance-none rounded-full bg-[color:color-mix(in_oklab,var(--foreground)_16%,transparent)] outline-none focus-visible:ring-1 focus-visible:ring-[color:var(--link)] [&::-moz-range-thumb]:size-2.5 [&::-moz-range-thumb]:cursor-ew-resize [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-[color:var(--foreground)] [&::-webkit-slider-thumb]:size-2.5 [&::-webkit-slider-thumb]:cursor-ew-resize [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[color:var(--foreground)]"
++        data-slot="timeline-zoom-slider"
++        max={1}
++        min={0}
++        onChange={(event) =>
++          onZoomChange(getToolcraftTimelineZoomFromSliderRatio(event.currentTarget.valueAsNumber))
++        }
++        onClick={(event) => event.stopPropagation()}
++        onPointerDown={(event) => event.stopPropagation()}
++        step={0.01}
++        title={`Timeline zoom (${formatTimelineZoomLabel(zoom)})`}
++        type="range"
++        value={sliderRatio}
++      />
++      <span
++        aria-hidden="true"
++        className={cn(
++          'w-[4ch] shrink-0 font-sans text-xs leading-5 text-[color:var(--muted-foreground)] tabular-nums transition-opacity duration-150 ease-out select-none',
++          isZoomed ? 'opacity-100' : 'opacity-0',
++        )}
++        data-slot="timeline-zoom-value"
++      >
++        {formatTimelineZoomLabel(zoom)}
++      </span>
++    </div>
++  );
++}
++
++/**
++ * A number of seconds you can type over.
++ *
++ * Both ends of "1.44s of 6s" are editable — the head of the playhead as much
++ * as the length of the loop — so this takes whichever it is being used for
++ * rather than owning the duration specifically.
++ */
++function TimelineTimeValue({
++  editLabel,
+   onCommit,
++  slot,
++  valueSeconds,
+ }: {
+-  durationSeconds: number;
++  editLabel: string;
+   onCommit: (value: string) => void;
++  slot: string;
++  valueSeconds: number;
+ }): React.JSX.Element {
+   const [isEditing, setIsEditing] = useState(false);
+   const editorRef = useRef<HTMLSpanElement>(null);
+-  const valueLabel = formatDurationValueLabel(durationSeconds);
++  const valueLabel = formatDurationValueLabel(valueSeconds);
+ 
+   useEffect(() => {
+     if (!isEditing) {
+@@ -248,11 +353,11 @@
+   if (isEditing) {
+     return (
+       <span
+-        aria-label="timeline duration"
++        aria-label={editLabel}
+         className="block h-5 min-w-[3ch] !cursor-text overflow-hidden whitespace-nowrap rounded bg-[color:color-mix(in_oklab,var(--foreground)_8%,transparent)] px-1 font-sans text-xs leading-5 text-[color:var(--foreground)] outline-none tabular-nums"
+         contentEditable
+-        data-slot="timeline-duration-editor"
+-        key="duration-editor"
++        data-slot={`${slot}-editor`}
++        key={`${slot}-editor`}
+         onBlur={commitDraft}
+         onFocus={(event) => selectTimelineEditableText(event.currentTarget)}
+         onKeyDown={(event) => {
+@@ -277,10 +382,10 @@
+ 
+   return (
+     <button
+-      aria-label="Edit timeline duration"
++      aria-label={editLabel}
+       className="block h-5 min-w-[3ch] shrink-0 !cursor-text overflow-hidden rounded px-1 font-sans text-xs leading-5 text-[color:var(--muted-foreground)] tabular-nums transition-colors duration-150 ease-out group-hover/timeline-panel-header:bg-[color:color-mix(in_oklab,var(--foreground)_8%,transparent)] focus-visible:bg-[color:color-mix(in_oklab,var(--foreground)_8%,transparent)] focus-visible:outline-none"
+-      data-slot="timeline-duration-display"
+-      key="duration-display"
++      data-slot={`${slot}-display`}
++      key={`${slot}-display`}
+       onClick={(event) => {
+         event.stopPropagation();
+         setIsEditing(true);
+@@ -294,13 +399,18 @@
+ }
+ 
+ export function TimelinePanelHeader({
++  animations,
+   canExpand,
+   currentTimeSeconds,
+   durationSeconds,
++  onAddAnimation,
++  onCurrentTimeCommit,
+   isExpanded,
+   isLooping,
+   isPlaying,
+   isScrubbing,
++  keyframeTimesSeconds,
++  playbackRate,
+   playbackReady,
+   onDurationCommit,
+   onScrubKeyDown,
+@@ -308,11 +418,15 @@
+   onScrubPointerDown,
+   onScrubPointerMove,
+   onScrubPointerUp,
++  onSetPlaybackRate,
++  onStepToKeyframe,
+   onToggleExpanded,
+   onToggleLoop,
+   onTogglePlayback,
++  onZoomChange,
+   stripRef,
+   variant,
++  view,
+ }: TimelinePanelHeaderProps): React.JSX.Element {
+   if (variant === 'compact') {
+     return (
+@@ -351,6 +465,19 @@
+         className="relative z-10 inline-flex shrink-0 items-center gap-1"
+         data-slot="timeline-transport-controls"
+       >
++        {/*
++          Step, play, step — the order every transport uses, so the play button
++          stays where the hand expects it. The step buttons go to the times
++          something is actually keyed rather than to a fixed increment, because
++          the frames worth landing on exactly are the ones that were keyed.
++        */}
++        <TimelineIconButton
++          disabled={keyframeTimesSeconds.length === 0}
++          label="Previous keyframe"
++          onClick={() => onStepToKeyframe(-1)}
++        >
++          <ChevronFirst />
++        </TimelineIconButton>
+         <TimelineIconButton
+           disabled={!playbackReady}
+           label={isPlaying ? 'Pause playback' : 'Play playback'}
+@@ -359,28 +486,91 @@
+           {isPlaying ? <Pause /> : <Play />}
+         </TimelineIconButton>
+         <TimelineIconButton
++          disabled={keyframeTimesSeconds.length === 0}
++          label="Next keyframe"
++          onClick={() => onStepToKeyframe(1)}
++        >
++          <ChevronLast />
++        </TimelineIconButton>
++        <TimelineIconButton
+           label={isLooping ? 'Disable loop' : 'Enable loop'}
+           onClick={onToggleLoop}
+         >
+           {isLooping ? <Repeat data-icon="loop-enabled" /> : <Repeat1 data-icon="loop-disabled" />}
+         </TimelineIconButton>
++        {/*
++          Speed cycles rather than opening a menu: there are five of them, the
++          current one is written on the button, and a menu for five numbers is
++          more machinery than the choice deserves.
++        */}
++        <button
++          aria-label={`Playback speed ${playbackRate}x`}
++          className="inline-flex h-6 shrink-0 items-center gap-1 rounded px-1.5 font-sans text-[11px] leading-5 tabular-nums text-[color:var(--muted-foreground)] transition-colors duration-150 ease-out hover:bg-[color:color-mix(in_oklab,var(--foreground)_8%,transparent)] hover:text-[color:var(--foreground)] focus-visible:outline-none"
++          data-slot="timeline-playback-rate"
++          data-timeline-playback-rate={playbackRate}
++          onClick={() => {
++            const rates = toolcraftTimelinePlaybackRates;
++            const index = rates.indexOf(playbackRate as (typeof rates)[number]);
++            onSetPlaybackRate(rates[(index + 1) % rates.length] ?? 1);
++          }}
++          onPointerDown={(event) => event.stopPropagation()}
++          title="Playback speed"
++          type="button"
++        >
++          <Gauge className="size-3" />
++          {playbackRate}x
++        </button>
+       </div>
+       <TimelinePanelDivider />
+-      <div className="ml-2 inline-flex shrink-0 items-center gap-1 text-xs leading-5 text-[color:color-mix(in_oklab,var(--foreground)_90%,transparent)]">
+-        <span>{isExpanded ? 'Duration:' : 'Dur:'}</span>
+-        <TimelineDurationValue
+-          durationSeconds={durationSeconds}
++      {/*
++        The move most people came for, as one press. Keying a turntable by hand
++        is four steps for the animation this kind of product exists to make.
++      */}
++      {animations.length > 0 ? (
++        <div className="inline-flex shrink-0 items-center gap-1" data-slot="timeline-add-animation">
++          {animations.map((animation) => (
++            <button
++              className="inline-flex h-6 shrink-0 items-center gap-1 rounded px-2 font-sans text-xs leading-5 text-[color:var(--muted-foreground)] transition-colors duration-150 ease-out hover:bg-[color:color-mix(in_oklab,var(--foreground)_8%,transparent)] hover:text-[color:var(--foreground)] focus-visible:outline-none"
++              key={animation.id}
++              onClick={(event) => {
++                event.stopPropagation();
++                onAddAnimation(animation.id);
++              }}
++              onPointerDown={(event) => event.stopPropagation()}
++              type="button"
++            >
++              <Plus className="size-3" />
++              {animation.label}
++            </button>
++          ))}
++        </div>
++      ) : null}
++      <span className="flex-1" />
++      {/*
++        Where you are, and how long the whole thing is — both typeable.
++        The time used to be a read-only "5.40 / 6s" at one end of the bar with
++        a separate editable "Duration:" at the other, which meant the number
++        you most often want to set exactly was the one you could not type.
++      */}
++      <div
++        className="mr-1 inline-flex shrink-0 items-center gap-1 text-xs leading-5 text-[color:var(--muted-foreground)]"
++        data-slot="timeline-time-fields"
++      >
++        <TimelineTimeValue
++          editLabel="Edit current time"
++          onCommit={onCurrentTimeCommit}
++          slot="timeline-current-time"
++          valueSeconds={currentTimeSeconds}
++        />
++        <span className="select-none">of</span>
++        <TimelineTimeValue
++          editLabel="Edit timeline duration"
+           onCommit={onDurationCommit}
++          slot="timeline-duration"
++          valueSeconds={durationSeconds}
+         />
+       </div>
+-      <span
+-        className={cn(
+-          'flex-1 cursor-default overflow-hidden text-right font-sans text-[11px] leading-5 whitespace-nowrap text-[color:var(--muted-foreground)] tabular-nums [contain:paint] select-none',
+-          isExpanded ? 'min-w-[5.5rem]' : 'min-w-0',
+-        )}
+-      >
+-        {formatTimelineHeaderTimeLabel({ currentTimeSeconds, durationSeconds })}
+-      </span>
++      {isExpanded ? <TimelineZoomControl onZoomChange={onZoomChange} view={view} /> : null}
+       {canExpand ? (
+         <span className="relative z-10 flex shrink-0" data-slot="timeline-panel-expand-toggle">
+           <TimelineIconButton
+diff -ruN pristine/runtime/react/timeline/timeline-panel-responsive-layout.ts current/runtime/react/timeline/timeline-panel-responsive-layout.ts
+--- a/runtime/react/timeline/timeline-panel-responsive-layout.ts	2026-08-28 21:46:07.322029504 +0000
++++ b/runtime/react/timeline/timeline-panel-responsive-layout.ts	2026-08-28 21:46:07.322029504 +0000
+@@ -70,11 +70,17 @@
+     }
+   }
+ 
++  /**
++   * As wide as the room it is given.
++   *
++   * The panel used to stop at a fixed width and sit centred, which left a
++   * timeline floating in the middle of the screen with empty space either
++   * side. A timeline is a ruler: the more of the window it spans, the finer
++   * the time a person can actually point at. It now fills the space between
++   * whatever side panels are open, which is the width of the canvas above it.
++   */
+   const availableWidth = Math.floor(Math.max(0, rightLimit - leftLimit));
+-  const width =
+-    availableWidth >= timelinePanelExpandedWidthPx
+-      ? timelinePanelExpandedWidthPx
+-      : Math.max(timelinePanelMinResponsiveWidthPx, availableWidth);
++  const width = Math.max(timelinePanelMinResponsiveWidthPx, availableWidth);
+   const halfWidth = width / 2;
+   const minCenterX = leftLimit + halfWidth;
+   const maxCenterX = rightLimit - halfWidth;
+diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/react/timeline/timeline-panel.tsx
+--- a/runtime/react/timeline/timeline-panel.tsx	2026-08-28 21:46:07.390029509 +0000
++++ b/runtime/react/timeline/timeline-panel.tsx	2026-08-28 21:46:07.390029509 +0000
+@@ -4,6 +4,7 @@
+ import {
+   useCallback,
+   useEffect,
++  useMemo,
+   useRef,
+   useState,
+   type CSSProperties,
+@@ -18,11 +19,21 @@
+   ToolcraftTimelineKeyframeGroup,
+ } from '../../state/types';
+ import { isTimelineReadyForPlayback } from '../../state/timeline-readiness';
++import { getToolcraftTimelineObjectTracks } from '../../state/timeline-object-tracks';
+ import {
+   clampToolcraftTimelineDurationSeconds,
++  clampToolcraftTimelineTime,
+   getToolcraftTimelineKeyframeId,
+ } from '../../state/timeline-values';
+ import {
++  clampToolcraftTimelineZoom,
++  createToolcraftTimelineViewWindow,
++  getToolcraftTimelinePannedViewStart,
++  getToolcraftTimelineViewStartForAnchor,
++  getToolcraftTimelineViewStartForVisibleTime,
++  toolcraftTimelineMinZoom,
++} from '../../state/timeline-view-window';
++import {
+   getTimelineEventTargetElement,
+   isEditableTimelineEventTarget,
+   isTimelineInteractiveElement,
+@@ -70,7 +81,9 @@
+ const timelinePanelHeaderHeightPx = 36;
+ const timelineExpandedRulerHeightPx = 36;
+ const timelineEmptyStateHeightPx = timelineKeyframeRowHeightPx;
+-const maxVisibleTimelineKeyframeRows = 8;
++// Grouping put an object row above each property row, so the same number of
++// keyed controls now asks for more rows than it used to.
++const maxVisibleTimelineKeyframeRows = 10;
+ const timelineKeyframeListMaxHeightPx =
+   maxVisibleTimelineKeyframeRows * timelineKeyframeRowHeightPx;
+ const timelinePanelExpandCollapseTransition = {
+@@ -90,11 +103,10 @@
+ const selectCurrentTimeSeconds = (state: ToolcraftState) =>
+   state.timeline.currentTimeSeconds;
+ 
+-function getTimelinePanelExpandedSize(keyframeGroups: readonly ToolcraftTimelineKeyframeGroup[]): {
++function getTimelinePanelExpandedSize(rowCount: number): {
+   height: number;
+   width: number;
+ } {
+-  const rowCount = keyframeGroups.length;
+   const rowAreaHeight =
+     rowCount > 0
+       ? Math.min(rowCount * timelineKeyframeRowHeightPx, timelineKeyframeListMaxHeightPx)
+@@ -153,11 +165,52 @@
+   } = timeline;
+   const [defaultExpandedPending, setDefaultExpandedPending] = useState(defaultExpanded);
+   const [isHoverPaused, setIsHoverPaused] = useState(false);
++  const [zoom, setZoom] = useState(toolcraftTimelineMinZoom);
++  const [viewStartSeconds, setViewStartSeconds] = useState(0);
++  const [collapsedObjectIds, setCollapsedObjectIds] = useState<readonly string[]>([]);
+   const displayedIsPlaying = playbackReady && isPlaying;
+   const isCompact = variant === 'compact';
+   const isExpanded = !isCompact && keyframesEnabled && (expanded || defaultExpandedPending);
+-  const expandedPanelSize = getTimelinePanelExpandedSize(keyframeGroups);
++  const objectTracks = useMemo(
++    () => getToolcraftTimelineObjectTracks(keyframeGroups),
++    [keyframeGroups],
++  );
++  /**
++   * Every time something is keyed at, in order and without repeats.
++   *
++   * Two controls keyed at the same moment are one place to step to, not two,
++   * which is why this is a set before it is a list.
++   */
++  const keyframeTimesSeconds = useMemo(
++    () =>
++      Array.from(
++        new Set(
++          keyframeGroups.flatMap((group) =>
++            group.keyframes.map((keyframe) => keyframe.timeSeconds),
++          ),
++        ),
++      ).sort((first, second) => first - second),
++    [keyframeGroups],
++  );
++  const visibleRowCount = objectTracks.reduce(
++    (total, track) =>
++      total + 1 + (collapsedObjectIds.includes(track.objectId) ? 0 : track.groups.length),
++    0,
++  );
++  const expandedPanelSize = getTimelinePanelExpandedSize(visibleRowCount);
++  // Only the expanded track can be zoomed; the collapsed header always draws the
++  // whole loop, so it asks for a window that covers all of it.
++  const view = useMemo(
++    () =>
++      createToolcraftTimelineViewWindow({
++        durationSeconds,
++        startSeconds: viewStartSeconds,
++        zoom: isExpanded ? zoom : toolcraftTimelineMinZoom,
++      }),
++    [durationSeconds, isExpanded, viewStartSeconds, zoom],
++  );
+   const previousIsExpandedRef = useRef(isExpanded);
++  const followedTimeRef = useRef(currentTimeSeconds);
+   const isExpandCollapseTransition = previousIsExpandedRef.current !== isExpanded;
+   const timelinePanelTransition = isExpandCollapseTransition
+     ? timelinePanelExpandCollapseTransition
+@@ -220,6 +273,113 @@
+     },
+     [dispatch, store],
+   );
++  /**
++   * One place playback is started and stopped from, because the button and the
++   * spacebar have to do the same thing — including standing the hover pause
++   * down, which is what made a press of the button behave differently from a
++   * press of the key when they were written separately.
++   */
++  const togglePlayback = useCallback((): void => {
++    setIsHoverPaused(false);
++
++    if (store.getState().timeline.isPlaying) {
++      setIsPlaying(false);
++      return;
++    }
++
++    dispatch({ type: 'timeline.togglePlayback' });
++  }, [dispatch, setIsPlaying, store]);
++  /**
++   * Move the playhead to the next or previous time something is keyed.
++   *
++   * A small tolerance keeps a press from landing on the keyframe it is already
++   * sitting on: floating-point times never compare equal to the playhead
++   * exactly, so without it the first press of Next would go nowhere. Playback
++   * stops, because stepping is something a person does to look at one frame.
++   */
++  const stepToKeyframe = useCallback(
++    (direction: -1 | 1): void => {
++      const { timeline } = store.getState();
++      const times = Array.from(
++        new Set(
++          timeline.keyframeGroups.flatMap((group) =>
++            group.keyframes.map((keyframe) => keyframe.timeSeconds),
++          ),
++        ),
++      ).sort((first, second) => first - second);
++
++      if (times.length === 0) {
++        return;
++      }
++
++      const tolerance = 0.001;
++      const from = timeline.currentTimeSeconds;
++      const next =
++        direction === 1
++          ? times.find((time) => time > from + tolerance)
++          : [...times].reverse().find((time) => time < from - tolerance);
++
++      if (next === undefined) {
++        return;
++      }
++
++      setIsPlaying(false);
++      dispatch({ currentTimeSeconds: next, type: 'timeline.setCurrentTime' });
++    },
++    [dispatch, setIsPlaying, store],
++  );
++  /**
++   * Space plays and pauses, from anywhere in the app.
++   *
++   * It listens on the document rather than on the panel because the thing a
++   * person is looking at while they reach for it is the preview, not the
++   * timeline, and a handler on the panel only fires once the panel has focus.
++   *
++   * Two exclusions. Anything that takes typed text keeps its own space — a
++   * duration field, a layer being renamed, a search box. And anything that
++   * already answers to space keeps it too: a focused button, link or switch
++   * would otherwise be pressed and toggle playback in the same keystroke, so
++   * this stands down and lets the control do its own job.
++   *
++   * It lives here rather than beside the app's other shortcuts because of what
++   * `togglePlayback` does above it. The panel stands its clock down while the
++   * pointer is over it, so a dispatch that only flips `isPlaying` turns the
++   * transport to Playing and leaves the playhead exactly where it was — which
++   * is what the app-level handler did, and why space appeared to do nothing.
++   * Clearing that hover pause needs state only the panel has.
++   */
++  useEffect(() => {
++    if (typeof document === 'undefined') {
++      return;
++    }
++
++    const handleKeyDown = (event: KeyboardEvent): void => {
++      if (event.key !== ' ' && event.code !== 'Space') {
++        return;
++      }
++
++      if (event.altKey || event.ctrlKey || event.metaKey || event.repeat) {
++        return;
++      }
++
++      const target = event.target instanceof Element ? event.target : null;
++
++      if (
++        target?.closest(
++          'input, textarea, select, [contenteditable="true"], [contenteditable=""], button, a[href], [role="button"], [role="switch"], [role="menuitem"], [role="option"], [role="combobox"]',
++        )
++      ) {
++        return;
++      }
++
++      event.preventDefault();
++      togglePlayback();
++    };
++
++    document.addEventListener('keydown', handleKeyDown);
++
++    return () => document.removeEventListener('keydown', handleKeyDown);
++  }, [togglePlayback]);
+   const setSelectedKeyframeId = useCallback(
+     (keyframeId: string | null): void => {
+       dispatch({ keyframeId, type: 'timeline.selectKeyframe' });
+@@ -233,7 +393,32 @@
+     durationSeconds,
+     setCurrentTimeSeconds,
+     setIsPlaying,
++    view,
+   });
++  useEffect(() => {
++    // A zoomed window would otherwise sit still while the playhead ran off the
++    // end of it, so the window trails the playhead once it nears an edge. This
++    // is also how you pan by hand: drag the playhead into the edge and the
++    // window follows it into the part of the loop you were reaching for.
++    //
++    // Only a move of the playhead pulls the window, never a move of the window
++    // itself — otherwise panning away from the playhead would be undone on the
++    // very next render, and the loop beyond the current slice unreachable.
++    if (followedTimeRef.current === currentTimeSeconds) {
++      return;
++    }
++
++    followedTimeRef.current = currentTimeSeconds;
++
++    const nextStartSeconds = getToolcraftTimelineViewStartForVisibleTime({
++      timeSeconds: currentTimeSeconds,
++      view,
++    });
++
++    if (nextStartSeconds !== view.startSeconds) {
++      setViewStartSeconds(nextStartSeconds);
++    }
++  }, [currentTimeSeconds, view]);
+   const deleteKeyframe = useCallback(
+     (keyframeId: string): void => {
+       dispatch({ keyframeId, type: 'timeline.deleteKeyframe' });
+@@ -267,6 +452,8 @@
+   useTimelineClock({
+     durationSeconds,
+     getCurrentTimeSeconds,
++    hasKeyframes: keyframeGroups.length > 0,
++    playbackRate: timeline.playbackRate,
+     isHoverPaused,
+     isLooping,
+     isPlaying: displayedIsPlaying,
+@@ -333,6 +520,101 @@
+     };
+   }, [selectedKeyframeId]);
+ 
++  /**
++   * Lay a preset's keyframes at each end of the loop.
++   *
++   * The runtime does not know what a turntable is: it reads the product's own
++   * description of which controls move and between what, keys each at zero,
++   * and moves it to its far value at the end. Anything already keyed on those
++   * controls is cleared first, so pressing it twice gives one animation rather
++   * than two fighting over the same rows.
++   */
++  const timelineAnimations = schema.panels.timeline?.animations ?? [];
++  const addAnimation = (animationId: string): void => {
++    const animation = timelineAnimations.find((entry) => entry.id === animationId);
++
++    if (!animation) {
++      return;
++    }
++
++    for (const track of animation.tracks) {
++      dispatch({ controlId: track.target, type: 'timeline.deleteControlKeyframes' });
++      dispatch({
++        controlId: track.target,
++        controlLabel: track.controlLabel,
++        timeSeconds: 0,
++        type: 'timeline.toggleControlKeyframes',
++        value: track.from,
++        valueLabel: String(track.from),
++      });
++      dispatch({
++        controlId: track.target,
++        controlLabel: track.controlLabel,
++        timeSeconds: durationSeconds,
++        type: 'timeline.upsertControlKeyframe',
++        value: track.to,
++        valueLabel: String(track.to),
++      });
++      // The easing belongs to the keyframe the segment leaves from, so it is
++      // set on the first one. Without this a looping preset inherits the
++      // editor's ease-in-out and stops dead once a cycle.
++      if (track.easing) {
++        dispatch({
++          easing: track.easing,
++          keyframeId: `${track.target}::0`,
++          type: 'timeline.changeKeyframeEasing',
++        });
++      }
++    }
++    // Laying down an animation is the moment there is something to play, so it
++    // is the moment playback starts. The timeline opens paused because a loop
++    // with nothing keyed has nothing to show.
++    dispatch({ isPlaying: true, type: 'timeline.setPlaying' });
++  };
++  const toggleObjectExpanded = (objectId: string): void => {
++    setCollapsedObjectIds((currentIds) =>
++      currentIds.includes(objectId)
++        ? currentIds.filter((id) => id !== objectId)
++        : [...currentIds, objectId],
++    );
++  };
++  const scrubToTime = (timeSeconds: number): void => {
++    setIsPlaying(false);
++    dispatch({
++      currentTimeSeconds: clampToolcraftTimelineTime(timeSeconds, durationSeconds),
++      type: 'timeline.setCurrentTime',
++    });
++  };
++  const panView = (deltaSeconds: number): void => {
++    setViewStartSeconds(getToolcraftTimelinePannedViewStart({ deltaSeconds, view }));
++  };
++  const changeZoom = (nextZoom: number): void => {
++    const clampedZoom = clampToolcraftTimelineZoom(nextZoom);
++
++    // Zoom about the playhead rather than about the start of the loop, so the
++    // frame you are looking at is still the frame you are looking at.
++    setViewStartSeconds(
++      getToolcraftTimelineViewStartForAnchor({
++        anchorSeconds: currentTimeSeconds,
++        durationSeconds,
++        view,
++        zoom: clampedZoom,
++      }),
++    );
++    setZoom(clampedZoom);
++  };
++  const commitCurrentTimeValue = (nextValue: string): void => {
++    const parsed = Number.parseFloat(nextValue);
++
++    if (!Number.isFinite(parsed)) {
++      return;
++    }
++
++    dispatch({
++      currentTimeSeconds: clampToolcraftTimelineTime(parsed, durationSeconds),
++      type: 'timeline.setCurrentTime',
++    });
++  };
+   const commitDurationValue = (nextValue: string): void => {
+     const nextDuration = clampToolcraftTimelineDurationSeconds(Number.parseFloat(nextValue));
+ 
+@@ -349,20 +631,31 @@
+   };
+   const resolvedPanelPlacement = panelPlacement ?? (framed ? 'frame' : 'surface');
+   const shouldConstrainToContainer = resolvedPanelPlacement === 'surface';
++  // Measured whether or not the tracks are showing, because the bar is the
++  // full width of the canvas in both states — closing it lowers the panel, it
++  // does not shrink it back to a floating stub.
+   const { panelRef: timelineSurfaceRef, responsiveLayout } = useTimelinePanelResponsiveLayout(
+-    isExpanded && !shouldConstrainToContainer,
++    !shouldConstrainToContainer,
+   );
+   const unconstrainedTimelinePanelWidth = isCompact
+     ? timelinePanelCompactWidthPx
+     : isExpanded
+     ? expandedPanelSize.width
+     : timelinePanelCollapsedWidthPx;
++  /**
++   * As wide as the canvas above it, and never sideways.
++   *
++   * The measurement excludes whatever side panels are open, which is exactly
++   * where the band should stop: run it the full width of the window instead
++   * and it passes beneath the properties panel and cuts off the export buttons
++   * at its foot. The sideways offset was for a panel that floated centred over
++   * the canvas; in a band it only pushed it off the left edge.
++   */
+   const timelinePanelWidth =
+-    isExpanded && responsiveLayout !== null
+-      ? Math.min(unconstrainedTimelinePanelWidth, responsiveLayout.width)
++    !isCompact && responsiveLayout !== null
++      ? responsiveLayout.width
+       : unconstrainedTimelinePanelWidth;
+-  const timelinePanelOffsetX =
+-    isExpanded && responsiveLayout !== null ? responsiveLayout.offsetX : 0;
++  const timelinePanelOffsetX = 0;
+   const timelinePanelLayoutStyle: CSSProperties = {
+     transform: timelinePanelOffsetX !== 0 ? `translateX(${timelinePanelOffsetX}px)` : undefined,
+   };
+@@ -383,9 +676,11 @@
+       )}
+       data-expanded-height={isExpanded ? expandedPanelSize.height : undefined}
+       data-responsive-width={
+-        timelinePanelWidth < unconstrainedTimelinePanelWidth ? timelinePanelWidth : undefined
++        typeof timelinePanelWidth === "number" &&
++        timelinePanelWidth < unconstrainedTimelinePanelWidth
++          ? timelinePanelWidth
++          : undefined
+       }
+-      data-responsive-offset-x={timelinePanelOffsetX !== 0 ? timelinePanelOffsetX : undefined}
+       data-hover-paused={isHoverPaused ? 'true' : 'false'}
+       data-playback-ready={playbackReady ? 'true' : 'false'}
+       data-scrubbing={scrubber.isScrubbing ? 'true' : 'false'}
+@@ -430,29 +725,32 @@
+           isLooping={isLooping}
+           isPlaying={displayedIsPlaying}
+           isScrubbing={scrubber.isScrubbing}
++          keyframeTimesSeconds={keyframeTimesSeconds}
++          playbackRate={timeline.playbackRate}
+           playbackReady={playbackReady}
++          animations={timelineAnimations}
++          onAddAnimation={addAnimation}
++          onCurrentTimeCommit={commitCurrentTimeValue}
+           onDurationCommit={commitDurationValue}
+           onScrubKeyDown={scrubber.handleScrubKeyDown}
+           onScrubLostPointerCapture={scrubber.handleScrubLostPointerCapture}
+           onScrubPointerDown={scrubber.handleScrubPointerDown}
+           onScrubPointerMove={scrubber.handleScrubPointerMove}
+           onScrubPointerUp={scrubber.handleScrubPointerUp}
++          onSetPlaybackRate={(nextRate) =>
++            dispatch({ playbackRate: nextRate, type: 'timeline.setPlaybackRate' })
++          }
++          onStepToKeyframe={stepToKeyframe}
+           onToggleExpanded={() => {
+             setDefaultExpandedPending(false);
+             dispatch({ expanded: !isExpanded, type: 'timeline.setExpanded' });
+           }}
+           onToggleLoop={() => dispatch({ type: 'timeline.toggleLoop' })}
+-          onTogglePlayback={() => {
+-            setIsHoverPaused(false);
+-            if (displayedIsPlaying) {
+-              setIsPlaying(false);
+-              return;
+-            }
+-
+-            dispatch({ type: 'timeline.togglePlayback' });
+-          }}
++          onTogglePlayback={togglePlayback}
++          onZoomChange={changeZoom}
+           stripRef={scrubber.stripRef}
+           variant={variant}
++          view={view}
+         />
+         {isExpanded && keyframesEnabled ? (
+           <TimelineExpandedContent
+@@ -470,9 +768,16 @@
+             onPointerDown={scrubber.handleScrubPointerDown}
+             onPointerMove={scrubber.handleScrubPointerMove}
+             onPointerUp={scrubber.handleScrubPointerUp}
++            collapsedObjectIds={collapsedObjectIds}
++            objectTracks={objectTracks}
++            onPanView={panView}
++            onScrubToTime={scrubToTime}
+             onSelectedKeyframeChange={setSelectedKeyframeId}
++            onToggleObjectExpanded={toggleObjectExpanded}
++            onZoomChange={changeZoom}
+             selectedKeyframeId={selectedKeyframeId}
+             stripRef={scrubber.stripRef}
++            view={view}
+           />
+         ) : null}
+       </PanelSurface>
+diff -ruN pristine/runtime/react/timeline/timeline-playback-hooks.ts current/runtime/react/timeline/timeline-playback-hooks.ts
+--- a/runtime/react/timeline/timeline-playback-hooks.ts	2026-08-28 21:46:07.418029510 +0000
++++ b/runtime/react/timeline/timeline-playback-hooks.ts	2026-08-28 21:46:07.418029510 +0000
+@@ -8,13 +8,34 @@
+   clampToolcraftTimelineTime,
+   toolcraftTimelineScrubStepSeconds,
+ } from '../../state/timeline-values';
++import {
++  getToolcraftTimelineViewTime,
++  type ToolcraftTimelineViewWindow,
++} from '../../state/timeline-view-window';
+ 
+ type TimelineClockOptions = {
+   durationSeconds: number;
+   getCurrentTimeSeconds: () => number;
++  /**
++   * Whether anything is actually keyframed.
++   *
++   * A loop with nothing keyed has nothing to show, but the clock ran anyway:
++   * the playhead advanced every frame, every tick re-rendered, and the canvas
++   * was redrawn continuously for a picture that never changed. Measured as ten
++   * distinct frames out of ten samples while playing against one out of ten
++   * while paused — which is what made every proof that waits for the picture
++   * to hold still unreliable.
++   *
++   * The transport still opens ready to run, because that is what it means for
++   * a timeline to be live; it simply has nothing to do until something is
++   * keyed.
++   */
++  hasKeyframes: boolean;
+   isHoverPaused: boolean;
+   isLooping: boolean;
+   isPlaying: boolean;
++  /** How fast the clock runs, as a multiple of real time. */
++  playbackRate: number;
+   isScrubbing: boolean;
+   setCurrentTimeSeconds: React.Dispatch<React.SetStateAction<number>>;
+   setIsPlaying: React.Dispatch<React.SetStateAction<boolean>>;
+@@ -27,6 +48,7 @@
+   durationSeconds: number;
+   setCurrentTimeSeconds: React.Dispatch<React.SetStateAction<number>>;
+   setIsPlaying: React.Dispatch<React.SetStateAction<boolean>>;
++  view: ToolcraftTimelineViewWindow;
+ };
+ 
+ type TimelineScrubberResult = {
+@@ -70,9 +92,11 @@
+ export function useTimelineClock({
+   durationSeconds,
+   getCurrentTimeSeconds,
++  hasKeyframes,
+   isHoverPaused,
+   isLooping,
+   isPlaying,
++  playbackRate,
+   isScrubbing,
+   setCurrentTimeSeconds,
+   setIsPlaying,
+@@ -80,6 +104,7 @@
+   useEffect(() => {
+     if (
+       !isPlaying ||
++      !hasKeyframes ||
+       isHoverPaused ||
+       isScrubbing ||
+       typeof window === 'undefined' ||
+@@ -94,7 +119,10 @@
+       const elapsedSeconds = (timestamp - previousTimestamp) / 1000;
+ 
+       previousTimestamp = timestamp;
+-      const nextValue = getCurrentTimeSeconds() + elapsedSeconds;
++      // Review speed scales the clock and nothing else: the keyframes, their
++      // times and the length of the loop are untouched, so half speed is the
++      // same animation watched for twice as long.
++      const nextValue = getCurrentTimeSeconds() + elapsedSeconds * playbackRate;
+ 
+       if (nextValue < durationSeconds) {
+         setCurrentTimeSeconds(nextValue);
+@@ -125,6 +153,8 @@
+     getCurrentTimeSeconds,
+     isHoverPaused,
+     isLooping,
++    hasKeyframes,
++    playbackRate,
+     isPlaying,
+     isScrubbing,
+     setCurrentTimeSeconds,
+@@ -139,6 +169,7 @@
+   durationSeconds,
+   setCurrentTimeSeconds,
+   setIsPlaying,
++  view,
+ }: TimelineScrubberOptions): TimelineScrubberResult {
+   const [isScrubbing, setIsScrubbing] = useState(false);
+   const isScrubbingRef = useRef(false);
+@@ -189,6 +220,21 @@
+ 
+     return { rect, trackStart, trackWidth };
+   };
++  /**
++   * Where a press is allowed to take hold of the playhead.
++   *
++   * This used to be the playhead itself and nothing else, on an expanded
++   * timeline: the keyframe rows sit over the track at the same coordinates, so
++   * letting any press scrub meant a press meant for a diamond moved the
++   * playhead instead. The cost was that moving the playhead needed the person
++   * to find and grab a two-pixel line, when every tool they have used lets them
++   * click the ruler and drag.
++   *
++   * So the rule is by target rather than by region. A press on the playhead
++   * still scrubs, a press anywhere on the ruler scrubs, and a press on empty
++   * track scrubs — a diamond still keeps its own presses, and the expanded
++   * content turns away anything else interactive before this is asked.
++   */
+   const canStartScrubbingFromPointerEvent = (
+     event: React.PointerEvent<HTMLDivElement>,
+   ): boolean => {
+@@ -199,20 +245,27 @@
+     }
+ 
+     const isExpandedTimeline = geometry.trackStart > 0;
+-    const startedFromExpandedPlayhead =
+-      event.target instanceof Element &&
+-      event.target.closest(
+-        [
+-          '[data-slot="timeline-expanded-playhead"]',
+-          '[data-slot="timeline-expanded-playhead-handle"]',
+-          '[data-slot="timeline-expanded-playhead-hit-area"]',
+-        ].join(','),
+-      );
++    const target = event.target instanceof Element ? event.target : null;
++    const startedFromScrubSurface = target?.closest(
++      [
++        '[data-slot="timeline-expanded-playhead"]',
++        '[data-slot="timeline-expanded-playhead-handle"]',
++        '[data-slot="timeline-expanded-playhead-hit-area"]',
++        '[data-timeline-scrub-surface="true"]',
++      ].join(','),
++    );
++
++    if (startedFromScrubSurface) {
++      return true;
++    }
+ 
+-    if (isExpandedTimeline) {
+-      return Boolean(startedFromExpandedPlayhead);
++    if (isExpandedTimeline && target?.closest('[data-slot="timeline-keyframe"]')) {
++      return false;
+     }
+ 
++    // Everything left of the track is the properties column, and the expanded
++    // content has already turned away anything interactive before this runs, so
++    // what is left here really is empty track.
+     return event.clientX >= geometry.rect.left + geometry.trackStart;
+   };
+   const setCurrentTimeFromClientX = (clientX: number): void => {
+@@ -226,7 +279,7 @@
+     const ratio = Math.max(0, Math.min(1, (clientX - rect.left - trackStart) / trackWidth));
+ 
+     setCurrentTimeSeconds(
+-      clampToolcraftTimelineTime(durationSeconds * ratio, durationSeconds),
++      clampToolcraftTimelineTime(getToolcraftTimelineViewTime(ratio, view), durationSeconds),
+     );
+   };
+   const handleScrubKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
+diff -ruN pristine/runtime/schema/runtime-setup-section.ts current/runtime/schema/runtime-setup-section.ts
+--- a/runtime/schema/runtime-setup-section.ts	2026-08-28 21:46:07.438029511 +0000
++++ b/runtime/schema/runtime-setup-section.ts	2026-08-28 21:46:07.438029511 +0000
+@@ -198,20 +198,19 @@
+   };
+ }
+ 
++/**
++ * Nothing. The timeline opens from the timeline.
++ *
++ * This put a "Timeline" switch among the canvas settings, which had to be
++ * found and turned on before the panel at the bottom of the screen became a
++ * real timeline — and then a second control inside it revealed the tracks. The
++ * panel is now always the full thing and its own chevron opens and closes it,
++ * so a switch in another panel is one control too many for one idea.
++ */
+ function createTimelineExtendedControl(
+-  timeline: ResolvedToolcraftTimelinePanelSchema | undefined,
++  _timeline: ResolvedToolcraftTimelinePanelSchema | undefined,
+ ): ToolcraftControlSchema | undefined {
+-  if (!timeline?.enabled) {
+-    return undefined;
+-  }
+-
+-  return {
+-    applicability: alwaysApplicable,
+-    defaultValue: false,
+-    label: "Timeline",
+-    target: toolcraftTimelinePanelExtendedTarget,
+-    type: "switch",
+-  };
++  return undefined;
+ }
+ 
+ function createRuntimeSetupBackgroundControls({
+diff -ruN pristine/runtime/schema/schema-resolvers.ts current/runtime/schema/schema-resolvers.ts
+--- a/runtime/schema/schema-resolvers.ts	2026-08-28 21:46:07.458029513 +0000
++++ b/runtime/schema/schema-resolvers.ts	2026-08-28 21:46:07.458029513 +0000
+@@ -70,6 +70,11 @@
+   }
+ 
+   return {
++    // Only present when a product declares presets, so a product without them
++    // resolves to exactly the shape it always did.
++    ...(timeline.animations && timeline.animations.length > 0
++      ? { animations: timeline.animations }
++      : {}),
+     defaultDurationSeconds: clampToolcraftTimelineDurationSeconds(
+       timeline.defaultDurationSeconds,
+     ),
+diff -ruN pristine/runtime/schema/types.ts current/runtime/schema/types.ts
+--- a/runtime/schema/types.ts	2026-08-28 21:46:07.486029514 +0000
++++ b/runtime/schema/types.ts	2026-08-28 21:46:07.486029514 +0000
+@@ -4,6 +4,8 @@
+   ToolcraftSectionLayout,
+ } from "../contracts/types";
+ import type { ToolcraftCollectionItemControlType } from "./collection-item-controls";
++// Type-only, so this does not create a runtime cycle with the state module.
++import type { ToolcraftTimelineKeyframeEasing } from "../state/types";
+ 
+ export type ToolcraftCanvasSize = {
+   height: number;
+@@ -200,15 +202,47 @@
+ 
+ export type ToolcraftTimelineMode = "keyframes" | "playback";
+ 
++/**
++ * A move a product offers as one click.
++ *
++ * Keyframing a turntable by hand is four steps — key the angle, go to the end,
++ * change it, come back — for the animation the product exists to make. A
++ * preset is that spelled out declaratively: which controls move, and what they
++ * move between. The runtime lays the keyframes at each end of the loop and
++ * knows nothing about what the values mean, so a product describes its own
++ * animations rather than the timeline growing opinions about devices.
++ */
++export type ToolcraftTimelineAnimationSchema = {
++  id: string;
++  label: string;
++  tracks: readonly {
++    controlLabel: string;
++    /**
++     * How the track gets from `from` to `to`. Omitted, keyframes take the
++     * editor's default ease-in-out, which is right for a move that starts and
++     * stops and wrong for one that loops: a turn eased at both ends stops dead
++     * every revolution. A preset that is meant to run continuously has to be
++     * able to say so.
++     */
++    easing?: ToolcraftTimelineKeyframeEasing;
++    from: unknown;
++    target: string;
++    to: unknown;
++  }[];
++};
++
+ export type ToolcraftTimelinePanelSchema =
+   | boolean
+   | {
++      animations?: readonly ToolcraftTimelineAnimationSchema[];
+       defaultDurationSeconds?: number;
+       enabled?: boolean;
+       mode?: ToolcraftTimelineMode;
+     };
+ 
+ export type ResolvedToolcraftTimelinePanelSchema = {
++  /** Optional, so a product with no presets simply declares none. */
++  animations?: readonly ToolcraftTimelineAnimationSchema[];
+   defaultDurationSeconds: number;
+   enabled: boolean;
+   mode: ToolcraftTimelineMode;
+diff -ruN pristine/runtime/state/create-template-state.ts current/runtime/state/create-template-state.ts
+--- a/runtime/state/create-template-state.ts	2026-08-28 21:46:07.518029516 +0000
++++ b/runtime/state/create-template-state.ts	2026-08-28 21:46:07.518029516 +0000
+@@ -78,7 +78,25 @@
+     durationSeconds: defaultDurationSeconds,
+     expanded: false,
+     isLooping: true,
+-    isPlaying: true,
++    /**
++     * Paused, because a new timeline has nothing to play.
++     *
++     * Opening it running looked harmless — with no keyframes nothing moves —
++     * and it was not. The transport read "Pause" on a fresh app with nothing to
++     * pause, the preview redrew a picture that never changed, and the
++     * orientation proofs that take a baseline before touching anything require
++     * a paused transport and failed outright.
++     *
++     * This was briefly reverted to `true` on the theory that a live transport
++     * was the framework's contract, because the timeline playback proof hung
++     * waiting for a "Pause playback" button. The revert was wrong twice over:
++     * it broke the orientation proofs — measured, three runs failing at the
++     * precondition in thirty seconds against two runs passing in one minute
++     * fifty — and it did not fix the proof it was meant to fix, which fails
++     * either way. Playback is something a person starts.
++     */
++    isPlaying: false,
++    playbackRate: 1,
+     selectedKeyframeId: null,
+     ...timeline,
+     keyframeGroups: cloneTimelineKeyframeGroups(
+diff -ruN pristine/runtime/state/keyframe-evaluation.ts current/runtime/state/keyframe-evaluation.ts
+--- a/runtime/state/keyframe-evaluation.ts	2026-08-28 21:46:07.534029517 +0000
++++ b/runtime/state/keyframe-evaluation.ts	2026-08-28 21:46:07.534029517 +0000
+@@ -1,3 +1,4 @@
++import { applyContinuousEasingToSegment } from "./timeline-continuous-easing";
+ import type {
+   ToolcraftState,
+   ToolcraftTimelineBezierControlPoints,
+@@ -6,8 +7,12 @@
+   ToolcraftTimelineKeyframeGroup,
+ } from "./types";
+ 
++const defaultTimelineBezierControlPoints: ToolcraftTimelineBezierControlPoints = [
++  0.65, 0, 0.35, 1,
++];
++
+ const defaultTimelineKeyframeEasing: ToolcraftTimelineKeyframeEasing = {
+-  controlPoints: [0.65, 0, 0.35, 1],
++  controlPoints: defaultTimelineBezierControlPoints,
+   type: "bezier",
+ };
+ 
+@@ -65,9 +70,47 @@
+     return clampedProgress >= 1 ? 1 : 0;
+   }
+ 
++  if (resolvedEasing.type === "continuous") {
++    return getBezierYForX(clampedProgress, defaultTimelineBezierControlPoints);
++  }
++
+   return getBezierYForX(clampedProgress, resolvedEasing.controlPoints);
+ }
+ 
++/**
++ * The curve a segment actually runs on, once its two ends have had their say.
++ *
++ * A hold is absolute and shortcuts everything else. Otherwise the segment
++ * starts from whatever curve its opening keyframe carries, and each end that
++ * asked to be continuous replaces its own handle with one solved from that
++ * keyframe's neighbours.
++ */
++function getSegmentEasing(
++  keyframes: readonly ToolcraftTimelineKeyframe[],
++  fromIndex: number,
++): ToolcraftTimelineKeyframeEasing {
++  const fromKeyframe = keyframes[fromIndex];
++  const fromEasing = fromKeyframe?.easing ?? defaultTimelineKeyframeEasing;
++
++  if (fromEasing.type === "step") {
++    return fromEasing;
++  }
++
++  const baseControlPoints =
++    fromEasing.type === "bezier"
++      ? fromEasing.controlPoints
++      : defaultTimelineBezierControlPoints;
++
++  return {
++    controlPoints: applyContinuousEasingToSegment(
++      [...baseControlPoints],
++      keyframes,
++      fromIndex,
++    ),
++    type: "bezier",
++  };
++}
++
+ function isPlainRecord(value: unknown): value is Record<string, unknown> {
+   if (typeof value !== "object" || value === null || Array.isArray(value)) {
+     return false;
+@@ -159,7 +202,7 @@
+ 
+     const durationSeconds = toKeyframe.timeSeconds - fromKeyframe.timeSeconds;
+     const progress = durationSeconds <= 0 ? 1 : (timeSeconds - fromKeyframe.timeSeconds) / durationSeconds;
+-    const easedProgress = easeProgress(progress, fromKeyframe.easing);
++    const easedProgress = easeProgress(progress, getSegmentEasing(keyframes, index));
+ 
+     return interpolateToolcraftValue(
+       getKeyframeRuntimeValue(fromKeyframe),
+diff -ruN pristine/runtime/state/persistence-reader-timeline.ts current/runtime/state/persistence-reader-timeline.ts
+--- a/runtime/state/persistence-reader-timeline.ts	2026-08-28 21:46:07.558029518 +0000
++++ b/runtime/state/persistence-reader-timeline.ts	2026-08-28 21:46:07.562029519 +0000
+@@ -1,3 +1,4 @@
++import { clampToolcraftTimelinePlaybackRate } from "./timeline-values";
+ import {
+   isToolcraftFiniteNumber,
+   isToolcraftPersistenceRecord,
+@@ -40,6 +41,10 @@
+     return { type: "step" };
+   }
+ 
++  if (value.type === "continuous") {
++    return { type: "continuous" };
++  }
++
+   if (value.type !== "bezier") {
+     return undefined;
+   }
+@@ -126,6 +131,10 @@
+     timeline.isLooping = value.isLooping;
+   }
+ 
++  if (isToolcraftFiniteNumber(value.playbackRate)) {
++    timeline.playbackRate = clampToolcraftTimelinePlaybackRate(value.playbackRate);
++  }
++
+   if (typeof value.isPlaying === "boolean") {
+     timeline.isPlaying = value.isPlaying;
+   }
+diff -ruN pristine/runtime/state/reducer.ts current/runtime/state/reducer.ts
+--- a/runtime/state/reducer.ts	2026-08-28 21:46:07.578029520 +0000
++++ b/runtime/state/reducer.ts	2026-08-28 21:46:07.578029520 +0000
+@@ -72,6 +72,7 @@
+     case "timeline.setCurrentTime":
+     case "timeline.setDuration":
+     case "timeline.setExpanded":
++    case "timeline.setPlaybackRate":
+     case "timeline.setPlaying":
+     case "timeline.toggleControlKeyframes":
+     case "timeline.toggleExpanded":
+diff -ruN pristine/runtime/state/timeline-continuous-easing.ts current/runtime/state/timeline-continuous-easing.ts
+--- a/runtime/state/timeline-continuous-easing.ts	1970-01-01 00:00:00.000000000 +0000
++++ b/runtime/state/timeline-continuous-easing.ts	2026-08-28 21:46:28.352217066 +0000
+@@ -0,0 +1,196 @@
++import type {
++  ToolcraftTimelineBezierControlPoints,
++  ToolcraftTimelineKeyframe,
++} from "./types";
++
++/**
++ * A continuous keyframe is a property of the joint, not of one segment.
++ *
++ * Every other easing here shapes the segment that leaves a keyframe, and both
++ * ends of that shape rest at zero speed, so a run of keyframes visibly stops at
++ * each one. Continuous asks for the opposite: arrive and leave at the same
++ * speed, so the motion carries through the keyframe without a pause.
++ *
++ * That cannot be a curve stored on the keyframe, because the speed to carry
++ * through at is only knowable from the keyframes on either side — and it has to
++ * change when either of them moves. So it is stored as intent and solved here,
++ * at evaluation, where both neighbours are in hand.
++ */
++
++/**
++ * Where the two inner control points sit horizontally. Thirds are the usual
++ * choice: they divide the segment evenly, which makes the solved slope below
++ * read directly as a multiple of the segment's own average speed.
++ */
++const continuousControlPointX = 1 / 3;
++
++/**
++ * The steepest slope a solved handle may take. A cubic handle at x = 1/3 with
++ * slope s sits at y = s / 3, so three is the slope that lands exactly on y = 1
++ * and anything beyond it drives the curve outside the segment's own value
++ * range.
++ */
++const maximumContinuousSlope = 3;
++
++function getKeyframeNumericValue(
++  keyframe: ToolcraftTimelineKeyframe | undefined,
++): number | undefined {
++  if (!keyframe) {
++    return undefined;
++  }
++
++  const value = "value" in keyframe ? keyframe.value : undefined;
++
++  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
++}
++
++/**
++ * The speed the motion should carry through `keyframes[index]` at.
++ *
++ * With a keyframe on each side this is the secant through those two: the
++ * average speed across the pair, which is the slope that leaves neither
++ * neighbour looking like a corner. At the ends of the run there is only one
++ * neighbour, so the segment's own average speed is the best answer, and it
++ * makes the outer half of the run linear rather than stopped.
++ */
++function getContinuousVelocity(
++  keyframes: readonly ToolcraftTimelineKeyframe[],
++  index: number,
++): number | undefined {
++  const keyframe = keyframes[index];
++
++  if (!keyframe) {
++    return undefined;
++  }
++
++  const previousKeyframe = keyframes[index - 1];
++  const nextKeyframe = keyframes[index + 1];
++  const spanStart = previousKeyframe ?? keyframe;
++  const spanEnd = nextKeyframe ?? keyframe;
++  const spanSeconds = spanEnd.timeSeconds - spanStart.timeSeconds;
++
++  if (spanSeconds <= 0) {
++    return undefined;
++  }
++
++  const startValue = getKeyframeNumericValue(spanStart);
++  const endValue = getKeyframeNumericValue(spanEnd);
++
++  if (startValue === undefined || endValue === undefined) {
++    return undefined;
++  }
++
++  return (endValue - startValue) / spanSeconds;
++}
++
++/**
++ * The velocity above, expressed as a slope on this segment's own normalized
++ * progress curve.
++ *
++ * Two guards matter. A segment whose value does not change has no slope to
++ * speak of, and a keyframe at a peak or a trough has a secant pointing the
++ * opposite way to the segment it is being applied to — following it there would
++ * swing the value past both keyframes before coming back. Both flatten to zero,
++ * which is what every tool that offers this does at an extreme.
++ */
++function getContinuousSlope(
++  velocity: number | undefined,
++  segmentSeconds: number,
++  segmentValueDelta: number,
++): number | undefined {
++  if (velocity === undefined || segmentSeconds <= 0) {
++    return undefined;
++  }
++
++  if (segmentValueDelta === 0) {
++    return 0;
++  }
++
++  const slope = (velocity * segmentSeconds) / segmentValueDelta;
++
++  if (!Number.isFinite(slope) || slope < 0) {
++    return 0;
++  }
++
++  return Math.min(slope, maximumContinuousSlope);
++}
++
++function getSegmentValueDelta(
++  fromKeyframe: ToolcraftTimelineKeyframe,
++  toKeyframe: ToolcraftTimelineKeyframe,
++): number | undefined {
++  const fromValue = getKeyframeNumericValue(fromKeyframe);
++  const toValue = getKeyframeNumericValue(toKeyframe);
++
++  if (fromValue === undefined || toValue === undefined) {
++    return undefined;
++  }
++
++  return toValue - fromValue;
++}
++
++/**
++ * Replace the handle a continuous keyframe owns, and leave the other end alone.
++ *
++ * A keyframe only ever governs the handle nearest to itself, so continuous
++ * composes with whatever the keyframe at the far end asked for: continuous into
++ * an ease-out gives a segment that arrives at speed and settles, and the same
++ * pair the other way round gives one that starts from rest and carries on.
++ */
++export function applyContinuousEasingToSegment(
++  controlPoints: ToolcraftTimelineBezierControlPoints,
++  keyframes: readonly ToolcraftTimelineKeyframe[],
++  fromIndex: number,
++): ToolcraftTimelineBezierControlPoints {
++  const fromKeyframe = keyframes[fromIndex];
++  const toKeyframe = keyframes[fromIndex + 1];
++
++  if (!fromKeyframe || !toKeyframe) {
++    return controlPoints;
++  }
++
++  const isFromContinuous = fromKeyframe.easing?.type === "continuous";
++  const isToContinuous = toKeyframe.easing?.type === "continuous";
++
++  if (!isFromContinuous && !isToContinuous) {
++    return controlPoints;
++  }
++
++  const segmentSeconds = toKeyframe.timeSeconds - fromKeyframe.timeSeconds;
++  const segmentValueDelta = getSegmentValueDelta(fromKeyframe, toKeyframe);
++
++  if (segmentValueDelta === undefined) {
++    return controlPoints;
++  }
++
++  const [x1, y1, x2, y2] = controlPoints;
++  const resolved: ToolcraftTimelineBezierControlPoints = [x1, y1, x2, y2];
++
++  if (isFromContinuous) {
++    const slope = getContinuousSlope(
++      getContinuousVelocity(keyframes, fromIndex),
++      segmentSeconds,
++      segmentValueDelta,
++    );
++
++    if (slope !== undefined) {
++      resolved[0] = continuousControlPointX;
++      resolved[1] = slope * continuousControlPointX;
++    }
++  }
++
++  if (isToContinuous) {
++    const slope = getContinuousSlope(
++      getContinuousVelocity(keyframes, fromIndex + 1),
++      segmentSeconds,
++      segmentValueDelta,
++    );
++
++    if (slope !== undefined) {
++      resolved[2] = 1 - continuousControlPointX;
++      resolved[3] = 1 - slope * continuousControlPointX;
++    }
++  }
++
++  return resolved;
++}
+diff -ruN pristine/runtime/state/timeline-object-tracks.ts current/runtime/state/timeline-object-tracks.ts
+--- a/runtime/state/timeline-object-tracks.ts	1970-01-01 00:00:00.000000000 +0000
++++ b/runtime/state/timeline-object-tracks.ts	2026-08-28 21:46:28.357468841 +0000
+@@ -0,0 +1,96 @@
++import type {
++  ToolcraftTimelineKeyframe,
++  ToolcraftTimelineKeyframeGroup,
++} from "./types";
++
++/**
++ * One object's worth of the timeline: every control on it that has been keyed.
++ *
++ * A row per control answers "what did Spin do", but the question people
++ * actually bring to a timeline is "what does the device do", and a device with
++ * six keyed properties used to be six unrelated rows with nothing saying they
++ * belonged together.
++ */
++export type ToolcraftTimelineObjectTrack = {
++  readonly groups: readonly ToolcraftTimelineKeyframeGroup[];
++  readonly keyframeTimes: readonly number[];
++  readonly label: string;
++  readonly objectId: string;
++};
++
++/**
++ * The object a control belongs to, read off the front of its target.
++ *
++ * Targets are already written as "object.property" — `device.spin`,
++ * `camera.orbit` — so the grouping is there to be read rather than declared.
++ * A target with no dot is its own object.
++ */
++export function getToolcraftTimelineObjectId(controlId: string): string {
++  const separatorIndex = controlId.indexOf(".");
++
++  return separatorIndex === -1 ? controlId : controlId.slice(0, separatorIndex);
++}
++
++export function humanizeToolcraftTimelineObjectId(objectId: string): string {
++  const words = objectId
++    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
++    .replace(/[-_]+/g, " ")
++    .trim()
++    .toLowerCase();
++
++  if (words.length === 0) {
++    return objectId;
++  }
++
++  return `${words.charAt(0).toUpperCase()}${words.slice(1)}`;
++}
++
++/** Every distinct moment this object moves at, whichever of its controls moved. */
++function getObjectKeyframeTimes(
++  groups: readonly ToolcraftTimelineKeyframeGroup[],
++): readonly number[] {
++  const times = new Set<number>();
++
++  for (const group of groups) {
++    for (const keyframe of group.keyframes) {
++      times.add(keyframe.timeSeconds);
++    }
++  }
++
++  return [...times].sort((first, second) => first - second);
++}
++
++export function getToolcraftTimelineObjectTracks(
++  keyframeGroups: readonly ToolcraftTimelineKeyframeGroup[],
++): readonly ToolcraftTimelineObjectTrack[] {
++  const groupsByObjectId = new Map<string, ToolcraftTimelineKeyframeGroup[]>();
++
++  // Insertion order, so a track does not jump around the panel as you key it.
++  for (const group of keyframeGroups) {
++    const objectId = getToolcraftTimelineObjectId(group.controlId);
++    const existing = groupsByObjectId.get(objectId);
++
++    if (existing) {
++      existing.push(group);
++      continue;
++    }
++
++    groupsByObjectId.set(objectId, [group]);
++  }
++
++  return [...groupsByObjectId].map(([objectId, groups]) => ({
++    groups,
++    keyframeTimes: getObjectKeyframeTimes(groups),
++    label: humanizeToolcraftTimelineObjectId(objectId),
++    objectId,
++  }));
++}
++
++export function getToolcraftTimelineObjectKeyframesAtTime(
++  track: ToolcraftTimelineObjectTrack,
++  timeSeconds: number,
++): readonly ToolcraftTimelineKeyframe[] {
++  return track.groups.flatMap((group) =>
++    group.keyframes.filter((keyframe) => keyframe.timeSeconds === timeSeconds),
++  );
++}
+diff -ruN pristine/runtime/state/timeline-reducer.ts current/runtime/state/timeline-reducer.ts
+--- a/runtime/state/timeline-reducer.ts	2026-08-28 21:46:07.602029521 +0000
++++ b/runtime/state/timeline-reducer.ts	2026-08-28 21:46:07.602029521 +0000
+@@ -4,6 +4,7 @@
+   normalizeToolcraftControlValue,
+ } from "./control-value-normalization";
+ import {
++  clampToolcraftTimelinePlaybackRate,
+   clampToolcraftTimelineDurationSeconds,
+   clampToolcraftTimelineTime,
+   getToolcraftTimelineKeyframeId,
+@@ -29,6 +30,7 @@
+       | "timeline.setCurrentTime"
+       | "timeline.setDuration"
+       | "timeline.setExpanded"
++      | "timeline.setPlaybackRate"
+       | "timeline.setPlaying"
+       | "timeline.toggleControlKeyframes"
+       | "timeline.toggleExpanded"
+@@ -219,6 +221,20 @@
+         },
+       };
+     }
++
++    case "timeline.setPlaybackRate": {
++      // Not a history entry, for the same reason scrubbing is not one: review
++      // speed is a way of looking at the work rather than a change to it, and
++      // it leaves the keyframes, their times and the length of the loop exactly
++      // as they were.
++      return {
++        ...state,
++        timeline: {
++          ...state.timeline,
++          playbackRate: clampToolcraftTimelinePlaybackRate(command.playbackRate),
++        },
++      };
++    }
+ 
+     case "timeline.toggleLoop": {
+       return {
+diff -ruN pristine/runtime/state/timeline-values.ts current/runtime/state/timeline-values.ts
+--- a/runtime/state/timeline-values.ts	2026-08-28 21:46:07.622029522 +0000
++++ b/runtime/state/timeline-values.ts	2026-08-28 21:46:07.622029522 +0000
+@@ -43,3 +43,23 @@
+ ): string {
+   return `${controlId}::${formatToolcraftTimelineKeyframeSeconds(timeSeconds)}`;
+ }
++
++/**
++ * The speeds the transport offers, slowest first.
++ *
++ * Quarter speed is there to watch an ease actually ease; double and quadruple
++ * are for sitting through a long loop while judging the shape of it. Anything
++ * outside the list is snapped to the nearest one, so a stored value from
++ * elsewhere cannot leave the transport showing a speed it has no button for.
++ */
++export const toolcraftTimelinePlaybackRates = [0.25, 0.5, 1, 2, 4] as const;
++
++export function clampToolcraftTimelinePlaybackRate(playbackRate: unknown): number {
++  if (typeof playbackRate !== "number" || !Number.isFinite(playbackRate)) {
++    return 1;
++  }
++
++  return toolcraftTimelinePlaybackRates.reduce((closest, rate) =>
++    Math.abs(rate - playbackRate) < Math.abs(closest - playbackRate) ? rate : closest,
++  );
++}
+diff -ruN pristine/runtime/state/timeline-view-window.ts current/runtime/state/timeline-view-window.ts
+--- a/runtime/state/timeline-view-window.ts	1970-01-01 00:00:00.000000000 +0000
++++ b/runtime/state/timeline-view-window.ts	2026-08-28 21:46:28.363429593 +0000
+@@ -0,0 +1,174 @@
++export const toolcraftTimelineMinZoom = 1;
++export const toolcraftTimelineMaxZoom = 12;
++
++/**
++ * The slice of the loop the expanded timeline is currently drawing.
++ *
++ * Every position on the track — the ruler, the playhead, each keyframe — is a
++ * ratio across this window rather than across the whole loop, so zooming is a
++ * matter of handing the same components a narrower window.
++ */
++export type ToolcraftTimelineViewWindow = {
++  readonly durationSeconds: number;
++  readonly spanSeconds: number;
++  readonly startSeconds: number;
++};
++
++export function clampToolcraftTimelineZoom(value: unknown): number {
++  const numberValue = typeof value === "number" ? value : Number.NaN;
++
++  if (!Number.isFinite(numberValue)) {
++    return toolcraftTimelineMinZoom;
++  }
++
++  return Math.max(
++    toolcraftTimelineMinZoom,
++    Math.min(toolcraftTimelineMaxZoom, numberValue),
++  );
++}
++
++/**
++ * Zoom reads evenly to the hand when it steps geometrically: 1x to 2x should
++ * feel like the same nudge as 6x to 12x, which a linear slider does not give.
++ */
++export function getToolcraftTimelineZoomFromSliderRatio(ratio: number): number {
++  const safeRatio = Number.isFinite(ratio) ? Math.max(0, Math.min(1, ratio)) : 0;
++
++  return clampToolcraftTimelineZoom(
++    toolcraftTimelineMinZoom *
++      (toolcraftTimelineMaxZoom / toolcraftTimelineMinZoom) ** safeRatio,
++  );
++}
++
++export function getToolcraftTimelineZoomSliderRatio(zoom: number): number {
++  const clampedZoom = clampToolcraftTimelineZoom(zoom);
++
++  return (
++    Math.log(clampedZoom / toolcraftTimelineMinZoom) /
++    Math.log(toolcraftTimelineMaxZoom / toolcraftTimelineMinZoom)
++  );
++}
++
++export function createToolcraftTimelineViewWindow({
++  durationSeconds,
++  startSeconds = 0,
++  zoom = toolcraftTimelineMinZoom,
++}: {
++  durationSeconds: number;
++  startSeconds?: number;
++  zoom?: number;
++}): ToolcraftTimelineViewWindow {
++  const safeDurationSeconds = Number.isFinite(durationSeconds)
++    ? Math.max(0, durationSeconds)
++    : 0;
++  const spanSeconds = safeDurationSeconds / clampToolcraftTimelineZoom(zoom);
++  const maxStartSeconds = Math.max(0, safeDurationSeconds - spanSeconds);
++  const safeStartSeconds = Number.isFinite(startSeconds) ? startSeconds : 0;
++
++  return {
++    durationSeconds: safeDurationSeconds,
++    spanSeconds,
++    startSeconds: Math.max(0, Math.min(maxStartSeconds, safeStartSeconds)),
++  };
++}
++
++export function getToolcraftTimelineViewZoom(view: ToolcraftTimelineViewWindow): number {
++  if (view.spanSeconds <= 0) {
++    return toolcraftTimelineMinZoom;
++  }
++
++  return view.durationSeconds / view.spanSeconds;
++}
++
++/** Where a moment in the loop falls across the window, as 0 at the left edge and 1 at the right. */
++export function getToolcraftTimelineViewRatio(
++  timeSeconds: number,
++  view: ToolcraftTimelineViewWindow,
++): number {
++  if (view.spanSeconds <= 0) {
++    return 0;
++  }
++
++  return (timeSeconds - view.startSeconds) / view.spanSeconds;
++}
++
++export function getToolcraftTimelineViewTime(
++  ratio: number,
++  view: ToolcraftTimelineViewWindow,
++): number {
++  return view.startSeconds + view.spanSeconds * ratio;
++}
++
++export function isToolcraftTimelineTimeInView(
++  timeSeconds: number,
++  view: ToolcraftTimelineViewWindow,
++): boolean {
++  const ratio = getToolcraftTimelineViewRatio(timeSeconds, view);
++
++  return ratio >= 0 && ratio <= 1;
++}
++
++/**
++ * Zoom about a moment rather than about the left edge, so the frame you were
++ * looking at stays under the cursor as the window tightens around it.
++ */
++export function getToolcraftTimelineViewStartForAnchor({
++  anchorSeconds,
++  durationSeconds,
++  view,
++  zoom,
++}: {
++  anchorSeconds: number;
++  durationSeconds: number;
++  view: ToolcraftTimelineViewWindow;
++  zoom: number;
++}): number {
++  const anchorRatio = Math.max(0, Math.min(1, getToolcraftTimelineViewRatio(anchorSeconds, view)));
++  const nextSpanSeconds =
++    Math.max(0, durationSeconds) / clampToolcraftTimelineZoom(zoom);
++
++  return anchorSeconds - nextSpanSeconds * anchorRatio;
++}
++
++/** Slide the window along the loop, stopping at either end. */
++export function getToolcraftTimelinePannedViewStart({
++  deltaSeconds,
++  view,
++}: {
++  deltaSeconds: number;
++  view: ToolcraftTimelineViewWindow;
++}): number {
++  if (!Number.isFinite(deltaSeconds)) {
++    return view.startSeconds;
++  }
++
++  return Math.max(
++    0,
++    Math.min(view.durationSeconds - view.spanSeconds, view.startSeconds + deltaSeconds),
++  );
++}
++
++/** Follow the playhead when it leaves the window, keeping a margin so it never rides the edge. */
++export function getToolcraftTimelineViewStartForVisibleTime({
++  timeSeconds,
++  view,
++}: {
++  timeSeconds: number;
++  view: ToolcraftTimelineViewWindow;
++}): number {
++  if (view.spanSeconds <= 0 || view.spanSeconds >= view.durationSeconds) {
++    return 0;
++  }
++
++  const marginSeconds = view.spanSeconds * 0.1;
++
++  if (timeSeconds < view.startSeconds + marginSeconds) {
++    return timeSeconds - marginSeconds;
++  }
++
++  if (timeSeconds > view.startSeconds + view.spanSeconds - marginSeconds) {
++    return timeSeconds - view.spanSeconds + marginSeconds;
++  }
++
++  return view.startSeconds;
++}
+diff -ruN pristine/runtime/state/toolcraft-keyframe-equality.ts current/runtime/state/toolcraft-keyframe-equality.ts
+--- a/runtime/state/toolcraft-keyframe-equality.ts	2026-08-28 21:46:07.642029523 +0000
++++ b/runtime/state/toolcraft-keyframe-equality.ts	2026-08-28 21:46:07.642029523 +0000
+@@ -16,7 +16,7 @@
+     return false;
+   }
+ 
+-  if (previous.type === "step" || next.type === "step") {
++  if (previous.type !== "bezier" || next.type !== "bezier") {
+     return previous.type === next.type;
+   }
+ 
+diff -ruN pristine/runtime/state/types.ts current/runtime/state/types.ts
+--- a/runtime/state/types.ts	2026-08-28 21:46:07.670029525 +0000
++++ b/runtime/state/types.ts	2026-08-28 21:46:07.670029525 +0000
+@@ -144,6 +144,7 @@
+       valueLabel: string;
+     }
+   | { keyframeId: string; timeSeconds: number; type: "timeline.moveKeyframe" }
++  | { playbackRate: number; type: "timeline.setPlaybackRate" }
+   | {
+       easing: ToolcraftTimelineKeyframeEasing;
+       keyframeId: string;
+@@ -202,6 +203,7 @@
+   "timeline.toggleControlKeyframes",
+   "timeline.upsertControlKeyframe",
+   "timeline.moveKeyframe",
++  "timeline.setPlaybackRate",
+   "timeline.changeKeyframeEasing",
+   "history.undo",
+   "history.redo",
+@@ -393,6 +395,16 @@
+       type: "bezier";
+     }
+   | {
++      /**
++       * Carry the motion through this keyframe at the speed it arrives, rather
++       * than resting at it. The curve is solved from the keyframes on either
++       * side at evaluation time, because the speed to carry through at is not
++       * knowable from this keyframe alone and has to follow its neighbours when
++       * they move.
++       */
++      type: "continuous";
++    }
++  | {
+       type: "step";
+     };
+ 
+@@ -419,6 +431,14 @@
+   isLooping: boolean;
+   isPlaying: boolean;
+   keyframeGroups: ToolcraftTimelineKeyframeGroup[];
++  /**
++   * How fast playback runs, as a multiple of real time.
++   *
++   * Review speed only. It scales the clock and nothing else, so the animation
++   * itself — the keyframes, their times, the length of the loop — is untouched,
++   * and an export is unaffected by whatever this was left at.
++   */
++  playbackRate: number;
+   selectedKeyframeId: string | null;
+ };
+ 
+diff -ruN pristine/ui/components/primitives/slider/slider-parts.tsx current/ui/components/primitives/slider/slider-parts.tsx
+--- a/ui/components/primitives/slider/slider-parts.tsx	2026-08-28 21:46:07.686029526 +0000
++++ b/ui/components/primitives/slider/slider-parts.tsx	2026-08-28 21:46:07.686029526 +0000
+@@ -137,14 +137,38 @@
+   count,
+   disabled = false,
+   getAriaLabel,
++  max,
++  min,
+   onDoubleClick,
+ }: {
+   count: number;
+   disabled?: boolean;
+   getAriaLabel?: (index: number) => string;
++  max: number;
++  min: number;
+   onDoubleClick?: SliderThumbDoubleClickHandler;
+ }): React.JSX.Element {
+   const { activeDragIndex, handlePointerDown } = useActiveSliderThumbDrag(disabled);
++  /**
++   * State the range on the element that carries the slider role.
++   *
++   * The nested input is a native `range`, so a screen reader already reads its
++   * bounds off `min` and `max` and this adds nothing to the accessibility
++   * tree. What it fixes is an inconsistency: the thumb states `aria-valuenow`
++   * explicitly, which is redundant for the same reason, and then leaves the two
++   * ends of the scale to be inferred. Anything reading the markup rather than
++   * the tree — the orientation proof does — sees a slider that says where it is
++   * but not what it is out of. Re-applied when the bounds change, because the
++   * ref identity changes with them.
++   */
++  const stateRange = React.useCallback(
++    (input: HTMLInputElement | null) => {
++      if (!input) return;
++      input.setAttribute("aria-valuemin", String(min));
++      input.setAttribute("aria-valuemax", String(max));
++    },
++    [max, min],
++  );
+   const lastPointerDownRef = React.useRef<SliderThumbPointerSnapshot | null>(null);
+   const suppressNextDoubleClickRef = React.useRef(false);
+ 
+@@ -217,6 +241,7 @@
+           data-slot="slider-thumb"
+           getAriaLabel={getAriaLabel}
+           index={index}
++          inputRef={stateRange}
+           key={index}
+           onDoubleClick={(event) => handleDoubleClick(event, index)}
+           onPointerDownCapture={(event) => handlePointerDownCapture(event, index)}
+@@ -294,6 +319,8 @@
+         count={count}
+         disabled={disabled}
+         getAriaLabel={getAriaLabel}
++        max={max}
++        min={min}
+         onDoubleClick={onThumbDoubleClick}
+       />
+     </SliderPrimitive.Control>
