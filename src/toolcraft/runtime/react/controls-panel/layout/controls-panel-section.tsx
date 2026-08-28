@@ -280,11 +280,22 @@ export const ControlsPanelSection = React.memo(function ControlsPanelSection({
 }: ControlsPanelSectionProps): React.JSX.Element {
   const renderableEntries = getControlsPanelRenderableEntries(entries);
   const isRuntimeSetup = isRuntimeSetupSection({ entries, section });
-  const renderedSectionTitle = isRuntimeSetup
-    ? undefined
-    : getRenderedControlsSectionTitle(section);
-  const isSectionCollapsible =
-    !isRuntimeSetup && renderedSectionTitle !== undefined;
+  /**
+   * Setup renders a header and collapses, like every other titled section.
+   *
+   * It used to be headerless and permanently open. That cost every generated
+   * app the top of its controls panel before a single product control: here,
+   * measured at a 900px window, 349px of a 788px panel — 44% of everything
+   * visible — held canvas size, aspect ratio and resolution scale, which are
+   * set once at the start and then left alone. It was enough to cut the first
+   * authored section in half, and no ordering or grouping the product could
+   * choose won the room back, because nothing is allowed above Setup.
+   *
+   * Reset stays off here: these are runtime-owned settings, and a section
+   * reset that silently resized the canvas is not what that button means.
+   */
+  const renderedSectionTitle = getRenderedControlsSectionTitle(section);
+  const isSectionCollapsible = renderedSectionTitle !== undefined;
   const headerKeyframeEntry = keyframesSupported
     ? getControlsPanelSectionHeaderKeyframeEntry(entries, section.title)
     : null;
@@ -304,7 +315,7 @@ export const ControlsPanelSection = React.memo(function ControlsPanelSection({
             headerKeyframeTarget={headerKeyframeTarget}
             keyframesSupported={keyframesSupported}
             renderedSectionTitle={section.title}
-            resetEnabled={isSectionCollapsible}
+            resetEnabled={isSectionCollapsible && !isRuntimeSetup}
           />
         ) : undefined
       }

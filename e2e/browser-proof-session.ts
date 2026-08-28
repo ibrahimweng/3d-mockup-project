@@ -5,7 +5,10 @@ import {
   type Page,
 } from "@playwright/test";
 
-import { getToolcraftControlFieldByTarget } from "./browser-control-target-helpers";
+import {
+  expandCollapsedControlSections,
+  getToolcraftControlFieldByTarget,
+} from "./browser-control-target-helpers";
 import {
   createToolcraftSurfaceActionRunner,
   normalizeToolcraftSurfaceActionOptions,
@@ -254,6 +257,17 @@ export async function createToolcraftBrowserProofSession(
     "The document identity must match the Toolcraft app served by the current origin.",
   ).toBe(serverIdentity.appTitle);
   const rootElement = await getVisibleToolcraftRoot(page);
+  /**
+   * Open the panel before any proof looks at it.
+   *
+   * Setup starts collapsed and a collapsed section unmounts its body, so a
+   * proof that reaches for one of its controls through `document.querySelector`
+   * — several do, ahead of driving it — finds nothing and reports the control
+   * as off rather than as absent. Which sections someone left open is not
+   * something any of these proofs is about, so every session starts from the
+   * whole panel and says what it means.
+   */
+  await expandCollapsedControlSections(page);
   const record: SessionRecord = {
     appTitle: appTitle!.trim(),
     origin,

@@ -1,6 +1,8 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
 const TOOLCRAFT_APP_ROOT_SELECTOR = '[data-slot="toolcraft-runtime-app"]';
+/** More passes than any panel has sections, so a stuck header cannot spin. */
+const TOOLCRAFT_MAX_COLLAPSED_SECTION_EXPANSIONS = 40;
 const TOOLCRAFT_CONTROL_TARGET_BOUNDARY_SELECTOR = [
   "[data-toolcraft-control-target]",
   "[data-toolcraft-control-targets]",
@@ -23,6 +25,40 @@ type ToolcraftControlOwnerMatch = {
   boundaryIndex: number;
   fieldIndex?: number;
 };
+
+/**
+ * Open every collapsed controls section before looking for a control.
+ *
+ * A collapsed section unmounts its body outright, so a control inside one is
+ * not hidden, it is absent, and a target-scoped lookup reports zero owners
+ * rather than an invisible one. Whether a person happened to leave a section
+ * open is not what any of these proofs is about — a test drives a control by
+ * its schema target, the same way it does not care how far the panel is
+ * scrolled — so open them all and let the lookup speak for itself.
+ */
+export async function expandCollapsedControlSections(page: Page): Promise<void> {
+  const collapsedHeaders = page
+    .locator(TOOLCRAFT_APP_ROOT_SELECTOR)
+    .locator('[data-slot="control-section-header"][data-collapsed="true"]');
+
+  // Recount each pass: expanding one section re-renders the panel around it.
+  for (let guard = 0; guard < TOOLCRAFT_MAX_COLLAPSED_SECTION_EXPANSIONS; guard += 1) {
+    const remaining = await collapsedHeaders.count();
+    if (remaining === 0) return;
+
+    await collapsedHeaders
+      .first()
+      .locator("[data-control-section-collapse-button]")
+      .first()
+      .click();
+    // Insist on progress rather than clicking the same header forty times: a
+    // header that will not open is worth a named failure, not a silent stall.
+    await expect(
+      collapsedHeaders,
+      "Expanding a controls section must leave one fewer collapsed.",
+    ).toHaveCount(remaining - 1, { timeout: 5_000 });
+  }
+}
 
 async function findToolcraftControlOwnerMatches(
   page: Page,
@@ -69,6 +105,7 @@ export async function countToolcraftControlOwnersByTarget(
   page: Page,
   target: string,
 ): Promise<number> {
+  await expandCollapsedControlSections(page);
   const { matches } = await findToolcraftControlOwnerMatches(
     page,
     normalizeTarget(target),
@@ -81,6 +118,7 @@ export async function getToolcraftControlFieldByTarget(
   target: string,
 ): Promise<Locator> {
   const normalizedTarget = normalizeTarget(target);
+  await expandCollapsedControlSections(page);
   const { boundaries, matches } = await findToolcraftControlOwnerMatches(
     page,
     normalizedTarget,
