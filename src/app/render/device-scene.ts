@@ -2,12 +2,11 @@ import * as THREE from "three";
 import { toCreasedNormals } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 import {
-  applyFinish,
-  applyMaterialCorrections,
-  captureBaseColors,
   creaseNormals,
-  type BaseColors,
+  prepareProductMaterials,
+  type PartColors,
 } from "./model-appearance";
+import { bindArtwork, capturePrintRelief } from "./artwork-binding";
 import { createKeyLight } from "./scene-key";
 import { createRoom } from "./scene-room";
 import { getDevicePose } from "./device-pose";
@@ -194,6 +193,8 @@ export async function buildDeviceScene(options: {
   lighting: LightingSettings;
   /** Called when a surface's maps land, so the frame can be drawn again. */
   onSurfaceReady?: () => void;
+  /** The colour each of the product's parts starts on. */
+  partColors?: PartColors;
   renderer: THREE.WebGLRenderer;
   /** Multiplier on the depth map's resolution; an export turns this up. */
   shadowDetail?: number;
@@ -246,9 +247,10 @@ export async function buildDeviceScene(options: {
     creaseNormals(subject, options.device.creaseAngleDegrees);
   }
 
-  applyMaterialCorrections(subject, options.device);
-  const baseColors = captureBaseColors(subject);
-  applyFinish(baseColors, options.device, options.finish);
+  const painter = prepareProductMaterials(subject, options.device, {
+    finish: options.finish,
+    partColors: options.partColors,
+  });
 
   const excluded = new Set(options.device.excludedNodes);
   subject.traverse((object) => {
@@ -479,6 +481,9 @@ export async function buildDeviceScene(options: {
     options.device.screenAspect ??
     measureScreenAspect(subject, screenMaterials, 9 / 19.5);
 
+  const clearRelief = options.device.clearPrintRelief === true;
+  const printRelief = capturePrintRelief(screenMaterials, clearRelief);
+
   const findScreenMeshes = (root: THREE.Object3D): THREE.Mesh[] => {
     const found: THREE.Mesh[] = [];
     root.traverse((object) => {
@@ -563,7 +568,8 @@ export async function buildDeviceScene(options: {
       scene.environment = next;
       applyFloorEnvironment();
     },
-    setFinish: (next) => applyFinish(baseColors, options.device, next),
+    setFinish: painter.setFinish,
+    setPartColors: painter.setPartColors,
     setFloor: applyFloor,
     setSurface: (next) => {
       applySurface(next);
@@ -618,19 +624,13 @@ export async function buildDeviceScene(options: {
     setArtwork: (texture, transform) => {
       if (screenMaterials.length === 0) return;
       if (texture) applyScreenTransform(texture, screenAspect, transform, slack);
-      // A display emits rather than reflects. Assigning the artwork as an
-      // emissive map keeps it readable at full brightness regardless of how the
-      // environment happens to be lighting the rest of the device. The stock
-      // wallpaper on these models is an emissiveMap, so that is the channel
-      // that has to be replaced; setting only `map` leaves the original glowing.
-      for (const screenMaterial of screenMaterials) {
-        screenMaterial.map = texture;
-        screenMaterial.emissiveMap = texture;
-        screenMaterial.emissive = new THREE.Color(0xffffff);
-        screenMaterial.emissiveIntensity = texture ? 1 : 0;
-        screenMaterial.toneMapped = false;
-        screenMaterial.needsUpdate = true;
-      }
+      bindArtwork({
+        clearRelief,
+        materials: screenMaterials,
+        printed: options.device.artworkSurface === "print",
+        relief: printRelief,
+        texture,
+      });
     },
     subject,
     framing,

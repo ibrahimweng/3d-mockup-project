@@ -8,6 +8,8 @@ export const DEFAULT_TOOLCRAFT_PORT = 3002;
 export const TOOLCRAFT_APP_TITLE_META_NAME = "toolcraft-app-title";
 export const TOOLCRAFT_SERVER_IDENTITY_PATH = "/.toolcraft/server-identity.json";
 const LOOPBACK_HOSTS = ["127.0.0.1", "::1"];
+// Not a busy port: a machine with no IPv6 stack reports these for ::1 on every port.
+const UNSUPPORTED_LOOPBACK_CODES = new Set(["EAFNOSUPPORT", "EADDRNOTAVAIL"]);
 const execFileAsync = promisify(execFile);
 const PORT_STATE_DIR = ".toolcraft";
 const PORT_STATE_FILE = "server-port.json";
@@ -30,26 +32,39 @@ export function readPreferredPort(names, fallback = DEFAULT_TOOLCRAFT_PORT, env 
   return fallback;
 }
 
-export function isPortAvailable(port, host) {
+export const LOOPBACK_PORT_AVAILABLE = "available";
+export const LOOPBACK_PORT_TAKEN = "taken";
+export const LOOPBACK_HOST_UNSUPPORTED = "unsupported";
+
+export function probeLoopbackPort(port, host) {
   return new Promise((resolve) => {
     const server = net.createServer();
 
     server.unref();
-    server.once("error", () => {
-      resolve(false);
+    server.once("error", (error) => {
+      resolve(UNSUPPORTED_LOOPBACK_CODES.has(error?.code) ? LOOPBACK_HOST_UNSUPPORTED : LOOPBACK_PORT_TAKEN);
     });
     server.listen({ host, port }, () => {
       server.close(() => {
-        resolve(true);
+        resolve(LOOPBACK_PORT_AVAILABLE);
       });
     });
   });
 }
 
-export async function isPortAvailableOnLoopback(port) {
-  const results = await Promise.all(LOOPBACK_HOSTS.map((host) => isPortAvailable(port, host)));
+export function resolveLoopbackAvailability(results) {
+  const bindable = results.filter((result) => result !== LOOPBACK_HOST_UNSUPPORTED);
 
-  return results.every(Boolean);
+  // Scanning on would report "no free port" for a missing loopback stack.
+  if (bindable.length === 0) {
+    throw new Error(`No loopback host of ${LOOPBACK_HOSTS.join(", ")} can be bound on this machine, so no port can serve localhost.`);
+  }
+
+  return bindable.every((result) => result === LOOPBACK_PORT_AVAILABLE);
+}
+
+export async function isPortAvailableOnLoopback(port) {
+  return resolveLoopbackAvailability(await Promise.all(LOOPBACK_HOSTS.map((host) => probeLoopbackPort(port, host))));
 }
 
 export async function findAvailablePort(startPort = DEFAULT_TOOLCRAFT_PORT) {

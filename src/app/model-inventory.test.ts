@@ -5,7 +5,11 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 
 import { readModelInventory } from "./model-inventory";
-import { DEVICE_CATALOG, FINISH_OPTIONS } from "./product-domain";
+import {
+  DEVICE_CATALOG,
+  FINISH_OPTIONS,
+  SPLIT_MATERIAL_SEPARATOR,
+} from "./product-domain";
 
 const modelsDir = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "public", "models");
 
@@ -31,17 +35,47 @@ describe("the names the catalog uses exist in the models", () => {
   test.each(catalog)("$id", ({ definition, path }) => {
     const inventory = readModelInventory(path);
     const materials = new Set(inventory.materials);
+    const meshes = new Set(inventory.meshes);
     const nodes = new Set(inventory.nodes);
     const missing: string[] = [];
 
-    // The display. Without this the product has nothing to put a screenshot on.
-    if (!materials.has(definition.screenMaterial)) {
+    /**
+     * A material the catalog names, which may be one the file ships or one the
+     * loader splits out of it.
+     *
+     * A split name is the shared material and the mesh it was cloned for,
+     * joined — so checking it means checking both halves exist, which catches
+     * a re-export that renames either. The split copies cannot be in the file
+     * by construction: they do not exist until the model is loaded.
+     */
+    const hasMaterial = (name: string): boolean => {
+      const cut = name.indexOf(SPLIT_MATERIAL_SEPARATOR);
+      if (cut < 0) return materials.has(name);
+      return (
+        definition.splitMaterialsByMesh === true &&
+        materials.has(name.slice(0, cut)) &&
+        meshes.has(name.slice(cut + SPLIT_MATERIAL_SEPARATOR.length))
+      );
+    };
+
+    // The design surface. Without this the product has nothing to print on.
+    if (!hasMaterial(definition.screenMaterial)) {
       missing.push(`screenMaterial "${definition.screenMaterial}"`);
+    }
+
+    // Every material a colour slot paints. A slot naming a material the file
+    // does not have is a picker that silently does nothing.
+    for (const [part, spec] of Object.entries(definition.colorParts ?? {})) {
+      for (const material of spec.materials) {
+        if (!hasMaterial(material)) {
+          missing.push(`${part} colour material "${material}"`);
+        }
+      }
     }
 
     // Everything a colourway repaints.
     for (const material of definition.bodyMaterials ?? []) {
-      if (!materials.has(material)) missing.push(`bodyMaterial "${material}"`);
+      if (!hasMaterial(material)) missing.push(`bodyMaterial "${material}"`);
     }
 
     // Accents are named per finish, so a rename can break one colourway and

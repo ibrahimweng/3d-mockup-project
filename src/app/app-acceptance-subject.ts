@@ -45,6 +45,57 @@ export const subjectAcceptance: readonly ToolcraftComponentAcceptance[] = [
   },
   {
     automated: true,
+    automatedTestName: "part colours paint only the materials each product names",
+    browser: true,
+    browserTestName:
+      "browser: each part colour repaints its own part of the product",
+    componentType: "color",
+    evidence: "rendered-pixels",
+    expectedObservable:
+      "Choosing a Product colour repaints the product's main surface \u2014 the shirt's body, the bottle's cap, the board a folder is built on \u2014 and leaves the trim, the accent and any printed design as they were.",
+    fixture: "each merchandise product under the default studio",
+    id: "product.color.main.repaint",
+    kind: "control",
+    target: "product.color.main",
+    timelineCoverage: "keyframes",
+    userAction: "Pick a Product colour and inspect the rendered product.",
+  },
+  {
+    automated: true,
+    automatedTestName: "part colours paint only the materials each product names",
+    browser: true,
+    browserTestName:
+      "browser: each part colour repaints its own part of the product",
+    componentType: "color",
+    evidence: "rendered-pixels",
+    expectedObservable:
+      "Choosing a Trim colour repaints only the part set against the main surface, such as the shirt's sleeves or the ring under the bottle's cap, and the main surface keeps its own colour.",
+    fixture: "each merchandise product under the default studio",
+    id: "product.color.trim.repaint",
+    kind: "control",
+    target: "product.color.trim",
+    timelineCoverage: "keyframes",
+    userAction: "Pick a Trim colour and inspect the rendered product.",
+  },
+  {
+    automated: true,
+    automatedTestName: "part colours paint only the materials each product names",
+    browser: true,
+    browserTestName:
+      "browser: each part colour repaints its own part of the product",
+    componentType: "color",
+    evidence: "rendered-pixels",
+    expectedObservable:
+      "Choosing an Accent colour repaints only the smallest named part, such as the collar rib or the cap's latch, and every other part keeps its own colour.",
+    fixture: "each merchandise product under the default studio",
+    id: "product.color.accent.repaint",
+    kind: "control",
+    target: "product.color.accent",
+    timelineCoverage: "keyframes",
+    userAction: "Pick an Accent colour and inspect the rendered product.",
+  },
+  {
+    automated: true,
     automatedTestName: "screenshot fileDrop is the single source-material owner",
     browser: true,
     browserTestName:

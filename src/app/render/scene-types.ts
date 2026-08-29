@@ -1,6 +1,7 @@
 import type * as THREE from "three";
 
 import type { FinishId, LightPatternId } from "../product-domain";
+import type { PartColors } from "./model-appearance";
 import type { ScreenSlack, ScreenTransform } from "./screen-mapping";
 
 /**
@@ -108,6 +109,8 @@ export type DeviceScene = {
   screenMeshes: THREE.Mesh[];
   /** Repaint the shell without rebuilding anything. */
   setFinish: (finish: FinishId) => void;
+  /** Repaint the product's named parts without rebuilding anything. */
+  setPartColors: (colors: PartColors) => void;
   /** Move and re-balance the rig without rebuilding anything. */
   setLighting: (lighting: LightingSettings) => void;
   /** Show, hide, and recolour the ground without rebuilding anything. */

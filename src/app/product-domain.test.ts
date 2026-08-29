@@ -42,13 +42,34 @@ test("finishes repaint only the materials each device names", () => {
   const paintable = FINISH_OPTIONS.filter((option) => option.value !== "natural");
 
   for (const [deviceId, definition] of Object.entries(DEVICE_CATALOG)) {
-    // Both are optional on the type, because a device could in principle ship
-    // unpainted. None in this catalog does, and one that did would offer
-    // colourways in the picker that changed nothing — so the product's own
-    // requirement is stronger than the type's.
-    const { bodyMaterials, finishes } = definition;
-    expect(finishes, `${deviceId} defines no finishes`).toBeDefined();
-    expect(bodyMaterials, `${deviceId} names no body materials`).toBeDefined();
+    const { bodyMaterials, colorParts, finishes } = definition;
+
+    // A product is repaintable one way or the other and never neither. A
+    // device carries named colourways, because an enclosure has a finite set
+    // of finishes its manufacturer actually sells; merchandise carries colour
+    // slots, because a person printing a shirt picks their own colour. One
+    // that declared nothing would sit in the picker with no way to change it.
+    const named = finishes !== undefined && bodyMaterials !== undefined;
+    const slots = colorParts !== undefined;
+    expect(
+      named !== slots,
+      `${deviceId} must declare either finishes with body materials or colour parts, and not both`,
+    ).toBe(true);
+
+    if (slots) {
+      // A slot naming nothing is a picker that paints nothing.
+      for (const [part, spec] of Object.entries(colorParts)) {
+        expect(
+          spec.materials.length,
+          `${deviceId} colour part "${part}" names no materials`,
+        ).toBeGreaterThan(0);
+        for (const material of spec.materials) {
+          expect(material.length).toBeGreaterThan(0);
+        }
+      }
+      continue;
+    }
+
     if (finishes === undefined || bodyMaterials === undefined) continue;
 
     // Natural is the model exactly as its author built it, so it names no

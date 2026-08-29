@@ -16,6 +16,17 @@
  *   --ratio <0..1>     Triangle target for the simplifier. Default 0.08.
  *   --error <number>   How far the simplifier may move a surface. Default
  *                      0.002, as a fraction of the mesh's own size.
+ *   --drop-material <name>
+ *                      Remove every primitive painted with this material.
+ *                      Repeatable. This is deletion rather than reduction: a
+ *                      part the file models and the mockup does not need costs
+ *                      its whole triangle count, and removing it leaves every
+ *                      other surface exactly as authored, which simplifying to
+ *                      the same saving would not.
+ *   --keep-geometry    Skip welding, simplification and quantisation, so the
+ *                      surviving meshes ship as the file had them. Use with
+ *                      --drop-material when the saving is a part rather than a
+ *                      density.
  *
  * Every step reports what it changed, because a model that arrives looking
  * cheap is usually hiding its cost somewhere — the Mac Studio was 3.5MB as
@@ -27,7 +38,13 @@ import {
   ALL_EXTENSIONS,
   KHRDracoMeshCompression,
 } from "@gltf-transform/extensions";
-import { dedup, prune, quantize, simplify, weld } from "@gltf-transform/functions";
+import {
+  dedup,
+  prune,
+  quantize,
+  simplify,
+  weld,
+} from "@gltf-transform/functions";
 import draco3d from "draco3dgltf";
 import { MeshoptSimplifier } from "meshoptimizer";
 import { statSync } from "node:fs";
@@ -40,18 +57,69 @@ function parseArguments(argv) {
         "[--scene <name>] [--screen <name>] [--ratio <n>] [--error <n>]",
     );
   }
-  const options = { error: 0.002, ratio: 0.08 };
-  for (let index = 0; index < rest.length; index += 2) {
+  const options = {
+    dropMaterials: [],
+    error: 0.002,
+    keepGeometry: false,
+    ratio: 0.08,
+  };
+  for (let index = 0; index < rest.length; index += 1) {
     const flag = rest[index];
+    if (flag === "--keep-geometry") {
+      options.keepGeometry = true;
+      continue;
+    }
     const value = rest[index + 1];
     if (value === undefined) throw new Error(`Missing value for ${flag}`);
+    index += 1;
     if (flag === "--scene") options.scene = value;
     else if (flag === "--screen") options.screen = value;
     else if (flag === "--ratio") options.ratio = Number(value);
     else if (flag === "--error") options.error = Number(value);
+    else if (flag === "--drop-material") options.dropMaterials.push(value);
     else throw new Error(`Unknown option ${flag}`);
   }
   return { input, options, output };
+}
+
+/**
+ * Remove every primitive painted with one of the named materials.
+ *
+ * A mesh left with no primitives is removed too, and so is the node holding
+ * it, or the file keeps a scene graph full of empty objects that still cost
+ * bounds and traversal. `prune` then takes the accessors and materials nothing
+ * refers to any more.
+ */
+function dropMaterials(document, names) {
+  const wanted = new Set(names);
+  const found = new Set();
+  let removed = 0;
+
+  for (const mesh of document.getRoot().listMeshes()) {
+    for (const primitive of mesh.listPrimitives()) {
+      const name = primitive.getMaterial()?.getName();
+      if (name === undefined || !wanted.has(name)) continue;
+      found.add(name);
+      removed += countPrimitiveTriangles(primitive);
+      mesh.removePrimitive(primitive);
+      primitive.dispose();
+    }
+    if (mesh.listPrimitives().length === 0) mesh.dispose();
+  }
+
+  for (const name of wanted) {
+    if (!found.has(name)) {
+      console.log(`  WARNING: no primitive uses material "${name}"`);
+    }
+  }
+  return removed;
+}
+
+function countPrimitiveTriangles(primitive) {
+  const indices = primitive.getIndices();
+  const position = primitive.getAttribute("POSITION");
+  const count = indices ? indices.getCount() : (position?.getCount() ?? 0);
+  return Math.floor(count / 3);
 }
 
 function countTriangles(scene) {
@@ -128,10 +196,12 @@ function unwrapScreen(document, materialName) {
 async function main() {
   const { input, options, output } = parseArguments(process.argv.slice(2));
 
-  const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({
-    "draco3d.decoder": await draco3d.createDecoderModule(),
-    "draco3d.encoder": await draco3d.createEncoderModule(),
-  });
+  const io = new NodeIO()
+    .registerExtensions(ALL_EXTENSIONS)
+    .registerDependencies({
+      "draco3d.decoder": await draco3d.createDecoderModule(),
+      "draco3d.encoder": await draco3d.createEncoderModule(),
+    });
   await MeshoptSimplifier.ready;
 
   const document = await io.read(input);
@@ -163,24 +233,38 @@ async function main() {
   }
   root.setDefaultScene(keep);
 
+  if (options.dropMaterials.length > 0) {
+    const removed = dropMaterials(document, options.dropMaterials);
+    console.log(
+      `  dropped ${removed.toLocaleString()} triangles painted with ` +
+        options.dropMaterials.map((name) => `"${name}"`).join(", "),
+    );
+  }
+
   // The app loads with a plain GLTFLoader, so nothing may stay compressed.
   document.createExtension(KHRDracoMeshCompression).dispose();
 
-  await document.transform(
-    dedup(),
-    // Welding merges vertices split only by float noise, which is what lets
-    // the simplifier collapse an edge at all.
-    weld(),
-    // The error bound is what protects the silhouette: the simplifier stops
-    // early on any mesh it cannot reduce without moving the surface further
-    // than this, so the ratio is a target rather than a promise.
-    simplify({
-      error: options.error,
-      ratio: options.ratio,
-      simplifier: MeshoptSimplifier,
-    }),
-    prune(),
-  );
+  if (options.keepGeometry) {
+    // Only the references nothing uses any more. Every surviving surface keeps
+    // the vertices, normals and precision the file gave it.
+    await document.transform(prune());
+  } else {
+    await document.transform(
+      dedup(),
+      // Welding merges vertices split only by float noise, which is what lets
+      // the simplifier collapse an edge at all.
+      weld(),
+      // The error bound is what protects the silhouette: the simplifier stops
+      // early on any mesh it cannot reduce without moving the surface further
+      // than this, so the ratio is a target rather than a promise.
+      simplify({
+        error: options.error,
+        ratio: options.ratio,
+        simplifier: MeshoptSimplifier,
+      }),
+      prune(),
+    );
+  }
 
   if (options.screen) {
     const count = unwrapScreen(document, options.screen);
@@ -191,15 +275,17 @@ async function main() {
     );
   }
 
-  await document.transform(
-    // Full float precision costs far more than the accuracy is worth at the
-    // size these are drawn.
-    quantize({
-      quantizeNormal: 10,
-      quantizePosition: 14,
-      quantizeTexcoord: 12,
-    }),
-  );
+  if (!options.keepGeometry) {
+    await document.transform(
+      // Full float precision costs far more than the accuracy is worth at the
+      // size these are drawn.
+      quantize({
+        quantizeNormal: 10,
+        quantizePosition: 14,
+        quantizeTexcoord: 12,
+      }),
+    );
+  }
 
   await io.write(output, document);
   const after = countTriangles(root.getDefaultScene());

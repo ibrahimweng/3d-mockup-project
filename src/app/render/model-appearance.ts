@@ -1,7 +1,15 @@
 import * as THREE from "three";
 import { toCreasedNormals } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
-import type { DeviceDefinition, FinishId } from "../product-domain";
+import type {
+  ColorPartId,
+  DeviceDefinition,
+  FinishId,
+} from "../product-domain";
+import {
+  COLOR_PART_IDS,
+  SPLIT_MATERIAL_SEPARATOR,
+} from "../product-domain";
 
 /**
  * Repairing and repainting what the file shipped with.
@@ -139,4 +147,135 @@ export function applyFinish(
     }
     material.needsUpdate = true;
   }
+}
+
+/**
+ * Give every mesh its own copy of the material it shares with others.
+ *
+ * Some files paint a whole product with a single material and separate the
+ * parts by mesh instead, which leaves the catalog no name to address a part by:
+ * asking for the pen means asking for the same material as the board and the
+ * sheets. Cloning per mesh and naming the copy after its mesh restores that
+ * name, and does it at load so the supplied file stays as its author sent it.
+ *
+ * Only materials genuinely shared by more than one mesh are split. A material
+ * already used once keeps its own name, so a catalog entry never has to know
+ * which of the two it is looking at.
+ */
+export function splitMaterialsByMesh(root: THREE.Object3D): void {
+  const users = new Map<THREE.Material, number>();
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    for (const material of materialsOf(object)) {
+      users.set(material, (users.get(material) ?? 0) + 1);
+    }
+  });
+
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    const replace = (material: THREE.Material): THREE.Material => {
+      if ((users.get(material) ?? 0) < 2) return material;
+      const copy = material.clone();
+      copy.name = `${material.name}${SPLIT_MATERIAL_SEPARATOR}${object.name}`;
+      return copy;
+    };
+    object.material = Array.isArray(object.material)
+      ? object.material.map(replace)
+      : replace(object.material);
+  });
+}
+
+function materialsOf(mesh: THREE.Mesh): THREE.Material[] {
+  return Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+}
+
+/** One colour per slot, as the controls hold them. */
+export type PartColors = Readonly<Partial<Record<ColorPartId, string>>>;
+
+/**
+ * Paint the parts a product's colour slots name.
+ *
+ * This runs after `applyFinish`, which has already returned every material to
+ * what it was before any colourway. So a slot only ever writes its own
+ * materials, and clearing one is handled by that reset rather than by
+ * remembering what the slot painted last.
+ *
+ * Like a colourway, only base colour is written: a chrome ring stays as
+ * metallic and as smooth as its author made it, and takes the new colour as
+ * chrome would.
+ */
+export function applyPartColors(
+  baseColors: BaseColors,
+  device: DeviceDefinition,
+  colors: PartColors,
+): void {
+  const parts = device.colorParts;
+  if (!parts) return;
+
+  const painted = new Map<string, { hex: string; repaint: boolean }>();
+  for (const id of COLOR_PART_IDS) {
+    const part = parts[id];
+    const hex = colors[id];
+    if (!part || !hex) continue;
+    for (const name of part.materials) {
+      painted.set(name, { hex, repaint: part.repaint === true });
+    }
+  }
+  if (painted.size === 0) return;
+
+  for (const [material, base] of baseColors) {
+    const paint = painted.get(material.name);
+    if (!paint) continue;
+    material.color.set(paint.hex);
+    // A surface whose own colour lives in its texture only tints, so a printed
+    // canvas bag painted blue over its pattern comes out a blue pattern rather
+    // than a blue bag. Natural puts the texture back, which is why the base
+    // appearance keeps it.
+    if (paint.repaint) material.map = null;
+    else material.map = base.map;
+    material.needsUpdate = true;
+  }
+}
+
+/**
+ * Everything that has to happen to a freshly cloned product's materials, and
+ * the handle that keeps repainting it.
+ *
+ * The order is the whole point and it is easy to get wrong from the outside.
+ * A split has to run before anything looks a material up by name, corrections
+ * before the authored appearance is captured, and the capture before any paint
+ * — and because a colourway resets every material before it paints, the part
+ * colours have to be re-applied whenever either of them changes. Keeping the
+ * sequence here means the scene builder cannot hold it wrongly.
+ */
+export function prepareProductMaterials(
+  root: THREE.Object3D,
+  device: DeviceDefinition,
+  initial: { finish: FinishId; partColors?: PartColors },
+): {
+  setFinish: (finish: FinishId) => void;
+  setPartColors: (colors: PartColors) => void;
+} {
+  if (device.splitMaterialsByMesh) splitMaterialsByMesh(root);
+  applyMaterialCorrections(root, device);
+  const baseColors = captureBaseColors(root);
+
+  let finish = initial.finish;
+  let partColors: PartColors = initial.partColors ?? {};
+  const repaint = (): void => {
+    applyFinish(baseColors, device, finish);
+    applyPartColors(baseColors, device, partColors);
+  };
+  repaint();
+
+  return {
+    setFinish: (next) => {
+      finish = next;
+      repaint();
+    },
+    setPartColors: (next) => {
+      partColors = next;
+      repaint();
+    },
+  };
 }

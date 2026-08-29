@@ -26,15 +26,18 @@ export function isToolcraftPrivateControlImplementationModule({
     ? normalizeSpecifier(resolvedSpecifier)
     : "";
 
+  // A path *into* the controls directory is private mechanics. The directory
+  // itself is the app's own controls barrel, which the module policy classifies
+  // as ui-controls so it reports as a built-in control rather than as deep
+  // internals. The workspace pattern above is the exception: there the public
+  // entry is that package's own controls module, so its components/controls
+  // directory is internal and stays private at the directory itself.
   return (
     workspacePrivateControlModulePattern.test(normalizedSpecifier) ||
     /^[#@]\/toolcraft\/ui\/(?:components\/)?controls\//u.test(
       normalizedSpecifier,
     ) ||
-    /^[#@]\/toolcraft\/ui\/components\/controls(?:\/|$)/u.test(
-      normalizedSpecifier,
-    ) ||
-    /\/src\/toolcraft\/ui\/components\/controls(?:\/|$)/u.test(
+    /\/src\/toolcraft\/ui\/components\/controls\//u.test(
       normalizedResolvedSpecifier,
     ) ||
     /\/packages\/ui\/src\/components\/controls(?:\/|$)/u.test(

@@ -37,7 +37,20 @@ test("browser: each device option renders its own model on the canvas", async ({
   );
   await expectToolcraftReferenceParity(
     async () => readOptions(await getToolcraftControlFieldByTarget(page, "device.model")),
-    ["iPhone 17 Pro Max", "MacBook", "iMac", "Mac Studio", "Apple Watch Ultra"],
+    [
+      "iPhone 17 Pro Max",
+      "MacBook",
+      "iMac",
+      "Mac Studio",
+      "Apple Watch Ultra",
+      // Merchandise, after the devices. A select renders one flat list, so
+      // the order is the grouping.
+      "T-Shirt",
+      "Tote Bag",
+      "Water Bottle",
+      "ID Card",
+      "Tablet Folder",
+    ],
     { requirementId: "device.model.selection", target: "device.model" },
   );
 });
