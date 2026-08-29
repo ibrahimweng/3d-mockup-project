@@ -1,5 +1,7 @@
 import * as THREE from "three";
 
+import type { ArtworkFit } from "../product-domain";
+
 /**
  * Binding a supplied design to the surface that carries it.
  *
@@ -100,4 +102,30 @@ export function bindArtwork(request: {
     material.toneMapped = false;
     material.needsUpdate = true;
   }
+}
+
+/**
+ * Size a design onto a surface whose coordinates were written for exactly one
+ * image, and report whether it did.
+ *
+ * Returns false for anything else, which leaves the caller to fit the design
+ * to a panel the usual way. A wrap cannot be fitted: scaling it moves the two
+ * ends apart and opens the seam. Repeat wrapping is what lets the seam
+ * triangles, whose u runs past 1, reach the far edge instead of smearing the
+ * last column across the join.
+ */
+export function wrapArtwork(
+  texture: THREE.Texture,
+  fit: ArtworkFit | undefined,
+  slack: { x: number; y: number },
+): boolean {
+  if (fit !== "wrap") return false;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(1, 1);
+  texture.offset.set(0, 0);
+  texture.needsUpdate = true;
+  slack.x = 0;
+  slack.y = 0;
+  return true;
 }

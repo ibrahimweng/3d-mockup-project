@@ -12,44 +12,41 @@ import type { DeviceDefinition } from "./product-domain";
 
 export const MERCHANDISE_CATALOG = {
   tshirt: {
-    // The garment is one shell material with the sleeves, collar and lining
-    // authored separately, which is what makes three colour slots land on
-    // parts a person would actually name.
+    // Front and back were already separate materials in the file, which is
+    // what made four zones cheap: 116740 carries the +z faces and .010 the
+    // -z ones, and the sleeves split by which side of the centre they sit on.
+    // Two slots, not three. The four print zones cover every panel of this
+    // garment, which leaves the collar rib and the facings turned under the
+    // hem as the only parts a design does not land on. The topstitch thread
+    // was tried as a third and dropped: in the render where the collar and
+    // the hem both took their new colours, the thread did not change, so it
+    // would have been a control that appears to do nothing.
     colorParts: {
       accent: { materials: ["Rib_1X1_486gsm_116764"] },
-      main: {
-        materials: [
-          "Cotton_Heavy_Twill_116740",
-          "Cotton_Heavy_Twill_116740.010",
-        ],
-        repaint: true,
-      },
-      trim: { materials: ["Cotton_Heavy_Twill_Copy_1_116819"] },
+      trim: { materials: ["Shirt_Front_Trim"] },
     },
     excludedNodes: [],
-    // Re-measured after the topstitch was stripped: the thread stood a
-    // fraction proud of the fabric, so the box it was measured from was not
-    // quite the box that ships.
-    frame: [0.694001, 0.657747, 0.2928],
+    frame: [0.693905, 0.657851, 0.292794],
     label: "T-Shirt",
     modelFile: "tshirt.glb",
     artworkSurface: "print",
-    // The torso is one surface wrapping front and back, so a planar projection
-    // prints the same design on both. That is what was asked for.
+    // Four zones unwrapped in the file, each filling 0 to 1 on its own. The
+    // garment was authored in a clothing tool that writes texture coordinates
+    // in millimetres, running u from 1460 to 1972, so nothing usable survived
+    // in the original. Back and left sleeve are mirrored in u so artwork reads
+    // the right way round from those sides.
     //
-    // It has to be re-unwrapped: the garment was authored in a clothing tool
-    // that writes texture coordinates in millimetres, so this panel runs u from
-    // 1460 to 1972 and v from -1587 to -937. Left alone a design would tile
-    // several hundred times across the chest.
-    screenUnwrap: true,
-    screenMaterial: "Cotton_Heavy_Twill_116740",
+    // Only the front is bound to the single upload this app has today. The
+    // other three carry their templates until there are four slots to fill.
+    screenMaterial: "Shirt_Front",
   },
   "tote-bag": {
+    // Four print zones as separate materials, so each carries its own image on
+    // its own unwrap. The split is measured: vertex density and half width
+    // both drop at y 6.51, which is where the bag ends and the handles begin.
     colorParts: {
-      // Bag and handles are one material, so one slot is all there is to offer.
-      // The canvas scribble it ships with is its own colour rather than a
-      // neutral weave, so a colour has to replace it rather than tint it.
-      main: { materials: ["Default"], repaint: true },
+      main: { materials: ["Bag_Handles", "Bag_Trim"] },
+      trim: { materials: ["Bag_Base"] },
     },
     excludedNodes: [],
     // Measured after the yaw below, which is the order the crop reads them in:
@@ -58,8 +55,12 @@ export const MERCHANDISE_CATALOG = {
     label: "Tote Bag",
     modelFile: "tote-bag.glb",
     artworkSurface: "print",
-    screenUnwrap: true,
-    screenMaterial: "Default",
+    // Front, back, left and right are each unwrapped in the file, filling 0 to
+    // 1 on their own. Back and left are mirrored in u so artwork reads the
+    // right way round from those sides rather than reversed. Only the front is
+    // bound to the single upload this app has today; the other three carry
+    // their templates until there are four slots to fill.
+    screenMaterial: "Bag_Front",
     // The bag's face normal points along X and the camera looks down +Z, so
     // without this it presents its 2.8-unit edge instead of its 6-unit face.
     yawDegrees: 90,
@@ -85,27 +86,31 @@ export const MERCHANDISE_CATALOG = {
     screenMaterial: "Bottle_Body",
   },
   "id-card": {
+    // The file paints the card and the clip with one material and separates
+    // them only in its atlas, so they are split at prep time instead: 6,840
+    // triangles above v 0.66 are the clip, the 1,440 below are the card, and
+    // the geometry agrees with the atlas about where the join is.
+    // The printable faces are deliberately not colour slots. A slot that
+    // repaints also sets the surface texture aside, which would wipe the very
+    // template the card ships with, and a colour under a design is a different
+    // feature from a colour instead of one.
     colorParts: {
-      // Card and clip are one mesh sharing one material, so the card cannot be
-      // painted without the clip. One slot, honestly named.
-      main: { materials: ["material_0"], repaint: true },
+      accent: { materials: ["Clip"] },
+      main: { materials: ["Card_Edge"] },
     },
     excludedNodes: [],
     frame: [0.404106, 0.912342, 0.065813],
     label: "ID Card",
     modelFile: "id-card.glb",
     artworkSurface: "print",
-    // Its own coordinates put the card face in one corner of an atlas and the
-    // clip in another, which is right for the badge printed into the file and
-    // useless for a design supplied at runtime. Projected instead, so a design
-    // fills the card; the clip stands above it and catches the top edge.
-    screenUnwrap: true,
-    screenMaterial: "material_0",
-    clearPrintRelief: true,
-    // Authored fully metallic with its roughness in a map, which is right for
-    // the foil badge printed into the file and wrong for anything printed over
-    // it: a design on a mirror is a design nobody can read.
-    materialCorrections: { material_0: { metalness: 0, roughness: 0.55 } },
+    // Both faces are unwrapped in the file, each filling 0 to 1 on its own, and
+    // the back is mirrored in u so artwork reads the right way round when the
+    // card is turned rather than appearing reversed. The card measures
+    // 2.131 by 3.062, so a design at 0.70 to 1 lands undistorted.
+    //
+    // Only the front is bound to the single upload this app has today. The
+    // back carries its template until there are two slots to fill.
+    screenMaterial: "Card_Front",
   },
   "tablet-folder": {
     colorParts: {

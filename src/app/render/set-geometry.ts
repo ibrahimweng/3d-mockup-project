@@ -101,8 +101,27 @@ export function createSweepGeometry(
   geometry.computeVertexNormals();
   return geometry;
 }
+
 /**
- * What the key shines through, cut to suit the angle it is shining at.
+ * The cut-out the key shines through.
+ *
+ * Everything in the rig until now is a light with a number on it, and no
+ * number makes a room. A gobo does: a shape held in front of the light so that
+ * what lands is the shape rather than the light. Bars across a floor read as a
+ * window with no window anywhere in the frame, which is the whole trick.
+ *
+ * Bars only, never a surround blocking the light around them. A real window is
+ * a hole in an opaque wall, but the depth map covering this scene is finite,
+ * and beyond its edge nothing is shadowed at all — so a surround would draw a
+ * hard line across the floor where the map ran out and the light started
+ * arriving again. Bars have no such edge: both sides of that boundary are lit,
+ * and only the bars are not.
+ *
+ * The pattern is laid out around the middle rather than through it, so the
+ * device stands in a pane and the shadows fall beside it. A bar across the
+ * product is a defect however well it reads on the floor.
+ *
+ * It is also cut to suit the angle it is shining at.
  *
  * A gobo is drawn in the plane facing the light and its shadow lands on a
  * floor, so the two are not the same shape: the flatter the light, the more
@@ -273,6 +292,29 @@ export const COVE_MAX = 28;
  * twenty-five the device starts to look dropped onto a moving surface.
  */
 export const TABLE_YAW = (16 * Math.PI) / 180;
+/**
+ * Where the floor gives way to the reflection under it, and where it ends.
+ *
+ * One gradient does two jobs, because both are the floor's own opacity at a
+ * distance from the device.
+ *
+ * Near the centre it is the reflection: a real polished floor loses the
+ * mirrored device with distance, because the surface is never perfectly flat
+ * and a grazing angle carries less of it. Without that falloff the reflection
+ * sits as hard as the device and reads as a second object standing upside
+ * down. The stops are tight because the plane is forty subject radii across,
+ * so the pool has to be a small fraction of it to stay under the device.
+ *
+ * At the rim it is the horizon. The plane is finite, and a finite plane has an
+ * edge — a hard line across the frame where the floor stops and the backdrop
+ * begins, which is exactly the tell that gives a rendered scene away. A real
+ * sweep has no edge because it curves out of sight, so this one dissolves
+ * instead: opaque where the device stands, gone by the time it would end.
+ *
+ * The strength is baked into the gradient rather than set as the material's
+ * opacity, because three multiplies the two: an opacity of 0.3 would take the
+ * whole floor to thirty percent, edges included, and the sweep would vanish.
+ */
 export function createFloorFade(reflection: number, dissolve: boolean): THREE.Texture {
   const size = 256;
   const canvas = document.createElement("canvas");

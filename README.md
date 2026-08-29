@@ -42,41 +42,114 @@ framework preset, the `npm run build` command and the `dist` output directory.
 These carry a printed design rather than a display. The same upload, the same
 studio and the same export work on all of them.
 
-| Product | Model file | Design lands on | Colour slots |
+| Product | Model file | Print zones | Colour slots |
 | --- | --- | --- | --- |
-| T-Shirt | `tshirt.glb` | The torso, front and back | Body, sleeves, collar |
-| Tote Bag | `tote-bag.glb` | The whole bag, handles included | Bag |
-| Water Bottle | `water-bottle.glb` | The body, wrapped on its own coordinates | Cap, ring, latch |
-| ID Card | `id-card.glb` | The card face, and the clip above it | Card |
+| T-Shirt | `tshirt.glb` | Front, back, left sleeve, right sleeve | Collar rib, hem facing |
+| Tote Bag | `tote-bag.glb` | Front, back, left side, right side | Handles, trim, base |
+| Water Bottle | `water-bottle.glb` | One image wrapped 360° around the body | Cap, ring, latch |
+| ID Card | `id-card.glb` | Card front, card back | Clip, card edge |
 | Tablet Folder | `tablet-folder.glb` | The top sheet | Board, pen, clip |
 
-Three things about them are worth knowing before you use them.
+### Where the design lands, and why it flows
+
+Every merchandise model here was re-unwrapped. The UVs these files shipped with
+were authored for the texture the model came with — packed as islands, with the
+space between them that packing needs, and with each island scaled to whatever
+that particular texture wanted. An uploaded design laid over them lands in
+pieces: a logo that crosses an island boundary is cut in half and the halves
+arrive somewhere else on the product. The bottle was the clearest case, using
+57 per cent of its U range with the base disc parked beside the wall as a
+separate island, so a wrap-around design covered a bit over half the bottle and
+then started again.
+
+What ships now is one continuous unwrap per print zone, each filling 0..1 with
+no island and no gap, computed from the geometry rather than from any texture:
+
+- **The bottle body** is unwrapped cylindrically — angle around the axis to U,
+  height to V — so one image wraps the whole bottle and meets itself at the
+  seam behind. Triangles crossing the seam are repaired individually, which is
+  why there is no visible join. It is the only product whose upload skips the
+  fit-to-frame step, because refitting a cylinder to a rectangle is what put
+  the design on half of it. The head is a separate part in plastic.
+- **The card** carries two zones. Front and back are the same size and each
+  fills its own 0..1, so front and back take separate uploads. The clip is
+  metal and takes no design.
+- **The tote** carries four: front, back, left and right. The bag was also too
+  flat to read as a bag holding anything — 2.8 units through where it is 5.7
+  across — so the panels are pushed apart to 5.1, which is what gives the sides
+  enough width to print on.
+- **The shirt** carries four: front, back and a sleeve each.
+
+The shirt's zones are cut on the pieces the modeller already separated — the
+front panel, the back panel and each sleeve are distinct primitives in the file
+— rather than on which way a triangle faces. That distinction turned out to
+matter more than it sounds. A normal-direction threshold cuts a ragged boundary
+wherever the surface curves through it, and a shoulder is exactly where the
+surface turns over: a quarter of the front panel fell outside any threshold and
+came out as a torn grey band down the shoulder and sleeve seams. Splitting on
+the garment pieces gives every face a zone, and leaves 708 triangles of hem
+facing as the only untextured cotton, which is what a hem facing is.
+
+### Templates
+
+`public/templates/` holds a placeholder image for every print zone, and each
+one is what the model actually renders until a design is uploaded. They are
+sized to the zone's measured aspect, carry a grid, a centre cross, a margin box
+and their own dimensions printed on them, so a design built to one of these
+arrives at the size and orientation it was drawn at.
+
+| Zone | Template | Pixels |
+| --- | --- | --- |
+| Bottle body | `water-bottle-body.png` | 2048 × 1811 (1.13 : 1) |
+| Card front / back | `id-card-front.png`, `id-card-back.png` | 1426 × 2048 |
+| Tote front | `tote-bag-front.png` | 1833 × 2048 |
+| Tote back | `tote-bag-back.png` | 1905 × 2048 |
+| Tote left / right | `tote-bag-left.png`, `tote-bag-right.png` | 910 × 2048, 804 × 2048 |
+| Shirt front | `tshirt-front.png` | 1237 × 2048 |
+| Shirt back | `tshirt-back.png` | 1189 × 2048 |
+| Shirt sleeves | `tshirt-sleeve-left.png`, `tshirt-sleeve-right.png` | 1326 × 2048, 1356 × 2048 |
+
+The bottle's is the one to look at first: it is marked at the quarter turns, so
+you can see which part of a 360° wrap faces the camera before drawing anything
+on it.
+
+Uploading a design replaces the template on the zone the upload is bound to.
+Clearing the upload puts the template back, which is why the template is
+captured alongside the model's other print maps rather than being a starting
+value that gets overwritten.
+
+### What is not built yet
+
+The app has one upload slot. It binds to the front zone of whichever product is
+loaded — the shirt front, the card front, the tote front, the bottle body — and
+the other zones show their templates. Printing different images on the back, the
+sides and the sleeves needs a slot per zone in the controls, and that is not in
+this branch. Nor is a download button for the templates: they are files under
+`public/templates/`, reachable at `/templates/<name>.png` when the app is
+running, and nothing in the UI offers them yet.
+
+### How the design is bound
 
 The design is bound to base colour rather than emission. A screen emits light,
 so a screenshot on one stays legible whatever the studio is doing. Print does
 not emit. Bound the same way, a shirt would glow in an unlit corner.
 
-Where a product is one material, the design covers all of it. The tote's bag
-and handles are the same surface in the file, and so are the ID card and its
-clip, so a design lands on both. The shirt, the bottle and the folder separate
-their parts, so those print where you would expect.
-
-The t-shirt is the one model here that does not ship as supplied. It arrived at
-22MB and 611,900 triangles, of which 590,408 were the topstitch thread along its
-seams: thirty-five meshes of stitching, and 96 per cent of the model, for a
-detail you can only see on a close crop of a seam. Those meshes were removed,
-which leaves 21,492 triangles in 4.56MB and every surviving surface exactly as
-its author built it. What it costs is the row of stitches along the raglan
-seams, the cuffs and the hem. `scripts/clean-model.mjs` did the removal and the
-same command puts it back from the original file.
+A print zone is deliberately not also a colour slot. Repainting a part writes
+its base colour and clears its map, so a card face that was both would lose its
+template the moment a colourway was picked. The parts a colour picker can reach
+are the ones that carry no print: the bottle's cap, ring and latch, the card's
+clip and edge, the tote's handles, trim and base, the shirt's collar rib and its
+hem facings. The shirt has two rather than three because its four print
+zones cover every panel, and a slot with nothing left to paint is worse than
+no slot.
 
 The models are not interchangeable, so each one is a catalog entry in
-[`src/app/product-domain.ts`](src/app/product-domain.ts) rather than a branch in
-the renderer: which file to load, which scene inside it actually holds the
-device, which material carries the display, which stray nodes to hide before
-measuring bounds, the screen's aspect where a tilted panel cannot be measured,
-and a yaw for a model that faces away from the default camera. Every value was
-read out of the GLB rather than guessed.
+[`src/app/merchandise-catalog.ts`](src/app/merchandise-catalog.ts) rather than a
+branch in the renderer: which file to load, which scene inside it actually holds
+the product, which material carries the print, which stray nodes to hide before
+measuring bounds, the aspect where a tilted panel cannot be measured, and a yaw
+for a model that faces away from the default camera. Every value was read out of
+the GLB rather than guessed.
 
 Each device also declares the materials that make up its shell, so one
 colourway is a single colour rather than a list: `Natural` leaves the model
@@ -184,11 +257,19 @@ geometry to save bytes costs exactly the surface quality a mockup exists to
 show, and every model has needed a different repair anyway, so the repairs are
 catalog entries rather than a baked file.
 
-The t-shirt is the one exception, and it is a different act from decimating.
-Nothing was simplified: whole meshes were deleted, and they were the topstitch
-thread rather than any surface the mockup shows. Every surface that remains has
-the vertices and the precision the file gave it. The test of whether that is
-worth doing again is whether the part removed is a part rather than a density.
+The merchandise models are the exception, and what was done to them is not
+decimation. Nothing was simplified: their UVs were rebuilt, because the ones
+they shipped with were authored for a texture that is no longer on them, and a
+mockup that cannot lay a design flat has nothing left to show. Every vertex
+position is the one the file gave it — the tote is the single exception, and
+its panels were pushed apart deliberately, which is recorded above.
+
+The t-shirt was briefly stripped of its topstitch, at 590,408 triangles of
+thread over thirty-five meshes, which took it from 22MB to 4.56MB. It is back:
+those seams are the detail that makes the render read as a garment rather than
+a shape, and 23MB is the price. `scripts/clean-model.mjs` still does the
+removal, and the test of whether that is worth doing is whether the part
+removed is a part rather than a density.
 
 `mac-studio.glb` is the worked example. It arrived at 3.4MB, which flattered
 it: that is Draco compression over 502,646 triangles, 34.8MB once decoded. The
@@ -246,7 +327,7 @@ cannot show more pixels than it has.
 
 `npm test` does not pass. The command has four steps. The second step is
 `check-toolcraft-integrity`, and it fails, so the unit tests never run. You can
-run the unit tests on their own with `npx vitest run src`. All 613 of them pass.
+run the unit tests on their own with `npx vitest run src`. All 621 of them pass.
 
 The integrity check fails for two reasons.
 
@@ -299,6 +380,8 @@ it.
 - `docs/toolcraft` — the local contract documents, plus
   [`agent-worklog.md`](docs/toolcraft/agent-worklog.md), which records the
   product decisions and the evidence behind them.
+- `public/models` — the GLBs, and `public/templates` — a placeholder image
+  for every print zone, which is also what each model renders before an upload.
 - `legacy/procedural-scenes` — superseded code that built devices from geometry
   before real GLB models arrived. Kept outside `src/` deliberately so the
   code-health gates do not scan it.

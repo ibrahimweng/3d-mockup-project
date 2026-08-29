@@ -31,7 +31,7 @@ export const PRODUCT_PARTS_SECTION = {
               },
               defaultValue: DEFAULT_PART_COLORS.main,
               description:
-                "The product's main surface: a shirt's body, a bottle's cap, the board a folder is built on. A design printed on top of it is unaffected.",
+                "The largest part a design does not print on: a bottle's cap, a card's edge, the board a folder is built on, a tote's handles.",
               label: "Product",
               performanceReason:
                 "Writing one material's base colour repaints in place and redraws a single frame; nothing is rebuilt.",
@@ -46,7 +46,7 @@ export const PRODUCT_PARTS_SECTION = {
               },
               defaultValue: DEFAULT_PART_COLORS.trim,
               description:
-                "The part set against the main surface: a shirt's sleeves, the ring under a bottle's cap.",
+                "The part set against the main surface: the ring under a bottle's cap, a tote's base, the facing turned under a shirt's hem.",
               label: "Trim",
               performanceReason:
                 "Writing one material's base colour repaints in place and redraws a single frame; nothing is rebuilt.",

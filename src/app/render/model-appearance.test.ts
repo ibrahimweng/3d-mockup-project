@@ -77,7 +77,15 @@ test("part colours paint only the materials each product names", () => {
 });
 
 test("clearing a slot returns its part to the colour the file gave it", () => {
-  const definition = DEVICE_CATALOG.tshirt;
+  // Whichever product declares a main slot, rather than one named here: which
+  // parts a product offers is a catalog decision that moves, and a test that
+  // pins one silently stops testing anything the day that product drops the
+  // slot.
+  const id = productsWithParts.find(
+    (candidate) => (DEVICE_CATALOG[candidate].colorParts?.main?.materials ?? []).length > 0,
+  );
+  expect(id, "no product declares a main colour slot").toBeDefined();
+  const definition = DEVICE_CATALOG[id as DeviceId];
   const named = definition.colorParts?.main?.materials ?? [];
   const subject = buildSubject([...named]);
   const baseColors = captureBaseColors(subject);

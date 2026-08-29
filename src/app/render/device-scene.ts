@@ -6,7 +6,11 @@ import {
   prepareProductMaterials,
   type PartColors,
 } from "./model-appearance";
-import { bindArtwork, capturePrintRelief } from "./artwork-binding";
+import {
+  bindArtwork,
+  capturePrintRelief,
+  wrapArtwork,
+} from "./artwork-binding";
 import { createKeyLight } from "./scene-key";
 import { createRoom } from "./scene-room";
 import { getDevicePose } from "./device-pose";
@@ -86,103 +90,6 @@ import {
  * rather than a branch here, so adding another model is a catalog entry — the
  * iMac was added that way, and needed no code.
  */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/**
- * The cut-out the key shines through.
- *
- * Everything in the rig until now is a light with a number on it, and no
- * number makes a room. A gobo does: a shape held in front of the light so that
- * what lands is the shape rather than the light. Bars across a floor read as a
- * window with no window anywhere in the frame, which is the whole trick.
- *
- * Bars only, never a surround blocking the light around them. A real window is
- * a hole in an opaque wall, but the depth map covering this scene is finite,
- * and beyond its edge nothing is shadowed at all — so a surround would draw a
- * hard line across the floor where the map ran out and the light started
- * arriving again. Bars have no such edge: both sides of that boundary are lit,
- * and only the bars are not.
- *
- * The pattern is laid out around the middle rather than through it, so the
- * device stands in a pane and the shadows fall beside it. A bar across the
- * product is a defect however well it reads on the floor.
- */
-/**
- * The table: a chamfered top, and legs under it if it is that kind of table.
- *
- * Two things make furniture read as furniture rather than as floor. The first
- * is the eased arris — every worked surface carries one a millimetre or two
- * across, and that tiny band is what catches the key and draws the bright line
- * along the front of every table you have ever seen photographed. A
- * mathematically sharp edge is the one thing real furniture never has.
- *
- * The second is that you can see under it. A block that runs out of the bottom
- * of frame is a plinth: it tells you the device is standing on something, and
- * nothing else. Legs, an underside, and the backdrop carrying on behind them
- * tell you the device is standing on an object, in a room, and that is the
- * whole difference between a staged photograph and a rendering.
- *
- * Everything is measured from the device, not from the middle of the top, so
- * the device can sit near one corner with two edges running away from it.
- */
-
-
-
-
-/**
- * Where the floor gives way to the reflection under it, and where it ends.
- *
- * One gradient does two jobs, because both are the floor's own opacity at a
- * distance from the device.
- *
- * Near the centre it is the reflection: a real polished floor loses the
- * mirrored device with distance, because the surface is never perfectly flat
- * and a grazing angle carries less of it. Without that falloff the reflection
- * sits as hard as the device and reads as a second object standing upside
- * down. The stops are tight because the plane is forty subject radii across,
- * so the pool has to be a small fraction of it to stay under the device.
- *
- * At the rim it is the horizon. The plane is finite, and a finite plane has an
- * edge — a hard line across the frame where the floor stops and the backdrop
- * begins, which is exactly the tell that gives a rendered scene away. A real
- * sweep has no edge because it curves out of sight, so this one dissolves
- * instead: opaque where the device stands, gone by the time it would end.
- *
- * The strength is baked into the gradient rather than set as the material's
- * opacity, because three multiplies the two: an opacity of 0.3 would take the
- * whole floor to thirty percent, edges included, and the sweep would vanish.
- */
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 export async function buildDeviceScene(options: {
   backgroundColor: string;
@@ -623,18 +530,7 @@ export async function buildDeviceScene(options: {
     scene,
     setArtwork: (texture, transform) => {
       if (screenMaterials.length === 0) return;
-      // A wrap was unwrapped in the file for exactly one image, so it maps one
-      // to one. Repeat wrapping is what lets the seam triangles, whose u runs
-      // past 1, join the far edge instead of smearing the last column.
-      if (texture && options.device.artworkFit === "wrap") {
-        texture.wrapS = THREE.RepeatWrapping;
-        texture.wrapT = THREE.RepeatWrapping;
-        texture.repeat.set(1, 1);
-        texture.offset.set(0, 0);
-        texture.needsUpdate = true;
-        slack.x = 0;
-        slack.y = 0;
-      } else if (texture) {
+      if (texture && !wrapArtwork(texture, options.device.artworkFit, slack)) {
         applyScreenTransform(texture, screenAspect, transform, slack);
       }
       bindArtwork({

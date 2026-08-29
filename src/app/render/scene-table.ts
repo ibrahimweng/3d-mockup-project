@@ -26,11 +26,26 @@ export type Table = {
 };
 
 /**
- * The furniture the device stands on, and nothing else.
+ * The table: a chamfered top, and legs under it if it is that kind of table.
  *
- * It used to move the floor, re-place the paper and re-balance the bounce
- * itself, which meant the table knew about three things that are not the
- * table. It now reports how far the room has to drop and lets the room drop
+ * Two things make furniture read as furniture rather than as floor. The first
+ * is the eased arris — every worked surface carries one a millimetre or two
+ * across, and that tiny band is what catches the key and draws the bright line
+ * along the front of every table you have ever seen photographed. A
+ * mathematically sharp edge is the one thing real furniture never has.
+ *
+ * The second is that you can see under it. A block that runs out of the bottom
+ * of frame is a plinth: it tells you the device is standing on something, and
+ * nothing else. Legs, an underside, and the backdrop carrying on behind them
+ * tell you the device is standing on an object, in a room, and that is the
+ * whole difference between a staged photograph and a rendering.
+ *
+ * Everything is measured from the device, not from the middle of the top, so
+ * the device can sit near one corner with two edges running away from it.
+ *
+ * It is the furniture and nothing else. It used to move the floor,
+ * re-place the paper and re-balance the bounce itself, which meant the
+ * table knew about three things that are not the table. It now reports how far the room has to drop and lets the room drop
  * it; everything here is the top, the legs, their materials and the box the
  * camera has to hold.
  */
