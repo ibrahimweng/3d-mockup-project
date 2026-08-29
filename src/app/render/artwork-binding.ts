@@ -1,6 +1,11 @@
 import * as THREE from "three";
 
 import type { ArtworkFit } from "../product-domain";
+import {
+  applyScreenTransform,
+  type ScreenSlack,
+  type ScreenTransform,
+} from "./screen-mapping";
 
 /**
  * Binding a supplied design to the surface that carries it.
@@ -128,4 +133,50 @@ export function wrapArtwork(
   slack.x = 0;
   slack.y = 0;
   return true;
+}
+
+/**
+ * One printable zone, resolved against a loaded model.
+ *
+ * Built once when the scene is, because everything in it is a property of the
+ * model rather than of the design: which materials carry the zone, what shape
+ * they are, and what their maps were before anything was printed on them.
+ * Only the texture changes per upload.
+ */
+export type ArtworkZoneBinding = {
+  /** The panel's measured height / width, for fitting a design into it. */
+  aspect: number;
+  fit: ArtworkFit | undefined;
+  materials: readonly THREE.MeshStandardMaterial[];
+  relief: PrintRelief;
+  /** How much of the design is cropped on each axis, for dragging it. */
+  slack: ScreenSlack;
+};
+
+/**
+ * Put one design on one zone.
+ *
+ * The zone owns its own slack rather than sharing one, which is what lets four
+ * panels of different shapes each crop their own design: a tote's side is half
+ * the width of its front, so the same image fills one and is cut by the other,
+ * and a single shared slack would report whichever zone was bound last.
+ */
+export function bindZoneArtwork(request: {
+  binding: ArtworkZoneBinding;
+  clearRelief: boolean;
+  printed: boolean;
+  texture: THREE.Texture | null;
+  transform?: ScreenTransform;
+}): void {
+  const { binding, clearRelief, printed, texture, transform } = request;
+  if (texture && !wrapArtwork(texture, binding.fit, binding.slack)) {
+    applyScreenTransform(texture, binding.aspect, transform, binding.slack);
+  }
+  bindArtwork({
+    clearRelief,
+    materials: binding.materials,
+    printed,
+    relief: binding.relief,
+    texture,
+  });
 }

@@ -1,6 +1,15 @@
 import { describe, expect, test } from "vitest";
 
 import { appSchema } from "./app-schema";
+import {
+  ARTWORK_ZONE_DEVICES,
+  readArtworkZones,
+} from "./product-applicability";
+import {
+  ARTWORK_ZONE_IDS,
+  ARTWORK_ZONE_TARGETS,
+  DEVICE_CATALOG,
+} from "./product-domain";
 
 /**
  * What the product promises about getting a frame out, and about keeping the
@@ -26,23 +35,61 @@ function optionValues(target: string): readonly string[] {
   return (controlAt(target)?.options ?? []).map((option) => option.value);
 }
 
-test("screenshot fileDrop is the single source-material owner", () => {
+test("every upload slot owns exactly one print zone", () => {
   const drops = sections.flatMap((section) =>
     Object.values(section.controls).filter((control) => control.type === "fileDrop"),
   );
 
-  // Exactly one. Two ways to bring a design in is two places for it to live,
-  // and the renderer reads one of them.
-  expect(drops).toHaveLength(1);
-  expect(drops[0].target).toBe("artwork.image");
-  // It takes an image, not a model: the device geometry is bundled, and a
-  // model drop here would offer to replace the thing the product is about.
-  expect(drops[0].assetKind ?? "image").toBe("image");
-  expect(drops[0].multiple ?? false).toBe(false);
+  // One per zone and no more. The rule this replaces was "exactly one drop",
+  // written when a product had one printable surface; what it was really
+  // guarding is that no two ways of bringing a design in compete for the same
+  // place on the model, which is now a statement about zones rather than about
+  // the number of uploaders.
+  const targets = drops.map((drop) => drop.target);
+  expect([...targets].sort()).toEqual(
+    [...Object.values(ARTWORK_ZONE_TARGETS)].sort(),
+  );
+  expect(new Set(targets).size).toBe(targets.length);
+
+  // Every zone a product declares has a slot, and every slot lands on a zone
+  // some product declares. Either half failing is an upload that goes nowhere
+  // or a zone nothing can reach.
+  for (const zone of ARTWORK_ZONE_IDS) {
+    const control = controlAt(ARTWORK_ZONE_TARGETS[zone]);
+    expect(control, `${zone} has no uploader`).toBeDefined();
+    expect(ARTWORK_ZONE_DEVICES[zone].length).toBeGreaterThan(0);
+  }
+
+  for (const drop of drops) {
+    // Images, not models: the geometry is bundled, and a model drop here would
+    // offer to replace the thing the product is about.
+    expect(drop.assetKind ?? "image").toBe("image");
+    expect(drop.multiple ?? false).toBe(false);
+  }
 
   // Nothing else is declared as source material, and the product ships no
   // default asset that would stand in for one.
   expect(appSchema.media?.defaultAssets ?? []).toEqual([]);
+});
+
+test("a product's zones and its uploaders name the same places", () => {
+  // The catalog is the subject: a zone naming a material another zone already
+  // owns would print two designs on one panel, and the second would win
+  // silently.
+  for (const id of Object.keys(DEVICE_CATALOG) as (keyof typeof DEVICE_CATALOG)[]) {
+    const zones = readArtworkZones(DEVICE_CATALOG[id]);
+    const materials = [...zones.values()].map((zone) => zone.material);
+    expect(new Set(materials).size, `${id} repeats a material across zones`).toBe(
+      materials.length,
+    );
+    expect(zones.get("front")?.material).toBe(DEVICE_CATALOG[id].screenMaterial);
+    for (const zone of zones.keys()) {
+      expect(
+        ARTWORK_ZONE_DEVICES[zone],
+        `${id} declares ${zone} but is not offered its uploader`,
+      ).toContain(id);
+    }
+  }
 });
 
 test("export format options select the encoded artifact type", () => {

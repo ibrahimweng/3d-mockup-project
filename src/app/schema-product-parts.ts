@@ -1,4 +1,5 @@
-import { COLOR_PART_DEVICES, DEFAULT_PART_COLORS } from "./product-domain";
+import { DEFAULT_PART_COLORS } from "./product-domain";
+import { COLOR_PART_DEVICES } from "./product-applicability";
 
 /**
  * The colour slots a merchandise product offers.

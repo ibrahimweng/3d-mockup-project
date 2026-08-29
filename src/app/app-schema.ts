@@ -4,8 +4,9 @@ import { appIdentity } from "./app-identity";
 import {
   DEFAULT_LIGHT_PATTERN,
   LIGHT_PATTERN_OPTIONS,
-  SURFACE_DEVICES,
 } from "./product-domain";
+import { SURFACE_DEVICES } from "./product-applicability";
+import { ARTWORK_SECTION } from "./schema-artwork";
 import { PRODUCT_PARTS_SECTION } from "./schema-product-parts";
 import { DEFAULT_SCENE_PRESET, SCENE_PRESET_OPTIONS } from "./scene-presets";
 import { DEFAULT_SURFACE, SURFACE_OPTIONS } from "./surfaces";
@@ -191,51 +192,7 @@ export const appSchema = defineToolcraft({
           title: "Device",
         },
         PRODUCT_PARTS_SECTION,
-        {
-          controls: {
-            image: {
-              accept: "image/png,image/jpeg,image/webp",
-              applicability: { mode: "always" },
-              assetKind: "image",
-              defaultValue: null,
-              description:
-                "Shown on the device's display. An image matching the screen's proportions fills it exactly.",
-              label: false,
-              multiple: false,
-              performanceReason:
-                "The screenshot is decoded once into a texture and swapped onto the display material; it does not affect per-frame cost.",
-              performanceRole: "responsiveness",
-              target: "artwork.image",
-              type: "fileDrop",
-            },
-            offset: {
-              applicability: { mode: "always" },
-              defaultValue: { x: 0, y: 0 },
-              description:
-                "Slides the image behind the screen. Only has an effect once the image is larger than the display and something is being cropped.",
-              label: "Position",
-              performanceReason:
-                "Position writes the display texture's offset and redraws one frame.",
-              performanceRole: "responsiveness",
-              target: "artwork.offset",
-              type: "vector",
-            },
-            stretch: {
-              applicability: { mode: "always" },
-              defaultValue: { x: 0, y: 0 },
-              description:
-                "Independent width and height. Centre is unstretched; moving an axis squashes or extends the image along it.",
-              label: "Stretch",
-              performanceReason:
-                "Stretch writes the display texture's repeat and redraws one frame.",
-              performanceRole: "responsiveness",
-              target: "artwork.stretch",
-              type: "vector",
-            },
-          },
-          id: "artwork",
-          title: "Screenshot",
-        },
+        ARTWORK_SECTION,
         {
           controls: {
             fit: {

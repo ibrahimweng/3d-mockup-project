@@ -11,6 +11,7 @@ import {
 } from "@/toolcraft/runtime/react";
 
 import { forgetArtworkUrl, publishArtworkUrl } from "./artwork-store";
+import { readZoneAssets } from "./artwork-slots";
 import { resolveCanvasCursor } from "./canvas-cursor";
 import { useAdaptiveQuality } from "./adaptive-quality";
 import { useScenePreset } from "./apply-scene-preset";
@@ -18,7 +19,7 @@ import { useSurfaceFraming } from "./apply-surface-framing";
 import { useDesignDrag } from "./design-drag";
 import { useViewOrbit } from "./view-orbit";
 import { useViewPan } from "./view-pan";
-import { readDeviceDefinition } from "./product-domain";
+import { readDeviceDefinition, type ArtworkZoneId } from "./product-domain";
 import { fingerprint } from "./render/fingerprint";
 import { RasterRenderer } from "./render/raster-renderer";
 import { createScreenTexture } from "./render/screen-texture";
@@ -31,7 +32,9 @@ const MAX_PIXEL_RATIO = 2;
 export function MockupPreview(): React.ReactElement {
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
   const rendererRef = React.useRef<RasterRenderer | null>(null);
-  const artworkRef = React.useRef<THREE.Texture | null>(null);
+  const artworkRef = React.useRef<ReadonlyMap<ArtworkZoneId, THREE.Texture | null>>(
+    new Map(),
+  );
   // A frame is only drawn when something has invalidated it. Redrawing a static
   // scene every tick would hold the GPU at load for no visible change.
   const dirtyRef = React.useRef(true);
@@ -73,13 +76,13 @@ export function MockupPreview(): React.ReactElement {
   const frame = useToolcraftProductSceneFrame();
   const { state } = useToolcraft();
 
-  const artworkAssets = React.useMemo(
-    () =>
-      state.mediaAssets.filter(
-        (asset): asset is ToolcraftImageAsset =>
-          asset.assetKind === "image" && asset.sourceTarget === "artwork.image",
-      ),
+  const zoneAssets = React.useMemo(
+    () => readZoneAssets(state.mediaAssets),
     [state.mediaAssets],
+  );
+  const artworkAssets = React.useMemo(
+    () => [...zoneAssets.values()],
+    [zoneAssets],
   );
   const urls = useToolcraftMediaPresentationUrls(artworkAssets);
 
@@ -220,71 +223,100 @@ export function MockupPreview(): React.ReactElement {
     });
   }, [settings]);
 
-  const artworkAsset = artworkAssets.at(-1) ?? null;
-  const artworkUrl = artworkAsset ? (urls.get(artworkAsset.id) ?? null) : null;
-  // Runtime owns rotate and flip through the actions under the uploader; the
-  // renderer reads that state rather than keeping its own copy.
-  const designTransformKey = JSON.stringify(artworkAsset?.transform ?? null);
+  const artworkUrl = urls.get(zoneAssets.get("front")?.id ?? "") ?? null;
   /**
-   * The transform, rebuilt from its own serialization.
+   * Every slot's source and its transform, as one string.
    *
-   * The runtime hands back a fresh object on every store change, so depending
-   * on it directly re-decodes the source image whenever anything at all moves.
-   * Deriving it from the key instead makes "the same transform is the same
-   * value" true rather than asserted — which is what the two suppressions here
-   * used to assert in a comment.
+   * The runtime hands back fresh objects on every store change — including a
+   * rotation, which touches no upload at all — so depending on them directly
+   * re-decodes every image whenever anything moves. Serializing makes "the
+   * same slots are the same value" true rather than asserted, and it is one
+   * key for all four because one decode pass fills all four.
+   *
+   * Rotate and flip belong to the runtime's own actions under each uploader;
+   * the renderer reads that state rather than keeping a copy.
    */
-  const designTransform = React.useMemo(
+  const slotsKey = JSON.stringify(
+    [...zoneAssets].map(([zone, asset]) => [
+      zone,
+      urls.get(asset.id) ?? null,
+      asset.transform ?? null,
+    ]),
+  );
+  const slots = React.useMemo(
     () =>
-      (JSON.parse(designTransformKey) as ToolcraftImageAsset["transform"] | null) ??
-      undefined,
-    [designTransformKey],
+      JSON.parse(slotsKey) as [
+        ArtworkZoneId,
+        string | null,
+        ToolcraftImageAsset["transform"] | null,
+      ][],
+    [slotsKey],
   );
 
   React.useEffect(() => {
-    if (!artworkAsset || !artworkUrl) return undefined;
-    const assetId = artworkAsset.id;
-    publishArtworkUrl(assetId, artworkUrl);
-    return () => forgetArtworkUrl(assetId);
-  }, [artworkAsset, artworkUrl]);
+    const published = [...zoneAssets.values()]
+      .map((asset) => [asset.id, urls.get(asset.id)] as const)
+      .filter((entry): entry is readonly [string, string] => Boolean(entry[1]));
+    for (const [id, url] of published) publishArtworkUrl(id, url);
+    return () => {
+      for (const [id] of published) forgetArtworkUrl(id);
+    };
+  }, [zoneAssets, urls]);
 
+  /**
+   * Decode every slot, then bind the whole set at once.
+   *
+   * One pass rather than an effect per zone, because `setArtwork` writes every
+   * zone the product has on every call — a zone left out of the map is a zone
+   * cleared. Binding them one at a time would clear the other three each time
+   * one arrived, and four images would land as one.
+   */
   React.useEffect(() => {
-    if (!artworkUrl) {
-      artworkRef.current?.dispose();
-      artworkRef.current = null;
-      rendererRef.current?.setArtwork(null);
-      dirtyRef.current = true;
-      return undefined;
-    }
-
     let cancelled = false;
-    const image = new Image();
-    image.crossOrigin = "anonymous";
-    image.src = artworkUrl;
-    void image
-      .decode()
-      .then(() => {
-        if (cancelled) return;
-        const texture = createScreenTexture(
-          image,
-          readDeviceDefinition(settings.device),
-          designTransform,
-          rendererRef.current?.maxAnisotropy ?? 1,
-        );
+    const device = readDeviceDefinition(settings.device);
+    const decode = async (
+      url: string,
+      transform: ToolcraftImageAsset["transform"] | null,
+    ): Promise<THREE.Texture | null> => {
+      const image = new Image();
+      image.crossOrigin = "anonymous";
+      image.src = url;
+      try {
+        await image.decode();
+      } catch {
+        // A source that cannot decode leaves that zone on its template.
+        return null;
+      }
+      return createScreenTexture(
+        image,
+        device,
+        transform ?? undefined,
+        rendererRef.current?.maxAnisotropy ?? 1,
+      );
+    };
 
-        artworkRef.current?.dispose();
-        artworkRef.current = texture;
-        rendererRef.current?.setArtwork(texture, screenRef.current);
-        dirtyRef.current = true;
-      })
-      .catch(() => {
-        // A source that cannot decode leaves the previous screen in place.
-      });
+    void Promise.all(
+      slots.map(async ([zone, url, transform]) =>
+        url ? ([zone, await decode(url, transform)] as const) : null,
+      ),
+    ).then((decoded) => {
+      const textures = new Map<ArtworkZoneId, THREE.Texture | null>(
+        decoded.filter((entry) => entry !== null),
+      );
+      if (cancelled) {
+        for (const texture of textures.values()) texture?.dispose();
+        return;
+      }
+      for (const texture of artworkRef.current.values()) texture?.dispose();
+      artworkRef.current = textures;
+      rendererRef.current?.setArtwork(textures, screenRef.current);
+      dirtyRef.current = true;
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [artworkUrl, designTransform, sceneVersion, settings.device]);
+  }, [slots, sceneVersion, settings.device]);
 
   React.useEffect(() => {
     rendererRef.current?.setPose(pose);

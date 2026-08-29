@@ -3,12 +3,27 @@ import {
   COLOR_PART_IDS,
   type ArtworkFit,
   type ArtworkSurface,
+  type ArtworkZone,
+  type ArtworkZoneId,
   type ColorPart,
   type ColorPartId,
 } from "./product-parts";
 
-export { COLOR_PART_IDS, DEFAULT_PART_COLORS, SPLIT_MATERIAL_SEPARATOR } from "./product-parts";
-export type { ArtworkFit, ArtworkSurface, ColorPart, ColorPartId } from "./product-parts";
+export {
+  ARTWORK_ZONE_IDS,
+  ARTWORK_ZONE_TARGETS,
+  COLOR_PART_IDS,
+  DEFAULT_PART_COLORS,
+  SPLIT_MATERIAL_SEPARATOR,
+} from "./product-parts";
+export type {
+  ArtworkFit,
+  ArtworkSurface,
+  ArtworkZone,
+  ArtworkZoneId,
+  ColorPart,
+  ColorPartId,
+} from "./product-parts";
 
 /**
  * Product option sets and the device catalog.
@@ -271,6 +286,15 @@ export type DeviceDefinition = {
    * finite set of finishes its manufacturer actually sells.
    */
   colorParts?: Partial<Record<ColorPartId, ColorPart>>;
+  /**
+   * The printable zones this product offers beyond its front.
+   *
+   * `front` needs no entry: it is `screenMaterial`, which every product
+   * already names. A product that declares nothing here takes one upload, and
+   * that is every device. See `ArtworkZone` for what a zone is; read them
+   * through `readArtworkZones`, which fills the front in.
+   */
+  artworkZones?: Partial<Record<Exclude<ArtworkZoneId, "front">, ArtworkZone>>;
   /**
    * Give every mesh its own copy of the material it shares, named after the
    * mesh.
@@ -594,39 +618,6 @@ export function readFinishId(value: unknown): FinishId {
     ? (value as FinishId)
     : DEFAULT_FINISH;
 }
-
-/**
- * The devices a table is offered for, read off the catalog rather than listed.
- *
- * Kept derived so the two can never disagree: giving a device a size is the
- * single act that offers it a table, and forgetting to also add it to a list
- * somewhere else is exactly the kind of quiet mismatch that leaves a control
- * showing for a device it does nothing to.
- */
-export const SURFACE_DEVICES: readonly DeviceId[] = (
-  Object.keys(DEVICE_CATALOG) as DeviceId[]
-).filter((id) => DEVICE_CATALOG[id].surface !== undefined);
-
-/**
- * Which products offer each colour slot, derived rather than listed.
- *
- * Same reason the surface list is derived: declaring a slot in the catalog is
- * the single act that offers it, and a second list kept by hand is how a
- * control ends up showing for a product it does nothing to.
- */
-function productsOfferingColorPart(part: ColorPartId): readonly DeviceId[] {
-  return (Object.keys(DEVICE_CATALOG) as DeviceId[]).filter(
-    (id) => DEVICE_CATALOG[id].colorParts?.[part] !== undefined,
-  );
-}
-
-export const COLOR_PART_DEVICES: Readonly<
-  Record<ColorPartId, readonly DeviceId[]>
-> = {
-  accent: productsOfferingColorPart("accent"),
-  main: productsOfferingColorPart("main"),
-  trim: productsOfferingColorPart("trim"),
-};
 
 export function readDeviceDefinition(value: unknown): DeviceDefinition {
   return (

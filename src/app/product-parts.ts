@@ -56,6 +56,56 @@ export type ArtworkSurface = "display" | "print";
 export type ArtworkFit = "fit" | "wrap";
 
 /**
+ * The four print zones a design can be uploaded to, shared across every
+ * product.
+ *
+ * The same constraint that gives the colour slots their three names gives
+ * these their four: schema controls are static, so a product cannot declare
+ * "left sleeve" and have a control appear for it. Four slots that mean the
+ * same thing on every product is what fits, and each product maps them onto
+ * its own zones — the tote's left panel and the shirt's left sleeve are both
+ * `left`, because from the front of the model they are the same place.
+ *
+ * `front` is the one every product has, and it is the slot a device uses for
+ * its screenshot. The other three appear only where a product declares them.
+ */
+export const ARTWORK_ZONE_IDS = ["front", "back", "left", "right"] as const;
+
+export type ArtworkZoneId = (typeof ARTWORK_ZONE_IDS)[number];
+
+/**
+ * One printable zone of one product.
+ *
+ * A zone is a material with its own unwrap filling 0..1, so a design bound to
+ * it lands on that panel and nowhere else. `aspect` and `fit` are per zone
+ * rather than per product because the panels of one product are not the same
+ * shape — a tote's side is half the width of its front — and because the
+ * bottle wraps where everything else fits.
+ */
+export type ArtworkZone = {
+  /** Height / width, when measuring the panel cannot give it. */
+  aspect?: number;
+  /** How the design is sized onto this zone. Defaults to the product's. */
+  fit?: ArtworkFit;
+  /** The material carrying this zone's print, by name. */
+  material: string;
+};
+
+/**
+ * The schema target each zone's upload writes to.
+ *
+ * Written out rather than derived so a search for the target finds it. The
+ * front slot keeps `artwork.image`, which is what every device already uses
+ * and what the media-lifecycle contract names.
+ */
+export const ARTWORK_ZONE_TARGETS: Readonly<Record<ArtworkZoneId, string>> = {
+  back: "artwork.imageBack",
+  front: "artwork.image",
+  left: "artwork.imageLeft",
+  right: "artwork.imageRight",
+};
+
+/**
  * The separator between a shared material's name and the mesh it was split for.
  *
  * Lives here rather than beside the split itself because the catalog writes

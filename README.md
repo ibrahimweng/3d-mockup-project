@@ -42,13 +42,13 @@ framework preset, the `npm run build` command and the `dist` output directory.
 These carry a printed design rather than a display. The same upload, the same
 studio and the same export work on all of them.
 
-| Product | Model file | Print zones | Colour slots |
+| Product | Model file | Upload slots | Colour slots |
 | --- | --- | --- | --- |
-| T-Shirt | `tshirt.glb` | Front, back, left sleeve, right sleeve | Collar rib, hem facing |
-| Tote Bag | `tote-bag.glb` | Front, back, left side, right side | Handles, trim, base |
-| Water Bottle | `water-bottle.glb` | One image wrapped 360° around the body | Cap, ring, latch |
-| ID Card | `id-card.glb` | Card front, card back | Clip, card edge |
-| Tablet Folder | `tablet-folder.glb` | The top sheet | Board, pen, clip |
+| T-Shirt | `tshirt.glb` | Front, Back, Left sleeve, Right sleeve | Collar rib, hem facing |
+| Tote Bag | `tote-bag.glb` | Front, Back, Left side, Right side | Handles, trim, base |
+| Water Bottle | `water-bottle.glb` | One, wrapped 360° around the body | Cap, ring, latch |
+| ID Card | `id-card.glb` | Front, Back | Clip, card edge |
+| Tablet Folder | `tablet-folder.glb` | One, on the top sheet | Board, pen, clip |
 
 ### Where the design lands, and why it flows
 
@@ -118,15 +118,44 @@ Clearing the upload puts the template back, which is why the template is
 captured alongside the model's other print maps rather than being a starting
 value that gets overwritten.
 
+### Uploading to a zone
+
+The Screenshot section carries an uploader per zone: the unlabelled drop zone at
+the top is the front, and Back, Left and Right appear underneath on the products
+that have them. A card shows two, a tote and a shirt show four, a bottle and
+every device show one, because which slots exist is read off the catalog rather
+than listed in the panel — declaring a zone is the single act that offers its
+upload.
+
+Four slots rather than a slot per named part, for the same reason there are
+three colour slots rather than one per part: schema controls are static, so a
+product cannot declare "left sleeve" and have a control appear for it. Left and
+right mean the same thing on every product — the side you see on the left of an
+unrotated model — so the shirt's left sleeve and the tote's left panel are the
+same slot.
+
+Each slot is independent. Uploading to one leaves the others as they were,
+clearing one puts that zone's template back and leaves the rest printed, and the
+rotate and flip actions under each uploader turn that zone's image alone. The
+export reads the same four slots the canvas does, so the file matches the frame
+you were looking at.
+
+The one control they share is Screen fit, below: Fit, Fill, Stretch, scale,
+position and stretch apply to every zone at once. A design fitted to the front
+is fitted to the back with it. That is a real limit rather than an oversight —
+per-zone placement would be four more sections of the same six controls — and it
+matters most where two zones are different shapes, which is the tote, whose
+sides are about half the width of its front.
+
 ### What is not built yet
 
-The app has one upload slot. It binds to the front zone of whichever product is
-loaded — the shirt front, the card front, the tote front, the bottle body — and
-the other zones show their templates. Printing different images on the back, the
-sides and the sleeves needs a slot per zone in the controls, and that is not in
-this branch. Nor is a download button for the templates: they are files under
-`public/templates/`, reachable at `/templates/<name>.png` when the app is
+There is no download button for the templates. They are files under
+`public/templates/`, reachable at `/templates/<name>.png` while the app is
 running, and nothing in the UI offers them yet.
+
+A colour under a transparent PNG is not a feature. A print zone is not also a
+colour slot — see below — so a design with transparency shows the template or
+the fabric through it rather than a chosen background colour.
 
 ### How the design is bound
 
@@ -382,6 +411,8 @@ it.
   product decisions and the evidence behind them.
 - `public/models` — the GLBs, and `public/templates` — a placeholder image
   for every print zone, which is also what each model renders before an upload.
+- `src/app/product-applicability.ts` — which products offer which controls,
+  computed from the catalog so a slot and its control cannot disagree.
 - `legacy/procedural-scenes` — superseded code that built devices from geometry
   before real GLB models arrived. Kept outside `src/` deliberately so the
   code-health gates do not scan it.

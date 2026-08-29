@@ -36,9 +36,12 @@ export const MERCHANDISE_CATALOG = {
     // in the original. Back and left sleeve are mirrored in u so artwork reads
     // the right way round from those sides.
     //
-    // Only the front is bound to the single upload this app has today. The
-    // other three carry their templates until there are four slots to fill.
     screenMaterial: "Shirt_Front",
+    artworkZones: {
+      back: { material: "Shirt_Back" },
+      left: { material: "Shirt_Sleeve_Left" },
+      right: { material: "Shirt_Sleeve_Right" },
+    },
   },
   "tote-bag": {
     // Four print zones as separate materials, so each carries its own image on
@@ -57,10 +60,13 @@ export const MERCHANDISE_CATALOG = {
     artworkSurface: "print",
     // Front, back, left and right are each unwrapped in the file, filling 0 to
     // 1 on their own. Back and left are mirrored in u so artwork reads the
-    // right way round from those sides rather than reversed. Only the front is
-    // bound to the single upload this app has today; the other three carry
-    // their templates until there are four slots to fill.
+    // right way round from those sides rather than reversed.
     screenMaterial: "Bag_Front",
+    artworkZones: {
+      back: { material: "Bag_Back" },
+      left: { material: "Bag_Left" },
+      right: { material: "Bag_Right" },
+    },
     // The bag's face normal points along X and the camera looks down +Z, so
     // without this it presents its 2.8-unit edge instead of its 6-unit face.
     yawDegrees: 90,
@@ -107,10 +113,8 @@ export const MERCHANDISE_CATALOG = {
     // the back is mirrored in u so artwork reads the right way round when the
     // card is turned rather than appearing reversed. The card measures
     // 2.131 by 3.062, so a design at 0.70 to 1 lands undistorted.
-    //
-    // Only the front is bound to the single upload this app has today. The
-    // back carries its template until there are two slots to fill.
     screenMaterial: "Card_Front",
+    artworkZones: { back: { material: "Card_Back" } },
   },
   "tablet-folder": {
     colorParts: {

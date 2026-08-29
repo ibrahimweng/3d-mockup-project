@@ -7,9 +7,9 @@ import {
   type PartColors,
 } from "./model-appearance";
 import {
-  bindArtwork,
+  bindZoneArtwork,
   capturePrintRelief,
-  wrapArtwork,
+  type ArtworkZoneBinding,
 } from "./artwork-binding";
 import { createKeyLight } from "./scene-key";
 import { createRoom } from "./scene-room";
@@ -63,11 +63,13 @@ import {
 } from "./device-assets";
 
 import type {
+  ArtworkZoneId,
   DeviceDefinition,
   DeviceSurface,
   FinishId,
   LightPatternId,
 } from "../product-domain";
+import { readArtworkZones } from "../product-applicability";
 
 export { loadEnvironment } from "./device-assets";
 
@@ -380,16 +382,34 @@ export async function buildDeviceScene(options: {
         : key.intensity * definition.bounce.share;
   };
 
-  const screenMaterials = findScreenMaterials(
-    subject,
-    options.device.screenMaterial,
-  );
-  const screenAspect =
-    options.device.screenAspect ??
-    measureScreenAspect(subject, screenMaterials, 9 / 19.5);
-
   const clearRelief = options.device.clearPrintRelief === true;
-  const printRelief = capturePrintRelief(screenMaterials, clearRelief);
+
+  /**
+   * One binding per zone the product declares, resolved against this model.
+   *
+   * A zone whose material the file does not carry is dropped rather than
+   * bound to whatever the fallback finds, because the fallback is "the
+   * strongest emissive material" — right for a display named something else
+   * after a re-export, and quite wrong for a sleeve.
+   */
+  const zones = new Map<ArtworkZoneId, ArtworkZoneBinding>();
+  for (const [id, zone] of readArtworkZones(options.device)) {
+    const materials = findScreenMaterials(subject, zone.material);
+    if (materials.length === 0) continue;
+    zones.set(id, {
+      aspect:
+        zone.aspect ??
+        (id === "front" ? options.device.screenAspect : undefined) ??
+        measureScreenAspect(subject, materials, 9 / 19.5),
+      fit: zone.fit,
+      materials,
+      relief: capturePrintRelief(materials, clearRelief),
+      slack: { x: 0, y: 0 },
+    });
+  }
+  // The front is what a pointer drags on and what the unwrap is rebuilt for.
+  const front = zones.get("front");
+  const screenMaterials = front?.materials ?? [];
 
   const findScreenMeshes = (root: THREE.Object3D): THREE.Mesh[] => {
     const found: THREE.Mesh[] = [];
@@ -417,8 +437,6 @@ export async function buildDeviceScene(options: {
   if (options.device.screenUnwrap) {
     unwrapScreen([...screenMeshes, ...findScreenMeshes(mirror)]);
   }
-
-  const slack: ScreenSlack = { x: 0, y: 0 };
 
   const camera = new THREE.PerspectiveCamera(
     35,
@@ -469,7 +487,7 @@ export async function buildDeviceScene(options: {
       // caller's job because only the caller knows it is about to draw.
       return true;
     },
-    getScreenSlack: () => ({ x: slack.x, y: slack.y }),
+    getScreenSlack: () => ({ x: front?.slack.x ?? 0, y: front?.slack.y ?? 0 }),
     screenMeshes,
     setEnvironment: (next) => {
       scene.environment = next;
@@ -528,18 +546,16 @@ export async function buildDeviceScene(options: {
       });
     },
     scene,
-    setArtwork: (texture, transform) => {
-      if (screenMaterials.length === 0) return;
-      if (texture && !wrapArtwork(texture, options.device.artworkFit, slack)) {
-        applyScreenTransform(texture, screenAspect, transform, slack);
+    setArtwork: (textures, transform) => {
+      for (const [id, binding] of zones) {
+        bindZoneArtwork({
+          binding,
+          clearRelief,
+          printed: options.device.artworkSurface === "print",
+          texture: textures.get(id) ?? null,
+          transform,
+        });
       }
-      bindArtwork({
-        clearRelief,
-        materials: screenMaterials,
-        printed: options.device.artworkSurface === "print",
-        relief: printRelief,
-        texture,
-      });
     },
     subject,
     framing,

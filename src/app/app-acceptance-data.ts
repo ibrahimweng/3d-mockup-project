@@ -325,9 +325,16 @@ export const appControlSectionInventory: readonly ToolcraftControlSectionInvento
       entity: "Screenshot",
       entityId: "artwork",
       groupingReason:
-        "The uploaded image and the two pads that place it on the display are the picture itself and where it sits; all three are standalone-layout controls, so the runtime keeps them in one titled section.",
+        "The uploaded images and the two pads that place them are the picture itself and where it sits; the four uploaders are one decision taken up to four times, because a product with four printable zones is still one design, and all six are standalone-layout controls, so the runtime keeps them in one titled section.",
       id: "artwork",
-      targets: ["artwork.image", "artwork.offset", "artwork.stretch"],
+      targets: [
+        "artwork.image",
+        "artwork.imageBack",
+        "artwork.imageLeft",
+        "artwork.imageRight",
+        "artwork.offset",
+        "artwork.stretch",
+      ],
       title: "Screenshot",
     },
     {

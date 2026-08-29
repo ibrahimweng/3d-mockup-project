@@ -42,10 +42,16 @@ export const rendererPipeline = registerToolcraftRendererPipeline<Contracts>()({
     {
       interaction: "media-import",
       invalidates: ["artwork-texture", "raster-frame"],
-      // Loading a screenshot must not reload the model or re-convolve the
-      // environment; only the display material's texture changes.
+      // Loading a design must not reload the model or re-convolve the
+      // environment; only that zone's material texture changes. All four
+      // slots, because a shirt's back is the same cost as its front.
       mustNotInvalidate: ["scene-load"],
-      targets: ["artwork.image"],
+      targets: [
+        "artwork.image",
+        "artwork.imageBack",
+        "artwork.imageLeft",
+        "artwork.imageRight",
+      ],
     },
     {
       // The device is a different GLB and the environment is the lighting
@@ -100,8 +106,9 @@ export const rendererPipeline = registerToolcraftRendererPipeline<Contracts>()({
       runsOn: "main",
     },
     {
-      // The screenshot, decoded and bound to the display material's emissive
-      // channel. Retained against the source rather than the frame.
+      // Each design, decoded and bound to its zone — a display's emissive
+      // channel, a printed panel's base colour. Retained against the source
+      // rather than the frame.
       cacheKey: ["artworkId"],
       cost: {
         dimensions: [],
@@ -109,8 +116,18 @@ export const rendererPipeline = registerToolcraftRendererPipeline<Contracts>()({
         relationship: "constant",
       },
       id: "artwork-texture",
-      inputs: ["artwork.image"],
-      invalidatedBy: ["artwork.image"],
+      inputs: [
+        "artwork.image",
+        "artwork.imageBack",
+        "artwork.imageLeft",
+        "artwork.imageRight",
+      ],
+      invalidatedBy: [
+        "artwork.image",
+        "artwork.imageBack",
+        "artwork.imageLeft",
+        "artwork.imageRight",
+      ],
       kind: "preprocess",
       lifecycle: { cache: "retained-resource", resourceScope: "source" },
       output: "intermediate",
