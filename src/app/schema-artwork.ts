@@ -1,4 +1,7 @@
-import { ARTWORK_ZONE_DEVICES } from "./product-applicability";
+import {
+  ARTWORK_TEMPLATE_DEVICES,
+  ARTWORK_ZONE_DEVICES,
+} from "./product-applicability";
 
 /**
  * The design, and the four places it can land.
@@ -110,4 +113,42 @@ export const ARTWORK_SECTION = {
   },
   id: "artwork",
   title: "Screenshot",
+} as const;
+
+/**
+ * The reference sheet for the uploaders above it.
+ *
+ * Its own section because the actions control is grouped-layout and the
+ * uploaders and pads are standalone: mixing the two in one section makes the
+ * runtime cut it into unlabelled fragments, which is what the schema test
+ * that caught this exists to prevent.
+ *
+ * Not in the delivery footer either, though that is where the framework puts
+ * download actions. That footer is the product coming out — Export PNG,
+ * Export Video — and this is the thing you draw over before a design goes in.
+ * Sitting it under the slots it belongs to is worth more than sitting it
+ * beside the other button with an arrow on it.
+ */
+export const ARTWORK_TEMPLATES_SECTION = {
+  controls: {
+    templates: {
+      actions: [
+        { icon: "download", label: "Download", value: "download-templates" },
+      ],
+      applicability: {
+        all: [{ oneOf: ARTWORK_TEMPLATE_DEVICES, target: "device.model" }],
+        mode: "conditional",
+      },
+      description:
+        "The placeholder each zone ships with, at the exact size and orientation its unwrap expects. A design drawn over one lands where it was drawn. Several zones arrive as a zip.",
+      label: false,
+      performanceReason:
+        "Reads files already served beside the models and hands them to the browser; nothing is rendered or rebuilt.",
+      performanceRole: "responsiveness",
+      target: "artwork.templates",
+      type: "actions",
+    },
+  },
+  id: "artwork-templates",
+  title: "Templates",
 } as const;

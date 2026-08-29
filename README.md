@@ -113,6 +113,20 @@ The bottle's is the one to look at first: it is marked at the quarter turns, so
 you can see which part of a 360° wrap faces the camera before drawing anything
 on it.
 
+**Download** under Templates hands them back. A product with one zone gives you
+that PNG; a product with several gives you a zip, one file per zone. What comes
+down is the file the model was built from rather than anything regenerated — a
+design drawn over a template lands where it was drawn only while the two are
+the same image, so there is one copy of each and the download links straight at
+it. Devices have no Templates section: a screen has proportions but no printed
+sheet.
+
+The archives are committed beside the images and rebuilt with
+`node scripts/build-template-archives.mjs <archive.zip> <name.png>...`. A test
+opens each one and compares every entry against the file on disk, because an
+archive that has fallen behind is worse than none — it looks right and lands a
+design somewhere it was not drawn for.
+
 Uploading a design replaces the template on the zone the upload is bound to.
 Clearing the upload puts the template back, which is why the template is
 captured alongside the model's other print maps rather than being a starting
@@ -148,10 +162,6 @@ matters most where two zones are different shapes, which is the tote, whose
 sides are about half the width of its front.
 
 ### What is not built yet
-
-There is no download button for the templates. They are files under
-`public/templates/`, reachable at `/templates/<name>.png` while the app is
-running, and nothing in the UI offers them yet.
 
 A colour under a transparent PNG is not a feature. A print zone is not also a
 colour slot — see below — so a design with transparency shows the template or

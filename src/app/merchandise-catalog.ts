@@ -38,9 +38,16 @@ export const MERCHANDISE_CATALOG = {
     //
     screenMaterial: "Shirt_Front",
     artworkZones: {
-      back: { material: "Shirt_Back" },
-      left: { material: "Shirt_Sleeve_Left" },
-      right: { material: "Shirt_Sleeve_Right" },
+      back: { material: "Shirt_Back", template: "tshirt-back.png" },
+      front: { template: "tshirt-front.png" },
+      left: {
+        material: "Shirt_Sleeve_Left",
+        template: "tshirt-sleeve-left.png",
+      },
+      right: {
+        material: "Shirt_Sleeve_Right",
+        template: "tshirt-sleeve-right.png",
+      },
     },
   },
   "tote-bag": {
@@ -63,9 +70,10 @@ export const MERCHANDISE_CATALOG = {
     // right way round from those sides rather than reversed.
     screenMaterial: "Bag_Front",
     artworkZones: {
-      back: { material: "Bag_Back" },
-      left: { material: "Bag_Left" },
-      right: { material: "Bag_Right" },
+      back: { material: "Bag_Back", template: "tote-bag-back.png" },
+      front: { template: "tote-bag-front.png" },
+      left: { material: "Bag_Left", template: "tote-bag-left.png" },
+      right: { material: "Bag_Right", template: "tote-bag-right.png" },
     },
     // The bag's face normal points along X and the camera looks down +Z, so
     // without this it presents its 2.8-unit edge instead of its 6-unit face.
@@ -90,6 +98,7 @@ export const MERCHANDISE_CATALOG = {
     // a single seam at the back. Measured from the geometry, the wrap is
     // 1.13 to 1, so a design authored at that ratio lands undistorted.
     screenMaterial: "Bottle_Body",
+    artworkZones: { front: { template: "water-bottle-body.png" } },
   },
   "id-card": {
     // The file paints the card and the clip with one material and separates
@@ -114,7 +123,10 @@ export const MERCHANDISE_CATALOG = {
     // card is turned rather than appearing reversed. The card measures
     // 2.131 by 3.062, so a design at 0.70 to 1 lands undistorted.
     screenMaterial: "Card_Front",
-    artworkZones: { back: { material: "Card_Back" } },
+    artworkZones: {
+      back: { material: "Card_Back", template: "id-card-back.png" },
+      front: { template: "id-card-front.png" },
+    },
   },
   "tablet-folder": {
     colorParts: {

@@ -194,6 +194,23 @@ export const subjectAcceptance: readonly ToolcraftComponentAcceptance[] = [
   },
   {
     automated: true,
+    automatedTestName: "every zone that ships a template can hand it back",
+    browser: true,
+    browserTestName:
+      "browser: the templates button hands back the files the model was built from",
+    componentType: "actions",
+    evidence: "product-output",
+    expectedObservable:
+      "Pressing Download on a merchandise product saves that product's templates \u2014 one PNG where it has a single zone, a zip of one file per zone where it has several \u2014 and the button offers nothing on a device, which ships no printed sheet.",
+    fixture: "each merchandise product, and one device as the negative case",
+    id: "artwork.templates.download",
+    kind: "control",
+    target: "artwork.templates",
+    userAction:
+      "Select a merchandise product and press Download under Templates.",
+  },
+  {
+    automated: true,
     automatedTestName: "fit modes map to the display texture repeat",
     browser: true,
     browserTestName:

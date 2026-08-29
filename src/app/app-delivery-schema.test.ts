@@ -1,15 +1,27 @@
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+
+import { unzipSync } from "fflate";
 import { describe, expect, test } from "vitest";
 
 import { appSchema } from "./app-schema";
 import {
+  ARTWORK_TEMPLATE_DEVICES,
   ARTWORK_ZONE_DEVICES,
+  readArtworkTemplates,
   readArtworkZones,
 } from "./product-applicability";
 import {
   ARTWORK_ZONE_IDS,
   ARTWORK_ZONE_TARGETS,
+  artworkTemplateArchive,
   DEVICE_CATALOG,
+  TEMPLATE_DIRECTORY,
 } from "./product-domain";
+import { readTemplateDownload } from "./template-download";
+
+/** The served directory, as a path a test can stat. */
+const TEMPLATES_ON_DISK = join(process.cwd(), "public", "templates");
 
 /**
  * What the product promises about getting a frame out, and about keeping the
@@ -211,4 +223,83 @@ describe("what survives a reload", () => {
       "values",
     ]);
   });
+});
+
+test("every zone that ships a template can hand it back", () => {
+  const control = controlAt("artwork.templates");
+  expect(control?.type).toBe("actions");
+  expect(
+    control?.actions?.map((action) =>
+      typeof action === "string" ? action : action.value,
+    ),
+  ).toEqual(["download-templates"]);
+
+  // Offered exactly where there is something to offer. The list is derived
+  // from the catalog, so a product that gains a template gains the button and
+  // one that has none never shows a control that would download nothing.
+  const withTemplates = (
+    Object.keys(DEVICE_CATALOG) as (keyof typeof DEVICE_CATALOG)[]
+  ).filter((id) => readArtworkTemplates(DEVICE_CATALOG[id]).length > 0);
+  expect([...ARTWORK_TEMPLATE_DEVICES].sort()).toEqual([...withTemplates].sort());
+  expect(withTemplates.length).toBeGreaterThan(0);
+
+  for (const id of Object.keys(DEVICE_CATALOG) as (keyof typeof DEVICE_CATALOG)[]) {
+    const templates = readArtworkTemplates(DEVICE_CATALOG[id]);
+    const zones = readArtworkZones(DEVICE_CATALOG[id]);
+
+    // Every template belongs to a zone that exists, and no two zones hand back
+    // the same file: two zones sharing a template is a design drawn for one
+    // panel and printed on another.
+    const files = templates.map((template) => template.file);
+    expect(new Set(files).size, `${id} repeats a template file`).toBe(files.length);
+    for (const template of templates) {
+      expect(zones.has(template.zone)).toBe(true);
+      expect(template.file).toMatch(/^[a-z0-9-]+\.png$/);
+    }
+
+    // A merchandise product templates all of its zones or none of them. A
+    // partial set is the case where someone downloads three sheets, draws four
+    // designs, and one of them lands somewhere it was not drawn for.
+    expect(
+      templates.length === 0 || templates.length === zones.size,
+      `${id} templates ${templates.length} of its ${zones.size} zones`,
+    ).toBe(true);
+
+    // What the button actually points at has to be there, and for several
+    // zones it is a committed archive rather than something built at the
+    // moment of the press.
+    const download = readTemplateDownload(DEVICE_CATALOG[id], id);
+    expect(Boolean(download), `${id} offers no download`).toBe(
+      templates.length > 0,
+    );
+    if (!download) continue;
+    expect(download.href).toBe(`${TEMPLATE_DIRECTORY}/${download.name}`);
+    expect(existsSync(join(TEMPLATES_ON_DISK, download.name))).toBe(true);
+  }
+});
+
+test("each committed template archive matches the images beside it", () => {
+  // The archives are built once and committed, so they can fall behind the
+  // PNGs they were made from — and a stale template is worse than none,
+  // because it looks right and lands a design somewhere it was not drawn for.
+  // Rebuild with:
+  //   node scripts/build-template-archives.mjs <archive.zip> <name.png>...
+  for (const id of Object.keys(DEVICE_CATALOG) as (keyof typeof DEVICE_CATALOG)[]) {
+    const templates = readArtworkTemplates(DEVICE_CATALOG[id]);
+    if (templates.length < 2) continue;
+
+    const archive = join(TEMPLATES_ON_DISK, artworkTemplateArchive(id));
+    const entries = unzipSync(new Uint8Array(readFileSync(archive)));
+    expect(Object.keys(entries).sort()).toEqual(
+      templates.map((template) => template.file).sort(),
+    );
+    for (const template of templates) {
+      const packed = Buffer.from(entries[template.file]);
+      const onDisk = readFileSync(join(TEMPLATES_ON_DISK, template.file));
+      expect(
+        packed.equals(onDisk),
+        `${artworkTemplateArchive(id)} holds a stale ${template.file}`,
+      ).toBe(true);
+    }
+  }
 });

@@ -65,7 +65,11 @@ export function readArtworkZones(
   device: DeviceDefinition,
 ): ReadonlyMap<ArtworkZoneId, ArtworkZone> {
   const zones = new Map<ArtworkZoneId, ArtworkZone>();
-  zones.set("front", { fit: device.artworkFit, material: device.screenMaterial });
+  zones.set("front", {
+    fit: device.artworkFit,
+    ...device.artworkZones?.front,
+    material: device.screenMaterial,
+  });
   for (const id of ARTWORK_ZONE_IDS) {
     if (id === "front") continue;
     const zone = device.artworkZones?.[id];
@@ -73,6 +77,25 @@ export function readArtworkZones(
   }
   return zones;
 }
+
+/**
+ * The templates a product ships, in the order its slots appear.
+ *
+ * Empty for every device, which is what keeps the download out of their panel:
+ * a screen has proportions but no printed sheet to draw against.
+ */
+export function readArtworkTemplates(
+  device: DeviceDefinition,
+): readonly { file: string; zone: ArtworkZoneId }[] {
+  return [...readArtworkZones(device)]
+    .filter(([, zone]) => zone.template)
+    .map(([id, zone]) => ({ file: zone.template as string, zone: id }));
+}
+
+/** Which products have a template to hand back. */
+export const ARTWORK_TEMPLATE_DEVICES: readonly DeviceId[] = (
+  Object.keys(DEVICE_CATALOG) as DeviceId[]
+).filter((id) => readArtworkTemplates(DEVICE_CATALOG[id]).length > 0);
 
 /**
  * Which products offer each upload slot.

@@ -338,6 +338,15 @@ export const appControlSectionInventory: readonly ToolcraftControlSectionInvento
       title: "Screenshot",
     },
     {
+      entity: "Templates",
+      entityId: "artwork-templates",
+      groupingReason:
+        "One command, kept out of the Screenshot section because an actions control is grouped-layout where the uploaders and pads beside it are standalone, and out of the delivery footer because the templates are what a design is drawn against rather than the product coming out.",
+      id: "artwork-templates",
+      targets: ["artwork.templates"],
+      title: "Templates",
+    },
+    {
       entity: "Screen fit",
       entityId: "screen-fit",
       groupingReason:

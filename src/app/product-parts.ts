@@ -89,7 +89,31 @@ export type ArtworkZone = {
   fit?: ArtworkFit;
   /** The material carrying this zone's print, by name. */
   material: string;
+  /**
+   * The placeholder this zone ships with, as a file under `public/templates`.
+   *
+   * The same image is baked into the GLB as the zone's base colour, so this is
+   * not a second copy of anything — it is the name of the file the model was
+   * built from, which is what lets the app hand it back to someone about to
+   * draw a design. A zone with no entry has no template to offer, which is
+   * every device: a screen has proportions but no printed sheet.
+   */
+  template?: string;
 };
+
+/**
+ * Where the templates are served from, and what a product's archive is called.
+ *
+ * A product with several zones hands back one archive rather than one download
+ * per zone, because one press producing four saves is something browsers ask
+ * permission for and people read as a fault. The archives are built by
+ * `scripts/build-template-archives.mjs` and committed beside the images.
+ */
+export const TEMPLATE_DIRECTORY = "/templates";
+
+export function artworkTemplateArchive(productId: string): string {
+  return `${productId}-templates.zip`;
+}
 
 /**
  * The schema target each zone's upload writes to.

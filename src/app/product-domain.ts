@@ -12,9 +12,11 @@ import {
 export {
   ARTWORK_ZONE_IDS,
   ARTWORK_ZONE_TARGETS,
+  artworkTemplateArchive,
   COLOR_PART_IDS,
   DEFAULT_PART_COLORS,
   SPLIT_MATERIAL_SEPARATOR,
+  TEMPLATE_DIRECTORY,
 } from "./product-parts";
 export type {
   ArtworkFit,
@@ -294,7 +296,10 @@ export type DeviceDefinition = {
    * that is every device. See `ArtworkZone` for what a zone is; read them
    * through `readArtworkZones`, which fills the front in.
    */
-  artworkZones?: Partial<Record<Exclude<ArtworkZoneId, "front">, ArtworkZone>>;
+  artworkZones?: {
+    /** No material: the front's is `screenMaterial`, which is already named. */
+    front?: Omit<ArtworkZone, "material">;
+  } & Partial<Record<Exclude<ArtworkZoneId, "front">, ArtworkZone>>;
   /**
    * Give every mesh its own copy of the material it shares, named after the
    * mesh.
@@ -623,6 +628,13 @@ export function readDeviceDefinition(value: unknown): DeviceDefinition {
   return (
     DEVICE_CATALOG[value as DeviceId] ?? DEVICE_CATALOG[DEFAULT_DEVICE]
   );
+}
+
+/** The catalog id a control is holding, or the default when it holds nothing. */
+export function readDeviceId(value: unknown): DeviceId {
+  return typeof value === "string" && value in DEVICE_CATALOG
+    ? (value as DeviceId)
+    : DEFAULT_DEVICE;
 }
 
 /**

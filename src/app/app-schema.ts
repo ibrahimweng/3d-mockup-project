@@ -6,7 +6,10 @@ import {
   LIGHT_PATTERN_OPTIONS,
 } from "./product-domain";
 import { SURFACE_DEVICES } from "./product-applicability";
-import { ARTWORK_SECTION } from "./schema-artwork";
+import {
+  ARTWORK_SECTION,
+  ARTWORK_TEMPLATES_SECTION,
+} from "./schema-artwork";
 import { PRODUCT_PARTS_SECTION } from "./schema-product-parts";
 import { DEFAULT_SCENE_PRESET, SCENE_PRESET_OPTIONS } from "./scene-presets";
 import { DEFAULT_SURFACE, SURFACE_OPTIONS } from "./surfaces";
@@ -193,6 +196,7 @@ export const appSchema = defineToolcraft({
         },
         PRODUCT_PARTS_SECTION,
         ARTWORK_SECTION,
+        ARTWORK_TEMPLATES_SECTION,
         {
           controls: {
             fit: {
