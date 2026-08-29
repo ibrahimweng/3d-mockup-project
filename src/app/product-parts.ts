@@ -45,6 +45,17 @@ export type ColorPart = {
 export type ArtworkSurface = "display" | "print";
 
 /**
+ * How a supplied design is sized onto the surface it prints on.
+ *
+ * "fit" is the display behaviour: the design is scaled and offset to sit well
+ * inside a panel whose proportions it does not know. "wrap" is for a surface
+ * whose texture coordinates were authored for exactly one image, such as a
+ * cylinder unwrapped once around its axis. There the design has to land one to
+ * one, because scaling it moves the two ends apart and opens the seam.
+ */
+export type ArtworkFit = "fit" | "wrap";
+
+/**
  * The separator between a shared material's name and the mesh it was split for.
  *
  * Lives here rather than beside the split itself because the catalog writes

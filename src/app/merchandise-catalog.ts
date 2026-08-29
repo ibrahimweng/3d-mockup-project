@@ -65,21 +65,24 @@ export const MERCHANDISE_CATALOG = {
     yawDegrees: 90,
   },
   "water-bottle": {
+    // Split by height, which is where the parts actually divide: the body is
+    // everything below the thread and the head is the cap that screws onto it.
     colorParts: {
-      accent: { materials: ["PVC_Black_Matte0"] },
-      main: { materials: ["PVC_Black_Matte"] },
-      trim: { materials: ["Chrome_Clean"] },
+      accent: { materials: ["Bottle_Head_Latch"] },
+      main: { materials: ["Bottle_Head_Cap"] },
+      trim: { materials: ["Bottle_Head_Ring"] },
     },
     excludedNodes: [],
     frame: [0.315724, 0.875884, 0.364891],
     label: "Water Bottle",
     modelFile: "water-bottle.glb",
     artworkSurface: "print",
-    // Not unwrapped, and it is the one product here that must not be. The body
-    // is a cylinder carrying a proper wrap, u 0.12 to 0.83, and the planar
-    // projection that suits a flat panel would squash the label round the
-    // curve. Its own coordinates are already the right ones.
-    screenMaterial: "02_-_Default",
+    artworkFit: "wrap",
+    // The body carries one continuous wrap, written into the file rather than
+    // computed here: angle around the axis is u, height is v, and the join is
+    // a single seam at the back. Measured from the geometry, the wrap is
+    // 1.13 to 1, so a design authored at that ratio lands undistorted.
+    screenMaterial: "Bottle_Body",
   },
   "id-card": {
     colorParts: {

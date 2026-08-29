@@ -1,13 +1,14 @@
 import { MERCHANDISE_CATALOG } from "./merchandise-catalog";
 import {
   COLOR_PART_IDS,
+  type ArtworkFit,
   type ArtworkSurface,
   type ColorPart,
   type ColorPartId,
 } from "./product-parts";
 
 export { COLOR_PART_IDS, DEFAULT_PART_COLORS, SPLIT_MATERIAL_SEPARATOR } from "./product-parts";
-export type { ArtworkSurface, ColorPart, ColorPartId } from "./product-parts";
+export type { ArtworkFit, ArtworkSurface, ColorPart, ColorPartId } from "./product-parts";
 
 /**
  * Product option sets and the device catalog.
@@ -247,6 +248,8 @@ export type DeviceDefinition = {
    * which is what every device in this catalog is.
    */
   artworkSurface?: ArtworkSurface;
+  /** How the design is sized onto the surface. Defaults to "fit". */
+  artworkFit?: ArtworkFit;
   /**
    * Set the print surface's relief and metal maps aside while a design is on it.
    *

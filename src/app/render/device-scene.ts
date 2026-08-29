@@ -623,7 +623,20 @@ export async function buildDeviceScene(options: {
     scene,
     setArtwork: (texture, transform) => {
       if (screenMaterials.length === 0) return;
-      if (texture) applyScreenTransform(texture, screenAspect, transform, slack);
+      // A wrap was unwrapped in the file for exactly one image, so it maps one
+      // to one. Repeat wrapping is what lets the seam triangles, whose u runs
+      // past 1, join the far edge instead of smearing the last column.
+      if (texture && options.device.artworkFit === "wrap") {
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(1, 1);
+        texture.offset.set(0, 0);
+        texture.needsUpdate = true;
+        slack.x = 0;
+        slack.y = 0;
+      } else if (texture) {
+        applyScreenTransform(texture, screenAspect, transform, slack);
+      }
       bindArtwork({
         clearRelief,
         materials: screenMaterials,

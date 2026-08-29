@@ -22,6 +22,7 @@ export type PrintRelief = ReadonlyMap<
   THREE.MeshStandardMaterial,
   {
     aoMap: THREE.Texture | null;
+    map: THREE.Texture | null;
     metalnessMap: THREE.Texture | null;
     normalMap: THREE.Texture | null;
     roughnessMap: THREE.Texture | null;
@@ -36,19 +37,23 @@ export function capturePrintRelief(
     THREE.MeshStandardMaterial,
     {
       aoMap: THREE.Texture | null;
+      map: THREE.Texture | null;
       metalnessMap: THREE.Texture | null;
       normalMap: THREE.Texture | null;
       roughnessMap: THREE.Texture | null;
     }
   >();
-  if (!clearRelief) return relief;
 
+  // The base colour map is captured whatever the product asked for, because
+  // clearing an upload has to put back the template the file ships with rather
+  // than leaving the surface blank.
   for (const material of materials) {
     relief.set(material, {
-      aoMap: material.aoMap,
-      metalnessMap: material.metalnessMap,
-      normalMap: material.normalMap,
-      roughnessMap: material.roughnessMap,
+      aoMap: clearRelief ? material.aoMap : null,
+      map: material.map,
+      metalnessMap: clearRelief ? material.metalnessMap : null,
+      normalMap: clearRelief ? material.normalMap : null,
+      roughnessMap: clearRelief ? material.roughnessMap : null,
     });
   }
   return relief;
@@ -64,7 +69,10 @@ export function bindArtwork(request: {
   const { clearRelief, materials, printed, relief, texture } = request;
 
   for (const material of materials) {
-    material.map = texture;
+    // No upload means the surface goes back to the template printed into the
+    // file, which is what makes a product arrive showing where a design lands
+    // instead of arriving blank.
+    material.map = texture ?? relief.get(material)?.map ?? null;
 
     if (printed) {
       // A coloured surface under the design would tint it, so the base colour
