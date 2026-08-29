@@ -146,6 +146,25 @@ export function ControlSectionHeader({
     event.stopPropagation();
   }
 
+  /**
+   * Keep the header's own keys from the buttons beside it, and nothing else.
+   *
+   * This used to stop every keydown, so any key pressed while the collapse or
+   * reset button held focus died here instead of reaching the document — and
+   * the app's undo and redo shortcuts are document listeners on the bubble
+   * phase. Collapsing a section and pressing Control+z then did nothing at
+   * all, silently, because focus was still on the button that collapsed it.
+   * The header acts on Enter and Space and no others, so those are the only
+   * two worth swallowing.
+   */
+  function stopHeaderKeyToggle(event: React.KeyboardEvent): void {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    event.stopPropagation();
+  }
+
   return (
     <div
       aria-expanded={collapsible ? !collapsed : undefined}
@@ -169,7 +188,7 @@ export function ControlSectionHeader({
         <div
           className="inline-flex shrink-0 items-center gap-1"
           onClick={stopHeaderToggle}
-          onKeyDown={stopHeaderToggle}
+          onKeyDown={stopHeaderKeyToggle}
           onPointerDown={stopHeaderToggle}
         >
           {action}

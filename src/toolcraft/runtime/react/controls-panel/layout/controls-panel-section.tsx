@@ -291,9 +291,10 @@ export const ControlsPanelSection = React.memo(function ControlsPanelSection({
    * authored section in half, and no ordering or grouping the product could
    * choose won the room back, because nothing is allowed above Setup.
    *
-   * It stays open until someone closes it. Starting it collapsed was tried and
-   * backed out: it reproducibly broke the orbit proof's undo step, three runs
-   * to three, and the cause was not found. See the worklog before trying again.
+   * Starting it collapsed was backed out once, because the proof session opens
+   * the panel and left focus on this header's collapse button, where every
+   * keydown was being swallowed and the app's Control+z died with it. That was
+   * a fault in the header, not in the default, and it is fixed.
    *
    * Reset stays off here: these are runtime-owned settings, and a section
    * reset that silently resized the canvas is not what that button means.

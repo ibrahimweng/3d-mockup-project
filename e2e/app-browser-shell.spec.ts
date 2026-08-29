@@ -227,3 +227,51 @@ test("canvas export-clean helper compares semantic output instead of encoder byt
     }),
   );
 });
+
+/**
+ * A section header must not swallow the keys the app listens for.
+ *
+ * The header stops propagation on the buttons beside its title so a press on
+ * Reset or Collapse does not also toggle the section. That used to stop every
+ * key, and the runtime's undo and redo are document listeners on the bubble
+ * phase — so collapsing a section left focus on the button that collapsed it
+ * and Control+z silently did nothing from then on. It cost a browser proof
+ * three runs to find, and nothing said what was wrong, which is why this is a
+ * test rather than a comment: the keys reach the document, and the two the
+ * header acts on itself do not.
+ */
+test("collapsing a section leaves the undo shortcut working", async ({ page }) => {
+  test.setTimeout(240_000);
+  await page.goto("/");
+  await page
+    .locator("[data-toolcraft-product-output]")
+    .first()
+    .waitFor({ state: "visible", timeout: 120_000 });
+
+  const collapse = page.locator("[data-control-section-collapse-button]").first();
+  await collapse.click();
+  await expect(
+    page.locator("[data-control-section-collapse-button]:focus"),
+    "The collapse button keeps focus after a click, which is the state this guards.",
+  ).toHaveCount(1);
+
+  const seen = await page.evaluate(async () => {
+    const keys: { key: string; phase: string }[] = [];
+    const record = (phase: string) => (event: KeyboardEvent) => {
+      keys.push({ key: event.key, phase });
+    };
+    document.addEventListener("keydown", record("bubble"), false);
+    const focused = document.activeElement as HTMLElement | null;
+    for (const key of ["z", "Enter"]) {
+      focused?.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, ctrlKey: key === "z", key }),
+      );
+    }
+    return keys;
+  });
+
+  expect(
+    seen.map((entry) => entry.key),
+    "Control+z must reach the document, where the runtime listens for undo; Enter belongs to the header and must not.",
+  ).toEqual(["z"]);
+});
