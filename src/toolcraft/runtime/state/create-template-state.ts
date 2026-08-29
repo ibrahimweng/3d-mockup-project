@@ -8,6 +8,7 @@ import type {
   ToolcraftTimelineKeyframeGroup,
   ToolcraftTimelineState,
 } from "./types";
+import { toolcraftRuntimeSetupSectionId } from "../schema/runtime-section-titles";
 import { toolcraftCanvasZoomDefault } from "./canvas-zoom";
 import {
   getToolcraftDefaultCanvasMode,
@@ -143,8 +144,23 @@ export function createToolcraftState(
   const validSectionIds = new Set(
     schema.panels.controls?.sections.map((section) => section.id) ?? [],
   );
+  /**
+   * Setup starts collapsed, until someone says otherwise.
+   *
+   * Its controls — canvas size, aspect ratio, resolution scale — are the ones
+   * a person sets when they begin and then leaves alone, and it sits above
+   * every product control with nothing allowed in front of it. Open, it took
+   * 349px of a 788px panel here and cut the first authored section in half.
+   *
+   * A stored record wins even when it is empty, which is the point: `{}` is
+   * someone having opened Setup and meant it, and is not the same as never
+   * having expressed a preference at all.
+   */
+  const storedCollapsedSections = initialState.panels?.controls?.collapsedSections;
   const collapsedSections = Object.fromEntries(
-    Object.entries(initialState.panels?.controls?.collapsedSections ?? {}).filter(
+    Object.entries(
+      storedCollapsedSections ?? { [toolcraftRuntimeSetupSectionId]: true },
+    ).filter(
       ([sectionId, collapsed]) => validSectionIds.has(sectionId) && collapsed === true,
     ),
   );
