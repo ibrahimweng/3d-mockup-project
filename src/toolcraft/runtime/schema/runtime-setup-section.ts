@@ -4,10 +4,7 @@ import {
 } from "./canvas-aspect-ratio-presets";
 import { normalizeToolcraftAdditionalValueTargets } from "./additional-value-targets";
 import { registerToolcraftInternalControlSection } from "./controls-panel-section-id";
-import {
-  toolcraftRuntimeSetupSectionId,
-  toolcraftRuntimeSetupSectionTitle,
-} from "./runtime-section-titles";
+import { toolcraftRuntimeSetupSectionTitle } from "./runtime-section-titles";
 import {
   toolcraftCanvasInfinityTarget,
   toolcraftTimelinePanelExtendedTarget,
@@ -355,7 +352,7 @@ export function createToolcraftRuntimeSetupSection({
       ...(renderScaleControl ? { canvasRenderScale: renderScaleControl } : {}),
       ...(timelineExtendedControl ? { timelineExtended: timelineExtendedControl } : {}),
     },
-    id: toolcraftRuntimeSetupSectionId,
+    id: "runtime.setup",
     layout: "standalone",
     layoutGroups: [
       ...backgroundControls.layoutGroups,

@@ -1,6 +1,6 @@
 # Upstream patch for the framework changes this app carries
 
-This app modifies 32 framework files and adds 4 more under `src/toolcraft/`.
+This app modifies 31 framework files and adds 4 more under `src/toolcraft/`.
 The integrity manifest is signed, so those changes can never verify here: the
 manifest can only be reissued by whoever holds the framework's private key.
 `timeline-and-runtime.patch` exists so that reissuing it is a review rather
@@ -10,7 +10,7 @@ than an archaeology exercise.
 
 `diff -ruN` from each file's pristine content — the version whose SHA-256
 matches `src/toolcraft/.toolcraft-manifest.json` — to the version this app
-ships. 36 files, +2039 / -193.
+ships. 35 files, +2018 / -190.
 
 Every pristine version was recovered from this repository's own history by
 searching each file's commits for the blob matching its manifest hash, so the
@@ -19,7 +19,7 @@ searching each file's commits for the blob matching its manifest hash, so the
 ## It is verified against the manifest, not against a memory
 
 Applied to a tree of those pristine files, the patch reproduces this app's
-`src/toolcraft/` exactly: 36 of 36 files hash-identical, 0 differing. The
+`src/toolcraft/` exactly: 35 of 35 files hash-identical, 0 differing. The
 check is reproducible — see the worklog entry for the method.
 
 ```
@@ -36,17 +36,15 @@ entries worth reading before reviewing this are the timeline integrity
 exception, the continuous-keyframe entry, the transport entry, and the camera
 framing fix.
 
-Six of the 36 are not timeline work and should be judged separately.
+Four of the 35 are not timeline work and should be judged separately.
 `ui/components/primitives/slider/slider-parts.tsx` makes a slider state its own
 range so an orientation proof can read it, and the export files sit behind the
-AV1 fallback. The other three make the runtime Setup section collapsible and
-start it collapsed — `runtime/react/controls-panel/layout/controls-panel-section.tsx`,
-`runtime/state/create-template-state.ts` and `runtime/schema/runtime-section-titles.ts`,
-with `runtime/schema/runtime-setup-section.ts` following the section id out to a
-constant. That one reverses two rules stated in `component-contracts.runtime.ts`,
-and amends those rules in the same change rather than leaving the contract
-contradicting the code; the reasoning is in the worklog and should be read
-before it is taken.
+AV1 fallback. The other two make the runtime Setup section collapsible:
+`runtime/react/controls-panel/layout/controls-panel-section.tsx` gives it a
+header like any other section, and `runtime/contracts/component-contracts.runtime.ts`
+amends the two rules that said it had neither, rather than leaving the contract
+contradicting the code. Setup still opens expanded — starting it collapsed was
+tried and backed out, and the worklog says why.
 
 ## What this patch does not do
 
