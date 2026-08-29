@@ -1,6 +1,7 @@
 import {
   DEFAULT_DEVICE,
   DEFAULT_FINISH,
+  DEFAULT_PART_COLORS,
   readLightPatternId,
 } from "../product-domain";
 import { DEFAULT_SURFACE } from "../surfaces";
@@ -101,6 +102,11 @@ export function readRasterSettings(
       roughness: num(values, "floor.roughness", 92) / 100,
     },
     focalLength: num(values, "camera.focalLength", 85),
+    partColors: {
+      accent: str(values, "product.color.accent", DEFAULT_PART_COLORS.accent),
+      main: str(values, "product.color.main", DEFAULT_PART_COLORS.main),
+      trim: str(values, "product.color.trim", DEFAULT_PART_COLORS.trim),
+    },
     framing: pad(values, "camera.framing"),
     spin: num(values, "device.spin", 0),
     transform: {

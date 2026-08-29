@@ -1,6 +1,7 @@
 import * as THREE from "three";
 
 import { readDeviceDefinition, readFinishId } from "../product-domain";
+import type { PartColors } from "./model-appearance";
 import { fingerprint } from "./fingerprint";
 import {
   fitDistance,
@@ -33,6 +34,8 @@ export type RasterSettings = {
   environment: string;
   exposure: number;
   finish: string;
+  /** One hex per colour slot the selected product declares. */
+  partColors: PartColors;
   /**
    * What decides the frame: an artboard somebody chose, or the set itself.
    *
@@ -200,6 +203,7 @@ export class RasterRenderer {
         this.invalidateShadow();
         this.onEnvironmentReady?.();
       },
+      partColors: settings.partColors,
       renderer: this.renderer,
       showGround: settings.showBackground,
       surface: settings.surface,
@@ -284,6 +288,7 @@ export class RasterRenderer {
 
     this.applyEnvironment(built, settings.environment);
     built.setFinish(readFinishId(settings.finish));
+    built.setPartColors(settings.partColors);
     built.setLighting(settings.lighting);
     built.setSurface(settings.surface);
     built.setSweep(settings.sweep);

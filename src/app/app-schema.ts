@@ -6,6 +6,7 @@ import {
   LIGHT_PATTERN_OPTIONS,
   SURFACE_DEVICES,
 } from "./product-domain";
+import { PRODUCT_PARTS_SECTION } from "./schema-product-parts";
 import { DEFAULT_SCENE_PRESET, SCENE_PRESET_OPTIONS } from "./scene-presets";
 import { DEFAULT_SURFACE, SURFACE_OPTIONS } from "./surfaces";
 import {
@@ -189,6 +190,7 @@ export const appSchema = defineToolcraft({
           id: "device",
           title: "Device",
         },
+        PRODUCT_PARTS_SECTION,
         {
           controls: {
             image: {

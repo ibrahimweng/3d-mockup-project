@@ -1,3 +1,14 @@
+import { MERCHANDISE_CATALOG } from "./merchandise-catalog";
+import {
+  COLOR_PART_IDS,
+  type ArtworkSurface,
+  type ColorPart,
+  type ColorPartId,
+} from "./product-parts";
+
+export { COLOR_PART_IDS, DEFAULT_PART_COLORS, SPLIT_MATERIAL_SEPARATOR } from "./product-parts";
+export type { ArtworkSurface, ColorPart, ColorPartId } from "./product-parts";
+
 /**
  * Product option sets and the device catalog.
  *
@@ -22,6 +33,14 @@ export const DEVICE_OPTIONS = [
   { label: "iMac", value: "imac" },
   { label: "Mac Studio", value: "mac-studio" },
   { label: "Apple Watch Ultra", value: "apple-watch-ultra" },
+  // Merchandise, after the devices. A select renders one flat list, so the
+  // order is the only grouping available; these five read as a block because
+  // they sit together and none of them is named for a device.
+  { label: "T-Shirt", value: "tshirt" },
+  { label: "Tote Bag", value: "tote-bag" },
+  { label: "Water Bottle", value: "water-bottle" },
+  { label: "ID Card", value: "id-card" },
+  { label: "Tablet Folder", value: "tablet-folder" },
 ] as const;
 
 export type DeviceId = (typeof DEVICE_OPTIONS)[number]["value"];
@@ -48,14 +67,6 @@ export type FinishId = (typeof FINISH_OPTIONS)[number]["value"];
 
 export const DEFAULT_FINISH: FinishId = "natural";
 
-/**
- * One colourway on one device.
- *
- * `body` paints every material the device lists as its shell, so a device with
- * a dozen materials carrying the same finish needs one colour rather than a
- * dozen. `accents` covers the parts that are deliberately a different colour —
- * a watch band against its case.
- */
 export type DeviceFinish = {
   accents?: Readonly<Record<string, string>>;
   body: string;
@@ -231,6 +242,41 @@ export type DeviceDefinition = {
    * Only for a flat panel. A curved display would need a real projection.
    */
   screenUnwrap?: boolean;
+  /**
+   * Whether the design is bound as a display or as print. Defaults to display,
+   * which is what every device in this catalog is.
+   */
+  artworkSurface?: ArtworkSurface;
+  /**
+   * Set the print surface's relief and metal maps aside while a design is on it.
+   *
+   * Some surfaces carry maps that describe the print the file shipped with
+   * rather than the material under it: the badge's embossed lettering and the
+   * foil it is printed on are in this card's normal and metal-roughness maps,
+   * so a design laid over them comes out stamped into someone else's artwork.
+   * Others carry the material itself — the shirt's normal map is the weave of
+   * the cotton, which every design printed on it should still sit in — and
+   * those must be kept. Declared per product because only the file says which
+   * it is.
+   */
+  clearPrintRelief?: boolean;
+  /**
+   * The materials each colour slot paints on this product.
+   *
+   * A product that declares nothing here offers no colour picker, which is the
+   * devices: they carry named colourways instead, because an enclosure has a
+   * finite set of finishes its manufacturer actually sells.
+   */
+  colorParts?: Partial<Record<ColorPartId, ColorPart>>;
+  /**
+   * Give every mesh its own copy of the material it shares, named after the
+   * mesh.
+   *
+   * Some files paint an entire product with one material and separate the
+   * parts by mesh instead, which leaves no name to address a part by. Cloning
+   * per mesh at load restores that name without touching the file.
+   */
+  splitMaterialsByMesh?: boolean;
   /**
    * Recompute vertex normals, splitting at edges sharper than this many
    * degrees.
@@ -537,6 +583,7 @@ export const DEVICE_CATALOG: Readonly<Record<DeviceId, DeviceDefinition>> = {
     // Measured from the display's world normal, which points down -Z.
     yawDegrees: 180,
   },
+  ...MERCHANDISE_CATALOG,
 };
 
 export function readFinishId(value: unknown): FinishId {
@@ -556,6 +603,27 @@ export function readFinishId(value: unknown): FinishId {
 export const SURFACE_DEVICES: readonly DeviceId[] = (
   Object.keys(DEVICE_CATALOG) as DeviceId[]
 ).filter((id) => DEVICE_CATALOG[id].surface !== undefined);
+
+/**
+ * Which products offer each colour slot, derived rather than listed.
+ *
+ * Same reason the surface list is derived: declaring a slot in the catalog is
+ * the single act that offers it, and a second list kept by hand is how a
+ * control ends up showing for a product it does nothing to.
+ */
+function productsOfferingColorPart(part: ColorPartId): readonly DeviceId[] {
+  return (Object.keys(DEVICE_CATALOG) as DeviceId[]).filter(
+    (id) => DEVICE_CATALOG[id].colorParts?.[part] !== undefined,
+  );
+}
+
+export const COLOR_PART_DEVICES: Readonly<
+  Record<ColorPartId, readonly DeviceId[]>
+> = {
+  accent: productsOfferingColorPart("accent"),
+  main: productsOfferingColorPart("main"),
+  trim: productsOfferingColorPart("trim"),
+};
 
 export function readDeviceDefinition(value: unknown): DeviceDefinition {
   return (

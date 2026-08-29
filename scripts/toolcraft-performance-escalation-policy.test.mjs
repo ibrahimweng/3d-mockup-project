@@ -11,6 +11,9 @@ import {
   createPlanReceiptFixture,
 } from "./toolcraft-delivery-receipt-test-helpers.mjs";
 import {
+  TOOLCRAFT_FULL_PERFORMANCE_VERIFICATION_COMMAND,
+} from "./toolcraft-performance-authority-policy.mjs";
+import {
   formatToolcraftPerformanceEscalationRecommendation,
   getToolcraftPerformanceEscalationRecommendation,
 } from "./toolcraft-performance-escalation-policy.mjs";
@@ -112,14 +115,18 @@ test("two compatible targeted iterations offer but never run full audit", () => 
     currentReceipt: secondReceipt,
     previousAnchor,
   });
+  // The command is derived from the delivery command rather than written out,
+  // so asserting a literal here only asserts this app's package manager.
   assert.deepEqual(recommendation, {
-    command: "pnpm verify:perf",
+    command: TOOLCRAFT_FULL_PERFORMANCE_VERIFICATION_COMMAND,
     kind: "offer-full-performance-audit",
     reason: "two-consecutive-compatible-performance-iterations",
     requiresExplicitUserConsent: true,
   });
-  assert.match(
-    formatToolcraftPerformanceEscalationRecommendation(recommendation),
-    /do not run pnpm verify:perf without explicit user consent/iu,
+  assert.match(recommendation.command, /\bverify:perf\b/u);
+  assert.ok(
+    formatToolcraftPerformanceEscalationRecommendation(recommendation).includes(
+      `Do not run ${TOOLCRAFT_FULL_PERFORMANCE_VERIFICATION_COMMAND} without explicit user consent`,
+    ),
   );
 });

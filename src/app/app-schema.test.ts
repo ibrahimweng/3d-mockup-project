@@ -107,6 +107,10 @@ describe("appSchema", () => {
     // the runtime into unlabelled fragments, so the authored ids must survive.
     expect(productSections.map((section) => section.id)).toEqual([
       "device",
+      // Between choosing the product and uploading the design, because that is
+      // the order the decisions happen in: pick the thing, colour the thing,
+      // then print on it.
+      "product-parts",
       "artwork",
       "screen-fit",
       "studio",

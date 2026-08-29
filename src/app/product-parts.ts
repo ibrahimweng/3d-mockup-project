@@ -1,0 +1,78 @@
+/**
+ * The vocabulary a product uses to describe its own surfaces.
+ *
+ * Separate from the catalog because the catalog is the list of products and
+ * this is the language every entry in it is written in. Keeping them apart
+ * also keeps `product-domain.ts` inside the line budget generated app source
+ * is held to.
+ */
+/**
+ * The three parts a colour picker can reach, shared across every product.
+ *
+ * Schema controls are static, so this cannot be a per-product list of named
+ * parts: one product's "sleeves" and another's "cap" would each need their own
+ * control, and a section is capped at ten. Three slots with the same meaning
+ * everywhere is what fits — the main surface, the trim around it, and one
+ * accent — and each product maps them onto its own materials, exactly as the
+ * finishes do.
+ */
+export const COLOR_PART_IDS = ["main", "trim", "accent"] as const;
+
+export type ColorPartId = (typeof COLOR_PART_IDS)[number];
+
+/**
+ * Which of a product's materials one colour slot paints.
+ *
+ * `repaint` sets a material's base-colour texture aside for as long as a colour
+ * is chosen, for the same reason `repaintedMaterials` does: a texture carrying
+ * its own colour only tints, so painting a printed canvas bag blue over its
+ * scribble pattern yields a blue scribble rather than a blue bag.
+ */
+export type ColorPart = {
+  materials: readonly string[];
+  repaint?: boolean;
+};
+
+/**
+ * How a supplied design sits on the surface it is bound to.
+ *
+ * A display emits, so a screenshot is bound to the emissive channel and reads
+ * at full brightness whatever the studio is doing. Print does not emit. A
+ * design bound the same way on a shirt would glow in an unlit corner, which is
+ * the one thing a garment mockup can never do, so print writes base colour
+ * alone and takes the lighting like the fabric around it.
+ */
+export type ArtworkSurface = "display" | "print";
+
+/**
+ * The separator between a shared material's name and the mesh it was split for.
+ *
+ * Lives here rather than beside the split itself because the catalog writes
+ * these names by hand and the model inventory has to take them apart again,
+ * and neither of those can reach into the renderer.
+ */
+export const SPLIT_MATERIAL_SEPARATOR = "@";
+
+/**
+ * What each colour slot starts on.
+ *
+ * A neutral rather than each product's authored colour, and it has to be: the
+ * controls are shared, so one default serves a shirt, a bottle and a card at
+ * once. Blank stock is also the honest starting point for a mockup, which is a
+ * product waiting to be printed rather than one already finished.
+ */
+export const DEFAULT_PART_COLORS: Readonly<Record<ColorPartId, string>> = {
+  accent: "#3a3836",
+  main: "#e8e5df",
+  trim: "#c9c5bd",
+};
+
+
+/**
+ * One colourway on one device.
+ *
+ * `body` paints every material the device lists as its shell, so a device with
+ * a dozen materials carrying the same finish needs one colour rather than a
+ * dozen. `accents` covers the parts that are deliberately a different colour —
+ * a watch band against its case.
+ */

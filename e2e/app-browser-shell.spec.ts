@@ -125,6 +125,45 @@ test("product observable helper rejects autonomous frame changes as interaction 
   ).rejects.toThrow(/baseline must remain stable/u);
 });
 
+// The raster hash used to come straight from crypto.subtle, which exists only
+// in a secure context. Every helper self-test below reaches its page through
+// setContent, which leaves it on about:blank, so those tests could never run.
+test("product raster hash does not depend on crypto.subtle", async ({ page }) => {
+  const markup =
+    '<div data-toolcraft-product-output style="width:120px;height:80px;background:#3366cc"></div>';
+
+  await page.setContent(markup);
+  expect(
+    await page.evaluate(() => Boolean(crypto.subtle)),
+    "A page reached through setContent stays on about:blank, which is not a secure context.",
+  ).toBe(false);
+  const withoutSubtle = await getToolcraftProductObservableSnapshot(page);
+
+  await page.goto("/");
+  await page.setContent(markup);
+  expect(
+    await page.evaluate(() => Boolean(crypto.subtle)),
+    "The dev server origin is a secure context, so the fast path is the one under test.",
+  ).toBe(true);
+  const withSubtle = await getToolcraftProductObservableSnapshot(page);
+
+  // Same pixels, same origin, one variable: whether crypto.subtle is reachable.
+  await page.evaluate(() => {
+    Object.defineProperty(crypto, "subtle", {
+      configurable: true,
+      value: undefined,
+    });
+  });
+  const withSubtleHidden = await getToolcraftProductObservableSnapshot(page);
+
+  const hashOf = (snapshot: string): string =>
+    (JSON.parse(snapshot) as { rasterHash: string }).rasterHash;
+
+  expect(hashOf(withSubtleHidden)).toBe(hashOf(withSubtle));
+  expect(hashOf(withoutSubtle)).toBe(hashOf(withSubtle));
+  expect(hashOf(withSubtle)).toMatch(/^[a-f0-9]{64}$/u);
+});
+
 test("canvas no-UI helper rejects unclassified canvas text", async ({ page }) => {
   await page.setContent(`
     <div data-toolcraft-canvas-world>

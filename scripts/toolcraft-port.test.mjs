@@ -6,11 +6,17 @@ import path from "node:path";
 import test from "node:test";
 
 import {
+  DEFAULT_TOOLCRAFT_PORT,
+  LOOPBACK_HOST_UNSUPPORTED,
+  LOOPBACK_PORT_AVAILABLE,
+  LOOPBACK_PORT_TAKEN,
   findAvailablePort,
   getListeningProcessIds,
   killListeningProcessesOnPort,
   readToolcraftAppIdentityFromHtml,
+  probeLoopbackPort,
   readSavedToolcraftPort,
+  resolveLoopbackAvailability,
   waitForToolcraftAppOnPort,
   writeSavedToolcraftPort,
 } from "./toolcraft-port.mjs";
@@ -81,6 +87,68 @@ test("findAvailablePort skips ports occupied on IPv4 localhost", async (t) => {
     address.port,
     "A port occupied on 127.0.0.1 must be treated as unavailable for localhost URLs.",
   );
+});
+
+// 192.0.2.1 is TEST-NET-1 from RFC 5737, which is guaranteed never to be
+// assigned, so binding it fails for the same reason ::1 fails on a machine
+// with no IPv6 stack.
+test("probeLoopbackPort separates an unbindable host from a busy port", async () => {
+  assert.equal(
+    await probeLoopbackPort(0, "192.0.2.1"),
+    LOOPBACK_HOST_UNSUPPORTED,
+    "A host whose address cannot be bound at all is not evidence that a port is taken.",
+  );
+});
+
+test("probeLoopbackPort reports a port held by another listener as taken", async (t) => {
+  const server = await listen("127.0.0.1");
+  t.after(() => close(server));
+
+  assert.equal(
+    await probeLoopbackPort(server.address().port, "127.0.0.1"),
+    LOOPBACK_PORT_TAKEN,
+  );
+});
+
+test("resolveLoopbackAvailability ignores a loopback host this machine cannot bind", () => {
+  assert.equal(
+    resolveLoopbackAvailability([LOOPBACK_PORT_AVAILABLE, LOOPBACK_HOST_UNSUPPORTED]),
+    true,
+    "A missing IPv6 stack must not make every port look occupied.",
+  );
+});
+
+test("resolveLoopbackAvailability still rejects a port taken on a bindable host", () => {
+  assert.equal(
+    resolveLoopbackAvailability([LOOPBACK_PORT_TAKEN, LOOPBACK_HOST_UNSUPPORTED]),
+    false,
+  );
+  assert.equal(
+    resolveLoopbackAvailability([LOOPBACK_PORT_AVAILABLE, LOOPBACK_PORT_TAKEN]),
+    false,
+  );
+});
+
+test("resolveLoopbackAvailability fails loudly when no loopback host can be bound", () => {
+  assert.throws(
+    () =>
+      resolveLoopbackAvailability([
+        LOOPBACK_HOST_UNSUPPORTED,
+        LOOPBACK_HOST_UNSUPPORTED,
+      ]),
+    /No loopback host of .* can be bound on this machine/,
+    "A machine with no loopback stack must say so rather than report every port busy.",
+  );
+});
+
+// The original failure: on an IPv4-only host ::1 reported EAFNOSUPPORT for
+// every port, so this scanned to 65535 and threw "No free port found at or
+// above 3002", which reads as a machine with 62533 busy ports.
+test("findAvailablePort resolves a port when one loopback family is missing", async () => {
+  const port = await findAvailablePort(DEFAULT_TOOLCRAFT_PORT);
+
+  assert.equal(Number.isInteger(port), true);
+  assert.equal(port >= DEFAULT_TOOLCRAFT_PORT && port <= 65_535, true);
 });
 
 test("saved Toolcraft port round-trips through local project state", async (t) => {

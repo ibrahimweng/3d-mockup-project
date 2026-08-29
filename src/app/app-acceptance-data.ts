@@ -300,6 +300,19 @@ export const appControlSectionInventory: readonly ToolcraftControlSectionInvento
       title: "Device",
     },
     {
+      entity: "Parts",
+      entityId: "product-parts",
+      groupingReason:
+        "The three colours are one decision about one object: what the product's own surfaces are, as distinct from the design printed on top of them. They are separate from Device because a device carries named colourways its manufacturer sells while merchandise is blank stock a person colours themselves, and each control appears only for a product that declares that part.",
+      id: "product-parts",
+      targets: [
+        "product.color.main",
+        "product.color.trim",
+        "product.color.accent",
+      ],
+      title: "Parts",
+    },
+    {
       entity: "Video Export",
       entityId: "video-export",
       groupingReason:
