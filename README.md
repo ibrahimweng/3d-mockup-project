@@ -47,7 +47,7 @@ studio and the same export work on all of them.
 | T-Shirt | `tshirt.glb` | Front, Back, Left sleeve, Right sleeve | Collar rib, hem facing |
 | Tote Bag | `tote-bag.glb` | Front, Back, Left side, Right side | Handles, trim, base |
 | Water Bottle | `water-bottle.glb` | One, wrapped 360° around the body | Cap, ring, latch |
-| ID Card | `id-card.glb` | Front, Back | Clip, card edge |
+| ID Card | `id-card.glb` | Front, Back (full bleed, around the punch hole) | Clip, card edge |
 | Tablet Folder | `tablet-folder.glb` | One, on the top sheet | Board, pen, clip |
 
 ### Where the design lands, and why it flows
@@ -90,6 +90,27 @@ came out as a torn grey band down the shoulder and sleeve seams. Splitting on
 the garment pieces gives every face a zone, and leaves 708 triangles of hem
 facing as the only untextured cotton, which is what a hem facing is.
 
+### A print zone covers the whole panel
+
+The card's print used to stop about a sixth of the way down from the top, with
+the rest of the badge rendering as brushed steel. The clip was picked out of
+the source using the file's own atlas — everything above v 0.66 — and that
+swept up the badge's own reinforced top along with the metal. The geometry says
+where the two part far more plainly: sampled in bands, the full card width of
+2.13 holds from the bottom up to y 1.70 and then drops to 0.450 and stays
+there. That 4.7x step is the clasp starting, so the split is made there. A
+design now prints to the top edge and around the punch hole, which is what a
+real badge does. The print area grew, so the card's templates are 1270 x 2048
+at 0.62 : 1 rather than 1426 x 2048 at 0.70 : 1.
+
+`a print zone covers the whole face it is the print zone of` in
+[`model-surfaces.test.ts`](src/app/model-surfaces.test.ts) holds every product
+to it. It reads the shipped GLB's geometry, groups triangles by the plane they
+lie in, and requires each zone's material to own at least 97 per cent of the
+plane it sits on. Nothing in the catalog or the schema could have caught this:
+both name a material, and neither says how much of a face that material
+actually owns.
+
 ### Surfaces, and why nothing is see-through
 
 Every material on a merchandise model renders both of its faces. That is not a
@@ -105,6 +126,15 @@ its armhole should be.
 [`model-surfaces.test.ts`](src/app/model-surfaces.test.ts) reads the shipped
 GLBs and holds them to it, walking the materials each catalog entry names
 rather than a list written by hand.
+
+The tote carries a canvas weave, and unlike the shirt's it is supplied rather
+than restored: its file ships no normal map, so there was nothing to put back.
+The density is measured rather than chosen to look right. The bag's front panel
+is 5.685 units across and a tote of this shape is about 38cm wide, which puts a
+unit at 6.7cm; the tile carries eight thread crossings, so 10.4 tiles per unit
+lands about 1.2 threads to the millimetre, the coarse end of canvas. It is laid
+out from world position rather than from the unwrap, which is what keeps the
+narrow sides reading as the same cloth as the front.
 
 The shirt's fabric also carries its weave again. The map is authored against
 the file's own texture coordinates, which are in millimetres and tile, so it
@@ -375,12 +405,18 @@ mockup that cannot lay a design flat has nothing left to show. Every vertex
 position is the one the file gave it — the tote is the single exception, and
 its panels were pushed apart deliberately, which is recorded above.
 
-The t-shirt was briefly stripped of its topstitch, at 590,408 triangles of
-thread over thirty-five meshes, which took it from 22MB to 4.56MB. It is back:
-those seams are the detail that makes the render read as a garment rather than
-a shape, and 23MB is the price. `scripts/clean-model.mjs` still does the
-removal, and the test of whether that is worth doing is whether the part
-removed is a part rather than a density.
+The t-shirt ships without its topstitch: 590,408 triangles of thread over
+thirty-five meshes, 96 per cent of the model and the whole reason the file was
+22MB. `scripts/clean-model.mjs --keep-geometry --drop-material` removes them,
+and every surviving surface has the vertices and the precision the file gave
+it, so this is deletion rather than decimation. The test of whether that is
+worth doing is whether the part removed is a part rather than a density.
+
+What it costs is real: a close crop of a raglan seam or a cuff shows no
+stitching. It was removed, restored, and removed again over this branch, and
+the second removal was decided on the reference rather than on the file — the
+garment being matched has no visible seams, and 6.1MB against 23MB is the
+difference between a model that loads and one that is waited for.
 
 `mac-studio.glb` is the worked example. It arrived at 3.4MB, which flattered
 it: that is Draco compression over 502,646 triangles, 34.8MB once decoded. The
