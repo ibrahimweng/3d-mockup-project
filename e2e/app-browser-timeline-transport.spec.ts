@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./toolcraft-product-test";
 
 import { openTimeline } from "./mockup-timeline";
 import { getToolcraftControlFieldByTarget } from "./browser-control-target-helpers";

@@ -90,9 +90,9 @@ A heavyweight cotton tee, photographed close up.
 | --- | --- | --- | --- |
 | Front, back panels | `Shirt_Front`, `Shirt_Back` | yes | jersey: metallic 0, roughness 0.86, weave normal map on TEXCOORD_1 |
 | Sleeve print patches | `Shirt_Sleeve_Left`, `Shirt_Sleeve_Right` | yes, flat patch on the outer upper sleeve | as above |
-| Sleeve cloth outside the patch | folded into `Shirt_Front`/`Shirt_Back` | no | as above |
-| Collar rib | `Rib_1X1_486gsm_116764` | no | ribbed knit |
-| Placket trim, care label | `Shirt_Front_Trim`, `Cotton_Heavy_Twill_116740.004` | no | as authored |
+| Cloth outside every print area, and the woven neck label | `Shirt_Body` | no, colour slot | as above |
+| Collar rib and hem facings | `Rib_1X1_486gsm_116764` | no, colour slot | cotton at roughness 0.9, a shade duller than the body |
+| Placket trim | `Shirt_Front_Trim` | no, colour slot | as above |
 
 One garment shell, so panels are separated by face direction, not by island.
 Hem, cuffs and neck are turned under — 20mm on the body and the cuffs, 10mm at
@@ -153,10 +153,19 @@ more than the commit that moved it.
 | --- | --- | --- |
 | A1 | No shell carries both a hardware material and a print material. Hardware is declared per product (`Clip`, `Bag_Handles`). | **card: 1 shell fails. tote: 2 shells fail.** |
 | A2 | Every triangle of a hardware shell wears the hardware material — no exceptions, no share threshold. | **card: 176 tris. tote: 161 tris.** |
-| A3 | Every material name in the file is claimed by the catalog as a zone, a colour part, or a declared fixed material. | — |
+| A3 | Every material name in the file is claimed by the catalog as a zone, a colour part, or a declared fixed material. | **not tested, and not true: shirt 1, bottle 1, folder 2.** |
 
 A1 and A2 are the user-visible "the texture overlaps the metal" defect. They
 are absolute: not "mostly", not "under 5%". Zero.
+
+A3 read `—` here for four phases and had no test behind it. It was not true.
+Four materials were named by nothing: the shirt's woven neck label, still
+wearing the source's own texture at a roughness no other cloth on the garment
+uses; the bottle's two end discs; and the folder's pad edge and loose sheets. A
+material nobody names is a part nobody can reach -- no design lands on it and
+no colourway paints it, so it holds whatever the source baked in while
+everything around it changes. The label went into the body cloth, the other
+three are declared `fixedMaterials`, and the test now exists.
 
 ### B. Print fidelity — the image lands where it was drawn
 

@@ -188,6 +188,17 @@ export type DeviceDefinition = {
    * shape that no longer matches the model stops filling.
    */
   frame: readonly [number, number, number];
+  /**
+   * Materials the catalog knows about and deliberately leaves alone.
+   *
+   * Every material in a merchandise file has to be somebody's: a print zone, a
+   * colour part, or one of these. The third case is real -- the bottle's two
+   * end discs are the same coating as its body, and the body is a print zone,
+   * which cannot also be a colour slot -- but it is also exactly what an
+   * oversight looks like, so it is written down rather than left as silence.
+   * `model-quality.test.ts` reads this and fails on anything unaccounted for.
+   */
+  fixedMaterials?: readonly string[];
   /** Human-readable name, used for the export file name. */
   label: string;
   modelFile: string;

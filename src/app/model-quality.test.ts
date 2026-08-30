@@ -106,6 +106,34 @@ describe("what the merchandise models are made of", () => {
     }
   });
 
+  test("every material in a file is a part the catalog knows about", () => {
+    // A material nobody names is a part nobody can reach: no design lands on
+    // it and no colourway paints it, so it holds whatever the source baked in
+    // and stays that way while everything around it changes. The shirt shipped
+    // one for months -- the woven label at the back of the neck, carrying the
+    // source's own texture at a roughness no other piece of cloth here uses.
+    //
+    // Three ways to be accounted for: a print zone, a colour part, or a
+    // `fixedMaterials` entry, which is the catalog saying out loud that a part
+    // is meant to hold its own colour. The point of the third is that it is
+    // written down; silence is what this test is for.
+    for (const [id] of models) {
+      const device = DEVICE_CATALOG[id];
+      const claimed = new Set<string>(device.fixedMaterials ?? []);
+      for (const part of Object.values(device.colorParts ?? {})) {
+        for (const name of part.materials) claimed.add(name.split(SPLIT_MATERIAL_SEPARATOR)[0]);
+      }
+      for (const [, zone] of readArtworkZones(device)) {
+        if (zone.material) claimed.add(zone.material.split(SPLIT_MATERIAL_SEPARATOR)[0]);
+      }
+      const named = (readGltfJson(fileOf(id)).materials ?? []).map((m) => m.name ?? "");
+      expect(
+        named.filter((name) => !claimed.has(name)).sort(),
+        `${id}: materials in the file that no zone, colour part or fixedMaterials entry names`,
+      ).toEqual([]);
+    }
+  });
+
   test("a print zone lands the whole template, in one piece, undistorted", () => {
     // Four ways the same design goes wrong on the way to the surface, so all
     // four are measured on every zone. Coverage below 1 means the edges of the
