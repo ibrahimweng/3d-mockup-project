@@ -82,6 +82,16 @@ const PLATEN = { front: [240 * MM, 240 * MM], gusset: [80 * MM, 120 * MM] };
 // pair takes its print area from the pair's shared extent rather than from its
 // own. Measured separately they land 2mm apart, and the bag ends up cut on both
 // sets of lines with a ribbon of slivers in between.
+/**
+ * The mouth, turned under.
+ *
+ * A tote's mouth is the edge you look straight down into when the bag is open,
+ * and unhemmed it is one vertex thick. 25mm is a normal tote hem. The rim reads
+ * 3mm because a hem is the cloth turned back on itself, so there are two layers
+ * of a 1.5mm cotton duck in it.
+ */
+const HEM = { segments: 6, thickness: 3 * MM, width: 25 * MM };
+
 const PANELS = ["Bag_Front", "Bag_Back"];
 const GUSSETS = ["Bag_Left", "Bag_Right"];
 
@@ -110,6 +120,9 @@ const report = await prepZones({
     return "Bag_Trim";
   },
   deformWorld,
+  // One rim on the canvas, and it is the mouth: the handles are their own
+  // shells and the base is sewn shut.
+  hems: [{ ...HEM, loops: 1, zone: "Bag_Canvas" }],
   input: sourceModel("tote-bag.glb"),
   leftover: "Bag_Trim",
   material: "Default",

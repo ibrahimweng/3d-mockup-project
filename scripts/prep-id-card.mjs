@@ -43,6 +43,11 @@ const report = await prepZones({
   leftover: "Card_Edge",
   material: "material_0",
   output: repoPath("public", "models", "id-card.glb"),
+  // The card's rim carries 38 edges where the stored normals jump across
+  // geometry that is flat -- a line drawn over nothing, inherited from the
+  // original. Recomputing them keeps the right angle where the face meets the
+  // rim, because that turn is well past the threshold.
+  smoothCreases: { thresholdDegrees: 40 },
   // The file's normal map is the badge's own embossed lettering and the foil it
   // was printed on, which is someone else's artwork rather than card stock.
   // Carrying it onto a printable face would stamp a design into it.

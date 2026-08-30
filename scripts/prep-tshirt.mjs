@@ -121,11 +121,27 @@ const CHEST_BACK = [180 * MM, 320 * MM];
 // A sleeve is a cone. Only its outer upper face holds one direction long enough
 // to print on, and that face measures about 84mm top to bottom.
 const PATCH = [60 * MM, 60 * MM];
+/**
+ * Hem, cuffs and neck, turned under.
+ *
+ * The three longest rims on the body cloth are the hem and the two cuffs, in
+ * that order, and the longest on the collar rib is the neck. Unhemmed each is
+ * one vertex thick, which is what gives a close-up shot away. 20mm is a normal
+ * jersey hem and 10mm a collar's. The rims read at twice the cloth, because a
+ * hem is the cloth turned back on itself: 2.4mm for a heavyweight jersey, 4mm
+ * for a 1x1 rib, which is a good deal thicker than the body.
+ */
+const HEMS = [
+  { loops: 3, segments: 6, thickness: 2.4 * MM, width: 20 * MM, zone: "Shirt_Body" },
+  { loops: 1, segments: 6, thickness: 4 * MM, width: 10 * MM, zone: "Rib_1X1_486gsm_116764" },
+];
+
 const BODY = ["Shirt_Front", "Shirt_Back"];
 const SLEEVES = ["Shirt_Sleeve_Left", "Shirt_Sleeve_Right"];
 
 const printed = await prepZones({
   classify: (f) => f.source.getName(),
+  hems: HEMS,
   input: source,
   leftover: "Shirt_Body",
   // The collar rib is in the cut without being printed on. It shares eighty

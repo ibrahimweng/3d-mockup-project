@@ -30,7 +30,10 @@ import { NodeIO } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 
 import { along, axisBasis, tangentBasis } from "./prep-model-clip.mjs";
-import { assignShells, inv4, mulN, mulP, roundCreases as roundTheFolds } from "./prep-model-geometry.mjs";
+import {
+  assignShells, inv4, mulN, mulP, roundCreases as roundTheFolds, smoothNormals,
+} from "./prep-model-geometry.mjs";
+import { boundaryLoops, hemFaces } from "./prep-model-hem.mjs";
 import { cutPrintRegions } from "./prep-model-regions.mjs";
 
 const AXIS = { x: 0, y: 1, z: 2 };
@@ -63,8 +66,8 @@ export function sourceModel(name) {
 }
 
 export async function prepZones({
-  classify, deformWorld, input, leftover, material, output, regions,
-  roundCreases, trimStyle, weaveDefault = true, zones,
+  classify, deformWorld, hems, input, leftover, material, output, regions,
+  roundCreases, smoothCreases, trimStyle, weaveDefault = true, zones,
 }) {
   const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
   const doc = await io.read(input);
@@ -148,6 +151,40 @@ export async function prepZones({
   if (roundCreases) roundTheFolds(faces, roundCreases);
 
   const unwrapBasis = cutPrintRegions({ byZone, faces, regions });
+
+  /**
+   * Fold the rims over.
+   *
+   * After the print areas are cut, so a hem is never sliced by one, and after
+   * any reshaping, so it follows the surface where the surface ended up. Rims
+   * are taken longest first, which is the order a product names them: the mouth
+   * of a bag; the hem of a shirt, then its cuffs.
+   */
+  if (hems?.length) {
+    const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+    for (const f of faces) for (const w of f.world) for (let q = 0; q < 3; q += 1) {
+      lo[q] = Math.min(lo[q], w[q]); hi[q] = Math.max(hi[q], w[q]);
+    }
+    const weld = (Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) || 1) * 1e-5;
+    for (const [name, list] of byZone) for (const f of list) f.zone = name;
+    const rims = boundaryLoops([...byZone.values()].flat(), weld);
+    for (const hem of hems) {
+      const list = byZone.get(hem.zone);
+      if (!list?.length) continue;
+      const mine = rims.filter((rim) => rim.zones.has(hem.zone));
+      for (const rim of mine.slice(0, hem.loops ?? 1)) {
+        if (process.env.HEM_DEBUG) {
+          const ys = rim.vertices.map((v) => v.world[1]);
+          console.log(`  hem ${hem.zone}: ${rim.vertices.length} corners, y ${Math.min(...ys).toFixed(3)}..${Math.max(...ys).toFixed(3)}, zones ${[...rim.zones].join()}`);
+        }
+        list.push(...hemFaces(rim, hem, list[0]));
+      }
+    }
+  }
+
+  // Last, once every face the model will ship exists, so a hem shades as one
+  // piece with the cloth it folds from.
+  if (smoothCreases) smoothNormals([...byZone.values()].flat(), smoothCreases);
 
   // Pass 3: rebuild one primitive per zone, unwrapped.
   const src = owners[0];

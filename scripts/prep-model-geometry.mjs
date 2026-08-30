@@ -203,3 +203,79 @@ export function roundCreases(faces, { iterations = 6, strength = 0.5, thresholdD
     }
   }
 }
+
+/**
+ * Recompute the shading normals, keeping the creases that are real.
+ *
+ * A normal that jumps across an edge draws a line there. Where the geometry
+ * turns -- a card's face meeting its rim at a right angle -- that line is the
+ * edge and belongs. Where the geometry is flat it is a line over nothing, and
+ * the ID card ships 38 of them along its rim, inherited from however the
+ * original was authored.
+ *
+ * So each corner takes the average of the faces it can reach from its own face
+ * without crossing an edge sharper than the threshold. Faces on the far side of
+ * a crease keep their own answer, which is what leaves the crease sharp.
+ */
+export function smoothNormals(faces, { thresholdDegrees = 40 } = {}) {
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (const f of faces) for (const w of f.world) for (let q = 0; q < 3; q += 1) {
+    lo[q] = Math.min(lo[q], w[q]); hi[q] = Math.max(hi[q], w[q]);
+  }
+  const step = (Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) || 1) * 1e-5;
+  const key = (w) => `${Math.round(w[0] / step)},${Math.round(w[1] / step)},${Math.round(w[2] / step)}`;
+  const normals = faces.map(faceNormal);
+  const limit = Math.cos((thresholdDegrees * Math.PI) / 180);
+
+  // Which faces meet at each corner, and which pairs of them meet across an
+  // edge soft enough to shade as one surface.
+  const around = new Map();
+  const edges = new Map();
+  faces.forEach((f, i) => {
+    const k = f.world.map(key);
+    for (let c = 0; c < 3; c += 1) {
+      (around.get(k[c]) ?? around.set(k[c], []).get(k[c])).push({ corner: c, face: i });
+      const [a, b] = [k[c], k[(c + 1) % 3]];
+      const ek = a < b ? `${a}|${b}` : `${b}|${a}`;
+      (edges.get(ek) ?? edges.set(ek, []).get(ek)).push(i);
+    }
+  });
+  const soft = new Map();
+  for (const [ek, users] of edges) {
+    if (users.length !== 2) continue;
+    const [x, y] = users;
+    const d = normals[x][0] * normals[y][0] + normals[x][1] * normals[y][1] + normals[x][2] * normals[y][2];
+    if (d >= limit) soft.set(ek, [x, y]);
+  }
+
+  for (const [corner, uses] of around) {
+    // Faces sharing this corner, joined where a soft edge through the corner
+    // runs between them. Grouping by how alike two normals are instead is not
+    // transitive: neighbours each inside the threshold of the next end up in
+    // different groups, and the card came out with 164 lines where it had 38.
+    const group = new Map(uses.map((u) => [u.face, u.face]));
+    const root = (a) => { let n = a; while (group.get(n) !== n) n = group.get(n); return n; };
+    for (const u of uses) {
+      const k = faces[u.face].world.map(key);
+      for (const c of [u.corner, (u.corner + 2) % 3]) {
+        const [a, b] = [k[c], k[(c + 1) % 3]];
+        const pair = soft.get(a < b ? `${a}|${b}` : `${b}|${a}`);
+        if (!pair) continue;
+        const [ra, rb] = pair.map((f) => (group.has(f) ? root(f) : null));
+        if (ra !== null && rb !== null && ra !== rb) group.set(ra, rb);
+      }
+    }
+    const sums = new Map();
+    for (const u of uses) {
+      const r = root(u.face);
+      const sum = sums.get(r) ?? [0, 0, 0];
+      for (let q = 0; q < 3; q += 1) sum[q] += normals[u.face][q];
+      sums.set(r, sum);
+    }
+    for (const u of uses) {
+      const sum = sums.get(root(u.face));
+      const length = Math.hypot(...sum) || 1;
+      faces[u.face].N[u.corner] = mulN(inv4(faces[u.face].m), sum.map((c) => c / length));
+    }
+  }
+}

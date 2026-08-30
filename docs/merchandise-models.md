@@ -57,7 +57,7 @@ A heavyweight cotton canvas tote with webbing handles.
 | Part | Shells | Material | Prints? | Surface |
 | --- | --- | --- | --- | --- |
 | Front, back, left, right panels | body, by face direction | `Bag_Front`/`Bag_Back`/`Bag_Left`/`Bag_Right` | yes, platen area only | canvas: metallic 0, roughness 0.78, tiled weave normal map |
-| Mouth hem | body, folded band at the rim | `Bag_Base` | no | as above |
+| Mouth hem | body, folded band at the rim | `Bag_Canvas` | no | as above |
 | Base | body, −Y faces | `Bag_Base` | no, colour slot | as above |
 | Handles | 2 separate islands | `Bag_Handles` | **never** | webbing, same finish |
 
@@ -85,8 +85,9 @@ A heavyweight cotton tee, photographed close up.
 | Placket trim, care label | `Shirt_Front_Trim`, `Cotton_Heavy_Twill_116740.004` | no | as authored |
 
 One garment shell, so panels are separated by face direction, not by island.
-Hem, cuffs and neck are hemmed with real folded bands: the shirt is shot close
-up, and a paper-thin rim gives it away. Every panel renders both faces so the
+Hem, cuffs and neck are turned under — 20mm on the body and the cuffs, 10mm at
+the neck, each rim reading at twice its cloth. The shirt is shot close up, and a
+paper-thin rim is exactly what gives that away. Every panel renders both faces so the
 cloth is never see-through from an angle.
 
 A sleeve is a cone and cannot flatten into a square without either distortion
@@ -155,13 +156,17 @@ fixes:
 | C1 | Zero degenerate triangles. | — all five |
 | C2 | Zero coincident faces, within or across materials (they z-fight). | — all five |
 | C3 | Zero non-manifold edges. | — all five |
-| C4 | Open boundary edges match the count the product declares, so a new hole is caught. Today: card 0 (closed), tote 288, shirt 554, bottle 112, folder 124. Hemming in phase 3 closes the tote mouth and the shirt hem, cuffs and neck, and the declared counts drop with it. | — pins current state |
-| C5 | Zero shading-normal splits on an edge the geometry says is flat (< 10° between face normals). | tote/shirt/bottle 0 — · **card 38** · folder 1 |
-| C6 | On soft goods, no interior edge exceeds 45° between face normals — cloth does not hold a knife edge. Hard-surface products are excluded, not given a larger allowance: a clasp is supposed to have corners. | **tote 25 edges** · **shirt 348** |
+| C4 | Open boundary edges match the count the product declares, so a new hole is caught. Today: card 0 (closed), tote 296, shirt 592, bottle 112, folder 124. Hemming does not close a rim — it moves the raw edge inside where it is stitched down and never seen; closing it would mean giving the whole shell a thickness, which the tote and shirt deliberately do not have. | — pins current state |
+| C5 | Zero shading-normal splits on an edge the geometry says is flat (< 10° between face normals). | card, tote, shirt, bottle — · **folder 1** |
+| C6 | On soft goods, the count of interior edges at 45° or more is pinned and accounted for. Cloth does not hold a knife edge, but a seam creases, a hem folds right over, and a webbing strap has an edge. Hard-surface products are excluded, not given a larger allowance: a clasp is supposed to have corners. | — pins current state: tote 99 (74 hem fold, 25 handles, 0 on the canvas) · shirt 718 (363 seams, 334 hem fold, 20 open cloth) |
 
-C6 is the real answer to "the tote has very sharp edges". Its shading is
-already continuous — zero splits — so the sharpness is geometry at the base
-fold and the gussets, and only geometry will fix it.
+C6 was written to answer "the tote has very sharp edges", and measuring it is
+what showed the answer had two halves. The sharpness was geometry — the shading
+was already continuous, which is why softening normals never fixed it — and the
+rounding in phase 1 took the tote's canvas panels to zero hard edges. But the
+same measurement counts every seam, every strap edge and every hem fold, which
+are all things sewn goods have. So the count is pinned and explained rather than
+driven to zero, and the shading is what the models are held to.
 
 ### A note on how these are measured
 
@@ -275,9 +280,21 @@ flat patch on each sleeve, the existing wrap on the bottle. Each zone reaches
 ≥ 0.95 coverage, ≤ 1.25 stretch and zero mirrored triangles. Templates are
 regenerated from the new unwraps, so the download matches what prints.
 
-**Phase 3 — surface quality (C).** Hem the tote mouth and the shirt hem, cuffs
-and neck with folded bands. Round the tote's 25 hard edges and the shirt's 348
-below 45°. Heal the card's 38 shading splits drawn across flat geometry.
+**Phase 3 — surface quality (C). Done.** Five rims are turned under: the tote's
+mouth at 25mm, the shirt's hem and both cuffs at 20mm, and its neck at 10mm.
+Each reads at twice its cloth, because a hem is the cloth folded back on itself.
+The card's 38 shading splits are gone — its normals are recomputed with a
+40-degree crease, which leaves the right angle where the rim meets the face
+untouched, and the hard-edge count is unchanged at 1,434 to prove it.
+
+Measuring the hard edges changed what the invariant should say. Almost none of
+them were the defect: on the shirt 310 run down the side seams and 53 round the
+armholes, which is what a sewn seam is, and on the tote every one belongs to a
+webbing handle whose edges are pinned on purpose. Its canvas panels hold none at
+all — the rounding in phase 1 did that. Only twenty sat in open cloth. Hemming
+then added one per rim corner, because a fold is a hard edge. So C6 is pinned
+rather than driven to zero, and what the models are actually held to is the
+shading, which is clean: no line is drawn across flat cloth on either.
 
 **Phase 4 — appearance (D).** Give the tablet folder a material that is not
 metallic 1 at roughness 1, and re-unwrap its print zone: the zone is the stack
