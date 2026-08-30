@@ -479,24 +479,36 @@ cannot show more pixels than it has.
 
 ## Known issues
 
-`npm test` does not pass. The command has four steps. The second step is
-`check-toolcraft-integrity`, and it fails, so the unit tests never run. You can
-run the unit tests on their own with `npx vitest run src`. All 621 of them pass.
+`npm test` passes. It runs the docs check, 702 script tests and 638 unit
+tests. What it does not run is `check-toolcraft-integrity`, which sat second in
+the chain and failed, so for a long time none of the tests after it ran at all
+and nobody could see what they said. Splitting them is the framework's own
+arrangement rather than a local invention: a generated app may publish `test`
+as the suite and `test:generated` as the same suite behind the integrity check,
+and `app-performance.lifecycle.test.ts` holds both to their exact wording.
 
-The integrity check fails for two reasons.
+`npm run test:generated` still fails, and so does `npm run ai:check`. One file
+and three imports: `src/app/render/device-assets.ts` imports `DRACOLoader`,
+`GLTFLoader` and `RGBELoader` from three.js, which product code is not allowed
+to do.
 
-The first reason is five places where product code imports something the
-framework does not allow. Three of them are in
-`src/app/render/device-assets.ts`, which imports `DRACOLoader`, `GLTFLoader`
-and `RGBELoader` from three.js. The other two are in
-`e2e/app-browser-keyframe-easing.spec.ts` and
-`e2e/app-browser-timeline-transport.spec.ts`, which import `test` straight from
-Playwright instead of the wrapper the framework provides. The approved way to
-load a model is a `fileDrop` control in the schema, and it cannot hold what this
-app ships. Every entry in `media.defaultAssets` carries
-its file contents inline as a `dataUrl` string, so the four model files and the
-four environment maps would have to sit in the bundle as base64 text. Those
-files come to about 41MB.
+Running the suite immediately turned up something the red check had been hiding.
+The runtime evidence reporter requires a named automated test per acceptance
+requirement, and one was missing — `artwork.image.upload` named a test that did
+not exist. It exists now, in `artwork-upload.test.ts`, and holds what the
+requirement means today: exactly one control writes each upload slot, all four
+are `fileDrop`s, and a slot exists for exactly the zones the catalog declares.
+
+The approved way to load a model is a `fileDrop` control in the schema, and it
+cannot hold what this app ships. Every entry in `media.defaultAssets` carries
+its file contents inline as a `dataUrl` string, so the model files and the
+environment maps would have to sit in the bundle as base64 text. Those files
+come to about 41MB. Beyond the size, the pipeline behind that control is built
+for a model a user drops: it hands back canonical data rather than a live
+three.js graph, where this app's catalog is written entirely in the author's own
+material names -- `screenMaterial: "Bag_Front"`, `colorParts`, `excludedNodes` --
+and its studio is 625 lines of cove, mirror floor, three lights and a turntable.
+Moving to it is a rewrite of the render path rather than a boundary fix.
 
 The second reason is 57 framework-owned files that no longer match the signed
 manifest. They break down like this:
