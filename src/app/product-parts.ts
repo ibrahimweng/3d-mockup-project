@@ -155,9 +155,23 @@ export const SPLIT_MATERIAL_SEPARATOR = "@";
  * controls are shared, so one default serves a shirt, a bottle and a card at
  * once. Blank stock is also the honest starting point for a mockup, which is a
  * product waiting to be printed rather than one already finished.
+ *
+ * The accent read `#3a3836` and that is not blank stock, it is black. Three of
+ * the four parts it lands on are hardware -- a card's nickel clasp, a bottle's
+ * latch, a folder's steel clip -- and the fourth is a shirt's collar rib, which
+ * the control's own description names first. So a plain white tee opened with a
+ * black collar and a black band round its hem: a finished garment, and the
+ * first thing anyone saw. Nothing in the file said so; the shirt's own rib is
+ * off-white. It was this default painting over it.
+ *
+ * A mid neutral serves all four. On metal, base colour tints the reflection, so
+ * the clasp and the clip read as brushed steel where they read as gunmetal
+ * before; on the latch it reads as an unfinished moulding; on the rib it reads
+ * as a rib. The three still separate: lightest is the body, then the trim set
+ * against it, then the accent.
  */
 export const DEFAULT_PART_COLORS: Readonly<Record<ColorPartId, string>> = {
-  accent: "#3a3836",
+  accent: "#8a8681",
   main: "#e8e5df",
   trim: "#c9c5bd",
 };
