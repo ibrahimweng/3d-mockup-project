@@ -36,6 +36,12 @@ for (const file of files) {
 
 // Stored rather than deflated: a PNG is already compressed, so deflating it
 // again costs time and saves nothing worth measuring.
-const bytes = zipSync(entries, { level: 0 });
+//
+// The timestamp is pinned rather than taken from the clock. These archives are
+// committed, so a build that stamped the current time would rewrite all three
+// on every run and show them as changed when nothing in them had changed. The
+// date is the start of the zip format's own epoch, chosen because it says
+// plainly that it is not a real time.
+const bytes = zipSync(entries, { level: 0, mtime: new Date("1980-01-01T00:00:00Z") });
 writeFileSync(join(TEMPLATES, archive), bytes);
 console.log(`${archive}: ${files.length} entries, ${bytes.byteLength} bytes`);

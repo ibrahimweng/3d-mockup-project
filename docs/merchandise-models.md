@@ -17,9 +17,9 @@ number.**
 
 | Prep script | The threshold | What it broke |
 | --- | --- | --- |
-| `card-prep` | `centroid.y > 1.73` is the clip | 176 clasp triangles wear card materials, 48 of them the printed artwork |
-| `card-prep` (earlier) | atlas `v > 0.66` is the clip | the card's top band rendered as brushed metal |
-| `tote-prep` | `centroid.y > 6.51` is a handle | 161 handle triangles wear the front and back print |
+| `prep-id-card` | `centroid.y > 1.73` is the clip | 176 clasp triangles wear card materials, 48 of them the printed artwork |
+| `prep-id-card` (earlier) | atlas `v > 0.66` is the clip | the card's top band rendered as brushed metal |
+| `prep-tote-bag` | `centroid.y > 6.51` is a handle | 161 handle triangles wear the front and back print |
 
 A threshold is a guess about where a part ends. The model already knows where
 its parts end: they are **separate connected components**. The clasp is not
@@ -187,7 +187,54 @@ were the measurement's, not the file's.
 | D2 | Fabric keeps its authored weave normal map. | — tote, shirt |
 | D3 | No material is both fully metallic and fully rough. Metal shows what it reflects rather than a colour of its own, and a fully rough surface reflects nothing coherent, so such a material has neither diffuse nor highlight left and renders near black whatever base colour it names. | card, tote, shirt, bottle — · **folder `blinn2` is metallic 1 / roughness 1** |
 
-## 4. The plan
+## 4. Building them
+
+The shipped GLBs are outputs. Every one is rebuilt from a bought source by a
+script in `scripts/`, and rebuilding is how a change to a model is made -- the
+files in `public/models` are never edited by hand.
+
+```
+python3 scripts/make-canvas-weave.py      # public/textures/canvas-normal.png
+python3 scripts/make-print-templates.py   # public/templates/*.png
+node scripts/prep-id-card.mjs
+node scripts/prep-tote-bag.mjs
+node scripts/prep-tshirt.mjs
+node scripts/prep-water-bottle.mjs
+node scripts/build-template-archives.mjs id-card-templates.zip \
+    id-card-front.png id-card-back.png
+```
+
+The order matters: a prep script embeds its zone's template as that zone's
+starting image, so templates are drawn first. The archives are packed last, and
+`app-delivery-schema.test.ts` opens each one and compares it byte for byte
+against the PNGs beside it, so a template regenerated without repacking fails.
+
+`prep-model-zones.mjs` is the engine -- it splits one material's triangles into
+named zones and gives each its own unwrap -- and `prep-model-geometry.mjs`
+answers the two questions it needs about the mesh: which connected component
+each face belongs to, and which edges are folds worth rounding. The tablet
+folder has no prep script; it ships as bought, with the catalog naming meshes
+for its slots.
+
+### The source models
+
+The five sources are licensed assets and are **not committed**. Put them in
+`assets/model-sources/` (git-ignored), or point `MODEL_SOURCES` at wherever
+they live, under these names:
+
+| Name the scripts ask for | What it is |
+| --- | --- |
+| `id-card.glb` | the badge and its swivel clasp |
+| `tote-bag.glb` | the canvas tote |
+| `tshirt.glb` | the stitched tee, 22MB and 611,900 triangles |
+| `water-bottle.glb` | the steel bottle |
+| `tablet-folder.glb` | the folio |
+
+Without them the scripts stop and say which file is missing. `prep-tshirt.mjs`
+also builds one intermediate into `build/`, stripping 590,408 triangles of
+topstitch from the source before it splits anything.
+
+## 5. The plan
 
 ### How the schema is enforced
 
@@ -211,15 +258,16 @@ target, never away from it.
 Each phase is its own branch, reviewed with before/after renders at the same
 camera, and merged before the next one starts.
 
-**Phase 0 — the schema.** The measurement library and the 19 invariants, every
-one pinned to today's number. Nothing about the models changes. This is the
-agreed definition of the defect.
+**Phase 0 — the schema. Done.** The measurement library and the invariants,
+every one pinned to its measured number. Nothing about the models changed. This
+is the agreed definition of the defect.
 
-**Phase 1 — part integrity (A).** Replace threshold classification with
-shell-first classification in `card-prep` and `tote-prep`: split the mesh into
-connected components, name each component, and only then subdivide the single
-body component by face direction. `CLASP_Y` and `HANDLE_Y` are deleted. Fixes
-the artwork on the card's clasp and the print on the tote's handles.
+**Phase 1 — part integrity (A). Done.** Threshold classification replaced with
+shell-first classification in `prep-id-card.mjs` and `prep-tote-bag.mjs`: the
+mesh is split into connected components and only the single body component is
+subdivided by face direction. `CLASP_Y` and `HANDLE_Y` are gone. Stray triangles
+on hardware went from 176 and 161 to zero, and both card faces and the tote's
+front and back now unwrap as one island where each arrived in three.
 
 **Phase 2 — print fidelity (B).** Re-unwrap to the printable areas decided
 above: full bleed on the card, a centred platen rectangle on each tote panel, a
