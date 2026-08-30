@@ -106,8 +106,12 @@ A powder-coated steel bottle with a screw cap and a swing latch.
 
 ### Tablet folder
 
-A folio with a pen loop and a clasp pin. Single material as bought; the colour
-slots repaint it per node.
+A folio with a pen loop and a clasp pin, holding a pad of paper.
+
+The file paints all five of its meshes with one material, so both the colour
+slots and the print zone name a mesh alongside it: the zone is
+`blinn2@StackOfPaper_blinn2_0`, the pad, and nothing else prints. That material
+is metallic 1 at roughness 1 today, which renders it black.
 
 ## 3. The test schema
 
@@ -149,15 +153,31 @@ fixes:
 | id | Invariant | Today |
 | --- | --- | --- |
 | C1 | Zero degenerate triangles. | — all five |
-| C2 | Zero coincident faces, within or across materials (they z-fight). | card/tote/shirt/folder — · **bottle 1759, 352 across materials** |
-| C3 | Zero non-manifold edges. | card/tote/shirt/folder — · **bottle 404** |
+| C2 | Zero coincident faces, within or across materials (they z-fight). | — all five |
+| C3 | Zero non-manifold edges. | — all five |
 | C4 | Open boundary edges match the count the product declares, so a new hole is caught. Today: card 0 (closed), tote 288, shirt 554, bottle 112, folder 124. Hemming in phase 3 closes the tote mouth and the shirt hem, cuffs and neck, and the declared counts drop with it. | — pins current state |
 | C5 | Zero shading-normal splits on an edge the geometry says is flat (< 10° between face normals). | tote/shirt/bottle 0 — · **card 38** · folder 1 |
-| C6 | On soft goods, no interior edge exceeds 45° between face normals — cloth does not hold a knife edge. | **tote: 69 edges 30–60°, 7 over 60°** · **shirt: 634 and 182** |
+| C6 | On soft goods, no interior edge exceeds 45° between face normals — cloth does not hold a knife edge. Hard-surface products are excluded, not given a larger allowance: a clasp is supposed to have corners. | **tote 25 edges** · **shirt 348** |
 
 C6 is the real answer to "the tote has very sharp edges". Its shading is
 already continuous — zero splits — so the sharpness is geometry at the base
 fold and the gussets, and only geometry will fix it.
+
+### A note on how these are measured
+
+Positions are welded before any of this is asked, because prep splits vertices
+along every texture seam and two faces that meet in space hold different
+indices for the same corner. The weld is **a hundred-thousandth of each model's
+own diagonal**, never a fixed distance: these files disagree about units by
+three orders of magnitude — the water bottle is 0.13 across and the tablet
+folder is 38 — so one absolute tolerance is far too loose for one and far too
+tight for the other.
+
+This matters because an earlier probe used a fixed tolerance and reported 404
+non-manifold edges and 1,759 coincident faces on the water bottle. At that
+tolerance it was fusing vertices a thousandth of the whole bottle apart, and
+inventing the defects it then reported. The bottle has neither. Both numbers
+were the measurement's, not the file's.
 
 ### D. Appearance — physically sane materials
 
@@ -165,7 +185,7 @@ fold and the gussets, and only geometry will fix it.
 | --- | --- | --- |
 | D1 | Every material a product names is `doubleSided`. | — all five |
 | D2 | Fabric keeps its authored weave normal map. | — tote, shirt |
-| D3 | Metal is metallic 1 with roughness ≤ 0.4; cloth, card and coating are metallic 0 with roughness ≥ 0.4. A fully metallic, fully rough material has no diffuse and no highlight, so it renders black. | card, tote, shirt — · **folder `blinn2` is metallic 1 / roughness 1** · bottle body metallic 0.3 |
+| D3 | No material is both fully metallic and fully rough. Metal shows what it reflects rather than a colour of its own, and a fully rough surface reflects nothing coherent, so such a material has neither diffuse nor highlight left and renders near black whatever base colour it names. | card, tote, shirt, bottle — · **folder `blinn2` is metallic 1 / roughness 1** |
 
 ## 4. The plan
 
@@ -208,13 +228,13 @@ flat patch on each sleeve, the existing wrap on the bottle. Each zone reaches
 regenerated from the new unwraps, so the download matches what prints.
 
 **Phase 3 — surface quality (C).** Hem the tote mouth and the shirt hem, cuffs
-and neck with folded bands. Round the tote's base fold and gussets and the
-shirt's hard edges below 45°. Heal the card's 38 flat shading splits and the
-bottle's 404 non-manifold edges and 1,759 coincident faces.
+and neck with folded bands. Round the tote's 25 hard edges and the shirt's 348
+below 45°. Heal the card's 38 shading splits drawn across flat geometry.
 
-**Phase 4 — appearance (D).** Give the tablet folder a physically sane material
-in place of metallic 1 / roughness 1, and re-unwrap it — coverage 0.542 and
-stretch 3.79 today.
+**Phase 4 — appearance (D).** Give the tablet folder a material that is not
+metallic 1 at roughness 1, and re-unwrap its print zone: the zone is the stack
+of paper, ten triangles filling 0.23 of the atlas in its lower-left corner, so
+three quarters of the template a user downloads lands nowhere.
 
 ### Decisions on record
 
