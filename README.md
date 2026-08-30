@@ -90,6 +90,47 @@ came out as a torn grey band down the shoulder and sleeve seams. Splitting on
 the garment pieces gives every face a zone, and leaves 708 triangles of hem
 facing as the only untextured cotton, which is what a hem facing is.
 
+### Surfaces, and why nothing is see-through
+
+Every material on a merchandise model renders both of its faces. That is not a
+style choice — splitting a product into print zones is what makes each zone an
+open patch of surface, and an open patch culled from behind is a hole. A shirt
+is a single-layer shell, so its inside is visible up a sleeve, through a neck
+and across an armhole; a bag's is visible down its mouth. Rebuilding the zones
+created fresh glTF materials, a fresh glTF material is single-sided, and the
+result was a shirt that went transparent from the side with a black wedge where
+its armhole should be.
+
+`every material a product names renders both of its faces` in
+[`model-surfaces.test.ts`](src/app/model-surfaces.test.ts) reads the shipped
+GLBs and holds them to it, walking the materials each catalog entry names
+rather than a list written by hand.
+
+The shirt's fabric also carries its weave again. The map is authored against
+the file's own texture coordinates, which are in millimetres and tile, so it
+cannot ride the 0..1 unwrap a design uses — one texel would stretch across a
+whole panel. The original coordinates travel with the vertices as a second UV
+channel and the normal map is pointed at that channel, which is what lets a
+close-up read as cotton rather than as vinyl. The tote's file never had one, so
+its canvas is smooth; the card's is the badge's own embossed lettering rather
+than card stock, and is deliberately left off for the reason `clearPrintRelief`
+exists.
+
+The tote's vertical corners are rounded. It met itself at each fold with no
+transition, which reads as folded card rather than as canvas with something in
+it. A few passes of Laplacian smoothing weighted by how sharply the faces
+disagree at each vertex round the folds and leave the flat panels alone,
+because a vertex whose neighbours are coplanar has nothing to move toward.
+Boundary vertices are pinned: a handle is a ribbon two triangles wide and its
+long edges are as sharp as any fold, so smoothing them would pull the ribbon
+into a thread.
+
+What none of this adds is thickness. Both the shirt and the tote are still
+single-layer shells, so a hem or a handle seen exactly edge-on is a line with
+no width. Rendering both faces is what stops that reading as a hole; giving it
+real width would mean offsetting a second surface inside every panel and
+rolling a rim between them, which is not in this branch.
+
 ### Templates
 
 `public/templates/` holds a placeholder image for every print zone, and each
@@ -194,6 +235,9 @@ colour of the garment, and only the first is built.
 
 Fit, scale, position and stretch are shared across a product's zones, as noted
 above. Per-zone placement is not built.
+
+Neither is real cloth thickness. Both the shirt and the tote are single-layer
+shells, so an edge seen exactly on is a line rather than a hem.
 
 ### How the design is bound
 
