@@ -175,7 +175,11 @@ export const MERCHANDISE_CATALOG = {
       trim: { materials: ["Folder_Pen"] },
     },
     excludedNodes: [],
-    frame: [0.793326, 0.040254, 0.607464],
+    // Measured from the file: 43.97 by 1.85 by 23.74 units. It read
+    // [0.793326, 0.040254, 0.607464] before, which is not this model -- the
+    // camera stood as if the folio were narrower and deeper than it is, and the
+    // folio ran off the right of the canvas and under the controls panel.
+    frame: [0.879361, 0.036983, 0.474717],
     label: "Tablet Folder",
     modelFile: "tablet-folder.glb",
     artworkSurface: "print",
