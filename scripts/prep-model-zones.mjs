@@ -31,7 +31,7 @@ import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 
 import { along, axisBasis, tangentBasis } from "./prep-model-clip.mjs";
 import {
-  assignShells, inv4, mulN, mulP, roundCreases as roundTheFolds, smoothNormals,
+  assignShells, inv4, mulN, mulP, roundCreases as roundTheFolds, smoothNormals, weldFaces,
 } from "./prep-model-geometry.mjs";
 import { boundaryLoops, hemFaces } from "./prep-model-hem.mjs";
 import { cutPrintRegions } from "./prep-model-regions.mjs";
@@ -70,7 +70,9 @@ export async function prepZones({
   roundCreases, smoothCreases, trimStyle, weaveDefault = true, zones,
 }) {
   const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
-  const doc = await io.read(input);
+  // A path to a bought file, or a document already in hand. The tote's source
+  // is an OBJ, which has to be read and placed before any of this can run.
+  const doc = typeof input === "string" ? await io.read(input) : input;
 
   // Pass 1: gather every face of the target material or materials, in world
   // space.
@@ -183,8 +185,17 @@ export async function prepZones({
     }
   }
 
-  // Last, once every face the model will ship exists, so a hem shades as one
-  // piece with the cloth it folds from.
+  // Once every face the model will ship exists, and before anything reads the
+  // surface: fuse the near-duplicate vertices a cut leaves behind, so what
+  // shades and what ships are the same mesh.
+  const span = [Infinity, Infinity, Infinity].map(() => [Infinity, -Infinity]);
+  for (const list of byZone.values()) for (const f of list) for (const w of f.world) for (let q = 0; q < 3; q += 1) {
+    span[q][0] = Math.min(span[q][0], w[q]); span[q][1] = Math.max(span[q][1], w[q]);
+  }
+  const dropped = weldFaces(byZone, (Math.hypot(...span.map(([a, b]) => b - a)) || 1) * 1e-5);
+  if (dropped) console.log(`  welded away ${dropped} pieces the cut left with no area`);
+
+  // Last, so a hem shades as one piece with the cloth it folds from.
   if (smoothCreases) smoothNormals([...byZone.values()].flat(), smoothCreases);
 
   // Pass 3: rebuild one primitive per zone, unwrapped.
@@ -209,6 +220,19 @@ export async function prepZones({
     const P = new Float32Array(n*3), N = new Float32Array(n*3);
     const UV = new Float32Array(n*2), UV1 = new Float32Array(n*2), UVW = new Float32Array(n*2);
     const density = spec.weaveRepeatsPerUnit ?? 1;
+    /**
+     * The plane a supplied weave is laid out from.
+     *
+     * Cloth tiles at one thread count everywhere, so the two axes have to be
+     * ones the part actually lies in. Taken from the print unwrap where there is
+     * one, but a part that does not print has no unwrap to borrow and was
+     * falling back to x and y whatever direction it faced. Measured against the
+     * area they cover, the threads on the tote's base ran from a fourteenth of
+     * the density to nearly five times it, and a third of the base, a third of
+     * the canvas and a sixth of the handles were squashed past half -- which is
+     * the weave smeared along the surface rather than woven into it.
+     */
+    const [wU, wV] = spec.weaveAxes ?? (Array.isArray(spec.unwrap) ? spec.unwrap : ["x", "y"]);
 
     // Where this zone is unwrapped across: two world axes, or -- for a zone too
     // curved for any of them -- a plane laid on the surface itself.
@@ -228,8 +252,8 @@ export async function prepZones({
     let t = 0;
     for (const f of list) for (let k = 0; k < 3; k += 1) {
       P.set(f.P[k], t*3); N.set(f.N[k], t*3); UV1.set(f.UV0[k], t*2);
-      UVW[t*2] = f.world[k][AXIS[uA]] * density;
-      UVW[t*2+1] = f.world[k][AXIS[vA]] * density;
+      UVW[t*2] = f.world[k][AXIS[wU]] * density;
+      UVW[t*2+1] = f.world[k][AXIS[wV]] * density;
       if (spec.unwrap) {
         const p = at(f.world[k]);
         let u = (p[0] - lo[0]) / span[0];

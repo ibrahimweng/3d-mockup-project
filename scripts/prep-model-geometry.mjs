@@ -279,3 +279,62 @@ export function smoothNormals(faces, { thresholdDegrees = 40 } = {}) {
     }
   }
 }
+
+/**
+ * Pull vertices closer together than the weld onto one another, and drop what
+ * that leaves with no area.
+ *
+ * Cutting a print area out of a dense mesh makes near-duplicates: two crossings
+ * landing a ten-thousandth of a millimetre apart, or a crossing beside a corner
+ * it did not quite snap to. Nothing renders them apart, but every check that
+ * asks whether a mesh is closed has to decide first which points are the same
+ * point, and a pair this close is exactly the case where two such checks
+ * disagree -- so the tote came out with 32 edges used by four faces, all of
+ * them at a spot where two vertices sat a thousandth of a weld apart.
+ *
+ * Merging rather than deleting. A piece with two corners in one place has two
+ * edges running to its third corner, and once its corners are actually equal
+ * those are one edge laid twice, so removing it takes the doubling with it and
+ * leaves the neighbours' own edges untouched. Deleting the piece without
+ * merging first does the opposite: its edges were the neighbours' edges too,
+ * and the tote went from 32 edges used four times to 82 used once.
+ *
+ * Representatives are claimed in the order the faces are walked and never
+ * chained, so no vertex travels further than one weld -- a thirtieth of a
+ * millimetre on a bag, and less than the file's own float32 can hold apart.
+ */
+export function weldFaces(byZone, weld) {
+  const claimed = new Map();
+  const cell = (w, d) => `${Math.round(w[0] / weld) + d[0]},${Math.round(w[1] / weld) + d[1]},${Math.round(w[2] / weld) + d[2]}`;
+  const nearby = [];
+  for (let x = -1; x <= 1; x += 1) for (let y = -1; y <= 1; y += 1) for (let z = -1; z <= 1; z += 1) nearby.push([x, y, z]);
+  const representative = (w) => {
+    for (const d of nearby) {
+      for (const other of claimed.get(cell(w, d)) ?? []) {
+        if (Math.hypot(w[0] - other[0], w[1] - other[1], w[2] - other[2]) < weld) return other;
+      }
+    }
+    const here = cell(w, [0, 0, 0]);
+    const mine = claimed.get(here) ?? [];
+    mine.push(w); claimed.set(here, mine);
+    return w;
+  };
+
+  let dropped = 0;
+  for (const [name, list] of byZone) {
+    const kept = [];
+    for (const f of list) {
+      f.world = f.world.map(representative);
+      if (f.world[0] === f.world[1] || f.world[1] === f.world[2] || f.world[2] === f.world[0]) {
+        dropped += 1;
+        continue;
+      }
+      const ivm = inv4(f.m);
+      f.P = f.world.map((w) => mulP(ivm, w));
+      f.C = [0, 1, 2].map((q) => f.world.reduce((sum, w) => sum + w[q] / 3, 0));
+      kept.push(f);
+    }
+    byZone.set(name, kept);
+  }
+  return dropped;
+}
