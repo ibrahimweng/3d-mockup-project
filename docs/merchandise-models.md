@@ -129,19 +129,27 @@ into a band. Measured at the widest ring the wrap is 1.37 to 1.
 
 A folio with a pen loop and a clasp pin, holding a pad of paper.
 
-The file paints all five of its meshes with one material, so both the colour
-slots and the print zone name a mesh alongside it: the zone is
-`blinn2@StackOfPaper_blinn2_0`, the pad, and nothing else prints. That material
-is metallic 1 at roughness 1 today, which renders it black.
+The file paints all five of its meshes with one material at metallic 1 and
+roughness 1, which renders it black, and hangs a photograph of somebody's
+document off it. Phase 4 prepped it like the rest, so the file now names its
+own parts -- `Folder_Board`, `Folder_Pen`, `Folder_Clip`, `Folder_Sheet` and
+`Folder_Pad`, which is the only one that prints -- instead of the catalog
+correcting them on the way to the screen.
 
 ## 3. The test schema
 
 Invariants over the shipped GLBs, read straight out of the files. Each has an
-id, a rule, and where it stands today. `—` means the invariant already holds.
+id, a rule, and the reading it had **when the schema was written**, which is
+what the phases below were planned against; `—` means it already held then.
+Those readings are a record of the defect, not a current status. What the files
+measure now lives in
+[`src/app/model-quality.baselines.ts`](../src/app/model-quality.baselines.ts),
+which the test suite asserts exactly, so a number there is never out of date by
+more than the commit that moved it.
 
 ### A. Part integrity — a part is one material
 
-| id | Invariant | Today |
+| id | Invariant | When the schema was written |
 | --- | --- | --- |
 | A1 | No shell carries both a hardware material and a print material. Hardware is declared per product (`Clip`, `Bag_Handles`). | **card: 1 shell fails. tote: 2 shells fail.** |
 | A2 | Every triangle of a hardware shell wears the hardware material — no exceptions, no share threshold. | **card: 176 tris. tote: 161 tris.** |
@@ -152,7 +160,7 @@ are absolute: not "mostly", not "under 5%". Zero.
 
 ### B. Print fidelity — the image lands where it was drawn
 
-| id | Invariant | Today |
+| id | Invariant | When the schema was written |
 | --- | --- | --- |
 | B1 | A print zone's unwrap covers ≥ 0.95 of its 0–1 square, measured against the area the zone declares printable (full bleed on the card, platen rectangle on the tote, patch on the sleeves). Below that, part of the template the user is handed never reaches the product. | — all of them: card 0.987 · tote 0.97–1.00 · shirt 1.00 · bottle 1.00 · folder 0.998 |
 | B2 | Stretch ≤ 1.25 — the ink per square millimetre in the tightest one per cent of a zone, against the middle of it, so a design lands at an even density. | — all of them: card 1.00 · tote ≤ 1.04 · shirt ≤ 1.06 · bottle 1.00 · folder 1.00 |
@@ -171,7 +179,7 @@ fixes:
   hard angle. Smoothing the normals will not hide it; the geometry needs a
   radius.
 
-| id | Invariant | Today |
+| id | Invariant | When the schema was written |
 | --- | --- | --- |
 | C1 | Zero degenerate triangles. | — all five |
 | C2 | Zero coincident faces, within or across materials (they z-fight). | — all five |
@@ -209,7 +217,7 @@ make-up written down. The four phases are finished.
 
 ### D. Appearance — physically sane materials
 
-| id | Invariant | Today |
+| id | Invariant | When the schema was written |
 | --- | --- | --- |
 | D1 | Every material a product names is `doubleSided`. | — all five |
 | D2 | Fabric keeps its authored weave normal map. | — tote, shirt |
@@ -228,8 +236,13 @@ node scripts/prep-id-card.mjs
 node scripts/prep-tote-bag.mjs
 node scripts/prep-tshirt.mjs
 node scripts/prep-water-bottle.mjs
+node scripts/prep-tablet-folder.mjs
 node scripts/build-template-archives.mjs id-card-templates.zip \
     id-card-front.png id-card-back.png
+node scripts/build-template-archives.mjs tote-bag-templates.zip \
+    tote-bag-front.png tote-bag-back.png tote-bag-left.png tote-bag-right.png
+node scripts/build-template-archives.mjs tshirt-templates.zip \
+    tshirt-front.png tshirt-back.png tshirt-sleeve-left.png tshirt-sleeve-right.png
 ```
 
 The order matters: a prep script embeds its zone's template as that zone's
@@ -243,8 +256,8 @@ answers the two questions it needs about the mesh: which connected component
 each face belongs to, and which edges are folds worth rounding.
 `prep-model-obj.mjs` reads the one source that is an OBJ, which carries no
 scale, no orientation and no scene, and puts it where the product expects it.
-The tablet folder has no prep script; it ships as bought, with the catalog
-naming meshes for its slots.
+Every product has a prep script; the tablet folder got one in phase 4, which is
+what stopped the catalog having to correct its parts on the way to the screen.
 
 ### The source models
 
@@ -327,6 +340,9 @@ of paper, ten triangles filling 0.23 of the atlas in its lower-left corner, so
 three quarters of the template a user downloads lands nowhere.
 
 ### After the phases
+
+The phase entries above are a log of what was done at the time. Where this
+section contradicts one, this section is the current state.
 
 **The bottle's white bands.** Phase 4 fitted the label to the largest run of
 near-vertical surface, which threw away the base roll, the shoulder and the

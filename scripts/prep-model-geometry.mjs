@@ -1,10 +1,11 @@
 /**
  * The geometry a zone split needs before it can decide anything.
  *
- * Two questions live here, and both are about the mesh rather than about the
- * product: which connected component each face belongs to, and which of its
- * edges are folds that want rounding. `prep-model-zones.mjs` asks them; the
- * per-product scripts answer in terms of the answers.
+ * Three questions live here, and all three are about the mesh rather than about
+ * the product: which connected component each face belongs to, which of its
+ * edges are folds a shading break belongs on, and which of its vertices are
+ * near enough to one another to be the same vertex. `prep-model-zones.mjs` asks
+ * them; the per-product scripts answer in terms of the answers.
  */
 
 export const mulP = (m, v) => [
@@ -115,93 +116,6 @@ export function assignShells(faces) {
       for (const f of group) { f.shell = index; f.shellInfo = info; }
       return info;
     });
-}
-
-/**
- * Round the folds, and only the folds.
- *
- * A bag modelled as flat panels meets itself at a crease with no transition,
- * which reads as folded card rather than as canvas with something in it. A few
- * passes of Laplacian smoothing weighted by how sharply the faces disagree at
- * each vertex rounds those and leaves the flat panels alone, because a vertex
- * whose neighbours are coplanar has nothing to move toward.
- *
- * Boundary vertices are pinned. A handle is a ribbon two triangles wide and its
- * long edges read every bit as sharp as a fold, so smoothing them would pull
- * the ribbon into a thread. An edge used by one face is an edge of the cloth
- * rather than a fold in it, so every vertex on one stays put.
- *
- * Normals are recomputed afterwards over the same welded topology, which is
- * what carries the rounding into the shading rather than leaving a smooth
- * silhouette over faceted light.
- */
-export function roundCreases(faces, { iterations = 6, strength = 0.5, thresholdDegrees = 25 } = {}) {
-  const key = (w) => `${Math.round(w[0]*1e4)},${Math.round(w[1]*1e4)},${Math.round(w[2]*1e4)}`;
-  const index = new Map(), point = [], neighbours = [];
-  for (const f of faces) {
-    f.wid = [];
-    for (let k = 0; k < 3; k += 1) {
-      const kk = key(f.world[k]);
-      let id = index.get(kk);
-      if (id === undefined) { id = point.length; index.set(kk, id); point.push([...f.world[k]]); neighbours.push(new Set()); }
-      f.wid.push(id);
-    }
-  }
-  const edges = new Map();
-  const bump = (a, b) => { const k = a < b ? `${a}:${b}` : `${b}:${a}`; edges.set(k, (edges.get(k) ?? 0) + 1); };
-  const around = point.map(() => []);
-  for (const f of faces) {
-    const [a, b, c] = f.wid;
-    neighbours[a].add(b); neighbours[a].add(c); neighbours[b].add(a);
-    neighbours[b].add(c); neighbours[c].add(a); neighbours[c].add(b);
-    bump(a, b); bump(b, c); bump(c, a);
-    const n = faceNormal(f);
-    around[a].push(n); around[b].push(n); around[c].push(n);
-  }
-  const onBoundary = new Uint8Array(point.length);
-  for (const [k, count] of edges) if (count === 1) {
-    const [a, b] = k.split(':').map(Number);
-    onBoundary[a] = 1; onBoundary[b] = 1;
-  }
-  const limit = Math.cos((thresholdDegrees * Math.PI) / 180);
-  const sharpness = new Float64Array(point.length);
-  for (let i = 0; i < point.length; i += 1) {
-    if (onBoundary[i]) continue;
-    let worst = 1;
-    const list = around[i];
-    for (let a = 0; a < list.length; a += 1) for (let b = a + 1; b < list.length; b += 1) {
-      const d = list[a][0]*list[b][0] + list[a][1]*list[b][1] + list[a][2]*list[b][2];
-      if (d < worst) worst = d;
-    }
-    sharpness[i] = Math.min(1, Math.max(0, (limit - worst) / (limit + 1)));
-  }
-  for (let pass = 0; pass < iterations; pass += 1) {
-    const next = point.map((w) => [...w]);
-    for (let i = 0; i < point.length; i += 1) {
-      const w = sharpness[i] * strength;
-      if (w <= 0) continue;
-      let a = 0, b = 0, c = 0, n = 0;
-      for (const j of neighbours[i]) { a += point[j][0]; b += point[j][1]; c += point[j][2]; n += 1; }
-      if (!n) continue;
-      next[i] = [point[i][0]*(1-w)+(a/n)*w, point[i][1]*(1-w)+(b/n)*w, point[i][2]*(1-w)+(c/n)*w];
-    }
-    for (let i = 0; i < point.length; i += 1) point[i] = next[i];
-  }
-  for (const f of faces) for (let k = 0; k < 3; k += 1) f.world[k] = [...point[f.wid[k]]];
-
-  const smoothed = point.map(() => [0, 0, 0]);
-  for (const f of faces) {
-    const n = faceNormal(f);
-    for (const id of f.wid) for (let q = 0; q < 3; q += 1) smoothed[id][q] += n[q];
-  }
-  for (const s of smoothed) { const L = Math.hypot(...s) || 1; s[0] /= L; s[1] /= L; s[2] /= L; }
-  for (const f of faces) {
-    const ivm = inv4(f.m);
-    for (let k = 0; k < 3; k += 1) {
-      f.P[k] = mulP(ivm, f.world[k]);
-      f.N[k] = mulN(ivm, smoothed[f.wid[k]]);
-    }
-  }
 }
 
 /**

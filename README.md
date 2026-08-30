@@ -45,7 +45,7 @@ studio and the same export work on all of them.
 | Product | Model file | Upload slots | Colour slots |
 | --- | --- | --- | --- |
 | T-Shirt | `tshirt.glb` | Front, Back, Left sleeve, Right sleeve | Collar rib, hem facing |
-| Tote Bag | `tote-bag.glb` | Front, Back, Left side, Right side | Handles, trim, base |
+| Tote Bag | `tote-bag.glb` | Front, Back, Left side, Right side | Canvas, handles and lining; base |
 | Water Bottle | `water-bottle.glb` | One, wrapped 360° around the body | Cap, ring, latch |
 | ID Card | `id-card.glb` | Front, Back (full bleed, around the punch hole) | Clip, card edge |
 | Tablet Folder | `tablet-folder.glb` | One, on the top sheet | Board, pen, clip |
@@ -66,18 +66,24 @@ What ships now is one continuous unwrap per print zone, each filling 0..1 with
 no island and no gap, computed from the geometry rather than from any texture:
 
 - **The bottle body** is unwrapped cylindrically — angle around the axis to U,
-  height to V — so one image wraps the whole bottle and meets itself at the
-  seam behind. Triangles crossing the seam are repaired individually, which is
-  why there is no visible join. It is the only product whose upload skips the
-  fit-to-frame step, because refitting a cylinder to a rectangle is what put
-  the design on half of it. The head is a separate part in plastic.
+  distance along the profile to V — so one image wraps the whole bottle and
+  meets itself at the seam behind. Distance along the profile rather than
+  height, because the shoulder loses 5mm of radius over 8mm of height and is
+  therefore longer than it is tall. Triangles crossing the seam are repaired
+  individually, which is why there is no visible join. It is the only product
+  whose upload skips the fit-to-frame step, because refitting a cylinder to a
+  rectangle is what put the design on half of it. The label covers everything
+  that faces away from the axis, up to where the chrome ring takes over; only
+  the disc it stands on and the annulus under the ring are bare, because a wrap
+  has nowhere to put a surface facing along its own axis. The head is a
+  separate part in plastic.
 - **The card** carries two zones. Front and back are the same size and each
   fills its own 0..1, so front and back take separate uploads. The clip is
   metal and takes no design.
-- **The tote** carries four: front, back, left and right. The bag was also too
-  flat to read as a bag holding anything — 2.8 units through where it is 5.7
-  across — so the panels are pushed apart to 5.1, which is what gives the sides
-  enough width to print on.
+- **The tote** carries four: front, back, left and right. Each is a centred
+  platen — 240mm square on the panels, 80 by 120mm on the gussets — rather than
+  the whole side of the bag, so a design stops where a screen printer's would
+  instead of running over the base fold and under the handle stitching.
 - **The shirt** carries four: front, back and a sleeve each.
 
 The shirt's zones are cut on the pieces the modeller already separated — the
@@ -146,20 +152,19 @@ its canvas is smooth; the card's is the badge's own embossed lettering rather
 than card stock, and is deliberately left off for the reason `clearPrintRelief`
 exists.
 
-The tote's vertical corners are rounded. It met itself at each fold with no
-transition, which reads as folded card rather than as canvas with something in
-it. A few passes of Laplacian smoothing weighted by how sharply the faces
-disagree at each vertex round the folds and leave the flat panels alone,
-because a vertex whose neighbours are coplanar has nothing to move toward.
-Boundary vertices are pinned: a handle is a ribbon two triangles wide and its
-long edges are as sharp as any fold, so smoothing them would pull the ribbon
-into a thread.
+The tote's folds, corners and slack are the model's own. An earlier source was
+a flat panel with no volume, and three passes of prep existed to put back what a
+bag already has: inflating it into something with depth, hemming a mouth that
+was one vertex thick, and rounding folds that met with no transition. All three
+are gone, along with the machinery for them, because the source now used is a
+closed bag with solid webbing straps. It is a fifth of a 301,100-triangle mesh,
+kept at a fifth because that is what holds the creases the repairs were
+imitating.
 
-What none of this adds is thickness. Both the shirt and the tote are still
-single-layer shells, so a hem or a handle seen exactly edge-on is a line with
-no width. Rendering both faces is what stops that reading as a hole; giving it
-real width would mean offsetting a second surface inside every panel and
-rolling a rim between them, which is not in this branch.
+Being closed, the tote has thickness and an inside: `Bag_Lining` is what you
+look down into through the mouth, and a fold seen exactly edge-on has width.
+The shirt is still a single-layer shell, so its hem and cuffs seen edge-on are
+lines with none; rendering both faces is what stops that reading as a hole.
 
 ### Templates
 
@@ -169,16 +174,15 @@ sized to the zone's measured aspect, carry a grid, a centre cross, a margin box
 and their own dimensions printed on them, so a design built to one of these
 arrives at the size and orientation it was drawn at.
 
-| Zone | Template | Pixels |
-| --- | --- | --- |
-| Bottle body | `water-bottle-body.png` | 2048 × 1811 (1.13 : 1) |
-| Card front / back | `id-card-front.png`, `id-card-back.png` | 1426 × 2048 |
-| Tote front | `tote-bag-front.png` | 1833 × 2048 |
-| Tote back | `tote-bag-back.png` | 1905 × 2048 |
-| Tote left / right | `tote-bag-left.png`, `tote-bag-right.png` | 910 × 2048, 804 × 2048 |
-| Shirt front | `tshirt-front.png` | 1237 × 2048 |
-| Shirt back | `tshirt-back.png` | 1189 × 2048 |
-| Shirt sleeves | `tshirt-sleeve-left.png`, `tshirt-sleeve-right.png` | 1326 × 2048, 1356 × 2048 |
+| Zone | Template | Pixels | What it is |
+| --- | --- | --- | --- |
+| Bottle body | `water-bottle-body.png` | 2048 × 1490 (1.37 : 1) | 137mm around, 100mm foot to neck |
+| Card front / back | `id-card-front.png`, `id-card-back.png` | 1291 × 2048 | full bleed |
+| Tote front / back | `tote-bag-front.png`, `tote-bag-back.png` | 2048 × 2048 | 240 × 240mm platen |
+| Tote left / right | `tote-bag-left.png`, `tote-bag-right.png` | 1365 × 2048 | 80 × 120mm on the gusset |
+| Shirt front | `tshirt-front.png` | 1536 × 2048 | 240 × 320mm chest print |
+| Shirt back | `tshirt-back.png` | 1152 × 2048 | 180 × 320mm back print |
+| Shirt sleeves | `tshirt-sleeve-left.png`, `tshirt-sleeve-right.png` | 2048 × 2048 | 60 × 60mm patch |
 
 The bottle's is the one to look at first: it is marked at the quarter turns, so
 you can see which part of a 360° wrap faces the camera before drawing anything
@@ -266,8 +270,9 @@ colour of the garment, and only the first is built.
 Fit, scale, position and stretch are shared across a product's zones, as noted
 above. Per-zone placement is not built.
 
-Neither is real cloth thickness. Both the shirt and the tote are single-layer
-shells, so an edge seen exactly on is a line rather than a hem.
+Neither is real cloth thickness on the shirt. It is a single-layer shell, so an
+edge seen exactly on is a line rather than a hem. The tote is closed and has
+thickness of its own.
 
 ### How the design is bound
 
@@ -279,7 +284,8 @@ A print zone is deliberately not also a colour slot. Repainting a part writes
 its base colour and clears its map, so a card face that was both would lose its
 template the moment a colourway was picked. The parts a colour picker can reach
 are the ones that carry no print: the bottle's cap, ring and latch, the card's
-clip and edge, the tote's handles, trim and base, the shirt's collar rib and its
+clip and edge, the tote's canvas, handles, lining and base, the shirt's collar
+rib and its
 hem facings. The shirt has two rather than three because its four print
 zones cover every panel, and a slot with nothing left to paint is worse than
 no slot.
@@ -402,8 +408,9 @@ The merchandise models are the exception, and what was done to them is not
 decimation. Nothing was simplified: their UVs were rebuilt, because the ones
 they shipped with were authored for a texture that is no longer on them, and a
 mockup that cannot lay a design flat has nothing left to show. Every vertex
-position is the one the file gave it — the tote is the single exception, and
-its panels were pushed apart deliberately, which is recorded above.
+position is the one the file gave it — the tote is the single exception. Its
+source is 301,100 triangles of subdivided cage and a fifth of it is kept, which
+is decimation, chosen because the alternative was a flatter bag.
 
 The t-shirt ships without its topstitch: 590,408 triangles of thread over
 thirty-five meshes, 96 per cent of the model and the whole reason the file was

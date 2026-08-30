@@ -31,7 +31,7 @@ import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 
 import { along, axisBasis, tangentBasis } from "./prep-model-clip.mjs";
 import {
-  assignShells, inv4, mulN, mulP, roundCreases as roundTheFolds, smoothNormals, weldFaces,
+  assignShells, mulN, mulP, smoothNormals, weldFaces,
 } from "./prep-model-geometry.mjs";
 import { boundaryLoops, hemFaces } from "./prep-model-hem.mjs";
 import { cutPrintRegions } from "./prep-model-regions.mjs";
@@ -66,8 +66,8 @@ export function sourceModel(name) {
 }
 
 export async function prepZones({
-  classify, deformWorld, hems, input, leftover, material, output, regions,
-  roundCreases, smoothCreases, trimStyle, weaveDefault = true, zones,
+  classify, hems, input, leftover, material, output, regions,
+  smoothCreases, trimStyle, weaveDefault = true, zones,
 }) {
   const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
   // A path to a bought file, or a document already in hand. The tote's source
@@ -138,20 +138,6 @@ export async function prepZones({
     if (!byZone.has(zone)) byZone.set(zone, []);
     byZone.get(zone).push(f);
   }
-
-  // Optional reshaping, expressed in world space and written back through the
-  // node's inverse so the stored local positions stay correct.
-  if (deformWorld) {
-    for (const f of faces) {
-      const ivm = inv4(f.m);
-      for (let k = 0; k < 3; k += 1) {
-        const w = deformWorld(f.world[k], f);
-        f.world[k] = w;
-        f.P[k] = mulP(ivm, w);
-      }
-    }
-  }
-  if (roundCreases) roundTheFolds(faces, roundCreases);
 
   const unwrapBasis = cutPrintRegions({ byZone, faces, regions });
 
