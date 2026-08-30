@@ -118,3 +118,14 @@ export const ARTWORK_ZONE_DEVICES: Readonly<
   left: productsOfferingZone("left"),
   right: productsOfferingZone("right"),
 };
+
+/**
+ * Which products print rather than display.
+ *
+ * The background under a design is a print question. A screen showing black
+ * where a screenshot is transparent is a screen behaving correctly, so a
+ * device is not offered the control.
+ */
+export const PRINT_DEVICES: readonly DeviceId[] = (
+  Object.keys(DEVICE_CATALOG) as DeviceId[]
+).filter((id) => DEVICE_CATALOG[id].artworkSurface === "print");

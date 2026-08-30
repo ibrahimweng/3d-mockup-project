@@ -111,6 +111,16 @@ export type ArtworkZone = {
  */
 export const TEMPLATE_DIRECTORY = "/templates";
 
+/**
+ * What a design is printed on where the design itself is transparent.
+ *
+ * White because that is the blank stock every one of these products is, and
+ * because it is what the renderer already assumed: a print zone's base colour
+ * is set to white while something is printed on it, so that the surface under
+ * the ink does not tint it.
+ */
+export const DEFAULT_ARTWORK_BACKGROUND = "#ffffff";
+
 export function artworkTemplateArchive(productId: string): string {
   return `${productId}-templates.zip`;
 }

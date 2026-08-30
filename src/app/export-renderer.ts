@@ -7,7 +7,11 @@ import { readZoneAssets } from "./artwork-slots";
 import { readDeviceDefinition, type ArtworkZoneId } from "./product-domain";
 import { RasterRenderer } from "./render/raster-renderer";
 import { createScreenTexture } from "./render/screen-texture";
-import { readRasterSettings, readScreenTransform } from "./render/settings";
+import {
+  readArtworkBackground,
+  readRasterSettings,
+  readScreenTransform,
+} from "./render/settings";
 
 /**
  * Product export frame.
@@ -134,6 +138,10 @@ export const mockupExportRenderer: ToolcraftProductExportRenderer = {
       }
 
       const device = readDeviceDefinition(settings.device);
+      const background = readArtworkBackground(
+        values,
+        device.artworkSurface === "print",
+      );
       const decoded = await Promise.all(
         [...readZoneAssets(state.mediaAssets)].map(
           async ([zone, asset]) =>
@@ -150,6 +158,7 @@ export const mockupExportRenderer: ToolcraftProductExportRenderer = {
             device,
             asset.transform,
             renderer.maxAnisotropy,
+            background,
           ),
         );
       }

@@ -325,13 +325,14 @@ export const appControlSectionInventory: readonly ToolcraftControlSectionInvento
       entity: "Screenshot",
       entityId: "artwork",
       groupingReason:
-        "The uploaded images and the two pads that place them are the picture itself and where it sits; the four uploaders are one decision taken up to four times, because a product with four printable zones is still one design, and all six are standalone-layout controls, so the runtime keeps them in one titled section.",
+        "The uploaded images, the colour they are printed on and the two pads that place them are the picture itself and where it sits; the four uploaders are one decision taken up to four times, because a product with four printable zones is still one design, and all six are standalone-layout controls, so the runtime keeps them in one titled section.",
       id: "artwork",
       targets: [
         "artwork.image",
         "artwork.imageBack",
         "artwork.imageLeft",
         "artwork.imageRight",
+        "artwork.background",
         "artwork.offset",
         "artwork.stretch",
       ],

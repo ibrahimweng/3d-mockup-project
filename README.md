@@ -154,18 +154,46 @@ rotate and flip actions under each uploader turn that zone's image alone. The
 export reads the same four slots the canvas does, so the file matches the frame
 you were looking at.
 
-The one control they share is Screen fit, below: Fit, Fill, Stretch, scale,
-position and stretch apply to every zone at once. A design fitted to the front
+The controls they share are Screen fit and Print background: Fit, Fill,
+Stretch, scale, position, stretch and the colour under the design apply to
+every zone at once. A design fitted to the front
 is fitted to the back with it. That is a real limit rather than an oversight —
 per-zone placement would be four more sections of the same six controls — and it
 matters most where two zones are different shapes, which is the tote, whose
 sides are about half the width of its front.
 
+### Transparency, and what shows through it
+
+A real print file is a mark on nothing: the areas that are not ink are
+transparent, because the garment is what shows through them. Bound straight to
+an opaque surface that is not what happens. three.js samples the colour
+channels and ignores alpha, and a transparent pixel is stored as black with
+zero alpha, so a logo on a transparent ground used to turn the whole shirt
+front black — measured at RGB (12, 11, 11) against (213, 210, 208) for the
+sleeve beside it.
+
+**Print background**, under the uploaders, is the colour the design is laid
+over. It defaults to white, which is the blank stock all of these products are,
+so a transparent PNG now prints as a mark on white fabric without anyone
+touching the control. Picking a colour prints it on that colour instead.
+
+It is composited into the bitmap when the image is decoded rather than made
+into a transparent material. Transparency on a garment would have to be sorted
+against itself every frame — a shirt's front and back panels overlap — and the
+export would have to reproduce the same sort to match the canvas. Flattening it
+once at decode keeps every surface opaque and makes the two identical by
+construction.
+
+It reaches the zones that carry a design and no others. A shirt with a
+transparent front and nothing on its sleeves prints the background on the front
+and leaves the sleeves on their templates, because there is no design there to
+put anything under. The colour under a design is a different thing from the
+colour of the garment, and only the first is built.
+
 ### What is not built yet
 
-A colour under a transparent PNG is not a feature. A print zone is not also a
-colour slot — see below — so a design with transparency shows the template or
-the fabric through it rather than a chosen background colour.
+Fit, scale, position and stretch are shared across a product's zones, as noted
+above. Per-zone placement is not built.
 
 ### How the design is bound
 

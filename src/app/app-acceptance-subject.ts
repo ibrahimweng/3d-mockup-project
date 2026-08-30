@@ -194,6 +194,24 @@ export const subjectAcceptance: readonly ToolcraftComponentAcceptance[] = [
   },
   {
     automated: true,
+    automatedTestName: "a transparent design is composited onto the print background",
+    browser: true,
+    browserTestName:
+      "browser: a transparent design shows the print background rather than black",
+    componentType: "color",
+    evidence: "rendered-pixels",
+    expectedObservable:
+      "A PNG whose ground is transparent prints its marks on the chosen colour rather than on black, and changing the colour changes what shows through the design without changing the design.",
+    fixture: "a PNG carrying a dark logo on a fully transparent ground",
+    id: "artwork.background.print",
+    kind: "control",
+    target: "artwork.background",
+    timelineCoverage: "keyframes",
+    userAction:
+      "Select a merchandise product, upload a transparent PNG, and pick a Print background colour.",
+  },
+  {
+    automated: true,
     automatedTestName: "every zone that ships a template can hand it back",
     browser: true,
     browserTestName:

@@ -23,7 +23,11 @@ import { readDeviceDefinition, type ArtworkZoneId } from "./product-domain";
 import { fingerprint } from "./render/fingerprint";
 import { RasterRenderer } from "./render/raster-renderer";
 import { createScreenTexture } from "./render/screen-texture";
-import { readRasterSettings, readScreenTransform } from "./render/settings";
+import {
+  readArtworkBackground,
+  readRasterSettings,
+  readScreenTransform,
+} from "./render/settings";
 import styles from "./preview.module.css";
 
 /** Drawing above the display's own ratio is pixels nobody can see. */
@@ -271,6 +275,14 @@ export function MockupPreview(): React.ReactElement {
    * cleared. Binding them one at a time would clear the other three each time
    * one arrived, and four images would land as one.
    */
+  // Baked into the bitmap rather than written on the material, so a change
+  // has to re-decode every slot; it belongs with the sources rather than with
+  // the transform the rebind reads.
+  const background = readArtworkBackground(
+    values,
+    readDeviceDefinition(settings.device).artworkSurface === "print",
+  );
+
   React.useEffect(() => {
     let cancelled = false;
     const device = readDeviceDefinition(settings.device);
@@ -292,6 +304,7 @@ export function MockupPreview(): React.ReactElement {
         device,
         transform ?? undefined,
         rendererRef.current?.maxAnisotropy ?? 1,
+        background,
       );
     };
 
@@ -316,7 +329,7 @@ export function MockupPreview(): React.ReactElement {
     return () => {
       cancelled = true;
     };
-  }, [slots, sceneVersion, settings.device]);
+  }, [background, slots, sceneVersion, settings.device]);
 
   React.useEffect(() => {
     rendererRef.current?.setPose(pose);

@@ -1,4 +1,5 @@
 import {
+  DEFAULT_ARTWORK_BACKGROUND,
   DEFAULT_DEVICE,
   DEFAULT_FINISH,
   DEFAULT_PART_COLORS,
@@ -67,6 +68,22 @@ export function readScreenTransform(
     scale: num(values, "artwork.scale", 100),
     stretch: pad(values, "artwork.stretch"),
   };
+}
+
+/**
+ * The colour a design is composited over, or null where it is not composited.
+ *
+ * Read separately from `readScreenTransform` because the two act at different
+ * moments: the transform remaps a texture that already exists, and this is
+ * baked into the bitmap when the source is decoded. Changing it has to
+ * re-decode, which is why it is not part of the transform the rebind reads.
+ */
+export function readArtworkBackground(
+  values: Record<string, unknown>,
+  printed: boolean,
+): string | undefined {
+  if (!printed) return undefined;
+  return str(values, "artwork.background", DEFAULT_ARTWORK_BACKGROUND);
 }
 
 /**

@@ -117,12 +117,16 @@ export const rendererPipeline = registerToolcraftRendererPipeline<Contracts>()({
       },
       id: "artwork-texture",
       inputs: [
+        "artwork.background",
         "artwork.image",
         "artwork.imageBack",
         "artwork.imageLeft",
         "artwork.imageRight",
       ],
+      // The background is composited into the bitmap rather than written on
+      // the material, so changing it re-decodes rather than rebinds.
       invalidatedBy: [
+        "artwork.background",
         "artwork.image",
         "artwork.imageBack",
         "artwork.imageLeft",

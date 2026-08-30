@@ -1,7 +1,9 @@
 import {
   ARTWORK_TEMPLATE_DEVICES,
   ARTWORK_ZONE_DEVICES,
+  PRINT_DEVICES,
 } from "./product-applicability";
+import { DEFAULT_ARTWORK_BACKGROUND } from "./product-domain";
 
 /**
  * The design, and the four places it can land.
@@ -85,6 +87,21 @@ export const ARTWORK_SECTION = {
       performanceRole: "responsiveness",
       target: "artwork.imageRight",
       type: "fileDrop",
+    },
+    background: {
+      applicability: {
+        all: [{ oneOf: PRINT_DEVICES, target: "device.model" }],
+        mode: "conditional",
+      },
+      defaultValue: DEFAULT_ARTWORK_BACKGROUND,
+      description:
+        "What a design is printed on where the design is transparent. A print file is a mark on nothing, so this is the colour that shows through it \u2014 the shirt behind a logo. It covers the printed zones only; the parts a design never reaches keep their own colours.",
+      label: "Print background",
+      performanceReason:
+        "The colour is composited under the design once when the image is decoded; nothing is rebuilt and no frame costs more.",
+      performanceRole: "responsiveness",
+      target: "artwork.background",
+      type: "color",
     },
     offset: {
       applicability: { mode: "always" },
