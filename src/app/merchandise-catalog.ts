@@ -133,6 +133,13 @@ export const MERCHANDISE_CATALOG = {
     // squeezed into a band.
     screenMaterial: "Bottle_Body",
     artworkZones: { front: { template: "water-bottle-body.png" } },
+    // The disc it stands on and the annulus under the ring. They are the same
+    // powder coat as the body and they should follow it, but the body is the
+    // print zone and a print zone is deliberately never also a colour slot --
+    // repainting one would clear the design off it. So they hold the coat's own
+    // colour. The alternative was to hang them off the cap's slot, which would
+    // have painted the foot of the bottle the colour of its lid.
+    fixedMaterials: ["Bottle_Body_Ends"],
   },
   "id-card": {
     // The file paints the card and the clasp with one material, so they are
@@ -190,5 +197,10 @@ export const MERCHANDISE_CATALOG = {
     // would smear the design down the side of the block. The loose sheets are
     // `Folder_Sheet`, plain paper and not a slot.
     screenMaterial: "Folder_Pad",
+    // Paper, and paper-coloured. The four edges of the pad stand square to its
+    // face, so they are not part of the print; the loose sheets are not the pad
+    // a design lands on. Neither is a slot, because neither is a part anyone
+    // would want to paint a different colour from the paper beside it.
+    fixedMaterials: ["Folder_Pad_Edge", "Folder_Sheet"],
   },
 } satisfies Readonly<Record<string, DeviceDefinition>>;

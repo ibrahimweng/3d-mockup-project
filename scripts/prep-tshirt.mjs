@@ -138,16 +138,27 @@ const HEMS = [
 
 const BODY = ["Shirt_Front", "Shirt_Back"];
 const SLEEVES = ["Shirt_Sleeve_Left", "Shirt_Sleeve_Right"];
+/**
+ * The woven label at the back of the neck.
+ *
+ * 720 triangles across 33mm, and the one material of the eight in the file that
+ * no pass touched and no catalog entry named: it kept the source's own material
+ * and the source's own texture, at roughness 0.5 where every other piece of
+ * cloth here is 0.86. It goes into the body cloth, which is what the back of a
+ * collar is made of, and takes the main colour with the rest of the shirt
+ * instead of staying whatever the file happened to bake into it.
+ */
+const LABEL = "Cotton_Heavy_Twill_116740.004";
 
 const printed = await prepZones({
-  classify: (f) => f.source.getName(),
+  classify: (f) => (f.source.getName() === LABEL ? "Shirt_Body" : f.source.getName()),
   hems: HEMS,
   input: source,
   leftover: "Shirt_Body",
   // The collar rib is in the cut without being printed on. It shares eighty
   // edges with the panels around the neck, and cutting the panel side of those
   // seams without cutting the rib side opened 113mm of them.
-  material: [...BODY, ...SLEEVES, "Shirt_Front_Trim", "Rib_1X1_486gsm_116764"],
+  material: [...BODY, ...SLEEVES, "Shirt_Front_Trim", "Rib_1X1_486gsm_116764", LABEL],
   output: build("tshirt.printed.glb"),
   regions: {
     // Sat 75mm below the collar rather than centred on the panel, which is
@@ -169,11 +180,25 @@ const printed = await prepZones({
     Shirt_Sleeve_Left: { ...COTTON, template: template("tshirt-sleeve-left"), unwrap: "tangent" },
     Shirt_Sleeve_Right: { ...COTTON, flipU: true, template: template("tshirt-sleeve-right"), unwrap: "tangent" },
     Shirt_Front_Trim: { ...COTTON },
-    // Carried across as authored rather than restyled: a ribbed collar is a
-    // different knit from the body and the file already says so.
-    Rib_1X1_486gsm_116764: {
-      baseColor: [0.0027, 0.0027, 0.0027, 1], metalness: 0.2423, roughness: 1,
-    },
+    /**
+     * The collar rib and the facings turned under the hem.
+     *
+     * A ribbed collar is a different knit from the body and it should read as
+     * one, but the file says that by making it black: base colour 0.0027 at
+     * metallic 0.2423 and roughness 1. Carried across as authored, which an
+     * earlier pass did, a plain white tee arrives with a black collar and a
+     * black band round its hem -- a ringer tee nobody asked for, and the first
+     * thing anyone notices about the garment.
+     *
+     * Nor is any of it a description of cotton. Every other piece of cloth on
+     * this shirt is metallic 0 at roughness 0.86; a quarter-metallic knit at
+     * full roughness is a default that survived from wherever the model was
+     * authored. So the rib takes the same cotton finish, a shade duller than
+     * the body because a 1x1 rib is a denser knit and catches less light. It is
+     * on the accent colour slot, so a contrast collar is one pick away for
+     * anyone who wants one.
+     */
+    Rib_1X1_486gsm_116764: { ...COTTON, baseColor: [0.94, 0.94, 0.93, 1], roughness: 0.9 },
     // The cloth outside every print area.
     Shirt_Body: { ...COTTON },
   },

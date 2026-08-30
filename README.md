@@ -44,7 +44,7 @@ studio and the same export work on all of them.
 
 | Product | Model file | Upload slots | Colour slots |
 | --- | --- | --- | --- |
-| T-Shirt | `tshirt.glb` | Front, Back, Left sleeve, Right sleeve | Collar rib, hem facing |
+| T-Shirt | `tshirt.glb` | Front, Back, Left sleeve, Right sleeve | Body cloth, collar rib, placket trim |
 | Tote Bag | `tote-bag.glb` | Front, Back, Left side, Right side | Canvas, handles and lining; base |
 | Water Bottle | `water-bottle.glb` | One, wrapped 360° around the body | Cap, ring, latch |
 | ID Card | `id-card.glb` | Front, Back (full bleed, around the punch hole) | Clip, card edge |
