@@ -23,6 +23,7 @@ export const MERCHANDISE_CATALOG = {
     // would have been a control that appears to do nothing.
     colorParts: {
       accent: { materials: ["Rib_1X1_486gsm_116764"] },
+      main: { materials: ["Shirt_Body"] },
       trim: { materials: ["Shirt_Front_Trim"] },
     },
     excludedNodes: [],
@@ -30,11 +31,17 @@ export const MERCHANDISE_CATALOG = {
     label: "T-Shirt",
     modelFile: "tshirt.glb",
     artworkSurface: "print",
-    // Four zones unwrapped in the file, each filling 0 to 1 on its own. The
-    // garment was authored in a clothing tool that writes texture coordinates
-    // in millimetres, running u from 1460 to 1972, so nothing usable survived
-    // in the original. Back and left sleeve are mirrored in u so artwork reads
-    // the right way round from those sides.
+    // Four print areas, each filling 0 to 1 on its own: a 240 by 320mm chest
+    // print, a 180 by 320mm back print, and a 60mm square patch on each sleeve.
+    // The back is the narrower of the two because the back panel wraps further
+    // round the body before its surface turns away, and artwork past that point
+    // projects back to front. `Shirt_Body` is the cloth outside them.
+    //
+    // The garment was authored in a clothing tool that writes texture
+    // coordinates in millimetres, so nothing usable survived in the original
+    // unwrap -- but those millimetres are what gives the model its scale: one
+    // world unit is one metre. Back and right sleeve are mirrored in u so
+    // artwork reads the right way round from those sides.
     //
     screenMaterial: "Shirt_Front",
     artworkZones: {
@@ -52,10 +59,12 @@ export const MERCHANDISE_CATALOG = {
   },
   "tote-bag": {
     // Four print zones as separate materials, so each carries its own image on
-    // its own unwrap. The split is measured: vertex density and half width
-    // both drop at y 6.51, which is where the bag ends and the handles begin.
+    // its own unwrap. The handles are separated by connected component: each is
+    // a shell of its own that shares no vertex with the bag, so nothing has to
+    // guess how far up the panel reaches. `Bag_Canvas` is the cloth outside the
+    // print areas, and it takes the main colour with the rest of the bag.
     colorParts: {
-      main: { materials: ["Bag_Handles", "Bag_Trim"] },
+      main: { materials: ["Bag_Canvas", "Bag_Handles", "Bag_Trim"] },
       trim: { materials: ["Bag_Base"] },
     },
     excludedNodes: [],
@@ -65,9 +74,12 @@ export const MERCHANDISE_CATALOG = {
     label: "Tote Bag",
     modelFile: "tote-bag.glb",
     artworkSurface: "print",
-    // Front, back, left and right are each unwrapped in the file, filling 0 to
-    // 1 on their own. Back and left are mirrored in u so artwork reads the
-    // right way round from those sides rather than reversed.
+    // Front, back, left and right each print a rectangle the size of a real
+    // screen-print platen -- 240 by 240mm on the panels, 80 by 120mm on the
+    // gussets -- rather than the whole side of the bag, which ran the design
+    // over the base fold and under the handle stitching. Each rectangle fills
+    // 0 to 1 on its own, so its template is a 1:1 preview. Back and left are
+    // mirrored in u so artwork reads the right way round from those sides.
     screenMaterial: "Bag_Front",
     artworkZones: {
       back: { material: "Bag_Back", template: "tote-bag-back.png" },
@@ -87,24 +99,33 @@ export const MERCHANDISE_CATALOG = {
       main: { materials: ["Bottle_Head_Cap"] },
       trim: { materials: ["Bottle_Head_Ring"] },
     },
+    // Split by height, which is where the parts actually divide: the body is
+    // everything below the thread and the head is the cap that screws onto it.
     excludedNodes: [],
     frame: [0.315724, 0.875884, 0.364891],
     label: "Water Bottle",
     modelFile: "water-bottle.glb",
     artworkSurface: "print",
     artworkFit: "wrap",
-    // The body carries one continuous wrap, written into the file rather than
-    // computed here: angle around the axis is u, height is v, and the join is
-    // a single seam at the back. Measured from the geometry, the wrap is
-    // 1.13 to 1, so a design authored at that ratio lands undistorted.
+    // The wall carries one continuous wrap, written into the file rather than
+    // computed here: angle around the axis is u, height is v, and the join is a
+    // single seam at the back. Measured from the wall alone, the wrap is 1.57 to
+    // 1, so a design authored at that ratio lands undistorted.
+    //
+    // The wall is the largest run of near-vertical surface that joins up with
+    // itself. Everything else -- base, shoulder and the narrower neck above it
+    // -- is `Bottle_Body_Ends`, the same coating and never a label. A cylinder's
+    // wrap has nowhere to put a surface facing along its axis, and leaving the
+    // neck in also dragged the radius the wrap assumes down to the neck's, which
+    // stretched the label round the body by a fifth.
     screenMaterial: "Bottle_Body",
     artworkZones: { front: { template: "water-bottle-body.png" } },
   },
   "id-card": {
-    // The file paints the card and the clip with one material and separates
-    // them only in its atlas, so they are split at prep time instead: 6,840
-    // triangles above v 0.66 are the clip, the 1,440 below are the card, and
-    // the geometry agrees with the atlas about where the join is.
+    // The file paints the card and the clasp with one material, so they are
+    // split at prep time -- by connected component, which is the boundary the
+    // mesh already draws. The card is one shell of 3,552 triangles and the
+    // clasp is six others; nothing has to guess where one ends.
     // The printable faces are deliberately not colour slots. A slot that
     // repaints also sets the surface texture aside, which would wipe the very
     // template the card ships with, and a colour under a design is a different
@@ -121,7 +142,7 @@ export const MERCHANDISE_CATALOG = {
     // Both faces are unwrapped in the file, each filling 0 to 1 on its own, and
     // the back is mirrored in u so artwork reads the right way round when the
     // card is turned rather than appearing reversed. The card measures
-    // 2.131 by 3.062, so a design at 0.70 to 1 lands undistorted.
+    // 2.131 by 3.381, so a design at 0.63 to 1 lands undistorted.
     screenMaterial: "Card_Front",
     artworkZones: {
       back: { material: "Card_Back", template: "id-card-back.png" },
@@ -129,29 +150,28 @@ export const MERCHANDISE_CATALOG = {
     },
   },
   "tablet-folder": {
+    // Prepped like every other product now, so the file says what the parts are
+    // instead of the catalog correcting them on the way to the screen. The
+    // source paints all five with one material at metallic 1 and roughness 1 --
+    // which renders near black -- and hangs a photograph of somebody's document
+    // off it. Colour slots and a material correction rescued three of the five;
+    // the loose sheets were left, and shipped that artwork in plain view.
     colorParts: {
-      accent: { materials: ["blinn2@Pin_blinn2_0"], repaint: true },
-      main: { materials: ["blinn2@Tablet_blinn2_0"], repaint: true },
-      trim: { materials: ["blinn2@Pen_blinn2_0"], repaint: true },
+      accent: { materials: ["Folder_Clip"] },
+      main: { materials: ["Folder_Board"] },
+      trim: { materials: ["Folder_Pen"] },
     },
     excludedNodes: [],
     frame: [0.793326, 0.040254, 0.607464],
     label: "Tablet Folder",
     modelFile: "tablet-folder.glb",
     artworkSurface: "print",
-    // One material paints the board, the pen, the clip and the sheets, and the
-    // parts are separated by mesh instead. Splitting per mesh gives each a name
-    // the catalog can address without touching the file.
-    splitMaterialsByMesh: true,
-    screenUnwrap: true,
-    // The top sheet, which is the largest flat face and the one a document
-    // mockup is about. The board beneath it is the main colour.
-    screenMaterial: "blinn2@StackOfPaper_blinn2_0",
-    clearPrintRelief: true,
-    // Same as the card: authored metallic with its surface detail in maps that
-    // describe the sheet's printed contents rather than paper.
-    materialCorrections: {
-      "blinn2@StackOfPaper_blinn2_0": { metalness: 0, roughness: 0.75 },
-    },
+    // The top of the pad: the largest flat face, and the one the folio is a
+    // mockup of. Two triangles projected straight down onto it, filling 0 to 1,
+    // so a design at 1.33 to 1 lands undistorted. Its four edges are their own
+    // material -- they stand square to the face and unwrapping them with it
+    // would smear the design down the side of the block. The loose sheets are
+    // `Folder_Sheet`, plain paper and not a slot.
+    screenMaterial: "Folder_Pad",
   },
 } satisfies Readonly<Record<string, DeviceDefinition>>;

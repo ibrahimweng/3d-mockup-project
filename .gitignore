@@ -36,3 +36,9 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+
+# Bought source models: licensed assets, not redistributable
+assets/model-sources
+
+# Model prep intermediates
+build
