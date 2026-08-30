@@ -56,14 +56,21 @@ A heavyweight cotton canvas tote with webbing handles.
 
 | Part | Shells | Material | Prints? | Surface |
 | --- | --- | --- | --- | --- |
-| Front, back, left, right panels | body, by face direction | `Bag_Front`/`Bag_Back`/`Bag_Left`/`Bag_Right` | yes | canvas: metallic 0, roughness 0.78, tiled weave normal map |
+| Front, back, left, right panels | body, by face direction | `Bag_Front`/`Bag_Back`/`Bag_Left`/`Bag_Right` | yes, platen area only | canvas: metallic 0, roughness 0.78, tiled weave normal map |
+| Mouth hem | body, folded band at the rim | `Bag_Base` | no | as above |
 | Base | body, −Y faces | `Bag_Base` | no, colour slot | as above |
 | Handles | 2 separate islands | `Bag_Handles` | **never** | webbing, same finish |
 
-The bag is sewn cloth, so it is an open surface: the mouth rim and the handle
-attachments are genuine boundaries, not holes to be closed. Canvas does not
-hold a knife-sharp corner — the base folds and the side gussets have a real
-radius, and the model must too.
+The bag is sewn cloth. Its mouth is hemmed — a folded band, real geometry, not
+a knife-thin cut edge — so the only remaining boundary is where the handles
+meet the body. Canvas does not hold a sharp corner either: the base folds and
+the side gussets have a real radius, and the model must too.
+
+Each panel prints a **centred rectangle the size of a real screen-print
+platen**, clear of the base fold and the handle stitching. The unwrap covers
+that rectangle, not the whole panel, so the template a user downloads is a 1:1
+preview of what a printer would actually produce rather than a shape that
+disappears under the seams.
 
 ### T-shirt
 
@@ -72,13 +79,21 @@ A heavyweight cotton tee, photographed close up.
 | Part | Material | Prints? | Surface |
 | --- | --- | --- | --- |
 | Front, back panels | `Shirt_Front`, `Shirt_Back` | yes | jersey: metallic 0, roughness 0.86, weave normal map on TEXCOORD_1 |
-| Sleeves | `Shirt_Sleeve_Left`, `Shirt_Sleeve_Right` | yes | as above |
+| Sleeve print patches | `Shirt_Sleeve_Left`, `Shirt_Sleeve_Right` | yes, flat patch on the outer upper sleeve | as above |
+| Sleeve cloth outside the patch | folded into `Shirt_Front`/`Shirt_Back` | no | as above |
 | Collar rib | `Rib_1X1_486gsm_116764` | no | ribbed knit |
 | Placket trim, care label | `Shirt_Front_Trim`, `Cotton_Heavy_Twill_116740.004` | no | as authored |
 
 One garment shell, so panels are separated by face direction, not by island.
-Hem, cuffs and neck opening are real boundaries. Every panel renders both
-faces so the cloth is never see-through from an angle.
+Hem, cuffs and neck are hemmed with real folded bands: the shirt is shot close
+up, and a paper-thin rim gives it away. Every panel renders both faces so the
+cloth is never see-through from an angle.
+
+A sleeve is a cone and cannot flatten into a square without either distortion
+or a cut. So it does not try: the sleeve carries a **flat rectangular print
+patch on its outer upper face, about 8 by 8 cm**, which is what a sleeve print
+physically is. The patch unwraps with no stretch and no mirroring, and the rest
+of the sleeve is plain cloth.
 
 ### Water bottle
 
@@ -114,7 +129,7 @@ are absolute: not "mostly", not "under 5%". Zero.
 
 | id | Invariant | Today |
 | --- | --- | --- |
-| B1 | A print zone's unwrap covers ≥ 0.95 of its 0–1 square. Below that, part of the template the user is handed never reaches the product. | card 0.998/0.999 — · **tote 0.743–0.820** · **shirt 0.809–0.869** |
+| B1 | A print zone's unwrap covers ≥ 0.95 of its 0–1 square, measured against the area the zone declares printable (full bleed on the card, platen rectangle on the tote, patch on the sleeves). Below that, part of the template the user is handed never reaches the product. | card 0.998/0.999 — · **tote 0.743–0.820** · **shirt 0.809–0.869** |
 | B2 | Stretch (longest/shortest axis ratio of the unwrap) ≤ 1.25, so a circle drawn on the template is a circle on the model. | card 1.00, tote 1.05 — · shirt panels 1.13/1.18 — · **sleeves 2.06/2.11** |
 | B3 | Zero mirrored triangles within a zone: every triangle in a zone has the same UV handedness, or the artwork folds back on itself. | card 0, tote 0 — · **shirt 156/411/678/667** |
 | B4 | A zone's triangles form one connected UV island, so text is never cut across a gap. | to measure |
@@ -136,7 +151,7 @@ fixes:
 | C1 | Zero degenerate triangles. | — all five |
 | C2 | Zero coincident faces, within or across materials (they z-fight). | card/tote/shirt/folder — · **bottle 1759, 352 across materials** |
 | C3 | Zero non-manifold edges. | card/tote/shirt/folder — · **bottle 404** |
-| C4 | Open boundary edges match the count the product declares, so a new hole is caught. Card 0 (closed), tote 288, shirt 554, bottle 112, folder 124. | — pins current state |
+| C4 | Open boundary edges match the count the product declares, so a new hole is caught. Today: card 0 (closed), tote 288, shirt 554, bottle 112, folder 124. Hemming in phase 3 closes the tote mouth and the shirt hem, cuffs and neck, and the declared counts drop with it. | — pins current state |
 | C5 | Zero shading-normal splits on an edge the geometry says is flat (< 10° between face normals). | tote/shirt/bottle 0 — · **card 38** · folder 1 |
 | C6 | On soft goods, no interior edge exceeds 45° between face normals — cloth does not hold a knife edge. | **tote: 69 edges 30–60°, 7 over 60°** · **shirt: 634 and 182** |
 
@@ -154,33 +169,58 @@ fold and the gussets, and only geometry will fix it.
 
 ## 4. The plan
 
-One phase per group. Each phase lands its tests **first**, red, then the prep
-change that turns them green, then a rendered proof sheet. Nothing from a later
-phase is touched early, and no phase merges with another phase's test failing.
+### How the schema is enforced
 
-**Phase 0 — the schema, red.** Add the invariants above as tests against the
-files as they ship. Expect A1, A2, B1, B2, B3, C2, C3, C5, C6 and D3 to fail.
-That failing list is the agreed definition of the defect, and it is the thing
-that stops a later fix from silently undoing an earlier one.
+A schema that ships red cannot merge, and one that only asserts what already
+passes cannot catch a regression. So every invariant is a **ratchet**: it is
+declared with the value measured today and the value it must eventually reach,
+and it fails the moment a number moves the wrong way.
+
+```
+B1  tote front coverage     today 0.773   target ≥ 0.95
+```
+
+The suite is green from phase 0 onward. A fix that improves one number and
+quietly worsens another is a failure the same day it lands, not a surprise
+three phases later. Each phase tightens its own baselines to the target and
+leaves the rest alone; a baseline is only ever allowed to move toward the
+target, never away from it.
+
+### Phases
+
+Each phase is its own branch, reviewed with before/after renders at the same
+camera, and merged before the next one starts.
+
+**Phase 0 — the schema.** The measurement library and the 19 invariants, every
+one pinned to today's number. Nothing about the models changes. This is the
+agreed definition of the defect.
 
 **Phase 1 — part integrity (A).** Replace threshold classification with
 shell-first classification in `card-prep` and `tote-prep`: split the mesh into
-connected components, name each component, and only then subdivide the one
-body component by face direction. Deletes `CLASP_Y` and `HANDLE_Y`. Fixes the
-clasp overlap and the printed handles.
+connected components, name each component, and only then subdivide the single
+body component by face direction. `CLASP_Y` and `HANDLE_Y` are deleted. Fixes
+the artwork on the card's clasp and the print on the tote's handles.
 
-**Phase 2 — print fidelity (B).** Re-unwrap the tote panels and the shirt so
-each zone fills its square, no zone mirrors against itself, and stretch stays
-under 1.25. The sleeves need a decision, not just a better projection — see
-question 1. Regenerate the templates from the new unwraps so the download
-matches what actually prints.
+**Phase 2 — print fidelity (B).** Re-unwrap to the printable areas decided
+above: full bleed on the card, a centred platen rectangle on each tote panel, a
+flat patch on each sleeve, the existing wrap on the bottle. Each zone reaches
+≥ 0.95 coverage, ≤ 1.25 stretch and zero mirrored triangles. Templates are
+regenerated from the new unwraps, so the download matches what prints.
 
-**Phase 3 — surface quality (C).** Round the tote's base fold and gussets and
-the shirt's sharp edges to under 45°; heal the card's 38 flat shading splits;
-rebuild the bottle's coincident and non-manifold geometry.
+**Phase 3 — surface quality (C).** Hem the tote mouth and the shirt hem, cuffs
+and neck with folded bands. Round the tote's base fold and gussets and the
+shirt's hard edges below 45°. Heal the card's 38 flat shading splits and the
+bottle's 404 non-manifold edges and 1,759 coincident faces.
 
-**Phase 4 — appearance (D).** Give the folder a physically sane material and
-re-unwrap it (coverage 0.542, stretch 3.79 today).
+**Phase 4 — appearance (D).** Give the tablet folder a physically sane material
+in place of metallic 1 / roughness 1, and re-unwrap it — coverage 0.542 and
+stretch 3.79 today.
 
-Each phase is a separate commit with before/after renders at the same camera,
-so a regression is visible rather than argued about.
+### Decisions on record
+
+| Question | Decision |
+| --- | --- |
+| Sleeve artwork | A flat 8×8 cm patch on the outer upper sleeve, not a full-sleeve wrap |
+| Tote print extent | A centred platen rectangle, clear of the base fold and handle stitching |
+| Open rims | Real folded hems on the tote mouth and the shirt hem, cuffs and neck |
+| Review cadence | One branch per phase, renders reviewed before the next begins |
