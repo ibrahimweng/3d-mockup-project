@@ -9,8 +9,10 @@ import { GuideRuntime } from "./guide/guide-runtime";
 import { guideSignal } from "./guide/open-signal";
 import { QuickActionDialog } from "./quick-actions/quick-action-dialog";
 import { openQuickActions } from "./quick-actions/quick-action-open";
+import { readDeviceDefinition, readDeviceId } from "./product-domain";
 import { rendererPipeline } from "./render/pipeline";
 import { getMockupSceneRect } from "./scene-bounds";
+import { downloadArtworkTemplates } from "./template-download";
 
 export const appComposition: ToolcraftAppComposition = {
   // The palette renders into a portal, so where it is mounted decides only
@@ -23,6 +25,20 @@ export const appComposition: ToolcraftAppComposition = {
     </>
   ),
   exportRenderer: mockupExportRenderer,
+  /**
+   * The one action this product owns that the runtime does not.
+   *
+   * Export PNG and Export Video are typed export roles the runtime runs
+   * itself; anything else reaching here is the product's. This one is
+   * synchronous because it is a link being followed rather than an artifact
+   * being made — there is nothing to report progress on and nothing to await.
+   */
+  onPanelAction: ({ action, state }) => {
+    if (action.value !== "download-templates") return undefined;
+    const id = readDeviceId((state.values as Record<string, unknown>)["device.model"]);
+    downloadArtworkTemplates(readDeviceDefinition(id), id);
+    return undefined;
+  },
   // The product renderer draws the device itself; the runtime's generic image
   // preview would otherwise show the raw screenshot on top of the render.
   renderDefaultCanvasMedia: false,

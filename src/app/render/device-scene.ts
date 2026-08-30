@@ -6,7 +6,11 @@ import {
   prepareProductMaterials,
   type PartColors,
 } from "./model-appearance";
-import { bindArtwork, capturePrintRelief } from "./artwork-binding";
+import {
+  bindZoneArtwork,
+  capturePrintRelief,
+  type ArtworkZoneBinding,
+} from "./artwork-binding";
 import { createKeyLight } from "./scene-key";
 import { createRoom } from "./scene-room";
 import { getDevicePose } from "./device-pose";
@@ -59,11 +63,13 @@ import {
 } from "./device-assets";
 
 import type {
+  ArtworkZoneId,
   DeviceDefinition,
   DeviceSurface,
   FinishId,
   LightPatternId,
 } from "../product-domain";
+import { readArtworkZones } from "../product-applicability";
 
 export { loadEnvironment } from "./device-assets";
 
@@ -86,103 +92,6 @@ import {
  * rather than a branch here, so adding another model is a catalog entry — the
  * iMac was added that way, and needed no code.
  */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/**
- * The cut-out the key shines through.
- *
- * Everything in the rig until now is a light with a number on it, and no
- * number makes a room. A gobo does: a shape held in front of the light so that
- * what lands is the shape rather than the light. Bars across a floor read as a
- * window with no window anywhere in the frame, which is the whole trick.
- *
- * Bars only, never a surround blocking the light around them. A real window is
- * a hole in an opaque wall, but the depth map covering this scene is finite,
- * and beyond its edge nothing is shadowed at all — so a surround would draw a
- * hard line across the floor where the map ran out and the light started
- * arriving again. Bars have no such edge: both sides of that boundary are lit,
- * and only the bars are not.
- *
- * The pattern is laid out around the middle rather than through it, so the
- * device stands in a pane and the shadows fall beside it. A bar across the
- * product is a defect however well it reads on the floor.
- */
-/**
- * The table: a chamfered top, and legs under it if it is that kind of table.
- *
- * Two things make furniture read as furniture rather than as floor. The first
- * is the eased arris — every worked surface carries one a millimetre or two
- * across, and that tiny band is what catches the key and draws the bright line
- * along the front of every table you have ever seen photographed. A
- * mathematically sharp edge is the one thing real furniture never has.
- *
- * The second is that you can see under it. A block that runs out of the bottom
- * of frame is a plinth: it tells you the device is standing on something, and
- * nothing else. Legs, an underside, and the backdrop carrying on behind them
- * tell you the device is standing on an object, in a room, and that is the
- * whole difference between a staged photograph and a rendering.
- *
- * Everything is measured from the device, not from the middle of the top, so
- * the device can sit near one corner with two edges running away from it.
- */
-
-
-
-
-/**
- * Where the floor gives way to the reflection under it, and where it ends.
- *
- * One gradient does two jobs, because both are the floor's own opacity at a
- * distance from the device.
- *
- * Near the centre it is the reflection: a real polished floor loses the
- * mirrored device with distance, because the surface is never perfectly flat
- * and a grazing angle carries less of it. Without that falloff the reflection
- * sits as hard as the device and reads as a second object standing upside
- * down. The stops are tight because the plane is forty subject radii across,
- * so the pool has to be a small fraction of it to stay under the device.
- *
- * At the rim it is the horizon. The plane is finite, and a finite plane has an
- * edge — a hard line across the frame where the floor stops and the backdrop
- * begins, which is exactly the tell that gives a rendered scene away. A real
- * sweep has no edge because it curves out of sight, so this one dissolves
- * instead: opaque where the device stands, gone by the time it would end.
- *
- * The strength is baked into the gradient rather than set as the material's
- * opacity, because three multiplies the two: an opacity of 0.3 would take the
- * whole floor to thirty percent, edges included, and the sweep would vanish.
- */
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 export async function buildDeviceScene(options: {
   backgroundColor: string;
@@ -473,16 +382,34 @@ export async function buildDeviceScene(options: {
         : key.intensity * definition.bounce.share;
   };
 
-  const screenMaterials = findScreenMaterials(
-    subject,
-    options.device.screenMaterial,
-  );
-  const screenAspect =
-    options.device.screenAspect ??
-    measureScreenAspect(subject, screenMaterials, 9 / 19.5);
-
   const clearRelief = options.device.clearPrintRelief === true;
-  const printRelief = capturePrintRelief(screenMaterials, clearRelief);
+
+  /**
+   * One binding per zone the product declares, resolved against this model.
+   *
+   * A zone whose material the file does not carry is dropped rather than
+   * bound to whatever the fallback finds, because the fallback is "the
+   * strongest emissive material" — right for a display named something else
+   * after a re-export, and quite wrong for a sleeve.
+   */
+  const zones = new Map<ArtworkZoneId, ArtworkZoneBinding>();
+  for (const [id, zone] of readArtworkZones(options.device)) {
+    const materials = findScreenMaterials(subject, zone.material);
+    if (materials.length === 0) continue;
+    zones.set(id, {
+      aspect:
+        zone.aspect ??
+        (id === "front" ? options.device.screenAspect : undefined) ??
+        measureScreenAspect(subject, materials, 9 / 19.5),
+      fit: zone.fit,
+      materials,
+      relief: capturePrintRelief(materials, clearRelief),
+      slack: { x: 0, y: 0 },
+    });
+  }
+  // The front is what a pointer drags on and what the unwrap is rebuilt for.
+  const front = zones.get("front");
+  const screenMaterials = front?.materials ?? [];
 
   const findScreenMeshes = (root: THREE.Object3D): THREE.Mesh[] => {
     const found: THREE.Mesh[] = [];
@@ -510,8 +437,6 @@ export async function buildDeviceScene(options: {
   if (options.device.screenUnwrap) {
     unwrapScreen([...screenMeshes, ...findScreenMeshes(mirror)]);
   }
-
-  const slack: ScreenSlack = { x: 0, y: 0 };
 
   const camera = new THREE.PerspectiveCamera(
     35,
@@ -562,7 +487,7 @@ export async function buildDeviceScene(options: {
       // caller's job because only the caller knows it is about to draw.
       return true;
     },
-    getScreenSlack: () => ({ x: slack.x, y: slack.y }),
+    getScreenSlack: () => ({ x: front?.slack.x ?? 0, y: front?.slack.y ?? 0 }),
     screenMeshes,
     setEnvironment: (next) => {
       scene.environment = next;
@@ -621,16 +546,16 @@ export async function buildDeviceScene(options: {
       });
     },
     scene,
-    setArtwork: (texture, transform) => {
-      if (screenMaterials.length === 0) return;
-      if (texture) applyScreenTransform(texture, screenAspect, transform, slack);
-      bindArtwork({
-        clearRelief,
-        materials: screenMaterials,
-        printed: options.device.artworkSurface === "print",
-        relief: printRelief,
-        texture,
-      });
+    setArtwork: (textures, transform) => {
+      for (const [id, binding] of zones) {
+        bindZoneArtwork({
+          binding,
+          clearRelief,
+          printed: options.device.artworkSurface === "print",
+          texture: textures.get(id) ?? null,
+          transform,
+        });
+      }
     },
     subject,
     framing,

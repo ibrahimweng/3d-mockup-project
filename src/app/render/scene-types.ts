@@ -1,6 +1,10 @@
 import type * as THREE from "three";
 
-import type { FinishId, LightPatternId } from "../product-domain";
+import type {
+  ArtworkZoneId,
+  FinishId,
+  LightPatternId,
+} from "../product-domain";
 import type { PartColors } from "./model-appearance";
 import type { ScreenSlack, ScreenTransform } from "./screen-mapping";
 
@@ -135,9 +139,16 @@ export type DeviceScene = {
   setTransform: (transform: DeviceTransform) => boolean;
   /** The device geometry, so a hit test can ignore the ground. */
   subject: THREE.Object3D;
-  /** Set the artwork shown on the display, or null to leave it dark. */
+  /**
+   * Put a design on each of the product's zones.
+   *
+   * Every zone the product declares is written on every call, including the
+   * ones the map has nothing for: a zone left out is a zone cleared, which is
+   * what returns it to the template the file ships with rather than leaving
+   * the last upload on it after the slot was emptied.
+   */
   setArtwork: (
-    texture: THREE.Texture | null,
+    textures: ReadonlyMap<ArtworkZoneId, THREE.Texture | null>,
     transform?: ScreenTransform,
   ) => void;
   scene: THREE.Scene;

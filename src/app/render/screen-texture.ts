@@ -42,6 +42,23 @@ export function createScreenTexture(
    * screenshot on a tilted screen and a legible one.
    */
   maxAnisotropy = 1,
+  /**
+   * The colour to lay the design over, for a surface that is printed on.
+   *
+   * A real print file is a mark on nothing: the areas that are not ink are
+   * transparent, because the garment is what shows through them. Bound
+   * straight to an opaque material that is not what happens — three.js
+   * samples the colour channels and ignores alpha, and a transparent pixel
+   * is stored as black with zero alpha, so an entire panel comes out black
+   * behind the logo. Compositing here rather than making the material
+   * transparent keeps the surface opaque, which matters on a garment whose
+   * front and back panels overlap and would otherwise have to be sorted
+   * against each other every frame.
+   *
+   * Undefined for a display, and deliberately: a screenshot with transparent
+   * corners showing black is what a real screen does.
+   */
+  background?: string,
 ): THREE.Texture {
   const rotationDeg = design?.rotationDeg ?? 0;
   const userFlipX = design?.flipHorizontal === true;
@@ -50,6 +67,7 @@ export function createScreenTexture(
   const deviceFlipY = device.screenFlip?.y === true;
 
   const untouched =
+    background === undefined &&
     rotationDeg === 0 &&
     !userFlipX &&
     !userFlipY &&
@@ -59,6 +77,7 @@ export function createScreenTexture(
   const texture = untouched
     ? new THREE.Texture(image)
     : bake(image, {
+        background,
         deviceFlipX,
         deviceFlipY,
         rotationDeg,
@@ -83,6 +102,7 @@ export function createScreenTexture(
 function bake(
   image: HTMLImageElement,
   options: {
+    background?: string;
     deviceFlipX: boolean;
     deviceFlipY: boolean;
     rotationDeg: number;
@@ -101,6 +121,14 @@ function bake(
 
   const context = canvas.getContext("2d");
   if (!context) return new THREE.Texture(image);
+
+  // Before the transforms, and covering the whole canvas rather than the
+  // image: the design is drawn over this, so it has to be under every pixel
+  // the design could reach.
+  if (options.background !== undefined) {
+    context.fillStyle = options.background;
+    context.fillRect(0, 0, canvas.width, canvas.height);
+  }
 
   context.translate(canvas.width / 2, canvas.height / 2);
   // The device correction describes the panel rather than the design, so it

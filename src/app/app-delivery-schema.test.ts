@@ -1,6 +1,27 @@
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+
+import { unzipSync } from "fflate";
 import { describe, expect, test } from "vitest";
 
 import { appSchema } from "./app-schema";
+import {
+  ARTWORK_TEMPLATE_DEVICES,
+  ARTWORK_ZONE_DEVICES,
+  readArtworkTemplates,
+  readArtworkZones,
+} from "./product-applicability";
+import {
+  ARTWORK_ZONE_IDS,
+  ARTWORK_ZONE_TARGETS,
+  artworkTemplateArchive,
+  DEVICE_CATALOG,
+  TEMPLATE_DIRECTORY,
+} from "./product-domain";
+import { readTemplateDownload } from "./template-download";
+
+/** The served directory, as a path a test can stat. */
+const TEMPLATES_ON_DISK = join(process.cwd(), "public", "templates");
 
 /**
  * What the product promises about getting a frame out, and about keeping the
@@ -26,23 +47,61 @@ function optionValues(target: string): readonly string[] {
   return (controlAt(target)?.options ?? []).map((option) => option.value);
 }
 
-test("screenshot fileDrop is the single source-material owner", () => {
+test("every upload slot owns exactly one print zone", () => {
   const drops = sections.flatMap((section) =>
     Object.values(section.controls).filter((control) => control.type === "fileDrop"),
   );
 
-  // Exactly one. Two ways to bring a design in is two places for it to live,
-  // and the renderer reads one of them.
-  expect(drops).toHaveLength(1);
-  expect(drops[0].target).toBe("artwork.image");
-  // It takes an image, not a model: the device geometry is bundled, and a
-  // model drop here would offer to replace the thing the product is about.
-  expect(drops[0].assetKind ?? "image").toBe("image");
-  expect(drops[0].multiple ?? false).toBe(false);
+  // One per zone and no more. The rule this replaces was "exactly one drop",
+  // written when a product had one printable surface; what it was really
+  // guarding is that no two ways of bringing a design in compete for the same
+  // place on the model, which is now a statement about zones rather than about
+  // the number of uploaders.
+  const targets = drops.map((drop) => drop.target);
+  expect([...targets].sort()).toEqual(
+    [...Object.values(ARTWORK_ZONE_TARGETS)].sort(),
+  );
+  expect(new Set(targets).size).toBe(targets.length);
+
+  // Every zone a product declares has a slot, and every slot lands on a zone
+  // some product declares. Either half failing is an upload that goes nowhere
+  // or a zone nothing can reach.
+  for (const zone of ARTWORK_ZONE_IDS) {
+    const control = controlAt(ARTWORK_ZONE_TARGETS[zone]);
+    expect(control, `${zone} has no uploader`).toBeDefined();
+    expect(ARTWORK_ZONE_DEVICES[zone].length).toBeGreaterThan(0);
+  }
+
+  for (const drop of drops) {
+    // Images, not models: the geometry is bundled, and a model drop here would
+    // offer to replace the thing the product is about.
+    expect(drop.assetKind ?? "image").toBe("image");
+    expect(drop.multiple ?? false).toBe(false);
+  }
 
   // Nothing else is declared as source material, and the product ships no
   // default asset that would stand in for one.
   expect(appSchema.media?.defaultAssets ?? []).toEqual([]);
+});
+
+test("a product's zones and its uploaders name the same places", () => {
+  // The catalog is the subject: a zone naming a material another zone already
+  // owns would print two designs on one panel, and the second would win
+  // silently.
+  for (const id of Object.keys(DEVICE_CATALOG) as (keyof typeof DEVICE_CATALOG)[]) {
+    const zones = readArtworkZones(DEVICE_CATALOG[id]);
+    const materials = [...zones.values()].map((zone) => zone.material);
+    expect(new Set(materials).size, `${id} repeats a material across zones`).toBe(
+      materials.length,
+    );
+    expect(zones.get("front")?.material).toBe(DEVICE_CATALOG[id].screenMaterial);
+    for (const zone of zones.keys()) {
+      expect(
+        ARTWORK_ZONE_DEVICES[zone],
+        `${id} declares ${zone} but is not offered its uploader`,
+      ).toContain(id);
+    }
+  }
 });
 
 test("export format options select the encoded artifact type", () => {
@@ -164,4 +223,83 @@ describe("what survives a reload", () => {
       "values",
     ]);
   });
+});
+
+test("every zone that ships a template can hand it back", () => {
+  const control = controlAt("artwork.templates");
+  expect(control?.type).toBe("actions");
+  expect(
+    control?.actions?.map((action) =>
+      typeof action === "string" ? action : action.value,
+    ),
+  ).toEqual(["download-templates"]);
+
+  // Offered exactly where there is something to offer. The list is derived
+  // from the catalog, so a product that gains a template gains the button and
+  // one that has none never shows a control that would download nothing.
+  const withTemplates = (
+    Object.keys(DEVICE_CATALOG) as (keyof typeof DEVICE_CATALOG)[]
+  ).filter((id) => readArtworkTemplates(DEVICE_CATALOG[id]).length > 0);
+  expect([...ARTWORK_TEMPLATE_DEVICES].sort()).toEqual([...withTemplates].sort());
+  expect(withTemplates.length).toBeGreaterThan(0);
+
+  for (const id of Object.keys(DEVICE_CATALOG) as (keyof typeof DEVICE_CATALOG)[]) {
+    const templates = readArtworkTemplates(DEVICE_CATALOG[id]);
+    const zones = readArtworkZones(DEVICE_CATALOG[id]);
+
+    // Every template belongs to a zone that exists, and no two zones hand back
+    // the same file: two zones sharing a template is a design drawn for one
+    // panel and printed on another.
+    const files = templates.map((template) => template.file);
+    expect(new Set(files).size, `${id} repeats a template file`).toBe(files.length);
+    for (const template of templates) {
+      expect(zones.has(template.zone)).toBe(true);
+      expect(template.file).toMatch(/^[a-z0-9-]+\.png$/);
+    }
+
+    // A merchandise product templates all of its zones or none of them. A
+    // partial set is the case where someone downloads three sheets, draws four
+    // designs, and one of them lands somewhere it was not drawn for.
+    expect(
+      templates.length === 0 || templates.length === zones.size,
+      `${id} templates ${templates.length} of its ${zones.size} zones`,
+    ).toBe(true);
+
+    // What the button actually points at has to be there, and for several
+    // zones it is a committed archive rather than something built at the
+    // moment of the press.
+    const download = readTemplateDownload(DEVICE_CATALOG[id], id);
+    expect(Boolean(download), `${id} offers no download`).toBe(
+      templates.length > 0,
+    );
+    if (!download) continue;
+    expect(download.href).toBe(`${TEMPLATE_DIRECTORY}/${download.name}`);
+    expect(existsSync(join(TEMPLATES_ON_DISK, download.name))).toBe(true);
+  }
+});
+
+test("each committed template archive matches the images beside it", () => {
+  // The archives are built once and committed, so they can fall behind the
+  // PNGs they were made from — and a stale template is worse than none,
+  // because it looks right and lands a design somewhere it was not drawn for.
+  // Rebuild with:
+  //   node scripts/build-template-archives.mjs <archive.zip> <name.png>...
+  for (const id of Object.keys(DEVICE_CATALOG) as (keyof typeof DEVICE_CATALOG)[]) {
+    const templates = readArtworkTemplates(DEVICE_CATALOG[id]);
+    if (templates.length < 2) continue;
+
+    const archive = join(TEMPLATES_ON_DISK, artworkTemplateArchive(id));
+    const entries = unzipSync(new Uint8Array(readFileSync(archive)));
+    expect(Object.keys(entries).sort()).toEqual(
+      templates.map((template) => template.file).sort(),
+    );
+    for (const template of templates) {
+      const packed = Buffer.from(entries[template.file]);
+      const onDisk = readFileSync(join(TEMPLATES_ON_DISK, template.file));
+      expect(
+        packed.equals(onDisk),
+        `${artworkTemplateArchive(id)} holds a stale ${template.file}`,
+      ).toBe(true);
+    }
+  }
 });

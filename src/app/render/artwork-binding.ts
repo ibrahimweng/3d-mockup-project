@@ -1,5 +1,12 @@
 import * as THREE from "three";
 
+import type { ArtworkFit } from "../product-domain";
+import {
+  applyScreenTransform,
+  type ScreenSlack,
+  type ScreenTransform,
+} from "./screen-mapping";
+
 /**
  * Binding a supplied design to the surface that carries it.
  *
@@ -22,6 +29,7 @@ export type PrintRelief = ReadonlyMap<
   THREE.MeshStandardMaterial,
   {
     aoMap: THREE.Texture | null;
+    map: THREE.Texture | null;
     metalnessMap: THREE.Texture | null;
     normalMap: THREE.Texture | null;
     roughnessMap: THREE.Texture | null;
@@ -36,19 +44,23 @@ export function capturePrintRelief(
     THREE.MeshStandardMaterial,
     {
       aoMap: THREE.Texture | null;
+      map: THREE.Texture | null;
       metalnessMap: THREE.Texture | null;
       normalMap: THREE.Texture | null;
       roughnessMap: THREE.Texture | null;
     }
   >();
-  if (!clearRelief) return relief;
 
+  // The base colour map is captured whatever the product asked for, because
+  // clearing an upload has to put back the template the file ships with rather
+  // than leaving the surface blank.
   for (const material of materials) {
     relief.set(material, {
-      aoMap: material.aoMap,
-      metalnessMap: material.metalnessMap,
-      normalMap: material.normalMap,
-      roughnessMap: material.roughnessMap,
+      aoMap: clearRelief ? material.aoMap : null,
+      map: material.map,
+      metalnessMap: clearRelief ? material.metalnessMap : null,
+      normalMap: clearRelief ? material.normalMap : null,
+      roughnessMap: clearRelief ? material.roughnessMap : null,
     });
   }
   return relief;
@@ -64,7 +76,10 @@ export function bindArtwork(request: {
   const { clearRelief, materials, printed, relief, texture } = request;
 
   for (const material of materials) {
-    material.map = texture;
+    // No upload means the surface goes back to the template printed into the
+    // file, which is what makes a product arrive showing where a design lands
+    // instead of arriving blank.
+    material.map = texture ?? relief.get(material)?.map ?? null;
 
     if (printed) {
       // A coloured surface under the design would tint it, so the base colour
@@ -92,4 +107,76 @@ export function bindArtwork(request: {
     material.toneMapped = false;
     material.needsUpdate = true;
   }
+}
+
+/**
+ * Size a design onto a surface whose coordinates were written for exactly one
+ * image, and report whether it did.
+ *
+ * Returns false for anything else, which leaves the caller to fit the design
+ * to a panel the usual way. A wrap cannot be fitted: scaling it moves the two
+ * ends apart and opens the seam. Repeat wrapping is what lets the seam
+ * triangles, whose u runs past 1, reach the far edge instead of smearing the
+ * last column across the join.
+ */
+export function wrapArtwork(
+  texture: THREE.Texture,
+  fit: ArtworkFit | undefined,
+  slack: { x: number; y: number },
+): boolean {
+  if (fit !== "wrap") return false;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(1, 1);
+  texture.offset.set(0, 0);
+  texture.needsUpdate = true;
+  slack.x = 0;
+  slack.y = 0;
+  return true;
+}
+
+/**
+ * One printable zone, resolved against a loaded model.
+ *
+ * Built once when the scene is, because everything in it is a property of the
+ * model rather than of the design: which materials carry the zone, what shape
+ * they are, and what their maps were before anything was printed on them.
+ * Only the texture changes per upload.
+ */
+export type ArtworkZoneBinding = {
+  /** The panel's measured height / width, for fitting a design into it. */
+  aspect: number;
+  fit: ArtworkFit | undefined;
+  materials: readonly THREE.MeshStandardMaterial[];
+  relief: PrintRelief;
+  /** How much of the design is cropped on each axis, for dragging it. */
+  slack: ScreenSlack;
+};
+
+/**
+ * Put one design on one zone.
+ *
+ * The zone owns its own slack rather than sharing one, which is what lets four
+ * panels of different shapes each crop their own design: a tote's side is half
+ * the width of its front, so the same image fills one and is cut by the other,
+ * and a single shared slack would report whichever zone was bound last.
+ */
+export function bindZoneArtwork(request: {
+  binding: ArtworkZoneBinding;
+  clearRelief: boolean;
+  printed: boolean;
+  texture: THREE.Texture | null;
+  transform?: ScreenTransform;
+}): void {
+  const { binding, clearRelief, printed, texture, transform } = request;
+  if (texture && !wrapArtwork(texture, binding.fit, binding.slack)) {
+    applyScreenTransform(texture, binding.aspect, transform, binding.slack);
+  }
+  bindArtwork({
+    clearRelief,
+    materials: binding.materials,
+    printed,
+    relief: binding.relief,
+    texture,
+  });
 }

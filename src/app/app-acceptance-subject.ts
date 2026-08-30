@@ -69,7 +69,7 @@ export const subjectAcceptance: readonly ToolcraftComponentAcceptance[] = [
     componentType: "color",
     evidence: "rendered-pixels",
     expectedObservable:
-      "Choosing a Trim colour repaints only the part set against the main surface, such as the shirt's sleeves or the ring under the bottle's cap, and the main surface keeps its own colour.",
+      "Choosing a Trim colour repaints only the part set against the main surface, such as the facing under the shirt's hem or the ring under the bottle's cap, and the main surface keeps its own colour.",
     fixture: "each merchandise product under the default studio",
     id: "product.color.trim.repaint",
     kind: "control",
@@ -119,6 +119,113 @@ export const subjectAcceptance: readonly ToolcraftComponentAcceptance[] = [
     target: "artwork.image",
     userAction:
       "Drop a PNG into the Screenshot uploader, click the rotate and flip actions, clear the upload, re-upload, and reset controls.",
+  },
+  {
+    automated: true,
+    automatedTestName: "every upload slot owns exactly one print zone",
+    browser: true,
+    browserTestName:
+      "browser: each upload slot prints on its own zone of the product",
+    componentType: "fileDrop",
+    evidence: "media-lifecycle",
+    expectedObservable: "Uploading a PNG to Back prints it on the product's back panel and leaves the front, the sleeves and the sides on their own images; rotate and flip turn it on that panel, and clearing it returns the panel to its template.",
+    fixture: "the t-shirt, whose four zones each ship a labelled template",
+    id: "artwork.image-back.upload",
+    kind: "control",
+    mediaLifecycleCoverage: [
+      "flip",
+      "remove",
+      "reset",
+      "rotate",
+      "transform-output",
+      "upload",
+    ],
+    target: "artwork.imageBack",
+    userAction:
+      "Select the T-Shirt, drop a PNG into the Back uploader, turn the model around, click rotate and flip, then clear the upload and reset controls.",
+  },
+  {
+    automated: true,
+    automatedTestName: "every upload slot owns exactly one print zone",
+    browser: true,
+    browserTestName:
+      "browser: each upload slot prints on its own zone of the product",
+    componentType: "fileDrop",
+    evidence: "media-lifecycle",
+    expectedObservable: "Uploading a PNG to Left prints it on the left sleeve or left side and nowhere else; rotate and flip turn it there, and clearing it returns that panel to its template.",
+    fixture: "the t-shirt, whose four zones each ship a labelled template",
+    id: "artwork.image-left.upload",
+    kind: "control",
+    mediaLifecycleCoverage: [
+      "flip",
+      "remove",
+      "reset",
+      "rotate",
+      "transform-output",
+      "upload",
+    ],
+    target: "artwork.imageLeft",
+    userAction:
+      "Select the T-Shirt, drop a PNG into the Left uploader, click rotate and flip, then clear the upload and reset controls.",
+  },
+  {
+    automated: true,
+    automatedTestName: "every upload slot owns exactly one print zone",
+    browser: true,
+    browserTestName:
+      "browser: each upload slot prints on its own zone of the product",
+    componentType: "fileDrop",
+    evidence: "media-lifecycle",
+    expectedObservable: "Uploading a PNG to Right prints it on the right sleeve or right side and nowhere else; rotate and flip turn it there, and clearing it returns that panel to its template.",
+    fixture: "the t-shirt, whose four zones each ship a labelled template",
+    id: "artwork.image-right.upload",
+    kind: "control",
+    mediaLifecycleCoverage: [
+      "flip",
+      "remove",
+      "reset",
+      "rotate",
+      "transform-output",
+      "upload",
+    ],
+    target: "artwork.imageRight",
+    userAction:
+      "Select the T-Shirt, drop a PNG into the Right uploader, click rotate and flip, then clear the upload and reset controls.",
+  },
+  {
+    automated: true,
+    automatedTestName: "a transparent design is composited onto the print background",
+    browser: true,
+    browserTestName:
+      "browser: a transparent design shows the print background rather than black",
+    componentType: "color",
+    evidence: "rendered-pixels",
+    expectedObservable:
+      "A PNG whose ground is transparent prints its marks on the chosen colour rather than on black, and changing the colour changes what shows through the design without changing the design.",
+    fixture: "a PNG carrying a dark logo on a fully transparent ground",
+    id: "artwork.background.print",
+    kind: "control",
+    target: "artwork.background",
+    timelineCoverage: "keyframes",
+    userAction:
+      "Select a merchandise product, upload a transparent PNG, and pick a Print background colour.",
+  },
+  {
+    automated: true,
+    automatedTestName: "every zone that ships a template can hand it back",
+    browser: true,
+    browserTestName:
+      "browser: the templates button hands back the files the model was built from",
+    componentType: "actions",
+    evidence: "product-output",
+    expectedObservable:
+      "Pressing Download on a merchandise product saves that product's templates \u2014 one PNG where it has a single zone, a zip of one file per zone where it has several \u2014 and the button offers nothing on a device, which ships no printed sheet.",
+    fixture: "each merchandise product, and one device as the negative case",
+    id: "artwork.templates.download",
+    kind: "control",
+    target: "artwork.templates",
+    userAction:
+      "Select a merchandise product and press Download under Templates.",
   },
   {
     automated: true,

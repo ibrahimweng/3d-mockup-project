@@ -112,6 +112,11 @@ describe("appSchema", () => {
       // then print on it.
       "product-parts",
       "artwork",
+      // The templates the uploads are drawn against, directly under them: an
+      // actions control is grouped-layout where the uploaders are standalone,
+      // so it cannot share their section without the runtime cutting that
+      // section into unlabelled fragments.
+      "artwork-templates",
       "screen-fit",
       "studio",
       "lights",

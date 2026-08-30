@@ -172,11 +172,14 @@ export async function readOptions(control: Locator): Promise<string[]> {
  * schema declares one image fileDrop for this, and a test that uploads some
  * other way is not exercising the control the evidence is keyed to.
  */
-export async function uploadDesign(control: Locator): Promise<void> {
+export async function uploadDesign(
+  control: Locator,
+  file = "mockup-design.png",
+): Promise<void> {
   await control
     .locator('input[type="file"]')
     .first()
-    .setInputFiles("e2e/fixtures/mockup-design.png");
+    .setInputFiles(`e2e/fixtures/${file}`);
 }
 
 /** Choose from a segmented control, which is a toggle group rather than a select. */

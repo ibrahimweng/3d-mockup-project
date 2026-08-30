@@ -1,6 +1,10 @@
 import * as THREE from "three";
 
-import { readDeviceDefinition, readFinishId } from "../product-domain";
+import {
+  readDeviceDefinition,
+  readFinishId,
+  type ArtworkZoneId,
+} from "../product-domain";
 import type { PartColors } from "./model-appearance";
 import { fingerprint } from "./fingerprint";
 import {
@@ -322,8 +326,11 @@ export class RasterRenderer {
       });
   }
 
-  setArtwork(texture: THREE.Texture | null, transform?: ScreenTransform): void {
-    this.built?.setArtwork(texture, transform);
+  setArtwork(
+    textures: ReadonlyMap<ArtworkZoneId, THREE.Texture | null>,
+    transform?: ScreenTransform,
+  ): void {
+    this.built?.setArtwork(textures, transform);
   }
 
   /**

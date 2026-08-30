@@ -1,13 +1,17 @@
-import type {
-  ToolcraftImageAsset,
-  ToolcraftProductExportRenderer,
-} from "@/toolcraft/runtime";
+import type * as THREE from "three";
+
+import type { ToolcraftProductExportRenderer } from "@/toolcraft/runtime";
 import { readToolcraftOrientationPose } from "@/toolcraft/runtime/react";
 import { getExportArtworkImage } from "./artwork-store";
-import { readDeviceDefinition } from "./product-domain";
+import { readZoneAssets } from "./artwork-slots";
+import { readDeviceDefinition, type ArtworkZoneId } from "./product-domain";
 import { RasterRenderer } from "./render/raster-renderer";
 import { createScreenTexture } from "./render/screen-texture";
-import { readRasterSettings, readScreenTransform } from "./render/settings";
+import {
+  readArtworkBackground,
+  readRasterSettings,
+  readScreenTransform,
+} from "./render/settings";
 
 /**
  * Product export frame.
@@ -133,33 +137,37 @@ export const mockupExportRenderer: ToolcraftProductExportRenderer = {
         held.device = settings.device;
       }
 
-      const artworkAsset = state.mediaAssets
-        .filter(
-          (asset): asset is ToolcraftImageAsset =>
-            asset.assetKind === "image" &&
-            asset.sourceTarget === "artwork.image",
-        )
-        .at(-1);
-
-      const image = artworkAsset
-        ? await getExportArtworkImage(artworkAsset.id)
-        : null;
+      const device = readDeviceDefinition(settings.device);
+      const background = readArtworkBackground(
+        values,
+        device.artworkSurface === "print",
+      );
+      const decoded = await Promise.all(
+        [...readZoneAssets(state.mediaAssets)].map(
+          async ([zone, asset]) =>
+            [zone, await getExportArtworkImage(asset.id), asset] as const,
+        ),
+      );
+      const textures = new Map<ArtworkZoneId, THREE.Texture | null>();
+      for (const [zone, image, asset] of decoded) {
+        if (!image) continue;
+        textures.set(
+          zone,
+          createScreenTexture(
+            image,
+            device,
+            asset.transform,
+            renderer.maxAnisotropy,
+            background,
+          ),
+        );
+      }
       // Always, even with nothing to show. Skipping the call left the model's
       // own wallpaper glowing on the display — which the preview had already
       // blanked, because it calls this on every update whether or not there is
       // an image. An export that does not match the preview is not an export
       // of what the user was looking at.
-      renderer.setArtwork(
-        image && artworkAsset
-          ? createScreenTexture(
-              image,
-              readDeviceDefinition(settings.device),
-              artworkAsset.transform,
-              renderer.maxAnisotropy,
-            )
-          : null,
-        readScreenTransform(values),
-      );
+      renderer.setArtwork(textures, readScreenTransform(values));
 
       renderer.setSize(width, height, ratio);
       renderer.setPose(pose);

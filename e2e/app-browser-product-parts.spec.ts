@@ -10,6 +10,32 @@ import {
   getToolcraftProductObservableSnapshot,
 } from "./product-observable-helpers";
 import { test } from "./toolcraft-product-test";
+import {
+  COLOR_PART_IDS,
+  DEVICE_CATALOG,
+  type ColorPartId,
+  type DeviceId,
+} from "../src/app/product-domain";
+
+/**
+ * Which slots a product declares, read from the catalog rather than listed.
+ *
+ * Listing them here is how this file went stale: it drove a main colour on the
+ * shirt for a while after the shirt stopped having one, and asserted the tote
+ * had no trim after the tote gained one. Neither showed up until the proof was
+ * run, because a hand-written list cannot disagree with itself.
+ */
+function declaredSlots(id: DeviceId): readonly ColorPartId[] {
+  return COLOR_PART_IDS.filter(
+    (part) => DEVICE_CATALOG[id].colorParts?.[part] !== undefined,
+  );
+}
+
+const SLOT_SWATCHES: Readonly<Record<ColorPartId, string>> = {
+  accent: "#2b3a8c",
+  main: "#c2382f",
+  trim: "#1f6f4a",
+};
 
 test.setTimeout(600_000);
 
@@ -61,28 +87,29 @@ test("browser: each part colour repaints its own part of the product", async ({
   );
   await settleProductOutput(page);
 
-  // Each slot in turn, each proving it changed the picture on its own. A slot
-  // that painted nothing, or one that painted a part another slot already
-  // owned, leaves the frame it was given unchanged.
-  for (const [target, requirementId, hex] of [
-    ["product.color.main", "product.color.main.repaint", "#c2382f"],
-    ["product.color.trim", "product.color.trim.repaint", "#1f6f4a"],
-    ["product.color.accent", "product.color.accent.repaint", "#2b3a8c"],
-  ] as const) {
+  // Each slot the shirt declares, in turn, each proving it changed the picture
+  // on its own. A slot that painted nothing, or one that painted a part
+  // another slot already owned, leaves the frame it was given unchanged.
+  const slots = declaredSlots("tshirt");
+  if (slots.length === 0) {
+    throw new Error("The shirt declares no colour slots, so this proves nothing.");
+  }
+  for (const slot of slots) {
     await expectToolcraftProductObservableToChange(
       session,
-      session.controlAction(target, async (field) => {
-        await setColor(field, hex);
+      session.controlAction(`product.color.${slot}`, async (field) => {
+        await setColor(field, SLOT_SWATCHES[slot]);
       }),
-      { requirementId, timeoutMs: 90_000 },
+      { requirementId: `product.color.${slot}.repaint`, timeoutMs: 90_000 },
     );
     await settleProductOutput(page);
   }
 });
 
 /**
- * The colour slots are declared per product, so a product that has no trim
- * must not offer a trim picker that paints nothing.
+ * The colour slots are declared per product, so a product must offer exactly
+ * the pickers it names and no others: a picker that paints nothing is worse
+ * than an absent one, because it looks like the control is broken.
  */
 test("browser: a product offers only the colour parts it declares", async ({
   page,
@@ -90,25 +117,32 @@ test("browser: a product offers only the colour parts it declares", async ({
   await page.goto("/");
   const session = await createToolcraftBrowserProofSession(page);
 
-  await expectToolcraftProductObservableToChange(
-    session,
-    session.controlAction("device.model", async (field) => {
-      await pickOption(field, "Tote Bag");
-    }),
-    { requirementId: "device.model.selection", timeoutMs: 90_000 },
-  );
-
-  // The bag is one material: body and handles are the same surface, so it
-  // declares a main colour and nothing else.
-  const main = await countToolcraftControlOwnersByTarget(page, "product.color.main");
-  const trim = await countToolcraftControlOwnersByTarget(page, "product.color.trim");
-  const accent = await countToolcraftControlOwnersByTarget(
-    page,
-    "product.color.accent",
-  );
-  if (main !== 1 || trim !== 0 || accent !== 0) {
-    throw new Error(
-      `Tote Bag is one material, so it declares a main colour and nothing else: main=${main} trim=${trim} accent=${accent}.`,
+  // Two products with different slot sets, so this cannot pass by finding the
+  // same three pickers every time.
+  for (const [id, label] of [
+    ["tote-bag", "Tote Bag"],
+    ["tshirt", "T-Shirt"],
+  ] as const) {
+    await expectToolcraftProductObservableToChange(
+      session,
+      session.controlAction("device.model", async (field) => {
+        await pickOption(field, label);
+      }),
+      { requirementId: "device.model.selection", timeoutMs: 90_000 },
     );
+
+    const declared = new Set(declaredSlots(id));
+    for (const slot of COLOR_PART_IDS) {
+      const owners = await countToolcraftControlOwnersByTarget(
+        page,
+        `product.color.${slot}`,
+      );
+      const expected = declared.has(slot) ? 1 : 0;
+      if (owners !== expected) {
+        throw new Error(
+          `${label} declares ${[...declared].join(", ") || "no slots"}, so ${slot} should have ${expected} picker and has ${owners}.`,
+        );
+      }
+    }
   }
 });

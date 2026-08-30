@@ -1,13 +1,32 @@
 import { MERCHANDISE_CATALOG } from "./merchandise-catalog";
 import {
   COLOR_PART_IDS,
+  type ArtworkFit,
   type ArtworkSurface,
+  type ArtworkZone,
+  type ArtworkZoneId,
   type ColorPart,
   type ColorPartId,
 } from "./product-parts";
 
-export { COLOR_PART_IDS, DEFAULT_PART_COLORS, SPLIT_MATERIAL_SEPARATOR } from "./product-parts";
-export type { ArtworkSurface, ColorPart, ColorPartId } from "./product-parts";
+export {
+  ARTWORK_ZONE_IDS,
+  ARTWORK_ZONE_TARGETS,
+  artworkTemplateArchive,
+  COLOR_PART_IDS,
+  DEFAULT_ARTWORK_BACKGROUND,
+  DEFAULT_PART_COLORS,
+  SPLIT_MATERIAL_SEPARATOR,
+  TEMPLATE_DIRECTORY,
+} from "./product-parts";
+export type {
+  ArtworkFit,
+  ArtworkSurface,
+  ArtworkZone,
+  ArtworkZoneId,
+  ColorPart,
+  ColorPartId,
+} from "./product-parts";
 
 /**
  * Product option sets and the device catalog.
@@ -247,6 +266,8 @@ export type DeviceDefinition = {
    * which is what every device in this catalog is.
    */
   artworkSurface?: ArtworkSurface;
+  /** How the design is sized onto the surface. Defaults to "fit". */
+  artworkFit?: ArtworkFit;
   /**
    * Set the print surface's relief and metal maps aside while a design is on it.
    *
@@ -268,6 +289,18 @@ export type DeviceDefinition = {
    * finite set of finishes its manufacturer actually sells.
    */
   colorParts?: Partial<Record<ColorPartId, ColorPart>>;
+  /**
+   * The printable zones this product offers beyond its front.
+   *
+   * `front` needs no entry: it is `screenMaterial`, which every product
+   * already names. A product that declares nothing here takes one upload, and
+   * that is every device. See `ArtworkZone` for what a zone is; read them
+   * through `readArtworkZones`, which fills the front in.
+   */
+  artworkZones?: {
+    /** No material: the front's is `screenMaterial`, which is already named. */
+    front?: Omit<ArtworkZone, "material">;
+  } & Partial<Record<Exclude<ArtworkZoneId, "front">, ArtworkZone>>;
   /**
    * Give every mesh its own copy of the material it shares, named after the
    * mesh.
@@ -592,43 +625,17 @@ export function readFinishId(value: unknown): FinishId {
     : DEFAULT_FINISH;
 }
 
-/**
- * The devices a table is offered for, read off the catalog rather than listed.
- *
- * Kept derived so the two can never disagree: giving a device a size is the
- * single act that offers it a table, and forgetting to also add it to a list
- * somewhere else is exactly the kind of quiet mismatch that leaves a control
- * showing for a device it does nothing to.
- */
-export const SURFACE_DEVICES: readonly DeviceId[] = (
-  Object.keys(DEVICE_CATALOG) as DeviceId[]
-).filter((id) => DEVICE_CATALOG[id].surface !== undefined);
-
-/**
- * Which products offer each colour slot, derived rather than listed.
- *
- * Same reason the surface list is derived: declaring a slot in the catalog is
- * the single act that offers it, and a second list kept by hand is how a
- * control ends up showing for a product it does nothing to.
- */
-function productsOfferingColorPart(part: ColorPartId): readonly DeviceId[] {
-  return (Object.keys(DEVICE_CATALOG) as DeviceId[]).filter(
-    (id) => DEVICE_CATALOG[id].colorParts?.[part] !== undefined,
-  );
-}
-
-export const COLOR_PART_DEVICES: Readonly<
-  Record<ColorPartId, readonly DeviceId[]>
-> = {
-  accent: productsOfferingColorPart("accent"),
-  main: productsOfferingColorPart("main"),
-  trim: productsOfferingColorPart("trim"),
-};
-
 export function readDeviceDefinition(value: unknown): DeviceDefinition {
   return (
     DEVICE_CATALOG[value as DeviceId] ?? DEVICE_CATALOG[DEFAULT_DEVICE]
   );
+}
+
+/** The catalog id a control is holding, or the default when it holds nothing. */
+export function readDeviceId(value: unknown): DeviceId {
+  return typeof value === "string" && value in DEVICE_CATALOG
+    ? (value as DeviceId)
+    : DEFAULT_DEVICE;
 }
 
 /**
