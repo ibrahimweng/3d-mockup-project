@@ -99,16 +99,25 @@ export const MERCHANDISE_CATALOG = {
       main: { materials: ["Bottle_Head_Cap"] },
       trim: { materials: ["Bottle_Head_Ring"] },
     },
+    // Split by height, which is where the parts actually divide: the body is
+    // everything below the thread and the head is the cap that screws onto it.
     excludedNodes: [],
     frame: [0.315724, 0.875884, 0.364891],
     label: "Water Bottle",
     modelFile: "water-bottle.glb",
     artworkSurface: "print",
     artworkFit: "wrap",
-    // The body carries one continuous wrap, written into the file rather than
-    // computed here: angle around the axis is u, height is v, and the join is
-    // a single seam at the back. Measured from the geometry, the wrap is
-    // 1.13 to 1, so a design authored at that ratio lands undistorted.
+    // The wall carries one continuous wrap, written into the file rather than
+    // computed here: angle around the axis is u, height is v, and the join is a
+    // single seam at the back. Measured from the wall alone, the wrap is 1.57 to
+    // 1, so a design authored at that ratio lands undistorted.
+    //
+    // The wall is the largest run of near-vertical surface that joins up with
+    // itself. Everything else -- base, shoulder and the narrower neck above it
+    // -- is `Bottle_Body_Ends`, the same coating and never a label. A cylinder's
+    // wrap has nowhere to put a surface facing along its axis, and leaving the
+    // neck in also dragged the radius the wrap assumes down to the neck's, which
+    // stretched the label round the body by a fifth.
     screenMaterial: "Bottle_Body",
     artworkZones: { front: { template: "water-bottle-body.png" } },
   },
@@ -141,29 +150,28 @@ export const MERCHANDISE_CATALOG = {
     },
   },
   "tablet-folder": {
+    // Prepped like every other product now, so the file says what the parts are
+    // instead of the catalog correcting them on the way to the screen. The
+    // source paints all five with one material at metallic 1 and roughness 1 --
+    // which renders near black -- and hangs a photograph of somebody's document
+    // off it. Colour slots and a material correction rescued three of the five;
+    // the loose sheets were left, and shipped that artwork in plain view.
     colorParts: {
-      accent: { materials: ["blinn2@Pin_blinn2_0"], repaint: true },
-      main: { materials: ["blinn2@Tablet_blinn2_0"], repaint: true },
-      trim: { materials: ["blinn2@Pen_blinn2_0"], repaint: true },
+      accent: { materials: ["Folder_Clip"] },
+      main: { materials: ["Folder_Board"] },
+      trim: { materials: ["Folder_Pen"] },
     },
     excludedNodes: [],
     frame: [0.793326, 0.040254, 0.607464],
     label: "Tablet Folder",
     modelFile: "tablet-folder.glb",
     artworkSurface: "print",
-    // One material paints the board, the pen, the clip and the sheets, and the
-    // parts are separated by mesh instead. Splitting per mesh gives each a name
-    // the catalog can address without touching the file.
-    splitMaterialsByMesh: true,
-    screenUnwrap: true,
-    // The top sheet, which is the largest flat face and the one a document
-    // mockup is about. The board beneath it is the main colour.
-    screenMaterial: "blinn2@StackOfPaper_blinn2_0",
-    clearPrintRelief: true,
-    // Same as the card: authored metallic with its surface detail in maps that
-    // describe the sheet's printed contents rather than paper.
-    materialCorrections: {
-      "blinn2@StackOfPaper_blinn2_0": { metalness: 0, roughness: 0.75 },
-    },
+    // The top of the pad: the largest flat face, and the one the folio is a
+    // mockup of. Two triangles projected straight down onto it, filling 0 to 1,
+    // so a design at 1.33 to 1 lands undistorted. Its four edges are their own
+    // material -- they stand square to the face and unwrapping them with it
+    // would smear the design down the side of the block. The loose sheets are
+    // `Folder_Sheet`, plain paper and not a slot.
+    screenMaterial: "Folder_Pad",
   },
 } satisfies Readonly<Record<string, DeviceDefinition>>;

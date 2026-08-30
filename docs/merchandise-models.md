@@ -134,8 +134,8 @@ are absolute: not "mostly", not "under 5%". Zero.
 
 | id | Invariant | Today |
 | --- | --- | --- |
-| B1 | A print zone's unwrap covers ≥ 0.95 of its 0–1 square, measured against the area the zone declares printable (full bleed on the card, platen rectangle on the tote, patch on the sleeves). Below that, part of the template the user is handed never reaches the product. | card 0.987 · tote 0.97–1.00 · shirt 1.00 — · **folder 0.230** |
-| B2 | Stretch ≤ 1.25 — the ink per square millimetre in the tightest one per cent of a zone, against the middle of it, so a design lands at an even density. | card 1.00 · tote ≤ 1.04 · shirt ≤ 1.06 — · **bottle 1.35** · **folder 1.60** |
+| B1 | A print zone's unwrap covers ≥ 0.95 of its 0–1 square, measured against the area the zone declares printable (full bleed on the card, platen rectangle on the tote, patch on the sleeves). Below that, part of the template the user is handed never reaches the product. | — all of them: card 0.987 · tote 0.97–1.00 · shirt 1.00 · bottle 1.00 · folder 0.998 |
+| B2 | Stretch ≤ 1.25 — the ink per square millimetre in the tightest one per cent of a zone, against the middle of it, so a design lands at an even density. | — all of them: card 1.00 · tote ≤ 1.04 · shirt ≤ 1.06 · bottle 1.00 · folder 1.00 |
 | B3 | Zero mirrored triangles within a zone: every triangle in a zone has the same UV handedness, or the artwork folds back on itself. | card 0, tote 0 — · **shirt 156/411/678/667** |
 | B4 | A zone's triangles form one connected atlas island, so text is never cut across a gap. | — all of them |
 | B5 | Each template PNG's aspect ratio matches its print area's measured aspect within 2%. | — regenerated with the areas |
@@ -157,7 +157,7 @@ fixes:
 | C2 | Zero coincident faces, within or across materials (they z-fight). | — all five |
 | C3 | Zero non-manifold edges. | — all five |
 | C4 | Open boundary edges match the count the product declares, so a new hole is caught. Today: card 0 (closed), tote 296, shirt 592, bottle 112, folder 124. Hemming does not close a rim — it moves the raw edge inside where it is stitched down and never seen; closing it would mean giving the whole shell a thickness, which the tote and shirt deliberately do not have. | — pins current state |
-| C5 | Zero shading-normal splits on an edge the geometry says is flat (< 10° between face normals). | card, tote, shirt, bottle — · **folder 1** |
+| C5 | Zero shading-normal splits on an edge the geometry says is flat (< 10° between face normals). | — all five |
 | C6 | On soft goods, the count of interior edges at 45° or more is pinned and accounted for. Cloth does not hold a knife edge, but a seam creases, a hem folds right over, and a webbing strap has an edge. Hard-surface products are excluded, not given a larger allowance: a clasp is supposed to have corners. | — pins current state: tote 99 (74 hem fold, 25 handles, 0 on the canvas) · shirt 718 (363 seams, 334 hem fold, 20 open cloth) |
 
 C6 was written to answer "the tote has very sharp edges", and measuring it is
@@ -184,13 +184,16 @@ tolerance it was fusing vertices a thousandth of the whole bottle apart, and
 inventing the defects it then reported. The bottle has neither. Both numbers
 were the measurement's, not the file's.
 
+Every invariant above now either meets its target or is a pinned count with its
+make-up written down. The four phases are finished.
+
 ### D. Appearance — physically sane materials
 
 | id | Invariant | Today |
 | --- | --- | --- |
 | D1 | Every material a product names is `doubleSided`. | — all five |
 | D2 | Fabric keeps its authored weave normal map. | — tote, shirt |
-| D3 | No material is both fully metallic and fully rough. Metal shows what it reflects rather than a colour of its own, and a fully rough surface reflects nothing coherent, so such a material has neither diffuse nor highlight left and renders near black whatever base colour it names. | card, tote, shirt, bottle — · **folder `blinn2` is metallic 1 / roughness 1** |
+| D3 | No material is both fully metallic and fully rough. Metal shows what it reflects rather than a colour of its own, and a fully rough surface reflects nothing coherent, so such a material has neither diffuse nor highlight left and renders near black whatever base colour it names. | — all five |
 
 ## 4. Building them
 

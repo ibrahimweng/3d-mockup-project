@@ -122,24 +122,29 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
       Card_Front: { coverage: 0.987, islands: 1, mirroredTriangles: 0, stretch: 1 },
     },
   },
-  // One material for the whole folio, and it is metallic 1 at roughness 1,
-  // which has neither diffuse nor highlight left to reflect. Its print zone is
-  // the stack of paper, ten triangles reaching a quarter of the way across the
-  // atlas, so three quarters of the template a user is handed lands nowhere.
+  // Phase 4 prepped it like the rest, so the file says what its parts are
+  // instead of the catalog correcting them on the way to the screen. The source
+  // paints all five with one material at metallic 1 and roughness 1 -- which has
+  // neither diffuse nor highlight left to reflect -- and hangs a photograph of
+  // somebody's document off it. Three of the five were rescued at load time by
+  // colour slots and a correction; the loose sheets were not, and shipped that
+  // artwork in plain view.
+  //
+  // The print zone is the top of the pad, projected straight down onto it. It
+  // filled 0.23 of its square before, in a corner of whatever atlas the model
+  // was authored in, and now fills it.
   "tablet-folder": {
-    blackMaterials: ["blinn2"],
+    blackMaterials: [],
     boundaryEdges: 124,
     coincidentFaces: 0,
     degenerateTriangles: 0,
     hardInteriorEdges: 158,
     nonManifoldEdges: 0,
-    shadingSplitsOnFlat: 1,
+    shadingSplitsOnFlat: 0,
     shells: 15,
     strayTrianglesOnHardware: 0,
     zones: {
-      "blinn2@StackOfPaper_blinn2_0": {
-        coverage: 0.23, islands: 1, mirroredTriangles: 0, stretch: 1.6,
-      },
+      Folder_Pad: { coverage: 0.998, islands: 1, mirroredTriangles: 0, stretch: 1 },
     },
   },
   // Phase 2 cut every zone down to a real platen: 240mm square on the panels,
@@ -225,15 +230,15 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
   // The wrap runs past 1 in u because it goes all the way round, which is what
   // a wrap does. Coverage is measured on the area it fills, not the box.
   //
-  // The only product phase 2 did not finish. Its seam repair was rewritten to
-  // put every corner on the branch nearest the first -- half a turn being the
-  // furthest two points on a cylinder can be -- in place of lifting whichever
-  // corners fell below the middle, which had turned one triangle's slice of the
-  // label round. That leaves fifteen, and they are not on the wall: they are on
-  // the base and the shoulder, where a cylinder's wrap has nowhere to go, and
-  // the stretch of 1.35 is the taper for the same reason. Both want the body
-  // split into the wall that prints and the ends that do not, which is a change
-  // to what the product's materials are rather than to an unwrap.
+  // Phase 4 finished what phase 2 left. The body is separated into the wall a
+  // label goes round -- the largest run of near-vertical surface that joins up
+  // with itself -- and the base, shoulder and neck, which it does not. A
+  // cylinder's wrap has nowhere to put a surface facing along its own axis, and
+  // that is where the fifteen backwards triangles were. Leaving the neck in did
+  // something quieter and worse: it is a narrower cylinder above the shoulder,
+  // so the radius the wrap assumed was the median of two different bottles, and
+  // the label came out stretched round the body by a fifth. Measured on the wall
+  // alone the wrap is 1.57 to 1 where it read 1.13, and every number is exact.
   "water-bottle": {
     blackMaterials: [],
     boundaryEdges: 112,
@@ -245,7 +250,7 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
     shells: 3,
     strayTrianglesOnHardware: 0,
     zones: {
-      Bottle_Body: { coverage: 1.002, islands: 1, mirroredTriangles: 15, stretch: 1.35 },
+      Bottle_Body: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1 },
     },
   },
 };

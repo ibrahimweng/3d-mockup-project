@@ -12,8 +12,8 @@
  *
  * `classify(face)` decides which zone a triangle belongs to. It receives the
  * face's world centroid `C`, world normal `WN`, mean texture coordinate, the
- * `source` material it arrived on, the `shell` it belongs to and that shell's
- * box, and the world box of its source primitive. Prefer `shell`: it is the boundary the mesh already draws, and a
+ * `source` material and `mesh` it arrived on, the `shell` it belongs to and
+ * that shell's box, and the world box of its source primitive. Prefer `shell`: it is the boundary the mesh already draws, and a
  * coordinate threshold guessing at the same boundary is what put the card's
  * artwork on its clasp. See `docs/merchandise-models.md`.
  *
@@ -85,6 +85,7 @@ export async function prepZones({
       const from = prim.getMaterial();
       if (!wanted.has(from?.getName())) continue;
       owners.push({ m, material: from, mesh, prim });
+      const meshName = mesh.getName();
       const pos = prim.getAttribute("POSITION"), nor = prim.getAttribute("NORMAL");
       const uv = prim.getAttribute("TEXCOORD_0"), idx = prim.getIndices();
       const count = idx ? idx.getCount() : pos.getCount();
@@ -102,7 +103,7 @@ export async function prepZones({
           if (uv) vSum += a[1] / 3;
         }
         faces.push({
-          C, m, N, owner: owners.length - 1, P, source: from,
+          C, m, mesh: meshName, N, owner: owners.length - 1, P, source: from,
           UV0, uvV: vSum, WN, world: P.map((v) => mulP(m, v)),
         });
       }

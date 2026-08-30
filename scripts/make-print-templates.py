@@ -56,7 +56,7 @@ TEMPLATES = [
     ("tshirt-back", 1152, 2048, "T-SHIRT  ·  BACK", "180 x 320 mm back print", "flat"),
     ("tshirt-sleeve-left", 2048, 2048, "T-SHIRT  ·  LEFT SLEEVE", "60 x 60 mm sleeve patch", "flat"),
     ("tshirt-sleeve-right", 2048, 2048, "T-SHIRT  ·  RIGHT SLEEVE", "60 x 60 mm sleeve patch", "flat"),
-    ("water-bottle-body", 2048, 1811, "WATER BOTTLE  ·  BODY WRAP", "360° around the body  ·  seam at the back", "wrap"),
+    ("water-bottle-body", 2048, 1305, "WATER BOTTLE  ·  BODY WRAP", "360° around the wall  ·  seam at the back", "wrap"),
 ]
 
 
