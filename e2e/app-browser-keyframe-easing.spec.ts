@@ -1,4 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+
+import { expect, test } from "./toolcraft-product-test";
 
 import { typeSliderValue } from "./mockup-controls";
 import { openTimeline, scrubToFraction } from "./mockup-timeline";

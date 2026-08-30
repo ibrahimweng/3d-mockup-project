@@ -10,6 +10,12 @@ import {
   ARTWORK_SECTION,
   ARTWORK_TEMPLATES_SECTION,
 } from "./schema-artwork";
+import {
+  DELIVER_SECTION,
+  IMAGE_EXPORT_SECTION,
+  VIDEO_EXPORT_SECTION,
+} from "./schema-export";
+import { KEY_LIGHT_SECTION, LIGHTS_SECTION } from "./schema-lighting";
 import { PRODUCT_PARTS_SECTION } from "./schema-product-parts";
 import { DEFAULT_SCENE_PRESET, SCENE_PRESET_OPTIONS } from "./scene-presets";
 import { DEFAULT_SURFACE, SURFACE_OPTIONS } from "./surfaces";
@@ -280,120 +286,8 @@ export const appSchema = defineToolcraft({
           id: "studio",
           title: "Studio",
         },
-        {
-          controls: {
-            keyIntensity: {
-              applicability: { mode: "always" },
-              defaultValue: 95,
-              description:
-                "The one shadow-casting light. A second caster reads as two suns, which is what gives a render away.",
-              label: "Key",
-              max: 400,
-              min: 0,
-              performanceReason:
-                "Light intensity is a uniform; the shadow map is already allocated.",
-              performanceRole: "responsiveness",
-              sliderValueKind: "continuous",
-              step: 5,
-              target: "light.keyIntensity",
-              type: "slider",
-              unit: "%",
-            },
-            keyColor: {
-              applicability: { mode: "always" },
-              defaultValue: "#FFFFFF",
-              description:
-                "Warm the key towards tungsten or cool it towards daylight to sit the device in a room.",
-              label: "Key color",
-              performanceReason: "The key's colour is one uniform.",
-              performanceRole: "responsiveness",
-              target: "light.keyColor",
-              type: "color",
-            },
-            fill: {
-              applicability: { mode: "always" },
-              defaultValue: 10,
-              description:
-                "Bounce from below, lifting the shadow side. It casts nothing, because bounce has no edge.",
-              label: "Fill",
-              max: 200,
-              min: 0,
-              performanceReason: "Fill is a hemisphere light with no shadow map.",
-              performanceRole: "responsiveness",
-              sliderValueKind: "continuous",
-              step: 5,
-              target: "light.fill",
-              type: "slider",
-              unit: "%",
-            },
-            rim: {
-              applicability: { mode: "always" },
-              defaultValue: 85,
-              description:
-                "A hard edge from behind that separates the device from the backdrop.",
-              label: "Rim",
-              max: 400,
-              min: 0,
-              performanceReason: "Rim is a second directional light with no shadow map.",
-              performanceRole: "responsiveness",
-              sliderValueKind: "continuous",
-              step: 5,
-              target: "light.rim",
-              type: "slider",
-              unit: "%",
-            },
-            shadowSoftness: {
-              applicability: { mode: "always" },
-              defaultValue: 34,
-              description:
-                "How wide the key's shadow spreads. This is the size of the light, told through the only thing that shows it: a bare bulb is a point and throws an edge you could cut around, a large softbox throws one that takes a hand's width to fade. Low is graphic and hard; high is the shadow you get on an overcast day.",
-              label: "Shadow softness",
-              max: 100,
-              min: 0,
-              performanceReason:
-                "A blur radius, and below a third of the range a depth map twice the size that is only redrawn when the scene changes.",
-              performanceRole: "responsiveness",
-              sliderValueKind: "continuous",
-              step: 2,
-              target: "light.shadowSoftness",
-              type: "slider",
-              unit: "%",
-            },
-            pattern: {
-              applicability: { mode: "always" },
-              defaultValue: DEFAULT_LIGHT_PATTERN,
-              description:
-                "A cut-out held in front of the key, so what lands has a shape. Bars of shadow across a floor read as a window or a slatted blind without either being in the frame — it is the cheapest way to put the device somewhere rather than nowhere. The pattern falls around the device rather than across it.",
-              label: "Pattern",
-              options: LIGHT_PATTERN_OPTIONS,
-              performanceReason:
-                "A dozen invisible quads in the depth pass, which is redrawn on change rather than per frame.",
-              performanceRole: "responsiveness",
-              target: "light.pattern",
-              type: "select",
-            },
-          },
-          id: "lights",
-          title: "Lights",
-        },
-        {
-          controls: {
-            keyDirection: {
-              applicability: { mode: "always" },
-              defaultValue: { x: 0.44, y: -0.52 },
-              description:
-                "Where the key sits relative to the camera. Centre is straight on; move it off centre to rake the light across the device and lengthen the shadow.",
-              label: false,
-              performanceReason:
-                "Moving the key repositions one light and redraws a frame.",
-              performanceRole: "responsiveness",
-              target: "light.keyDirection",
-              type: "vector",
-            },
-          },
-          id: "key-light-direction",
-          title: "Key light direction",
-        },
+        LIGHTS_SECTION,
+        KEY_LIGHT_SECTION,
         {
           controls: {
             focalLength: {
@@ -646,123 +540,9 @@ export const appSchema = defineToolcraft({
           id: "background",
           title: "Background",
         },
-        {
-          controls: {
-            format: {
-              applicability: { mode: "always" },
-              defaultValue: "png",
-              label: "Format",
-              options: [
-                { label: "PNG", value: "png" },
-                { label: "JPG", value: "jpg" },
-              ],
-              performanceReason:
-                "The export format only selects the encoder used when an export runs.",
-              performanceRole: "responsiveness",
-              target: "export.image.format",
-              type: "select",
-            },
-            resolution: {
-              applicability: { mode: "always" },
-              defaultValue: "4k",
-              label: "Resolution",
-              options: [
-                { label: "2K", value: "2k" },
-                { label: "4K", value: "4k" },
-                { label: "8K", value: "8k" },
-              ],
-              performanceReason:
-                "The export resolution only selects the output size used when an export runs.",
-              performanceRole: "responsiveness",
-              target: "export.image.resolution",
-              type: "select",
-            },
-          },
-          id: "image-export",
-          layoutGroups: [
-            {
-              columns: 2,
-              controls: ["format", "resolution"],
-              layout: "inline",
-            },
-          ],
-          title: "Image Export",
-        },
-        {
-          controls: {
-            format: {
-              applicability: { mode: "always" },
-              defaultValue: "mp4",
-              label: "Format",
-              options: [
-                { label: "MP4", value: "mp4" },
-                { label: "WebM", value: "webm" },
-              ],
-              performanceReason:
-                "The container only selects how the encoded frames are wrapped when an export runs.",
-              performanceRole: "responsiveness",
-              target: "export.video.format",
-              type: "select",
-            },
-            resolution: {
-              applicability: { mode: "always" },
-              defaultValue: "current",
-              /**
-               * Smaller than the image ceiling, deliberately.
-               *
-               * A still is one frame and can afford eight thousand pixels. A
-               * six-second loop is a hundred and eighty of them, so the same
-               * ceiling would be a hundred and eighty times the work; 4K is as
-               * far as that scales while an export still finishes.
-               */
-              label: "Resolution",
-              options: [
-                { label: "Canvas size", value: "current" },
-                { label: "4K", value: "4k" },
-              ],
-              performanceReason:
-                "The export resolution only selects the output size used when an export runs.",
-              performanceRole: "responsiveness",
-              target: "export.video.resolution",
-              type: "select",
-            },
-          },
-          id: "video-export",
-          layoutGroups: [
-            {
-              columns: 2,
-              controls: ["format", "resolution"],
-              layout: "inline",
-            },
-          ],
-          title: "Video Export",
-        },
-        {
-          controls: {
-            footer: {
-              applicability: { mode: "always" },
-              actions: [
-                {
-                  icon: "upload-simple",
-                  label: "Export PNG",
-                  role: "export-image",
-                  value: "export-png",
-                },
-                {
-                  icon: "download-simple",
-                  label: "Export Video",
-                  role: "export-video",
-                  value: "export-video",
-                },
-              ],
-              label: false,
-              target: "panel.actions",
-              type: "panelActions",
-            },
-          },
-          id: "deliver",
-          title: "Deliver",
-        },
+        IMAGE_EXPORT_SECTION,
+        VIDEO_EXPORT_SECTION,
+        DELIVER_SECTION,
       ],
       title: "Mockup Studio",
     },
