@@ -61,16 +61,23 @@ export const MERCHANDISE_CATALOG = {
     // Four print zones as separate materials, so each carries its own image on
     // its own unwrap. The handles are separated by connected component: each is
     // a shell of its own that shares no vertex with the bag, so nothing has to
-    // guess how far up the panel reaches. `Bag_Canvas` is the cloth outside the
-    // print areas, and it takes the main colour with the rest of the bag.
+    // guess how far up the panel reaches.
+    //
+    // The bag is a closed shell, so it has an inside as well as an outside and
+    // `Bag_Lining` is what you look down into through the mouth. `Bag_Canvas`,
+    // `Bag_Gusset` and `Bag_Base` are the outside cloth away from the print
+    // areas, split only so the weave on each is laid out from the plane that
+    // piece of cloth actually lies in. All of it takes the main colour; the
+    // base has its own slot, which is where a contrast bottom would go.
     colorParts: {
-      main: { materials: ["Bag_Canvas", "Bag_Handles", "Bag_Trim"] },
+      main: { materials: ["Bag_Canvas", "Bag_Gusset", "Bag_Handles", "Bag_Lining"] },
       trim: { materials: ["Bag_Base"] },
     },
     excludedNodes: [],
     // Measured after the yaw below, which is the order the crop reads them in:
-    // turned to face the camera the bag is 0.50 wide where the file has 0.24.
-    frame: [0.501205, 0.832377, 0.236522],
+    // turned to face the camera the bag is 380mm wide, 612mm to the top of the
+    // handles, and 155mm deep.
+    frame: [0.515527, 0.830828, 0.209657],
     label: "Tote Bag",
     modelFile: "tote-bag.glb",
     artworkSurface: "print",
@@ -88,7 +95,7 @@ export const MERCHANDISE_CATALOG = {
       right: { material: "Bag_Right", template: "tote-bag-right.png" },
     },
     // The bag's face normal points along X and the camera looks down +Z, so
-    // without this it presents its 2.8-unit edge instead of its 6-unit face.
+    // without this it presents its 155mm edge instead of its 380mm face.
     yawDegrees: 90,
   },
   "water-bottle": {
@@ -107,17 +114,23 @@ export const MERCHANDISE_CATALOG = {
     modelFile: "water-bottle.glb",
     artworkSurface: "print",
     artworkFit: "wrap",
-    // The wall carries one continuous wrap, written into the file rather than
-    // computed here: angle around the axis is u, height is v, and the join is a
-    // single seam at the back. Measured from the wall alone, the wrap is 1.57 to
-    // 1, so a design authored at that ratio lands undistorted.
+    // The body carries one continuous wrap, written into the file rather than
+    // computed here: angle around the axis is u, distance along the profile is
+    // v, and the join is a single seam at the back. Measured at the widest ring,
+    // which is the wall and the only part anyone reads, the wrap is 1.37 to 1,
+    // so a design authored at that ratio lands undistorted there.
     //
-    // The wall is the largest run of near-vertical surface that joins up with
-    // itself. Everything else -- base, shoulder and the narrower neck above it
-    // -- is `Bottle_Body_Ends`, the same coating and never a label. A cylinder's
-    // wrap has nowhere to put a surface facing along its axis, and leaving the
-    // neck in also dragged the radius the wrap assumes down to the neck's, which
-    // stretched the label round the body by a fifth.
+    // The label is every face on the body that looks away from the axis: the
+    // base roll, the wall, the shoulder and the short neck, up to the height
+    // where the chrome ring takes over. What is left is `Bottle_Body_Ends` --
+    // the disc it stands on and the annulus under the ring, the same coating and
+    // never a label. Those two face along the axis the wrap turns about, so
+    // their coordinates collapse and their slice of the artwork reads backwards.
+    //
+    // v is distance along the profile rather than height because the shoulder
+    // loses five millimetres of radius over eight of height, so its surface is
+    // longer than its height and by height alone its share of the label arrived
+    // squeezed into a band.
     screenMaterial: "Bottle_Body",
     artworkZones: { front: { template: "water-bottle-body.png" } },
   },

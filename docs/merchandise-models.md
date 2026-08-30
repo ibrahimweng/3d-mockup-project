@@ -52,19 +52,29 @@ textured by an artwork zone: it is hardware.
 
 ### Tote bag
 
-A heavyweight cotton canvas tote with webbing handles.
+A heavyweight cotton canvas tote with webbing handles: 380mm wide, 374mm tall,
+a 155mm gusset, 612mm to the top of the straps.
 
 | Part | Shells | Material | Prints? | Surface |
 | --- | --- | --- | --- | --- |
 | Front, back, left, right panels | body, by face direction | `Bag_Front`/`Bag_Back`/`Bag_Left`/`Bag_Right` | yes, platen area only | canvas: metallic 0, roughness 0.78, tiled weave normal map |
-| Mouth hem | body, folded band at the rim | `Bag_Canvas` | no | as above |
+| Cloth outside the print areas | body, panels and gussets | `Bag_Canvas`/`Bag_Gusset` | no | as above |
 | Base | body, −Y faces | `Bag_Base` | no, colour slot | as above |
+| Lining | body, faces looking inward | `Bag_Lining` | no | as above |
 | Handles | 2 separate islands | `Bag_Handles` | **never** | webbing, same finish |
 
-The bag is sewn cloth. Its mouth is hemmed — a folded band, real geometry, not
-a knife-thin cut edge — so the only remaining boundary is where the handles
-meet the body. Canvas does not hold a sharp corner either: the base folds and
-the side gussets have a real radius, and the model must too.
+The bag is sewn cloth and it is **closed**: zero boundary edges anywhere, an
+inside as well as an outside, and two handles that are solid straps rather than
+ribbons. That comes from the source rather than from repair — the earlier
+source was a flat panel with no volume, and inflating it, hemming its mouth and
+rounding its folds were three passes of prep spent putting back what a bag
+already has. Splitting the outer cloth from the lining is what keeps a print
+area on the outside of the panel: the lining sits directly behind it and inside
+the same rectangle.
+
+Each panel prints a **centred rectangle the size of a real screen-print
+platen** — 240 by 240mm on the panels, 80 by 120mm on the gussets — clear of
+the base fold and the handle stitching.
 
 Each panel prints a **centred rectangle the size of a real screen-print
 platen**, clear of the base fold and the handle stitching. The unwrap covers
@@ -102,26 +112,44 @@ A powder-coated steel bottle with a screw cap and a swing latch.
 
 | Part | Material | Prints? | Surface |
 | --- | --- | --- | --- |
-| Body | `Bottle_Body` | yes, one continuous wrap, seam at the back | coated steel |
+| Body, outside | `Bottle_Body` | yes, one continuous wrap, seam at the back | coated steel |
+| Foot disc and top annulus | `Bottle_Body_Ends` | no | as above |
 | Cap, ring, latch | `Bottle_Head_Cap`/`_Ring`/`_Latch` | no, colour slots | as above |
+
+The wrap covers every face of the body that looks away from the axis — the base
+roll, the wall, the shoulder and the neck, up to the height where the chrome
+ring takes over, which is exactly where the body ends. Only the two discs
+facing along the axis are left out, because a cylindrical wrap has nowhere to
+put them. Its second coordinate is distance along the profile rather than
+height: the shoulder loses 5mm of radius over 8mm of height, so it is longer
+than it is tall, and by height alone its share of the label arrives squeezed
+into a band. Measured at the widest ring the wrap is 1.37 to 1.
 
 ### Tablet folder
 
 A folio with a pen loop and a clasp pin, holding a pad of paper.
 
-The file paints all five of its meshes with one material, so both the colour
-slots and the print zone name a mesh alongside it: the zone is
-`blinn2@StackOfPaper_blinn2_0`, the pad, and nothing else prints. That material
-is metallic 1 at roughness 1 today, which renders it black.
+The file paints all five of its meshes with one material at metallic 1 and
+roughness 1, which renders it black, and hangs a photograph of somebody's
+document off it. Phase 4 prepped it like the rest, so the file now names its
+own parts -- `Folder_Board`, `Folder_Pen`, `Folder_Clip`, `Folder_Sheet` and
+`Folder_Pad`, which is the only one that prints -- instead of the catalog
+correcting them on the way to the screen.
 
 ## 3. The test schema
 
 Invariants over the shipped GLBs, read straight out of the files. Each has an
-id, a rule, and where it stands today. `—` means the invariant already holds.
+id, a rule, and the reading it had **when the schema was written**, which is
+what the phases below were planned against; `—` means it already held then.
+Those readings are a record of the defect, not a current status. What the files
+measure now lives in
+[`src/app/model-quality.baselines.ts`](../src/app/model-quality.baselines.ts),
+which the test suite asserts exactly, so a number there is never out of date by
+more than the commit that moved it.
 
 ### A. Part integrity — a part is one material
 
-| id | Invariant | Today |
+| id | Invariant | When the schema was written |
 | --- | --- | --- |
 | A1 | No shell carries both a hardware material and a print material. Hardware is declared per product (`Clip`, `Bag_Handles`). | **card: 1 shell fails. tote: 2 shells fail.** |
 | A2 | Every triangle of a hardware shell wears the hardware material — no exceptions, no share threshold. | **card: 176 tris. tote: 161 tris.** |
@@ -132,7 +160,7 @@ are absolute: not "mostly", not "under 5%". Zero.
 
 ### B. Print fidelity — the image lands where it was drawn
 
-| id | Invariant | Today |
+| id | Invariant | When the schema was written |
 | --- | --- | --- |
 | B1 | A print zone's unwrap covers ≥ 0.95 of its 0–1 square, measured against the area the zone declares printable (full bleed on the card, platen rectangle on the tote, patch on the sleeves). Below that, part of the template the user is handed never reaches the product. | — all of them: card 0.987 · tote 0.97–1.00 · shirt 1.00 · bottle 1.00 · folder 0.998 |
 | B2 | Stretch ≤ 1.25 — the ink per square millimetre in the tightest one per cent of a zone, against the middle of it, so a design lands at an even density. | — all of them: card 1.00 · tote ≤ 1.04 · shirt ≤ 1.06 · bottle 1.00 · folder 1.00 |
@@ -151,7 +179,7 @@ fixes:
   hard angle. Smoothing the normals will not hide it; the geometry needs a
   radius.
 
-| id | Invariant | Today |
+| id | Invariant | When the schema was written |
 | --- | --- | --- |
 | C1 | Zero degenerate triangles. | — all five |
 | C2 | Zero coincident faces, within or across materials (they z-fight). | — all five |
@@ -189,7 +217,7 @@ make-up written down. The four phases are finished.
 
 ### D. Appearance — physically sane materials
 
-| id | Invariant | Today |
+| id | Invariant | When the schema was written |
 | --- | --- | --- |
 | D1 | Every material a product names is `doubleSided`. | — all five |
 | D2 | Fabric keeps its authored weave normal map. | — tote, shirt |
@@ -208,8 +236,13 @@ node scripts/prep-id-card.mjs
 node scripts/prep-tote-bag.mjs
 node scripts/prep-tshirt.mjs
 node scripts/prep-water-bottle.mjs
+node scripts/prep-tablet-folder.mjs
 node scripts/build-template-archives.mjs id-card-templates.zip \
     id-card-front.png id-card-back.png
+node scripts/build-template-archives.mjs tote-bag-templates.zip \
+    tote-bag-front.png tote-bag-back.png tote-bag-left.png tote-bag-right.png
+node scripts/build-template-archives.mjs tshirt-templates.zip \
+    tshirt-front.png tshirt-back.png tshirt-sleeve-left.png tshirt-sleeve-right.png
 ```
 
 The order matters: a prep script embeds its zone's template as that zone's
@@ -220,9 +253,11 @@ against the PNGs beside it, so a template regenerated without repacking fails.
 `prep-model-zones.mjs` is the engine -- it splits one material's triangles into
 named zones and gives each its own unwrap -- and `prep-model-geometry.mjs`
 answers the two questions it needs about the mesh: which connected component
-each face belongs to, and which edges are folds worth rounding. The tablet
-folder has no prep script; it ships as bought, with the catalog naming meshes
-for its slots.
+each face belongs to, and which edges are folds worth rounding.
+`prep-model-obj.mjs` reads the one source that is an OBJ, which carries no
+scale, no orientation and no scene, and puts it where the product expects it.
+Every product has a prep script; the tablet folder got one in phase 4, which is
+what stopped the catalog having to correct its parts on the way to the screen.
 
 ### The source models
 
@@ -233,7 +268,7 @@ they live, under these names:
 | Name the scripts ask for | What it is |
 | --- | --- |
 | `id-card.glb` | the badge and its swivel clasp |
-| `tote-bag.glb` | the canvas tote |
+| `tote-bag.obj` | the canvas tote, closed and 301,100 triangles |
 | `tshirt.glb` | the stitched tee, 22MB and 611,900 triangles |
 | `water-bottle.glb` | the steel bottle |
 | `tablet-folder.glb` | the folio |
@@ -304,6 +339,36 @@ metallic 1 at roughness 1, and re-unwrap its print zone: the zone is the stack
 of paper, ten triangles filling 0.23 of the atlas in its lower-left corner, so
 three quarters of the template a user downloads lands nowhere.
 
+### After the phases
+
+The phase entries above are a log of what was done at the time. Where this
+section contradicts one, this section is the current state.
+
+**The bottle's white bands.** Phase 4 fitted the label to the largest run of
+near-vertical surface, which threw away the base roll, the shoulder and the
+neck along with the two discs a wrap cannot hold -- so the bottle wore a white
+band under the chrome ring and another round its foot, 8.5% of the body's
+height with no artwork on it. The label is now every face that looks away from
+the axis, and its second coordinate is distance along the profile. Stretch
+reads 1.2 where it read 1: one turn is 137mm of surface at the wall and 107mm
+at the neck, so the artwork closes up over the shoulder the way a real
+full-wrap print does. Still inside the 1.25 a zone has to hold.
+
+**A new tote.** The bag was replaced with a source that was modelled as a bag:
+closed, consistently wound, with the handles built as solid straps. Free edges
+went from 296 to none and 4,036mm of hairline gap along the corners and the
+base went with them; the handles are real webbing instead of a ribbon two
+triangles wide that stretched wherever it turned. The inflate, hem and round
+passes are gone from its prep, and 8,292 triangles became 73,000 -- a fifth of
+the source, which is what holds the slack in the cloth.
+
+Two engine changes came out of it. `prep-model-obj.mjs` reads an OBJ into the
+pipeline, and `weldFaces` runs after every cut and fuses vertices closer
+together than the weld. A cut through a dense mesh leaves near-duplicates that
+no two checks agree about, and merging them -- rather than dropping them, which
+opens holes -- took the tote from 32 edges used by four faces to none, and took
+the shirt's two long-standing ones with it.
+
 ### Decisions on record
 
 | Question | Decision |
@@ -312,3 +377,6 @@ three quarters of the template a user downloads lands nowhere.
 | Tote print extent | A centred platen rectangle, clear of the base fold and handle stitching |
 | Open rims | Real folded hems on the tote mouth and the shirt hem, cuffs and neck |
 | Review cadence | One branch per phase, renders reviewed before the next begins |
+| Bottle label extent | The whole outside of the body, up to the ring; only the two discs are bare |
+| Tote source | Replaced with a closed bag with solid handles, rather than repairing a flat panel |
+| Tote lining | Kept — the mouth is open to look into, and the outer skin needs an inside to be closed |

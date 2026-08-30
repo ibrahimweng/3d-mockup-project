@@ -49,10 +49,9 @@ export const MODEL_TARGET = {
  * which is what a sewn seam is -- two panels stitched together fold sharply.
  * Another 314 are the hems added in phase 3, one per corner of each rim, which
  * is what a fold is. Twenty sit in open cloth, and those are the ones worth
- * chasing. On the tote every one belongs to a webbing handle, whose edges are
- * pinned deliberately so a strap two triangles wide is not smoothed into a
- * thread; its canvas panels hold none at all, which is the thing the rounding
- * in phase 1 was for.
+ * chasing. The tote's 1,882 are the seams, the mouth and the edges of the
+ * straps on a bag that was modelled with all three, at eight times the density
+ * of the flat panel it replaced.
  *
  * Shading is measured separately and is not affected: `shadingSplitsOnFlat` is
  * zero on both, so none of these draws a line where the surface is flat.
@@ -147,37 +146,42 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
       Folder_Pad: { coverage: 0.998, islands: 1, mirroredTriangles: 0, stretch: 1 },
     },
   },
-  // Phase 2 cut every zone down to a real platen: 240mm square on the panels,
-  // 80 by 120 on the gussets. Each fills its own square exactly, so a template
-  // is now a 1:1 preview instead of a shape that ran under the handles and over
-  // the base fold. The right gusset reads 0.97 rather than 1 because the bag
-  // tapers and its rectangle catches a little empty air at one corner.
+  // Rebuilt on a source that was modelled as a bag: closed, consistently wound,
+  // with the two handles built as solid straps of their own rather than as
+  // ribbons two triangles wide. Everything the old model needed doing to it --
+  // inflating a flat panel into something with volume, hemming a mouth that was
+  // one vertex thick, rounding folds that met with no transition -- the new one
+  // already has, so all three passes are gone from its prep.
   //
-  // Boundary edges rose from 288 with no new hole: measured by length rather
-  // than count, the free edges still total 4,036mm, exactly what they did
-  // before -- the cut divides the same pre-existing corner gaps into more
-  // pieces.
+  // Free edges went from 296 to none, which is the headline: the bag has no
+  // holes in it at all now, and the 4,036mm of hairline gap along its corners
+  // and its base went with them. It costs triangles -- 8,292 became 73,000, a
+  // fifth of a 301,100-triangle source, kept at a fifth because that is what
+  // holds the slack in the cloth that is the whole reason to prefer it.
   //
-  // Phase 3 turned the mouth under: a 25mm hem, its rim reading 3mm because a
-  // hem is two layers of a 1.5mm cotton duck. Hard edges went from 25 to 99,
-  // and the 74 new ones are one per corner of that rim, which is what a fold
-  // is. The 25 that were already there are the handles', and the canvas panels
-  // still hold none.
+  // Hard edges read 1,882 against 99 for the same reason: eight times the cloth
+  // at eight times the density, with real seams and real folds in it rather
+  // than four creases in a flat panel. None of them draws a line over anything
+  // flat, which is what `shadingSplitsOnFlat` says.
+  //
+  // Coverage on the gussets is 0.994 rather than 1 because the bag tapers
+  // slightly toward its base and the rectangle catches a little air at one
+  // corner. Every zone is otherwise exactly what it should be.
   "tote-bag": {
     blackMaterials: [],
-    boundaryEdges: 296,
+    boundaryEdges: 0,
     coincidentFaces: 0,
     degenerateTriangles: 0,
-    hardInteriorEdges: 99,
+    hardInteriorEdges: 1882,
     nonManifoldEdges: 0,
     shadingSplitsOnFlat: 0,
     shells: 3,
     strayTrianglesOnHardware: 0,
     zones: {
-      Bag_Back: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.04 },
-      Bag_Front: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.03 },
-      Bag_Left: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.03 },
-      Bag_Right: { coverage: 0.97, islands: 1, mirroredTriangles: 0, stretch: 1.02 },
+      Bag_Back: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.01 },
+      Bag_Front: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.01 },
+      Bag_Left: { coverage: 0.994, islands: 1, mirroredTriangles: 0, stretch: 1.05 },
+      Bag_Right: { coverage: 0.994, islands: 1, mirroredTriangles: 0, stretch: 1.03 },
     },
   },
   // Phase 2. Every zone is a platen now, and every one of them fills its square
@@ -202,21 +206,21 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
   // is what the close-up shots this garment is for will show. Hard edges went
   // from 384 to 718, and the 334 new ones are one per corner of those rims.
   //
-  // Two edges are used by more than two faces, both at one spot on the top line
-  // of the chest print. They are splinters left by the cut, sitting right at the
-  // distance below which two points are the same point: adding the hems moved
-  // the model's own size by a tenth of a per cent, which moved that distance,
-  // which was enough to fuse them. Every split tolerance between one and five
-  // millionths of the model leaves exactly these two, and the coarser end of
-  // that range starts opening seams elsewhere, so they stay recorded rather than
-  // traded for something worse.
+  // The two edges that were used by more than two faces are gone. They were
+  // splinters left by the cut, at one spot on the top line of the chest print,
+  // sitting right at the distance below which two points are the same point --
+  // and no split tolerance removed them without opening seams elsewhere. What
+  // removed them was fusing the near-duplicates instead of avoiding them:
+  // `weldFaces` runs after every cut and pulls vertices closer together than
+  // the weld onto each other, which turns a splinter into nothing and takes its
+  // doubled edge with it.
   tshirt: {
     blackMaterials: [],
     boundaryEdges: 592,
     coincidentFaces: 0,
     degenerateTriangles: 0,
     hardInteriorEdges: 718,
-    nonManifoldEdges: 2,
+    nonManifoldEdges: 0,
     shadingSplitsOnFlat: 0,
     shells: 4,
     strayTrianglesOnHardware: 0,
@@ -230,15 +234,28 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
   // The wrap runs past 1 in u because it goes all the way round, which is what
   // a wrap does. Coverage is measured on the area it fills, not the box.
   //
-  // Phase 4 finished what phase 2 left. The body is separated into the wall a
-  // label goes round -- the largest run of near-vertical surface that joins up
-  // with itself -- and the base, shoulder and neck, which it does not. A
-  // cylinder's wrap has nowhere to put a surface facing along its own axis, and
-  // that is where the fifteen backwards triangles were. Leaving the neck in did
-  // something quieter and worse: it is a narrower cylinder above the shoulder,
-  // so the radius the wrap assumed was the median of two different bottles, and
-  // the label came out stretched round the body by a fifth. Measured on the wall
-  // alone the wrap is 1.57 to 1 where it read 1.13, and every number is exact.
+  // Phase 4 finished what phase 2 left, and then went too far the other way. It
+  // separated the body into the wall a label goes round -- the largest run of
+  // near-vertical surface that joins up with itself -- and the base, shoulder
+  // and neck, which it decided a label does not. That killed the fifteen
+  // backwards triangles, and it left the bottle wearing a white band under the
+  // chrome ring and another round its foot: eight and a half per cent of the
+  // body's height with no artwork on it.
+  //
+  // The label now covers the whole outside of the body, from the foot to the
+  // height where the ring takes over, and only the two discs facing along the
+  // axis are left out -- those are the surfaces a wrap genuinely cannot hold,
+  // and they are the ones the backwards triangles were on. The second
+  // coordinate is distance along the profile rather than height, because the
+  // shoulder loses five millimetres of radius over eight of height and is
+  // therefore longer than it is tall; by height alone its share of the artwork
+  // arrived squeezed into a band. Measured that way the wrap is 1.37 to 1.
+  //
+  // Stretch reads 1.2 rather than 1 because the bottle is no longer being
+  // treated as a cylinder. One turn of u is 137mm of surface at the wall and
+  // 107mm at the neck, so the artwork closes up as it goes over the shoulder --
+  // which is what happens to a real full-wrap print on a tapered bottle. It is
+  // still inside the 1.25 a zone has to hold.
   "water-bottle": {
     blackMaterials: [],
     boundaryEdges: 112,
@@ -250,7 +267,7 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
     shells: 3,
     strayTrianglesOnHardware: 0,
     zones: {
-      Bottle_Body: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1 },
+      Bottle_Body: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.2 },
     },
   },
 };
