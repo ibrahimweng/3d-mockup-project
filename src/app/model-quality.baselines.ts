@@ -88,11 +88,10 @@ export type ModelBaseline = {
 };
 
 export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
-  // The clasp jaw is a shell of its own, and 176 of its triangles wear card
-  // materials -- 97 of them the printed faces. That is the artwork spilling
-  // over the metal. The island counts agree from the other side: a full-bleed
-  // face should unwrap as one piece, and both card zones arrive in three,
-  // because the strays on the clasp form their own.
+  // Phase 1 moved the clasp jaw's 176 strays back onto the clasp, and both card
+  // faces now unwrap as the single island a full-bleed face should be. Coverage
+  // reads lower than it did only because it is finally measuring the card: the
+  // old 0.998 was taken over an unwrap stretched to reach the strays.
   "id-card": {
     blackMaterials: [],
     boundaryEdges: 0,
@@ -102,10 +101,10 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
     nonManifoldEdges: 0,
     shadingSplitsOnFlat: 38,
     shells: 7,
-    strayTrianglesOnHardware: 176,
+    strayTrianglesOnHardware: 0,
     zones: {
-      Card_Back: { coverage: 0.999, islands: 3, mirroredTriangles: 0, stretch: 1 },
-      Card_Front: { coverage: 0.998, islands: 3, mirroredTriangles: 0, stretch: 1 },
+      Card_Back: { coverage: 0.987, islands: 1, mirroredTriangles: 0, stretch: 1 },
+      Card_Front: { coverage: 0.987, islands: 1, mirroredTriangles: 0, stretch: 1 },
     },
   },
   // One material for the whole folio, and it is metallic 1 at roughness 1,
@@ -128,9 +127,9 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
       },
     },
   },
-  // Both handles are shells of their own, and both carry a slice of the panel
-  // print: 161 triangles of webbing wearing artwork. Front and back unwrap in
-  // three islands for the same reason the card's do.
+  // Phase 1 gave both handles back to the webbing. Front and back unwrap as one
+  // island each now, and reclaimed the atlas the strays were holding -- but the
+  // panels still do not fill their squares, which is phase 2's to close.
   "tote-bag": {
     blackMaterials: [],
     boundaryEdges: 288,
@@ -140,10 +139,10 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
     nonManifoldEdges: 0,
     shadingSplitsOnFlat: 0,
     shells: 3,
-    strayTrianglesOnHardware: 161,
+    strayTrianglesOnHardware: 0,
     zones: {
-      Bag_Back: { coverage: 0.82, islands: 3, mirroredTriangles: 0, stretch: 1.06 },
-      Bag_Front: { coverage: 0.773, islands: 3, mirroredTriangles: 0, stretch: 1.06 },
+      Bag_Back: { coverage: 0.837, islands: 1, mirroredTriangles: 0, stretch: 1.06 },
+      Bag_Front: { coverage: 0.814, islands: 1, mirroredTriangles: 0, stretch: 1.06 },
       Bag_Left: { coverage: 0.755, islands: 1, mirroredTriangles: 0, stretch: 1.05 },
       Bag_Right: { coverage: 0.743, islands: 1, mirroredTriangles: 0, stretch: 1.05 },
     },

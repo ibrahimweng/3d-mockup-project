@@ -52,8 +52,9 @@ export const MERCHANDISE_CATALOG = {
   },
   "tote-bag": {
     // Four print zones as separate materials, so each carries its own image on
-    // its own unwrap. The split is measured: vertex density and half width
-    // both drop at y 6.51, which is where the bag ends and the handles begin.
+    // its own unwrap. The handles are separated by connected component: each is
+    // a shell of its own that shares no vertex with the bag, so nothing has to
+    // guess how far up the panel reaches.
     colorParts: {
       main: { materials: ["Bag_Handles", "Bag_Trim"] },
       trim: { materials: ["Bag_Base"] },
@@ -101,10 +102,10 @@ export const MERCHANDISE_CATALOG = {
     artworkZones: { front: { template: "water-bottle-body.png" } },
   },
   "id-card": {
-    // The file paints the card and the clip with one material and separates
-    // them only in its atlas, so they are split at prep time instead: 6,840
-    // triangles above v 0.66 are the clip, the 1,440 below are the card, and
-    // the geometry agrees with the atlas about where the join is.
+    // The file paints the card and the clasp with one material, so they are
+    // split at prep time -- by connected component, which is the boundary the
+    // mesh already draws. The card is one shell of 3,552 triangles and the
+    // clasp is six others; nothing has to guess where one ends.
     // The printable faces are deliberately not colour slots. A slot that
     // repaints also sets the surface texture aside, which would wipe the very
     // template the card ships with, and a colour under a design is a different
@@ -121,7 +122,7 @@ export const MERCHANDISE_CATALOG = {
     // Both faces are unwrapped in the file, each filling 0 to 1 on its own, and
     // the back is mirrored in u so artwork reads the right way round when the
     // card is turned rather than appearing reversed. The card measures
-    // 2.131 by 3.062, so a design at 0.70 to 1 lands undistorted.
+    // 2.131 by 3.381, so a design at 0.63 to 1 lands undistorted.
     screenMaterial: "Card_Front",
     artworkZones: {
       back: { material: "Card_Back", template: "id-card-back.png" },
