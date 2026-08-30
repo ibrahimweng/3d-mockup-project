@@ -13,14 +13,17 @@
  * its parts; what it needs is one continuous wrap around the body, which is a
  * cylindrical unwrap rather than a projection onto a plane.
  *
- * The body is separated into the wall a label goes round and the ends it does
- * not. A cylindrical wrap has nowhere to put a base or a shoulder -- those
- * surfaces face along the axis it turns about, so their coordinates collapse,
- * and fifteen triangles came out reading their slice of the label backwards.
- * The neck goes with them: it is a narrower cylinder above the shoulder, and
- * leaving it in put the label in two pieces and, worse, dragged the radius the
- * wrap assumes down to the neck's, which stretched the label round the body by
- * a fifth.
+ * The label covers the whole outside of the body: the base roll, the straight
+ * wall, the shoulder and the short neck above it, up to the height where the
+ * chrome ring begins and takes over. What it does not cover is the flat disc
+ * the bottle stands on and the annulus at the top, both of which face along the
+ * axis the wrap turns about, so their coordinates collapse and their slice of
+ * the label would read backwards.
+ *
+ * Height is not the wrap's second coordinate; distance along the profile is.
+ * The shoulder loses five millimetres of radius over eight of height, so its
+ * surface is longer than its height, and measuring by height alone squeezed the
+ * artwork into a band as it went over the turn.
  */
 
 import { readFileSync } from "node:fs";
@@ -28,12 +31,17 @@ import { readFileSync } from "node:fs";
 import { NodeIO } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 
-import { assignShells, mulP } from "./prep-model-geometry.mjs";
+import { mulP } from "./prep-model-geometry.mjs";
 import { repoPath, sourceModel } from "./prep-model-zones.mjs";
 
 const BODY = "02_-_Default";
-// Where the wall ends: the surface turning more than 60 degrees off vertical.
-const WALL_LIMIT = 0.5;
+// How squarely a face has to look away from the axis to count as the outside of
+// the bottle. The disc it stands on and the annulus under the ring read 0.
+const OUTWARD = 0.2;
+// Heights closer together than this are the same ring of the lathe. The model
+// has two a thousandth of a millimetre apart; everywhere else the gap is at
+// least twenty times that.
+const SAME_RING = 2e-6;
 
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
 const doc = await io.read(sourceModel("water-bottle.glb"));
@@ -63,43 +71,93 @@ for (const node of doc.getRoot().listNodes()) {
   }
 }
 
-const facing = (world) => {
+// Pass 2: the axis, then the label -- everything on the body that faces away
+// from that axis.
+let cx = 0, cz = 0, count = 0;
+for (const t of triangles) for (const w of t.world) { cx += w[0]; cz += w[2]; count += 1; }
+cx /= count; cz /= count;
+
+/**
+ * How squarely a face looks away from the axis, from 1 for straight out to 0
+ * for along it.
+ *
+ * This is what separates the label from the parts a wrap cannot hold, and it
+ * says so directly. An earlier version asked instead how near vertical a face
+ * was and took the largest patch of it, which threw away the shoulder and the
+ * neck as well as the two discs -- and those are surfaces a label does go over,
+ * so the bottle wore a white band under the ring and another round its foot.
+ */
+const outwardness = (world) => {
   const u = world[1].map((c, q) => c - world[0][q]);
   const v = world[2].map((c, q) => c - world[0][q]);
   const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
-  return Math.abs(n[1] / (Math.hypot(...n) || 1));
+  const len = Math.hypot(...n) || 1;
+  const mx = (world[0][0] + world[1][0] + world[2][0]) / 3 - cx;
+  const mz = (world[0][2] + world[1][2] + world[2][2]) / 3 - cz;
+  const r = Math.hypot(mx, mz);
+  return r < 1e-9 ? 0 : (n[0] * mx + n[2] * mz) / (len * r);
 };
 
+const label = triangles.filter((t) => outwardness(t.world) > OUTWARD);
+const ends = triangles.filter((t) => outwardness(t.world) <= OUTWARD);
+
 /**
- * The wall a label goes round: the biggest run of near-vertical surface that
- * joins up with itself.
+ * The profile the label is wrapped round, as distance along the surface.
  *
- * Biggest rather than measured, for the same reason the card's clasp is found
- * by which piece of mesh it is rather than by how high it sits. What is left
- * over is the base, the shoulder and the neck.
+ * The body is a lathe, so its vertices sit on rings of constant height and
+ * radius; walking those rings from the foot up gives the exact length of the
+ * curve the label follows. Dividing by that length rather than by height is
+ * what stops the shoulder, which is longer than it is tall, from squeezing its
+ * share of the artwork into a band.
  */
-const upright = triangles.filter((t) => facing(t.world) < WALL_LIMIT);
-const shells = assignShells(upright);
-const wall = upright.filter((t) => t.shell === shells[0].index);
-const ends = triangles.filter((t) => !wall.includes(t));
-
-// Pass 2: the wall's axis, extent and radius -- measured on the wall alone, so
-// the wrap is the size of the thing it wraps.
-let yMin = Infinity, yMax = -Infinity, cx = 0, cz = 0, count = 0;
-const radii = [];
-for (const t of wall) for (const w of t.world) {
-  yMin = Math.min(yMin, w[1]); yMax = Math.max(yMax, w[1]);
-  cx += w[0]; cz += w[2]; count += 1;
+function profileOf(faces) {
+  const rings = new Map();
+  for (const t of faces) for (const w of t.world) {
+    const key = Math.round(w[1] / SAME_RING);
+    const r = Math.hypot(w[0] - cx, w[2] - cz);
+    const e = rings.get(key) ?? { n: 0, r: 0, y: 0 };
+    e.n += 1; e.r += r; e.y += w[1]; rings.set(key, e);
+  }
+  const steps = [...rings.values()]
+    .map((e) => ({ r: e.r / e.n, y: e.y / e.n }))
+    .sort((a, b) => a.y - b.y);
+  let s = 0;
+  steps[0].s = 0;
+  for (let i = 1; i < steps.length; i += 1) {
+    s += Math.hypot(steps[i].y - steps[i - 1].y, steps[i].r - steps[i - 1].r);
+    steps[i].s = s;
+  }
+  return { length: s, steps };
 }
-cx /= count; cz /= count;
-for (const t of wall) for (const w of t.world) radii.push(Math.hypot(w[0] - cx, w[2] - cz));
-radii.sort((a, b) => a - b);
-const radius = radii[Math.floor(radii.length / 2)];
-const height = yMax - yMin;
-console.log(`  wall ${wall.length} tris, y ${yMin.toFixed(4)}..${yMax.toFixed(4)}, median radius ${radius.toFixed(5)}`);
-console.log(`  wrap aspect ${((2 * Math.PI * radius) / height).toFixed(4)} : 1  (${ends.length} triangles on the ends)`);
 
-// Pass 3: rebuild both parts non-indexed, the wall with a cylindrical unwrap.
+const profile = profileOf(label);
+/** Distance along the profile at a height, straight-line between rings. */
+function along(y) {
+  const { steps } = profile;
+  if (y <= steps[0].y) return 0;
+  if (y >= steps[steps.length - 1].y) return profile.length;
+  let lo = 0, hi = steps.length - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (steps[mid].y <= y) lo = mid; else hi = mid;
+  }
+  const span = steps[hi].y - steps[lo].y;
+  return span < 1e-12 ? steps[lo].s : steps[lo].s + (steps[hi].s - steps[lo].s) * (y - steps[lo].y) / span;
+}
+
+// The widest ring, not the average one. The aspect this reports is the shape a
+// design has to be authored at to land undistorted, and the surface it has to
+// land undistorted on is the straight wall -- which is the widest part and the
+// only part anyone reads. Averaging pulls the radius down towards the shoulder
+// and squashes the artwork on the wall to pay for it.
+let radius = 0;
+for (const t of label) for (const w of t.world) radius = Math.max(radius, Math.hypot(w[0] - cx, w[2] - cz));
+const yLo = profile.steps[0].y, yHi = profile.steps[profile.steps.length - 1].y;
+console.log(`  label ${label.length} tris, y ${yLo.toFixed(4)}..${yHi.toFixed(4)}, widest radius ${radius.toFixed(5)}`);
+console.log(`  profile ${(profile.length * 1000).toFixed(2)}mm over ${((yHi - yLo) * 1000).toFixed(2)}mm of height`);
+console.log(`  wrap aspect ${((2 * Math.PI * radius) / profile.length).toFixed(4)} : 1  (${ends.length} triangles on the two discs)`);
+
+// Pass 3: rebuild both parts non-indexed, the label with a cylindrical unwrap.
 // Non-indexed so every triangle owns its vertices, which is what lets the seam
 // triangles pick the branch that keeps them continuous instead of wrapping the
 // whole texture backwards across the join.
@@ -116,7 +174,7 @@ function pack(list, withUv) {
       // camera looks at, which lands the middle of the artwork on the front and
       // the seam at the back where nobody photographs it.
       us.push(0.75 - Math.atan2(w[2] - cz, w[0] - cx) / (2 * Math.PI));
-      vs.push(1 - (w[1] - yMin) / height);
+      vs.push(1 - along(w[1]) / profile.length);
     }
     // Seam repair. Every corner goes on the branch nearest the first, which is
     // what "the same way round the bottle" means -- half a turn is the furthest
@@ -166,7 +224,7 @@ const endsMaterial = doc.createMaterial("Bottle_Body_Ends")
   .setBaseColorFactor([1, 1, 1, 1])
   .setMetallicFactor(COAT.metallic).setRoughnessFactor(COAT.roughness).setDoubleSided(true);
 
-host.mesh.addPrimitive(pack(wall, true).setMaterial(bodyMaterial));
+host.mesh.addPrimitive(pack(label, true).setMaterial(bodyMaterial));
 host.mesh.addPrimitive(pack(ends, false).setMaterial(endsMaterial));
 
 const HEAD = { Chrome_Clean: "Bottle_Head_Ring", PVC_Black_Matte: "Bottle_Head_Cap", PVC_Black_Matte0: "Bottle_Head_Latch" };

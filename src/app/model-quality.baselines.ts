@@ -230,15 +230,28 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
   // The wrap runs past 1 in u because it goes all the way round, which is what
   // a wrap does. Coverage is measured on the area it fills, not the box.
   //
-  // Phase 4 finished what phase 2 left. The body is separated into the wall a
-  // label goes round -- the largest run of near-vertical surface that joins up
-  // with itself -- and the base, shoulder and neck, which it does not. A
-  // cylinder's wrap has nowhere to put a surface facing along its own axis, and
-  // that is where the fifteen backwards triangles were. Leaving the neck in did
-  // something quieter and worse: it is a narrower cylinder above the shoulder,
-  // so the radius the wrap assumed was the median of two different bottles, and
-  // the label came out stretched round the body by a fifth. Measured on the wall
-  // alone the wrap is 1.57 to 1 where it read 1.13, and every number is exact.
+  // Phase 4 finished what phase 2 left, and then went too far the other way. It
+  // separated the body into the wall a label goes round -- the largest run of
+  // near-vertical surface that joins up with itself -- and the base, shoulder
+  // and neck, which it decided a label does not. That killed the fifteen
+  // backwards triangles, and it left the bottle wearing a white band under the
+  // chrome ring and another round its foot: eight and a half per cent of the
+  // body's height with no artwork on it.
+  //
+  // The label now covers the whole outside of the body, from the foot to the
+  // height where the ring takes over, and only the two discs facing along the
+  // axis are left out -- those are the surfaces a wrap genuinely cannot hold,
+  // and they are the ones the backwards triangles were on. The second
+  // coordinate is distance along the profile rather than height, because the
+  // shoulder loses five millimetres of radius over eight of height and is
+  // therefore longer than it is tall; by height alone its share of the artwork
+  // arrived squeezed into a band. Measured that way the wrap is 1.37 to 1.
+  //
+  // Stretch reads 1.2 rather than 1 because the bottle is no longer being
+  // treated as a cylinder. One turn of u is 137mm of surface at the wall and
+  // 107mm at the neck, so the artwork closes up as it goes over the shoulder --
+  // which is what happens to a real full-wrap print on a tapered bottle. It is
+  // still inside the 1.25 a zone has to hold.
   "water-bottle": {
     blackMaterials: [],
     boundaryEdges: 112,
@@ -250,7 +263,7 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
     shells: 3,
     strayTrianglesOnHardware: 0,
     zones: {
-      Bottle_Body: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1 },
+      Bottle_Body: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.2 },
     },
   },
 };
