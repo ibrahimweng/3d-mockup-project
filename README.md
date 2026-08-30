@@ -510,8 +510,8 @@ material names -- `screenMaterial: "Bag_Front"`, `colorParts`, `excludedNodes` -
 and its studio is 625 lines of cove, mirror floor, three lights and a turntable.
 Moving to it is a rewrite of the render path rather than a boundary fix.
 
-The second reason is 57 framework-owned files that no longer match the signed
-manifest. They break down like this:
+The integrity check also reports 57 framework-owned files that no longer match
+the signed manifest. They break down like this:
 
 - 37 files under `src/toolcraft/`
 - 10 files under `e2e/`
