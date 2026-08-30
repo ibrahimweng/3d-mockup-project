@@ -93,10 +93,15 @@ for (const { m, prim } of bodyPrimitives) {
       us.push(0.75 - Math.atan2(w[2] - cz, w[0] - cx) / (2 * Math.PI));
       vs.push(1 - (w[1] - yMin) / height);
     }
-    // Seam repair: if the triangle straddles the join, lift the low branch by
-    // one turn so its three u values stay adjacent.
-    if (Math.max(...us) - Math.min(...us) > 0.5) {
-      for (let k = 0; k < 3; k += 1) if (us[k] < 0.5) us[k] += 1;
+    // Seam repair. Every corner is put on the branch nearest the first one,
+    // which is what "the same way round the bottle" means -- half a turn is the
+    // furthest two points on a cylinder can be, so anything more is the wrap
+    // counted the long way. Lifting whichever corners happened to fall below
+    // the middle instead, as a first version did, moved a corner past its
+    // neighbours on sixteen triangles and turned their slice of the label round.
+    for (let k = 1; k < 3; k += 1) {
+      while (us[k] - us[0] > 0.5) us[k] -= 1;
+      while (us[k] - us[0] < -0.5) us[k] += 1;
     }
     for (let k = 0; k < 3; k += 1) {
       P.set(keepP[k], (i + k) * 3); N.set(keepN[k], (i + k) * 3);

@@ -6,10 +6,14 @@
  * a bag and its handles. A product needs them apart, because a print zone is a
  * material and a colour slot is a material. This does the splitting.
  *
+ * `material` is one source material or several. Several matters when the cuts
+ * have to agree: the shirt's front and back share ninety edges down their side
+ * seams, and cutting them in separate passes divides those edges in two places.
+ *
  * `classify(face)` decides which zone a triangle belongs to. It receives the
  * face's world centroid `C`, world normal `WN`, mean texture coordinate, the
- * `shell` it belongs to and that shell's box, and the world box of its source
- * primitive. Prefer `shell`: it is the boundary the mesh already draws, and a
+ * `source` material it arrived on, the `shell` it belongs to and that shell's
+ * box, and the world box of its source primitive. Prefer `shell`: it is the boundary the mesh already draws, and a
  * coordinate threshold guessing at the same boundary is what put the card's
  * artwork on its clasp. See `docs/merchandise-models.md`.
  *
@@ -25,7 +29,9 @@ import { fileURLToPath } from "node:url";
 import { NodeIO } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 
+import { along, axisBasis, tangentBasis } from "./prep-model-clip.mjs";
 import { assignShells, inv4, mulN, mulP, roundCreases as roundTheFolds } from "./prep-model-geometry.mjs";
+import { cutPrintRegions } from "./prep-model-regions.mjs";
 
 const AXIS = { x: 0, y: 1, z: 2 };
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -57,13 +63,15 @@ export function sourceModel(name) {
 }
 
 export async function prepZones({
-  classify, deformWorld, input, leftover, material, output,
+  classify, deformWorld, input, leftover, material, output, regions,
   roundCreases, trimStyle, weaveDefault = true, zones,
 }) {
   const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
   const doc = await io.read(input);
 
-  // Pass 1: gather every face of the target material in world space.
+  // Pass 1: gather every face of the target material or materials, in world
+  // space.
+  const wanted = new Set([material].flat());
   const faces = [];
   const owners = [];
   for (const node of doc.getRoot().listNodes()) {
@@ -71,8 +79,9 @@ export async function prepZones({
     if (!mesh) continue;
     const m = node.getWorldMatrix();
     for (const prim of mesh.listPrimitives()) {
-      if (prim.getMaterial()?.getName() !== material) continue;
-      owners.push({ m, material: prim.getMaterial(), mesh, prim });
+      const from = prim.getMaterial();
+      if (!wanted.has(from?.getName())) continue;
+      owners.push({ m, material: from, mesh, prim });
       const pos = prim.getAttribute("POSITION"), nor = prim.getAttribute("NORMAL");
       const uv = prim.getAttribute("TEXCOORD_0"), idx = prim.getIndices();
       const count = idx ? idx.getCount() : pos.getCount();
@@ -89,7 +98,10 @@ export async function prepZones({
           for (let q = 0; q < 3; q += 1) { C[q] += wp[q] / 3; WN[q] += wn[q] / 3; }
           if (uv) vSum += a[1] / 3;
         }
-        faces.push({ C, m, N, owner: owners.length - 1, P, UV0, uvV: vSum, WN, world: P.map((v) => mulP(m, v)) });
+        faces.push({
+          C, m, N, owner: owners.length - 1, P, source: from,
+          UV0, uvV: vSum, WN, world: P.map((v) => mulP(m, v)),
+        });
       }
     }
   }
@@ -135,6 +147,8 @@ export async function prepZones({
   }
   if (roundCreases) roundTheFolds(faces, roundCreases);
 
+  const unwrapBasis = cutPrintRegions({ byZone, faces, regions });
+
   // Pass 3: rebuild one primitive per zone, unwrapped.
   const src = owners[0];
   for (const { mesh, prim } of owners) { mesh.removePrimitive(prim); prim.dispose(); }
@@ -158,12 +172,18 @@ export async function prepZones({
     const UV = new Float32Array(n*2), UV1 = new Float32Array(n*2), UVW = new Float32Array(n*2);
     const density = spec.weaveRepeatsPerUnit ?? 1;
 
-    // Bounds of this zone, in the two world axes it is unwrapped across.
+    // Where this zone is unwrapped across: two world axes, or -- for a zone too
+    // curved for any of them -- a plane laid on the surface itself.
+    const [uA, vA] = Array.isArray(spec.unwrap) ? spec.unwrap : ["x", "y"];
+    // The plane the region cut on, where there was one, so the rectangle stays a
+    // rectangle in the atlas. Otherwise whatever the zone declares.
+    const basis = unwrapBasis.get(zoneName)
+      ?? (spec.unwrap === "tangent" ? tangentBasis(list) : axisBasis([uA, vA]));
+    const at = (w) => [along(basis.u, w), along(basis.v, w)];
     const lo = [Infinity, Infinity], hi = [-Infinity, -Infinity];
-    const [uA, vA] = spec.unwrap ?? ["x", "y"];
     if (spec.unwrap) for (const f of list) for (const w of f.world) {
-      lo[0] = Math.min(lo[0], w[AXIS[uA]]); hi[0] = Math.max(hi[0], w[AXIS[uA]]);
-      lo[1] = Math.min(lo[1], w[AXIS[vA]]); hi[1] = Math.max(hi[1], w[AXIS[vA]]);
+      const p = at(w);
+      for (let i = 0; i < 2; i += 1) { lo[i] = Math.min(lo[i], p[i]); hi[i] = Math.max(hi[i], p[i]); }
     }
     const span = [hi[0] - lo[0] || 1, hi[1] - lo[1] || 1];
 
@@ -173,9 +193,9 @@ export async function prepZones({
       UVW[t*2] = f.world[k][AXIS[uA]] * density;
       UVW[t*2+1] = f.world[k][AXIS[vA]] * density;
       if (spec.unwrap) {
-        const w = f.world[k];
-        let u = (w[AXIS[uA]] - lo[0]) / span[0];
-        const v = 1 - (w[AXIS[vA]] - lo[1]) / span[1];
+        const p = at(f.world[k]);
+        let u = (p[0] - lo[0]) / span[0];
+        const v = 1 - (p[1] - lo[1]) / span[1];
         if (spec.flipU) u = 1 - u;
         UV[t*2] = u; UV[t*2+1] = v;
       }
@@ -187,7 +207,10 @@ export async function prepZones({
       .setAttribute("NORMAL", doc.createAccessor().setType("VEC3").setArray(N));
     if (spec.unwrap) prim.setAttribute("TEXCOORD_0", doc.createAccessor().setType("VEC2").setArray(UV));
 
-    const source = owners[0].material;
+    // The weave comes from the material this zone's own cloth arrived on. With
+    // one source material that is the only one there is; with several it is the
+    // difference between a panel keeping its own cloth and wearing the collar's.
+    const source = list[0]?.source ?? owners[0].material;
     const mat = doc.createMaterial(zoneName)
       .setMetallicFactor(spec.metalness ?? 0)
       .setRoughnessFactor(spec.roughness ?? 0.5)

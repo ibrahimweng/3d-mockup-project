@@ -127,12 +127,19 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
       },
     },
   },
-  // Phase 1 gave both handles back to the webbing. Front and back unwrap as one
-  // island each now, and reclaimed the atlas the strays were holding -- but the
-  // panels still do not fill their squares, which is phase 2's to close.
+  // Phase 2 cut every zone down to a real platen: 240mm square on the panels,
+  // 80 by 120 on the gussets. Each fills its own square exactly, so a template
+  // is now a 1:1 preview instead of a shape that ran under the handles and over
+  // the base fold. The right gusset reads 0.97 rather than 1 because the bag
+  // tapers and its rectangle catches a little empty air at one corner.
+  //
+  // Boundary edges rose from 288 with no new hole: measured by length rather
+  // than count, the free edges still total 4,036mm, exactly what they did
+  // before -- the cut divides the same pre-existing corner gaps into more
+  // pieces. The hard edges are unchanged, and phase 3 is what rounds them.
   "tote-bag": {
     blackMaterials: [],
-    boundaryEdges: 288,
+    boundaryEdges: 296,
     coincidentFaces: 0,
     degenerateTriangles: 0,
     hardInteriorEdges: 25,
@@ -141,34 +148,58 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
     shells: 3,
     strayTrianglesOnHardware: 0,
     zones: {
-      Bag_Back: { coverage: 0.837, islands: 1, mirroredTriangles: 0, stretch: 1.06 },
-      Bag_Front: { coverage: 0.814, islands: 1, mirroredTriangles: 0, stretch: 1.06 },
-      Bag_Left: { coverage: 0.755, islands: 1, mirroredTriangles: 0, stretch: 1.05 },
-      Bag_Right: { coverage: 0.743, islands: 1, mirroredTriangles: 0, stretch: 1.05 },
+      Bag_Back: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.04 },
+      Bag_Front: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.03 },
+      Bag_Left: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.03 },
+      Bag_Right: { coverage: 0.97, islands: 1, mirroredTriangles: 0, stretch: 1.02 },
     },
   },
-  // The sleeves are the outlier: a cone forced into a square, so a fifth of
-  // their triangles read backwards and the tightest of them carry twice the
-  // artwork per centimetre that the median does.
+  // Phase 2. Every zone is a platen now, and every one of them fills its square
+  // exactly: a 240 by 320mm chest print, a 180 by 320mm back print -- narrower
+  // because the back panel wraps further round before its surface turns away --
+  // and a 60mm patch on each sleeve. Mirrored triangles went from 156, 411, 667
+  // and 678 to none, because artwork no longer reaches the sides of the chest or
+  // the underside of a sleeve, which is where the cloth turned away from the
+  // direction it was projected along.
+  //
+  // The sleeves are unwrapped on a plane laid across the patch rather than down
+  // a world axis. A sleeve is a cone lying at an angle to all three, and down
+  // any of them the tightest one per cent of the patch carried 1.6 times the ink
+  // per square millimetre the middle did; making the patch smaller barely moved
+  // that, because the fault was the direction.
+  //
+  // Free edges still total 4,440mm, exactly what they did before the cut. The
+  // rise in the count, and in the hard edges from 348, is the same cloth divided
+  // into more pieces.
   tshirt: {
     blackMaterials: [],
-    boundaryEdges: 554,
+    boundaryEdges: 592,
     coincidentFaces: 0,
     degenerateTriangles: 0,
-    hardInteriorEdges: 348,
+    hardInteriorEdges: 384,
     nonManifoldEdges: 0,
     shadingSplitsOnFlat: 0,
     shells: 4,
     strayTrianglesOnHardware: 0,
     zones: {
-      Shirt_Back: { coverage: 0.869, islands: 1, mirroredTriangles: 411, stretch: 1.13 },
-      Shirt_Front: { coverage: 0.858, islands: 1, mirroredTriangles: 156, stretch: 1.18 },
-      Shirt_Sleeve_Left: { coverage: 0.81, islands: 1, mirroredTriangles: 667, stretch: 2.11 },
-      Shirt_Sleeve_Right: { coverage: 0.809, islands: 1, mirroredTriangles: 678, stretch: 2.06 },
+      Shirt_Back: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.04 },
+      Shirt_Front: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.06 },
+      Shirt_Sleeve_Left: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.05 },
+      Shirt_Sleeve_Right: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.04 },
     },
   },
   // The wrap runs past 1 in u because it goes all the way round, which is what
   // a wrap does. Coverage is measured on the area it fills, not the box.
+  //
+  // The only product phase 2 did not finish. Its seam repair was rewritten to
+  // put every corner on the branch nearest the first -- half a turn being the
+  // furthest two points on a cylinder can be -- in place of lifting whichever
+  // corners fell below the middle, which had turned one triangle's slice of the
+  // label round. That leaves fifteen, and they are not on the wall: they are on
+  // the base and the shoulder, where a cylinder's wrap has nowhere to go, and
+  // the stretch of 1.35 is the taper for the same reason. Both want the body
+  // split into the wall that prints and the ends that do not, which is a change
+  // to what the product's materials are rather than to an unwrap.
   "water-bottle": {
     blackMaterials: [],
     boundaryEdges: 112,
@@ -180,7 +211,7 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
     shells: 3,
     strayTrianglesOnHardware: 0,
     zones: {
-      Bottle_Body: { coverage: 1.002, islands: 1, mirroredTriangles: 16, stretch: 1.35 },
+      Bottle_Body: { coverage: 1.002, islands: 1, mirroredTriangles: 15, stretch: 1.35 },
     },
   },
 };

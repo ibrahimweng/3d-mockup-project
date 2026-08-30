@@ -23,6 +23,7 @@ export const MERCHANDISE_CATALOG = {
     // would have been a control that appears to do nothing.
     colorParts: {
       accent: { materials: ["Rib_1X1_486gsm_116764"] },
+      main: { materials: ["Shirt_Body"] },
       trim: { materials: ["Shirt_Front_Trim"] },
     },
     excludedNodes: [],
@@ -30,11 +31,17 @@ export const MERCHANDISE_CATALOG = {
     label: "T-Shirt",
     modelFile: "tshirt.glb",
     artworkSurface: "print",
-    // Four zones unwrapped in the file, each filling 0 to 1 on its own. The
-    // garment was authored in a clothing tool that writes texture coordinates
-    // in millimetres, running u from 1460 to 1972, so nothing usable survived
-    // in the original. Back and left sleeve are mirrored in u so artwork reads
-    // the right way round from those sides.
+    // Four print areas, each filling 0 to 1 on its own: a 240 by 320mm chest
+    // print, a 180 by 320mm back print, and a 60mm square patch on each sleeve.
+    // The back is the narrower of the two because the back panel wraps further
+    // round the body before its surface turns away, and artwork past that point
+    // projects back to front. `Shirt_Body` is the cloth outside them.
+    //
+    // The garment was authored in a clothing tool that writes texture
+    // coordinates in millimetres, so nothing usable survived in the original
+    // unwrap -- but those millimetres are what gives the model its scale: one
+    // world unit is one metre. Back and right sleeve are mirrored in u so
+    // artwork reads the right way round from those sides.
     //
     screenMaterial: "Shirt_Front",
     artworkZones: {
@@ -54,9 +61,10 @@ export const MERCHANDISE_CATALOG = {
     // Four print zones as separate materials, so each carries its own image on
     // its own unwrap. The handles are separated by connected component: each is
     // a shell of its own that shares no vertex with the bag, so nothing has to
-    // guess how far up the panel reaches.
+    // guess how far up the panel reaches. `Bag_Canvas` is the cloth outside the
+    // print areas, and it takes the main colour with the rest of the bag.
     colorParts: {
-      main: { materials: ["Bag_Handles", "Bag_Trim"] },
+      main: { materials: ["Bag_Canvas", "Bag_Handles", "Bag_Trim"] },
       trim: { materials: ["Bag_Base"] },
     },
     excludedNodes: [],
@@ -66,9 +74,12 @@ export const MERCHANDISE_CATALOG = {
     label: "Tote Bag",
     modelFile: "tote-bag.glb",
     artworkSurface: "print",
-    // Front, back, left and right are each unwrapped in the file, filling 0 to
-    // 1 on their own. Back and left are mirrored in u so artwork reads the
-    // right way round from those sides rather than reversed.
+    // Front, back, left and right each print a rectangle the size of a real
+    // screen-print platen -- 240 by 240mm on the panels, 80 by 120mm on the
+    // gussets -- rather than the whole side of the bag, which ran the design
+    // over the base fold and under the handle stitching. Each rectangle fills
+    // 0 to 1 on its own, so its template is a 1:1 preview. Back and left are
+    // mirrored in u so artwork reads the right way round from those sides.
     screenMaterial: "Bag_Front",
     artworkZones: {
       back: { material: "Bag_Back", template: "tote-bag-back.png" },

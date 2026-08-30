@@ -37,6 +37,10 @@ GUIDE = (198, 201, 206)
 
 # name, width, height, title, what the zone is, sheet kind.
 #
+# The pixel size is the print area's own aspect ratio, and the note is its size
+# in millimetres, because a print area is a physical rectangle: a platen on the
+# tote and the shirt, the whole face on the card, the full wrap on the bottle.
+#
 # "flat" is a panel: a rectangle of cloth or card with four free edges. "wrap"
 # is a cylinder cut open, so its left and right edges are the same edge, and it
 # says so -- a seam bar down both sides, the quarter turns marked across the
@@ -44,14 +48,14 @@ GUIDE = (198, 201, 206)
 TEMPLATES = [
     ("id-card-front", 1291, 2048, "ID CARD  ·  FRONT", "full bleed, prints around the punch hole", "flat"),
     ("id-card-back", 1291, 2048, "ID CARD  ·  BACK", "full bleed, prints around the punch hole", "flat"),
-    ("tote-bag-front", 1979, 2048, "TOTE BAG  ·  FRONT", "panel", "flat"),
-    ("tote-bag-back", 1990, 2048, "TOTE BAG  ·  BACK", "panel", "flat"),
-    ("tote-bag-left", 910, 2048, "TOTE  ·  LEFT", "gusset", "flat"),
-    ("tote-bag-right", 804, 2048, "TOTE  ·  RIGHT", "gusset", "flat"),
-    ("tshirt-front", 1237, 2048, "T-SHIRT  ·  FRONT", "cotton", "flat"),
-    ("tshirt-back", 1189, 2048, "T-SHIRT  ·  BACK", "cotton", "flat"),
-    ("tshirt-sleeve-left", 1326, 2048, "T-SHIRT  ·  LEFT SLEEVE", "cotton", "flat"),
-    ("tshirt-sleeve-right", 1356, 2048, "T-SHIRT  ·  RIGHT SLEEVE", "cotton", "flat"),
+    ("tote-bag-front", 2048, 2048, "TOTE BAG  ·  FRONT", "240 x 240 mm print area", "flat"),
+    ("tote-bag-back", 2048, 2048, "TOTE BAG  ·  BACK", "240 x 240 mm print area", "flat"),
+    ("tote-bag-left", 1365, 2048, "TOTE  ·  LEFT", "80 x 120 mm on the gusset", "flat"),
+    ("tote-bag-right", 1365, 2048, "TOTE  ·  RIGHT", "80 x 120 mm on the gusset", "flat"),
+    ("tshirt-front", 1536, 2048, "T-SHIRT  ·  FRONT", "240 x 320 mm chest print", "flat"),
+    ("tshirt-back", 1152, 2048, "T-SHIRT  ·  BACK", "180 x 320 mm back print", "flat"),
+    ("tshirt-sleeve-left", 2048, 2048, "T-SHIRT  ·  LEFT SLEEVE", "60 x 60 mm sleeve patch", "flat"),
+    ("tshirt-sleeve-right", 2048, 2048, "T-SHIRT  ·  RIGHT SLEEVE", "60 x 60 mm sleeve patch", "flat"),
     ("water-bottle-body", 2048, 1811, "WATER BOTTLE  ·  BODY WRAP", "360° around the body  ·  seam at the back", "wrap"),
 ]
 

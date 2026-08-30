@@ -49,6 +49,42 @@ const CANVAS = {
  */
 const HANDLE_FOLLOW_Y = 6.51;
 
+/**
+ * World units to millimetres.
+ *
+ * The bag's front panel measures 5.685 across and a tote of this shape is about
+ * 380mm wide, which is where this comes from. Everything below is stated as a
+ * real print size and converted, because a screen-print platen is a physical
+ * object and its size is the reason the print area is the size it is.
+ */
+const MM = 1 / 66.84;
+
+/**
+ * What actually prints: a centred rectangle the size of a real platen.
+ *
+ * The panels were printed edge to edge before, which sounds generous and is
+ * not: the print ran over the base fold and under the handle stitching, so part
+ * of every design landed where nobody could see it, and the template a user
+ * downloaded was not a picture of what they would get. 240mm on a 380 by 393mm
+ * panel is a common tote print, and leaves about 70mm of plain canvas all round.
+ *
+ * The gussets take a side-logo print rather than a scaled-down panel one. They
+ * are not the same shape as the panels and not the same shape at every height:
+ * measured in bands, a gusset runs 131mm across at the base and 220mm at the
+ * mouth, because the bag tapers. A rectangle sized for the widest part hangs
+ * off the cloth at the narrowest, which is what a first pass at 100 by 240
+ * did -- the overhang showed up as coverage of 0.92 and a pair of free edges
+ * where the print area had nothing under it.
+ */
+const PLATEN = { front: [240 * MM, 240 * MM], gusset: [80 * MM, 120 * MM] };
+
+// Front and back are the same panel mirrored, and so are the gussets, so each
+// pair takes its print area from the pair's shared extent rather than from its
+// own. Measured separately they land 2mm apart, and the bag ends up cut on both
+// sets of lines with a ribbon of slivers in between.
+const PANELS = ["Bag_Front", "Bag_Back"];
+const GUSSETS = ["Bag_Left", "Bag_Right"];
+
 // The bag is modelled as a flat panel with almost no volume. Pushing the two
 // faces apart about the centre plane, with the handles held still and a taper
 // toward the base, gives it the depth a bag has when something is in it.
@@ -83,12 +119,21 @@ const report = await prepZones({
   // folds is the shape change; boundary vertices are pinned, so the handles
   // keep their width instead of being pulled into threads.
   roundCreases: { iterations: 6, strength: 0.5, thresholdDegrees: 25 },
+  regions: {
+    Bag_Front: { axes: ["z", "y"], from: PANELS, outside: "Bag_Canvas", size: PLATEN.front },
+    Bag_Back: { axes: ["z", "y"], from: PANELS, outside: "Bag_Canvas", size: PLATEN.front },
+    Bag_Left: { axes: ["x", "y"], from: GUSSETS, outside: "Bag_Canvas", size: PLATEN.gusset },
+    Bag_Right: { axes: ["x", "y"], from: GUSSETS, outside: "Bag_Canvas", size: PLATEN.gusset },
+  },
   zones: {
     Bag_Front: { ...CANVAS, template: template("tote-bag-front"), unwrap: ["z", "y"] },
     // Mirrored so artwork reads correctly from behind rather than reversed.
     Bag_Back: { ...CANVAS, flipU: true, template: template("tote-bag-back"), unwrap: ["z", "y"] },
     Bag_Left: { ...CANVAS, flipU: true, template: template("tote-bag-left"), unwrap: ["x", "y"] },
     Bag_Right: { ...CANVAS, template: template("tote-bag-right"), unwrap: ["x", "y"] },
+    // The panel outside the print area. Plain cloth, and the same colour slot as
+    // the rest of the bag, so a user can change the bag's colour under a design.
+    Bag_Canvas: { ...CANVAS, baseColor: [0.9, 0.89, 0.86, 1] },
     Bag_Handles: { ...CANVAS, baseColor: [0.9, 0.89, 0.86, 1] },
     Bag_Base: { ...CANVAS, baseColor: [0.9, 0.89, 0.86, 1] },
     Bag_Trim: { ...CANVAS, baseColor: [0.9, 0.89, 0.86, 1] },

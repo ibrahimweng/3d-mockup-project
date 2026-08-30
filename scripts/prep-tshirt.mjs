@@ -90,5 +90,80 @@ for (const [material, leftover, zones, classify] of passes) {
   source = build(`tshirt.stage-${material.slice(-6)}.glb`);
   await copyFile(step, source);
 }
-await copyFile(source, repoPath("public", "models", "tshirt.glb"));
+/**
+ * What actually prints, cut in one last pass with every panel present.
+ *
+ * A garment is not a rectangle and its panels are not flat, so unwrapping a
+ * whole panel onto a square did two things wrong at once. Artwork ran off the
+ * cloth at the edges -- the square is bigger than the panel -- and where the
+ * panel curved past the direction it was projected along, at the sides of the
+ * chest and under the sleeves, its triangles projected back to front and their
+ * slice of the design came out mirrored: 156 triangles on the front, 411 on the
+ * back, and about 670 on each sleeve.
+ *
+ * A printer has the same problem and solves it with a platen: a flat rectangle
+ * of cloth held under the head. 240 by 320mm on the body is a standard chest
+ * print, and it sits inside the 277mm the front panel keeps facing forward. The
+ * sleeves take a patch, because a sleeve is a cone and the only part of it that
+ * faces one way for long enough to print on is the outer upper face.
+ *
+ * The cut runs over every panel at once rather than per pass. The front and
+ * back share ninety edges down their side seams, and cutting them separately
+ * divides those edges in two different places, which opens the seam.
+ */
+const MM = 1 / 1000;   // the source's own texture coordinates are in millimetres
+// The front keeps 277mm facing forward and the back only 185mm, so the back
+// print is the narrower of the two. That is the garment, not a preference: the
+// back panel wraps further round the body before the surface turns away, and
+// artwork past that point projects back to front.
+const CHEST_FRONT = [240 * MM, 320 * MM];
+const CHEST_BACK = [180 * MM, 320 * MM];
+// A sleeve is a cone. Only its outer upper face holds one direction long enough
+// to print on, and that face measures about 84mm top to bottom.
+const PATCH = [60 * MM, 60 * MM];
+const BODY = ["Shirt_Front", "Shirt_Back"];
+const SLEEVES = ["Shirt_Sleeve_Left", "Shirt_Sleeve_Right"];
+
+const printed = await prepZones({
+  classify: (f) => f.source.getName(),
+  input: source,
+  leftover: "Shirt_Body",
+  // The collar rib is in the cut without being printed on. It shares eighty
+  // edges with the panels around the neck, and cutting the panel side of those
+  // seams without cutting the rib side opened 113mm of them.
+  material: [...BODY, ...SLEEVES, "Shirt_Front_Trim", "Rib_1X1_486gsm_116764"],
+  output: build("tshirt.printed.glb"),
+  regions: {
+    // Sat 75mm below the collar rather than centred on the panel, which is
+    // where a chest print goes and where the panel is flattest.
+    Shirt_Front: { axes: ["x", "y"], from: BODY, offset: [0, 0.064], outside: "Shirt_Body", size: CHEST_FRONT },
+    Shirt_Back: { axes: ["x", "y"], from: BODY, offset: [0, 0.064], outside: "Shirt_Body", size: CHEST_BACK },
+    // Measured on the sleeve's own surface, and each sleeve on its own: they are
+    // mirror images, so one plane cannot serve both.
+    Shirt_Sleeve_Left: { axes: "tangent", offset: [0, 0.092], outside: "Shirt_Body", size: PATCH },
+    Shirt_Sleeve_Right: { axes: "tangent", offset: [0, 0.092], outside: "Shirt_Body", size: PATCH },
+  },
+  trimStyle: COTTON,
+  zones: {
+    Shirt_Front: { ...COTTON, template: template("tshirt-front"), unwrap: ["x", "y"] },
+    Shirt_Back: { ...COTTON, flipU: true, template: template("tshirt-back"), unwrap: ["x", "y"] },
+    // Laid on the sleeve rather than projected down an axis: the cone sits at
+    // an angle to all three, and down any of them the ink bunches up where the
+    // cloth turns edge-on.
+    Shirt_Sleeve_Left: { ...COTTON, template: template("tshirt-sleeve-left"), unwrap: "tangent" },
+    Shirt_Sleeve_Right: { ...COTTON, flipU: true, template: template("tshirt-sleeve-right"), unwrap: "tangent" },
+    Shirt_Front_Trim: { ...COTTON },
+    // Carried across as authored rather than restyled: a ribbed collar is a
+    // different knit from the body and the file already says so.
+    Rib_1X1_486gsm_116764: {
+      baseColor: [0.0027, 0.0027, 0.0027, 1], metalness: 0.2423, roughness: 1,
+    },
+    // The cloth outside every print area.
+    Shirt_Body: { ...COTTON },
+  },
+});
+for (const [zone, { span, tris }] of Object.entries(printed)) {
+  console.log(`  ${zone.padEnd(20)} ${String(tris).padStart(6)} tris  span ${span ? span.join(" x ") : "-"}`);
+}
+await copyFile(build("tshirt.printed.glb"), repoPath("public", "models", "tshirt.glb"));
 console.log("wrote public/models/tshirt.glb");

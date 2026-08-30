@@ -133,11 +133,11 @@ are absolute: not "mostly", not "under 5%". Zero.
 
 | id | Invariant | Today |
 | --- | --- | --- |
-| B1 | A print zone's unwrap covers ≥ 0.95 of its 0–1 square, measured against the area the zone declares printable (full bleed on the card, platen rectangle on the tote, patch on the sleeves). Below that, part of the template the user is handed never reaches the product. | card 0.998/0.999 — · **tote 0.743–0.820** · **shirt 0.809–0.869** |
-| B2 | Stretch (longest/shortest axis ratio of the unwrap) ≤ 1.25, so a circle drawn on the template is a circle on the model. | card 1.00, tote 1.05 — · shirt panels 1.13/1.18 — · **sleeves 2.06/2.11** |
+| B1 | A print zone's unwrap covers ≥ 0.95 of its 0–1 square, measured against the area the zone declares printable (full bleed on the card, platen rectangle on the tote, patch on the sleeves). Below that, part of the template the user is handed never reaches the product. | card 0.987 · tote 0.97–1.00 · shirt 1.00 — · **folder 0.230** |
+| B2 | Stretch ≤ 1.25 — the ink per square millimetre in the tightest one per cent of a zone, against the middle of it, so a design lands at an even density. | card 1.00 · tote ≤ 1.04 · shirt ≤ 1.06 — · **bottle 1.35** · **folder 1.60** |
 | B3 | Zero mirrored triangles within a zone: every triangle in a zone has the same UV handedness, or the artwork folds back on itself. | card 0, tote 0 — · **shirt 156/411/678/667** |
-| B4 | A zone's triangles form one connected UV island, so text is never cut across a gap. | to measure |
-| B5 | Each template PNG's aspect ratio matches its zone's measured world aspect within 2%. | to measure |
+| B4 | A zone's triangles form one connected atlas island, so text is never cut across a gap. | — all of them |
+| B5 | Each template PNG's aspect ratio matches its print area's measured aspect within 2%. | — regenerated with the areas |
 
 ### C. Surface quality — no artifacts, smooth seams
 

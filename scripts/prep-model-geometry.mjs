@@ -42,7 +42,7 @@ export function inv4(m) {
   return o;
 }
 
-const faceNormal = (f) => {
+export const faceNormal = (f) => {
   const [a, b, c] = f.world;
   const u = [b[0]-a[0], b[1]-a[1], b[2]-a[2]];
   const v = [c[0]-a[0], c[1]-a[1], c[2]-a[2]];
