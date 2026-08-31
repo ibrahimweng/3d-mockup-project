@@ -312,13 +312,13 @@ const printed = await prepZones({
   zones: {
     // Each panel measured round the cloth rather than projected onto a plane,
     // and each running left to right as somebody facing it sees it.
-    Shirt_Front: { ...COTTON, template: template("tshirt-front"), unwrap: roll.Shirt_Front.across(), weaveAxes: ["x", "y"] },
-    Shirt_Back: { ...COTTON, template: template("tshirt-back"), unwrap: roll.Shirt_Back.across(), weaveAxes: ["x", "y"] },
+    Shirt_Front: { ...COTTON, flatten: true, template: template("tshirt-front"), unwrap: roll.Shirt_Front.across(), weaveAxes: ["x", "y"] },
+    Shirt_Back: { ...COTTON, flatten: true, template: template("tshirt-back"), unwrap: roll.Shirt_Back.across(), weaveAxes: ["x", "y"] },
     // Round the sleeve and along it, with the join at the underarm, which is
     // where a sleeve is sewn. Projected onto a plane instead the ink bunches up
     // where the cloth turns edge-on, which is most of a cone.
-    Shirt_Sleeve_Left: { ...COTTON, template: template("tshirt-sleeve-left"), unwrap: roll.Shirt_Sleeve_Left.across(), weaveAxes: ["z", "y"] },
-    Shirt_Sleeve_Right: { ...COTTON, template: template("tshirt-sleeve-right"), unwrap: roll.Shirt_Sleeve_Right.across(), weaveAxes: ["z", "y"] },
+    Shirt_Sleeve_Left: { ...COTTON, flatten: true, template: template("tshirt-sleeve-left"), unwrap: roll.Shirt_Sleeve_Left.across(), weaveAxes: ["z", "y"] },
+    Shirt_Sleeve_Right: { ...COTTON, flatten: true, template: template("tshirt-sleeve-right"), unwrap: roll.Shirt_Sleeve_Right.across(), weaveAxes: ["z", "y"] },
     Shirt_Front_Trim: { ...COTTON },
     /**
      * The collar rib and the facings turned under the hem.

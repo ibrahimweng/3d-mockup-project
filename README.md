@@ -182,11 +182,12 @@ arrives at the size and orientation it was drawn at.
 | --- | --- | --- | --- |
 | Bottle body | `water-bottle-body.png` | 2048 × 1490 (1.37 : 1) | 137mm around, 100mm foot to neck |
 | Card front / back | `id-card-front.png`, `id-card-back.png` | 1291 × 2048 | full bleed |
-| Tote front / back | `tote-bag-front.png`, `tote-bag-back.png` | 1660 × 2048 | 301 × 372mm, fold to fold |
-| Tote left / right | `tote-bag-left.png`, `tote-bag-right.png` | 814 × 2048 | 147 × 370mm, fold to fold |
-| Shirt front | `tshirt-front.png` | 1603 × 2048 | 458 × 586mm, seam to seam |
-| Shirt back | `tshirt-back.png` | 1519 × 2048 | 448 × 604mm, seam to seam |
-| Shirt sleeves | `tshirt-sleeve-left.png`, `tshirt-sleeve-right.png` | 2048 × 1545 | 407mm around, 307mm cuff to shoulder |
+| Tote front | `tote-bag-front.png` | 1745 × 2048 | 319 × 375mm, flattened panel |
+| Tote back | `tote-bag-back.png` | 1725 × 2048 | 320 × 379mm, flattened panel |
+| Tote gussets | `tote-bag-left.png`, `tote-bag-right.png` | 860 × 2048 | 158 × 375mm, flattened panel |
+| Shirt front | `tshirt-front.png` | 1742 × 2048 | 528 × 622mm, flattened panel |
+| Shirt back | `tshirt-back.png` | 1683 × 2048 | 521 × 634mm, flattened panel |
+| Shirt sleeves | `tshirt-sleeve-left.png`, `tshirt-sleeve-right.png` | 2048 × 1586 | 427 × 331mm, flattened panel, cuff at the top |
 
 The bottle's is the one to look at first: it is marked at the quarter turns, so
 you can see which part of a 360° wrap faces the camera before drawing anything

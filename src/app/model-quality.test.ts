@@ -164,6 +164,10 @@ describe("what the merchandise models are made of", () => {
         const fill = CUT_PANELS[material] ?? ZONE_TARGET.coverage;
         ratchet(`${id} ${material} coverage`, uv.coverage, want.coverage, fill, "higher");
         ratchet(`${id} ${material} islands`, uv.islands, want.islands, ZONE_TARGET.islands, "lower");
+        ratchet(
+          `${id} ${material} squareness`,
+          uv.squareness, want.squareness, ZONE_TARGET.squareness, "lower",
+        );
         ratchet(`${id} ${material} mirrored triangles`, uv.mirroredTriangles, want.mirroredTriangles,
           ZONE_TARGET.mirroredTriangles, "lower");
         ratchet(`${id} ${material} stretch`, uv.stretch, want.stretch, ZONE_TARGET.stretch, "lower");

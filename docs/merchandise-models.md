@@ -130,8 +130,9 @@ the neck, each rim reading at twice its cloth. The shirt is shot close up, and a
 paper-thin rim is exactly what gives that away. Every panel renders both faces so the
 cloth is never see-through from an angle.
 
-Each panel prints **to its seams** — 458 by 586mm on the front, 448 by 604mm on
-the back, 407mm round each sleeve by 307mm from the cuff to the shoulder. Ink
+Each panel prints **to its seams** — 528 by 622mm on the front, 521 by 634mm on
+the back, 427 by 331mm on each sleeve, those being the boxes the panels occupy
+once they are flattened, which is the shape a pattern piece would be cut to. Ink
 stops at the hem, the last 8mm of each cuff and the collar rib, which is where
 a tee is folded and where the fold has to be built out of cloth the print does
 not own.
@@ -200,6 +201,55 @@ own parts -- `Folder_Board`, `Folder_Pen`, `Folder_Clip`, `Folder_Sheet` and
 `Folder_Pad`, which is the only one that prints -- instead of the catalog
 correcting them on the way to the screen.
 
+## 2b. Flattening
+
+Every unwrap in this file used to be a measurement taken along something chosen
+from outside the model — two world axes, or distance round a ring and up an
+axis — and a measurement is only as good as its agreement with the cloth. Where
+they disagreed the design paid. The shirt's neckline fanned into stripes because
+the coordinate up the panel was height above the floor while the cloth there
+turns over the shoulder, covering a lot of itself in very little height.
+
+Each print zone is now **flattened**: the old measurement is kept as a starting
+guess and relaxed into an actual flattening of the patch, by as-rigid-as-possible
+parameterisation (Liu, Zhang, Xu, Gotsman and Gortler, 2008). Each round fits the
+closest rotation to every triangle's current map and then solves one cotangent
+Laplacian for the layout that best matches all of them at once — a rotation being
+the one map that leaves a square a square. `scripts/prep-model-flatten.mjs` owns
+it, and a zone opts in with `flatten: true`.
+
+Two things it needs. A patch it can flatten, which means a disc — so a sleeve has
+to arrive already cut along its underarm, and the weld that finds shared corners
+compares the starting guess as well as the position, or the cut closes again. And
+enough steps in the linear solve: capped at a flat 240 the tote's back panel came
+back at 1.13 against 1.01 for its front, the same panel measured the same way and
+simply not finished. The cap is taken from the size of the patch.
+
+What it bought, measured across the catalog:
+
+| zone | squareness before → after | stretch before → after |
+| --- | --- | --- |
+| Card front / back | 1.53 → 1.02 | 1.00 → 1.00 |
+| Folder pad | 1.00 → 1.00 | 1.00 → 1.00 |
+| Tote front | 2.01 → 1.02 | 1.17 → 1.01 |
+| Tote back | 1.79 → 1.02 | 1.13 → 1.01 |
+| Tote gussets | 1.66 → 1.14 | 1.12 → 1.03 |
+| Shirt front | 4.40 → 1.03 | 1.26 → 1.02 |
+| Shirt back | 2.64 → 1.02 | 1.25 → 1.02 |
+| Shirt sleeves | 6.72 / 3.69 → 1.08 / 1.09 | 1.67 → 1.05 / 1.04 |
+
+and mirrored triangles fell to zero everywhere. What it cost is coverage: a sewn
+panel laid flat is not the rectangle it was cut from, so it no longer fills the
+box drawn round it, and each panel's template is redrawn to the flattened shape
+so the outline shows where the cloth actually is.
+
+The water bottle is left alone, and it is the one zone that should be. Its label
+is a **wrap** — the design goes all the way round and the two ends have to meet —
+and a flattening of a surface of revolution that is not a cylinder is a fan, not
+a rectangle, which is not a label anybody could print. Measured, it does not need
+one either: the density is uniform to within nine per cent over the whole label,
+and the 1.20 figure is 26 triangles of essentially no area at the neck rim.
+
 ## 3. The test schema
 
 Invariants over the shipped GLBs, read straight out of the files. Each has an
@@ -235,9 +285,10 @@ three are declared `fixedMaterials`, and the test now exists.
 
 | id | Invariant | When the schema was written |
 | --- | --- | --- |
-| B1 | A print zone's unwrap covers ≥ 0.95 of its 0–1 square, or, for a zone that is a panel the garment was cut from rather than a rectangle, as much of it as the panel's own silhouette fills its bounding box. Below that, part of the template the user is handed never reaches the product. | — all of them: card 0.987 · tote 1.00 · shirt 0.875–0.879 on the body and 0.579–0.590 on the sleeves, each held to its own figure in `CUT_PANELS` · bottle 1.00 · folder 0.998 |
-| B2 | Stretch ≤ 1.25 — the ink per square millimetre in the tightest one per cent of a zone, against the middle of it, so a design lands at an even density. | ✗ the sleeves, at 1.67. Everything else: card 1.00 · tote ≤ 1.17 · shirt body ≤ 1.26 · bottle 1.20 · folder 1.00. The sleeves fail it knowingly: printing the head as well as the tube costs 1.6 to 1.8 times the density on the tongue of cloth at the shoulder point, about 7 of the sleeve's 730 square centimetres, and the alternative measured was a 48mm bare band there |
-| B3 | Zero mirrored triangles within a zone: every triangle in a zone has the same UV handedness, or the artwork folds back on itself. | card 0, tote 0 — · **shirt 156/411/678/667** |
+| B1 | A print zone's unwrap covers ≥ 0.95 of its 0–1 square, or, for a zone that is a panel the garment was cut from rather than a rectangle, as much of it as the panel's own silhouette fills its bounding box. Below that, part of the template the user is handed never reaches the product. | — all of them: card 0.987 · folder 0.989 · bottle 1.00 · tote 0.938–0.951 · shirt 0.817–0.821 on the body and 0.568–0.574 on the sleeves, each held to its own figure in `CUT_PANELS`. Flattening cost the tote its 1.00: a sewn panel laid flat is not the rectangle it was cut from |
+| B2 | Stretch ≤ 1.25 — the ink per square millimetre in the tightest one per cent of a zone, against the middle of it, so a design lands at an even density. | — all of them: card ≤ 1.01 · folder 1.00 · tote ≤ 1.03 · shirt ≤ 1.05 · bottle 1.20. Every cloth zone is flattened; the bottle is a wrap and cannot be |
+| B3 | Zero mirrored triangles within a zone: every triangle in a zone has the same UV handedness, or the artwork folds back on itself. | — every zone of every product, 0 |
+| B6 | Squareness ≤ 1.10 — the ratio of the two scales the map applies in the worst one per cent of a zone, after the panel's own aspect is divided out, so a printed square arrives a square. Area cannot see this: halve a check's width and double its height and the ink per square millimetre has not moved. | ✗ the tote's gussets at 1.14 and the bottle at 1.22. Everything else: card 1.02 · folder 1.00 · tote panels 1.02 · shirt 1.02–1.09. The gusset is the fold at the base corners and the bottle is a wrap round a shape that is not a cylinder; both are the product rather than the unwrap |
 | B4 | A zone's triangles form one connected atlas island, so text is never cut across a gap. | — all of them |
 | B5 | Each template PNG's aspect ratio matches its print area's measured aspect within 2%. | — regenerated with the areas |
 

@@ -65,7 +65,7 @@ const report = await prepZones({
     Folder_Board: { ...BOARD, baseColor: [0.91, 0.90, 0.87, 1] },
     // The face a design lands on: the top of the pad, flat in y, so it is
     // projected straight down onto it.
-    Folder_Pad: { ...PAPER, baseColor: [0.97, 0.97, 0.96, 1], unwrap: ["x", "z"] },
+    Folder_Pad: { ...PAPER, flatten: true, baseColor: [0.97, 0.97, 0.96, 1], unwrap: ["x", "z"] },
     Folder_Pad_Edge: { ...PAPER, baseColor: [0.95, 0.94, 0.92, 1] },
     Folder_Sheet: { ...PAPER, baseColor: [0.97, 0.97, 0.96, 1] },
     Folder_Pen: { ...PLASTIC, baseColor: [0.78, 0.78, 0.76, 1] },
