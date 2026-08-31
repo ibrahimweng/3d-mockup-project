@@ -80,10 +80,11 @@ no island and no gap, computed from the geometry rather than from any texture:
 - **The card** carries two zones. Front and back are the same size and each
   fills its own 0..1, so front and back take separate uploads. The clip is
   metal and takes no design.
-- **The tote** carries four: front, back, left and right. Each is a centred
-  platen — 240mm square on the panels, 80 by 120mm on the gussets — rather than
-  the whole side of the bag, so a design stops where a screen printer's would
-  instead of running over the base fold and under the handle stitching.
+- **The tote** carries four: front, back, left and right. Each prints its whole
+  side, fold to fold and base to mouth, the way a sublimated bag is printed. A
+  plane cannot hold a fold and each side runs round two, so the unwrap follows
+  the cloth instead: the bag is sliced into horizontal rings and a point sits
+  where it falls along its own ring.
 - **The shirt** carries four: front, back and a sleeve each.
 
 The shirt's zones are cut on the pieces the modeller already separated — the
@@ -178,8 +179,8 @@ arrives at the size and orientation it was drawn at.
 | --- | --- | --- | --- |
 | Bottle body | `water-bottle-body.png` | 2048 × 1490 (1.37 : 1) | 137mm around, 100mm foot to neck |
 | Card front / back | `id-card-front.png`, `id-card-back.png` | 1291 × 2048 | full bleed |
-| Tote front / back | `tote-bag-front.png`, `tote-bag-back.png` | 2048 × 2048 | 240 × 240mm platen |
-| Tote left / right | `tote-bag-left.png`, `tote-bag-right.png` | 1365 × 2048 | 80 × 120mm on the gusset |
+| Tote front / back | `tote-bag-front.png`, `tote-bag-back.png` | 1660 × 2048 | 301 × 372mm, fold to fold |
+| Tote left / right | `tote-bag-left.png`, `tote-bag-right.png` | 814 × 2048 | 147 × 370mm, fold to fold |
 | Shirt front | `tshirt-front.png` | 1536 × 2048 | 240 × 320mm chest print |
 | Shirt back | `tshirt-back.png` | 1152 × 2048 | 180 × 320mm back print |
 | Shirt sleeves | `tshirt-sleeve-left.png`, `tshirt-sleeve-right.png` | 2048 × 2048 | 60 × 60mm patch |

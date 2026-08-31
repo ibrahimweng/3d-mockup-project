@@ -57,10 +57,9 @@ a 155mm gusset, 612mm to the top of the straps.
 
 | Part | Shells | Material | Prints? | Surface |
 | --- | --- | --- | --- | --- |
-| Front, back, left, right panels | body, by face direction | `Bag_Front`/`Bag_Back`/`Bag_Left`/`Bag_Right` | yes, platen area only | canvas: metallic 0, roughness 0.78, tiled weave normal map |
-| Cloth outside the print areas | body, panels and gussets | `Bag_Canvas`/`Bag_Gusset` | no | as above |
+| Front, back, left, right panels | body, by how far round the bag a face sits | `Bag_Front`/`Bag_Back`/`Bag_Left`/`Bag_Right` | yes, edge to edge | canvas: metallic 0, roughness 0.78, tiled weave normal map |
 | Base | body, −Y faces | `Bag_Base` | no, colour slot | as above |
-| Lining | body, faces looking inward | `Bag_Lining` | no | as above |
+| Lining, and the crown of the mouth | body, faces looking inward, plus the couple of millimetres where the cloth turns over the rim | `Bag_Lining` | no | as above |
 | Handles | 2 separate islands | `Bag_Handles` | **never** | webbing, same finish |
 
 The bag is sewn cloth and it is **closed**: zero boundary edges anywhere, an
@@ -72,15 +71,34 @@ already has. Splitting the outer cloth from the lining is what keeps a print
 area on the outside of the panel: the lining sits directly behind it and inside
 the same rectangle.
 
-Each panel prints a **centred rectangle the size of a real screen-print
-platen** — 240 by 240mm on the panels, 80 by 120mm on the gussets — clear of
-the base fold and the handle stitching.
+Each side prints **its whole panel, fold to fold and base to mouth** — 301 by
+372mm front and back, 147 by 370mm on each gusset — the way a sublimated bag is
+printed rather than a screen-printed one. Ink runs into the corner folds and
+under the handle stitching; it stops only at the crown of the mouth, where the
+cloth turns over the rim, which is where a printed panel stops on a real bag
+too.
 
-Each panel prints a **centred rectangle the size of a real screen-print
-platen**, clear of the base fold and the handle stitching. The unwrap covers
-that rectangle, not the whole panel, so the template a user downloads is a 1:1
-preview of what a printer would actually produce rather than a shape that
-disappears under the seams.
+A plane cannot hold a fold, and every side here runs round two, so the unwrap
+does not use one. The bag is sliced into horizontal rings, each ring is walked
+round to give distance travelled, and a point sits where it falls along its own
+ring: across a side is how far between that side's two folds, up it is height.
+A fold then costs the design exactly the cloth it takes up. Projected onto the
+plane a gusset faces, the typical face carried 1.42 times less ink per square
+millimetre than the flat middle of the same panel, and no rectangle in that
+plane covered more than 0.92 of it; measured round the rings, 1.12 and 0.996.
+
+Ring by ring rather than one outline for the whole bag, because a tote is not a
+prism: this one is 152mm deep at its base and 118mm at its mouth. The seams sit
+at a fixed fraction of the way round at every height, which is what sewing four
+panels together does, and it is what stops the taper landing entirely on the
+gussets — split instead by the bag's own corner diagonal they carry 150mm of
+cloth at the base and 107mm at the mouth, and a design filling that is squeezed
+by two fifths on the way up.
+
+The millimetres above are each panel's average width over its height, which is
+what a design is scaled to. The panels narrow toward the mouth with the bag, so
+a design closes up by an eighth on the way up, which is what happens to a real
+all-over print on a bag that tapers.
 
 ### T-shirt
 
@@ -171,8 +189,8 @@ three are declared `fixedMaterials`, and the test now exists.
 
 | id | Invariant | When the schema was written |
 | --- | --- | --- |
-| B1 | A print zone's unwrap covers ≥ 0.95 of its 0–1 square, measured against the area the zone declares printable (full bleed on the card, platen rectangle on the tote, patch on the sleeves). Below that, part of the template the user is handed never reaches the product. | — all of them: card 0.987 · tote 0.97–1.00 · shirt 1.00 · bottle 1.00 · folder 0.998 |
-| B2 | Stretch ≤ 1.25 — the ink per square millimetre in the tightest one per cent of a zone, against the middle of it, so a design lands at an even density. | — all of them: card 1.00 · tote ≤ 1.04 · shirt ≤ 1.06 · bottle 1.00 · folder 1.00 |
+| B1 | A print zone's unwrap covers ≥ 0.95 of its 0–1 square, measured against the area the zone declares printable (full bleed on the card and on every side of the tote, patch on the sleeves). Below that, part of the template the user is handed never reaches the product. | — all of them: card 0.987 · tote 0.996–1.00 · shirt 1.00 · bottle 1.00 · folder 0.998 |
+| B2 | Stretch ≤ 1.25 — the ink per square millimetre in the tightest one per cent of a zone, against the middle of it, so a design lands at an even density. | — all of them: card 1.00 · tote ≤ 1.13 · shirt ≤ 1.06 · bottle 1.20 · folder 1.00 |
 | B3 | Zero mirrored triangles within a zone: every triangle in a zone has the same UV handedness, or the artwork folds back on itself. | card 0, tote 0 — · **shirt 156/411/678/667** |
 | B4 | A zone's triangles form one connected atlas island, so text is never cut across a gap. | — all of them |
 | B5 | Each template PNG's aspect ratio matches its print area's measured aspect within 2%. | — regenerated with the areas |
@@ -322,8 +340,8 @@ on hardware went from 176 and 161 to zero, and both card faces and the tote's
 front and back now unwrap as one island where each arrived in three.
 
 **Phase 2 — print fidelity (B).** Re-unwrap to the printable areas decided
-above: full bleed on the card, a centred platen rectangle on each tote panel, a
-flat patch on each sleeve, the existing wrap on the bottle. Each zone reaches
+above: full bleed on the card and on each tote side, a flat patch on each
+sleeve, the existing wrap on the bottle. Each zone reaches
 ≥ 0.95 coverage, ≤ 1.25 stretch and zero mirrored triangles. Templates are
 regenerated from the new unwraps, so the download matches what prints.
 
@@ -383,7 +401,7 @@ the shirt's two long-standing ones with it.
 | Question | Decision |
 | --- | --- |
 | Sleeve artwork | A flat 8×8 cm patch on the outer upper sleeve, not a full-sleeve wrap |
-| Tote print extent | A centred platen rectangle, clear of the base fold and handle stitching |
+| Tote print extent | The whole of each side, fold to fold and base to mouth, unwrapped round the bag's own cross-sections rather than projected onto a plane |
 | Open rims | Real folded hems on the tote mouth and the shirt hem, cuffs and neck |
 | Review cadence | One branch per phase, renders reviewed before the next begins |
 | Bottle label extent | The whole outside of the body, up to the ring; only the two discs are bare |

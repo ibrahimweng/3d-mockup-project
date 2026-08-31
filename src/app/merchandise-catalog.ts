@@ -63,14 +63,15 @@ export const MERCHANDISE_CATALOG = {
     // a shell of its own that shares no vertex with the bag, so nothing has to
     // guess how far up the panel reaches.
     //
-    // The bag is a closed shell, so it has an inside as well as an outside and
-    // `Bag_Lining` is what you look down into through the mouth. `Bag_Canvas`,
-    // `Bag_Gusset` and `Bag_Base` are the outside cloth away from the print
-    // areas, split only so the weave on each is laid out from the plane that
-    // piece of cloth actually lies in. All of it takes the main colour; the
-    // base has its own slot, which is where a contrast bottom would go.
+    // The bag is a closed shell, so it has an inside as well as an outside.
+    // `Bag_Lining` is what you look down into through the mouth, and it also
+    // takes the crown of the mouth -- the couple of millimetres where the cloth
+    // turns over the rim, which no unwrap up the side of the bag can hold. Both
+    // it and the handles take the main colour; the base has its own slot, which
+    // is where a contrast bottom would go. Nothing else is left: the four sides
+    // are printed edge to edge, so all the outside cloth is a print zone.
     colorParts: {
-      main: { materials: ["Bag_Canvas", "Bag_Gusset", "Bag_Handles", "Bag_Lining"] },
+      main: { materials: ["Bag_Handles", "Bag_Lining"] },
       trim: { materials: ["Bag_Base"] },
     },
     excludedNodes: [],
@@ -81,12 +82,16 @@ export const MERCHANDISE_CATALOG = {
     label: "Tote Bag",
     modelFile: "tote-bag.glb",
     artworkSurface: "print",
-    // Front, back, left and right each print a rectangle the size of a real
-    // screen-print platen -- 240 by 240mm on the panels, 80 by 120mm on the
-    // gussets -- rather than the whole side of the bag, which ran the design
-    // over the base fold and under the handle stitching. Each rectangle fills
-    // 0 to 1 on its own, so its template is a 1:1 preview. Back and left are
-    // mirrored in u so artwork reads the right way round from those sides.
+    // Front, back, left and right each print their whole side of the bag, fold
+    // to fold and base to mouth, the way a sublimated bag is printed rather
+    // than a screen-printed one. Each side fills 0 to 1 on its own, so its
+    // template is a 1:1 preview of that panel, and each runs left to right as
+    // somebody standing in front of that side sees it.
+    //
+    // The unwrap is written into the file and follows the cloth rather than a
+    // plane: how far round the bag a point lies, measured on the bag's own
+    // cross-section at that height. A plane cannot hold a fold, and every side
+    // here runs round two.
     screenMaterial: "Bag_Front",
     artworkZones: {
       back: { material: "Bag_Back", template: "tote-bag-back.png" },

@@ -49,9 +49,8 @@ export const MODEL_TARGET = {
  * which is what a sewn seam is -- two panels stitched together fold sharply.
  * Another 314 are the hems added in phase 3, one per corner of each rim, which
  * is what a fold is. Twenty sit in open cloth, and those are the ones worth
- * chasing. The tote's 1,882 are the seams, the mouth and the edges of the
- * straps on a bag that was modelled with all three, at eight times the density
- * of the flat panel it replaced.
+ * chasing. The tote's 922 are the seams, the mouth and the edges of the straps
+ * on a bag that was modelled with all three.
  *
  * Shading is measured separately and is not affected: `shadingSplitsOnFlat` is
  * zero on both, so none of these draws a line where the surface is flat.
@@ -155,33 +154,60 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
   //
   // Free edges went from 296 to none, which is the headline: the bag has no
   // holes in it at all now, and the 4,036mm of hairline gap along its corners
-  // and its base went with them. It costs triangles -- 8,292 became 73,000, a
+  // and its base went with them. It costs triangles -- 8,292 became 60,220, a
   // fifth of a 301,100-triangle source, kept at a fifth because that is what
-  // holds the slack in the cloth that is the whole reason to prefer it.
+  // holds the slack in the cloth that is the whole reason to prefer this one.
   //
-  // Hard edges read 1,882 against 99 for the same reason: eight times the cloth
-  // at eight times the density, with real seams and real folds in it rather
-  // than four creases in a flat panel. None of them draws a line over anything
-  // flat, which is what `shadingSplitsOnFlat` says.
+  // The four sides now print edge to edge, fold to fold and base to mouth,
+  // which is what replaced the 240mm platen that left three quarters of every
+  // side plain. A plane cannot hold a fold, and each side runs round two, so
+  // the unwrap measures the cloth instead: the bag is sliced into horizontal
+  // rings and a point sits where it falls along its own ring. Projecting a
+  // gusset onto the plane it faces put the typical face at 1.42 times less ink
+  // per square millimetre than the flat middle of the same panel, and no
+  // rectangle in that plane covered more than 0.92 of the panel. Measured round
+  // the rings it is 1.12 and 0.996.
   //
-  // Coverage on the gussets is 0.994 rather than 1 because the bag tapers
-  // slightly toward its base and the rectangle catches a little air at one
-  // corner. Every zone is otherwise exactly what it should be.
+  // Stretch reads 1.12 rather than 1 for the same reason the bottle's reads
+  // 1.2: the bag is not a prism. Its girth is 935mm at the base and 825mm at
+  // the mouth, so a design filling a side closes up by an eighth on the way up,
+  // which is what happens to a real all-over print on a bag that tapers. The
+  // seams are held at a fixed fraction of the way round at every height, which
+  // is what a sewn bag does and what keeps that eighth from landing entirely on
+  // the gussets -- by the bag's own corner diagonal they carried 150mm of cloth
+  // at the base and 107mm at the mouth, and a design filling that was squeezed
+  // by two fifths.
+  //
+  // Coverage reads a little under 1 rather than exactly 1 because a face
+  // belongs to the side its middle is on. The folds are the smoothest part of
+  // the bag and so the part the simplifier left the largest triangles on, so a
+  // few at each fold reach up to three per cent past the end of their own side;
+  // that cloth takes the last column of its own design, which is what the
+  // clamped sampler gives it.
+  //
+  // Hard edges read 922 against the 1,839 the same bag measured before its
+  // slivers were mended -- 1,906 four-cornered patches that a simplifier had
+  // cut the wrong way, each leaving a triangle standing less than a fifth of a
+  // millimetre tall over a two-millimetre edge. They print nothing, and until
+  // they were mended a scatter of them landed reversed in the atlas, because
+  // which way round a triangle that thin falls is decided by the last digits of
+  // its corners. None of the 922 draws a line over anything flat, which is what
+  // `shadingSplitsOnFlat` says.
   "tote-bag": {
     blackMaterials: [],
     boundaryEdges: 0,
     coincidentFaces: 0,
     degenerateTriangles: 0,
-    hardInteriorEdges: 1882,
+    hardInteriorEdges: 922,
     nonManifoldEdges: 0,
     shadingSplitsOnFlat: 0,
     shells: 3,
     strayTrianglesOnHardware: 0,
     zones: {
-      Bag_Back: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.01 },
-      Bag_Front: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.01 },
-      Bag_Left: { coverage: 0.994, islands: 1, mirroredTriangles: 0, stretch: 1.05 },
-      Bag_Right: { coverage: 0.994, islands: 1, mirroredTriangles: 0, stretch: 1.03 },
+      Bag_Back: { coverage: 0.996, islands: 1, mirroredTriangles: 0, stretch: 1.12 },
+      Bag_Front: { coverage: 0.996, islands: 1, mirroredTriangles: 0, stretch: 1.13 },
+      Bag_Left: { coverage: 0.998, islands: 1, mirroredTriangles: 0, stretch: 1.12 },
+      Bag_Right: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.12 },
     },
   },
   // Phase 2. Every zone is a platen now, and every one of them fills its square
