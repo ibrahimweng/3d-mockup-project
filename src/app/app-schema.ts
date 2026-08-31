@@ -207,7 +207,11 @@ export const appSchema = defineToolcraft({
           controls: {
             fit: {
               applicability: { mode: "always" },
-              defaultValue: "fill",
+              // Fit, because a printer does not crop your artwork and does not
+              // stretch it. Fill silently cut the edges off anything not
+              // authored to the zone's shape, which on a 0.63 to 1 card is most
+              // uploads, and the loss is invisible until the proof comes back.
+              defaultValue: "fit",
               description:
                 "Fit shows the whole image and leaves margins. Fill covers the screen and crops. Stretch distorts to fit exactly.",
               label: "Mode",
