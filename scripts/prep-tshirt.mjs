@@ -8,9 +8,8 @@
  * Reads the bought source named in `sourceModel` below, writes
  * `public/models/tshirt.glb`, and embeds the templates from `public/templates`.
  *
- * Runs in three passes because the garment ships three cotton materials -- one
- * per panel group -- and each has to be split and unwrapped against its own
- * pieces. Intermediates land in `build/`.
+ * Runs in three passes because the garment ships three cotton materials, one
+ * per panel group, each split and unwrapped against its own pieces.
  */
 
 import { copyFile, mkdir } from "node:fs/promises";
@@ -188,19 +187,20 @@ const roll = {
   Shirt_Back: unrollAround(body, { seam: [0, 0, 1] }),
 };
 for (const name of SLEEVES) {
-  roll[name] = unrollAround(cloth.get(name), { axis: sleeveFrame(name).axis, seam: [0, -1, 0] });
+  roll[name] = unrollAround(cloth.get(name), {
+    axis: sleeveFrame(name).axis, partial: "fill", seam: [0, -1, 0],
+  });
 }
 
 const MM = 1 / 1000;   // the source's own texture coordinates are in millimetres
 /**
  * The band at the hem that the print stops short of.
  *
- * A tee's hem is turned under and topstitched, and no printer puts ink on a
- * fold. It also has to belong to a zone of its own for the fold itself to be
- * added later: `hems` turns the three longest rims of the body cloth under, and
- * if the panels own those rims to the last vertex there is no body cloth left
- * holding one. Stated as a height and cut as one, which is what makes it a
- * straight line rather than a sawtooth at triangle scale.
+ * A tee's hem is turned under and topstitched, and it has to belong to a zone
+ * of its own for the fold to be added later: `hems` turns the three longest
+ * rims of the body cloth under, and if the panels own those rims there is no
+ * body cloth left holding one. Stated as a height and cut as one, which makes
+ * it a straight line rather than a sawtooth.
  */
 const HEM_BAND = 32 * MM;
 /** Below anything the model can tell apart, and far above float noise. */
@@ -209,22 +209,22 @@ const HAIR = 1e-9;
 const floor = Math.min(...body.flat().map((p) => p[1]));
 const hemLine = floor + HEM_BAND;
 /**
- * How far along each sleeve the design runs.
+ * How far along each sleeve the design runs: all of it, cuff to shoulder.
  *
- * A sleeve is a tube for most of its length and not one at the top: the armhole
- * is cut along a curve running a third of the way back down the sleeve's own
- * axis, so the slices through that end meet the cloth on some sides and not
- * others and there is nothing there to measure a way round from. `tube` is the
- * part that is one; the sleeve head above it stays plain, which is where a
- * sleeve is sewn in and a fair place for a print to stop. Filling it anyway put
- * the design at twice the ink with forty triangles of it backwards. The cuff is
- * turned under like the hem and takes no ink for the same reason.
+ * The head of a sleeve is not a tube -- the armhole is cut along a curve a
+ * third of the way back down its own axis -- so it used to stay plain for want
+ * of anything to measure a way round from, leaving a third of each arm in flat
+ * colour that read as a contrast raglan yoke. `partial: "fill"` closes its
+ * slices now, at the price the baselines record. Only the last few millimetres
+ * at the cuff stay plain: the fold turned under there is built out of cloth
+ * the print does not own.
  */
-const CUFF_BAND = 28 * MM;
+const CUFF_BAND = 8 * MM;
 const alongSleeve = {};
 for (const name of SLEEVES) {
   const at = (w) => roll[name].across()(w)[1];
-  const [head, end] = roll[name].tube();
+  const [, end] = roll[name].tube();
+  const head = Math.min(...cloth.get(name).flat().map(at)) - HAIR;
   alongSleeve[name] = { at, cuff: end - CUFF_BAND, head };
 }
 
@@ -292,9 +292,9 @@ const printed = await prepZones({
   hems: HEMS,
   input: stitched,
   leftover: "Shirt_Body",
-  // The collar rib is in the cut without being printed on. It shares eighty
-  // edges with the panels around the neck, and cutting the panel side of those
-  // seams without cutting the rib side opened 113mm of them.
+  // The collar rib is in the cut without being printed on: it shares eighty
+  // edges with the panels around the neck, and cutting one side of those seams
+  // without the other opened 113mm of them.
   material: [...BODY, ...SLEEVES, "Shirt_Front_Trim", "Rib_1X1_486gsm_116764", LABEL],
   output: build("tshirt.printed.glb"),
   // Every line a design ends on that the garment does not already draw: the

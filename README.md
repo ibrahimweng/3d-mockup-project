@@ -88,7 +88,7 @@ no island and no gap, computed from the geometry rather than from any texture:
 - **The shirt** carries four: front, back and a sleeve each. Each fills its
   whole panel to the seams the garment is sewn on, with the design following
   the cloth round the body rather than projected onto a plane. Ink stops at the
-  hem, the cuffs, the collar rib and the sleeve heads.
+  hem, the last 8mm of each cuff and the collar rib.
 
 The shirt's zones are cut on the pieces the modeller already separated — the
 front panel, the back panel and each sleeve are distinct primitives in the file
@@ -186,7 +186,7 @@ arrives at the size and orientation it was drawn at.
 | Tote left / right | `tote-bag-left.png`, `tote-bag-right.png` | 814 × 2048 | 147 × 370mm, fold to fold |
 | Shirt front | `tshirt-front.png` | 1603 × 2048 | 458 × 586mm, seam to seam |
 | Shirt back | `tshirt-back.png` | 1519 × 2048 | 448 × 604mm, seam to seam |
-| Shirt sleeves | `tshirt-sleeve-left.png`, `tshirt-sleeve-right.png` | 2048 × 517 | 407mm around, 103mm cuff to underarm |
+| Shirt sleeves | `tshirt-sleeve-left.png`, `tshirt-sleeve-right.png` | 2048 × 1545 | 407mm around, 307mm cuff to shoulder |
 
 The bottle's is the one to look at first: it is marked at the quarter turns, so
 you can see which part of a 360° wrap faces the camera before drawing anything

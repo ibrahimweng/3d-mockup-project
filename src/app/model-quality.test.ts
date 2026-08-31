@@ -7,7 +7,6 @@ import {
   HARDWARE_MATERIALS,
   MODEL_BASELINES,
   MODEL_TARGET,
-  PANEL_COVERAGE,
   SOFT_GOODS,
   ZONE_TARGET,
   type ModelBaseline,
@@ -162,7 +161,7 @@ describe("what the merchandise models are made of", () => {
         if (!uv) continue;
         // A zone that is a cut panel fills its square as much as its own
         // silhouette fills its bounding box, and no unwrap raises that.
-        const fill = CUT_PANELS.includes(material) ? PANEL_COVERAGE : ZONE_TARGET.coverage;
+        const fill = CUT_PANELS[material] ?? ZONE_TARGET.coverage;
         ratchet(`${id} ${material} coverage`, uv.coverage, want.coverage, fill, "higher");
         ratchet(`${id} ${material} islands`, uv.islands, want.islands, ZONE_TARGET.islands, "lower");
         ratchet(`${id} ${material} mirrored triangles`, uv.mirroredTriangles, want.mirroredTriangles,

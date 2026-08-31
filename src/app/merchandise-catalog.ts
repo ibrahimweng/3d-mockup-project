@@ -23,7 +23,7 @@ export const MERCHANDISE_CATALOG = {
     // facings turned under -- is the same cloth as the panels, and follows the
     // print background with them. On slots of their own they were a second
     // opinion: colouring the shirt in Parts turned the hem, the cuffs and the
-    // sleeve heads that colour and left every printed panel on the background,
+    // cuffs that colour and left every printed panel on the background,
     // which is a contrast-yoke ringer tee arrived at by accident.
     blankStockMaterials: ["Shirt_Body", "Shirt_Front_Trim"],
     colorParts: {
@@ -36,7 +36,7 @@ export const MERCHANDISE_CATALOG = {
     artworkSurface: "print",
     // Four print areas, each filling its whole panel and filling 0 to 1 on its
     // own: front and back from the shoulder to the hem and side seam to side
-    // seam, and each sleeve round the tube from the cuff to the underarm curve.
+    // seam, and each sleeve round the arm from the cuff to the shoulder.
     // The boundaries are the garment's own -- the modeller cut this shirt into
     // pieces and each panel is a primitive -- so no edge has to be guessed.
     //
@@ -49,7 +49,7 @@ export const MERCHANDISE_CATALOG = {
     // A panel is not a rectangle -- there is a neck curve and two armholes cut
     // out of it -- so the corners of a design land where the cloth is not, and
     // its template shows the outline. `Shirt_Body` is the hem, the cuffs, the
-    // sleeve heads and the facings: everything a print stops at.
+    // the facings: everything a print stops at.
     //
     // The garment was authored in a clothing tool that writes texture
     // coordinates in millimetres, so nothing usable survived in the original
