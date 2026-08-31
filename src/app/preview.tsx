@@ -225,6 +225,17 @@ export function MockupPreview(): React.ReactElement {
       setSceneVersion((version) => version + 1);
       dirtyRef.current = true;
     });
+    // And whatever `update` just did, whether or not it built anything.
+    //
+    // The callback above runs only when a scene is built. Everything else --
+    // a colour, a light, a finish, the ground -- is applied to the scene
+    // already on screen and returns without it, so nothing here asks for the
+    // frame that would show it. Today another effect happens to invalidate
+    // the frame on the same store write and it is drawn anyway; that is an
+    // accident of which effects run, not something this one arranged, and it
+    // is one dependency list away from leaving a repainted model on screen
+    // wearing its old colours until the user orbits.
+    dirtyRef.current = true;
   }, [settings]);
 
   const artworkUrl = urls.get(zoneAssets.get("front")?.id ?? "") ?? null;

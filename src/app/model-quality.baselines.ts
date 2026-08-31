@@ -29,15 +29,20 @@ import type { DeviceId } from "./product-domain";
  * land where the neck and the armholes are, which is what printing a rectangle
  * on a cut panel does.
  *
- * Listed one by one rather than lowering the bar for everything, because every
- * other zone in the catalog is a rectangle and has to stay at 0.95.
+ * Listed one by one, each with what its own silhouette allows, rather than
+ * lowering the bar for everything: every other zone in the catalog is a
+ * rectangle and has to stay at 0.95.
  */
-export const CUT_PANELS: readonly string[] = [
-  "Shirt_Back", "Shirt_Front", "Shirt_Sleeve_Left", "Shirt_Sleeve_Right",
-];
-
-/** What a cut panel's unwrap has to reach, its own silhouette being the limit. */
-export const PANEL_COVERAGE = 0.85;
+export const CUT_PANELS: Readonly<Record<string, number>> = {
+  Shirt_Back: 0.85,
+  Shirt_Front: 0.85,
+  // A sleeve is the least rectangular panel in the catalog: a tube at the cuff
+  // opening out into a cap cut along the armhole curve, and the curve runs a
+  // third of the way back down the sleeve's own axis. Laid flat it is a bell,
+  // and a bell fills not much more than half the box around it.
+  Shirt_Sleeve_Left: 0.55,
+  Shirt_Sleeve_Right: 0.55,
+};
 
 /** What a print zone's unwrap must eventually do. */
 export const ZONE_TARGET = {
@@ -260,38 +265,54 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
   // cloth -- the nearest surface fell to 2mm from it, and a ring measured about
   // an axis lying on its own surface spins.
   //
-  // The print stops at the hem, the cuffs and the sleeve head. The first two
-  // are turned under and no printer puts ink on a fold; the third is the part
-  // of a sleeve that is not a tube, cut along the armhole curve a third of the
-  // way back down its own axis, so there is nothing there to measure a way
-  // round from. Filling it anyway put the design at more than twice the ink
-  // over the head with forty triangles of it backwards.
+  // Each sleeve prints cuff to shoulder, head included. The head is the part
+  // of a sleeve that is not a tube -- cut along the armhole curve a third of
+  // the way back down its own axis, so a slice through it meets the cloth on
+  // some sides and not others -- and it used to stay plain for want of
+  // anything to measure a way round from: a third of each arm in flat colour,
+  // which on a printed garment reads as a contrast raglan yoke. Its slices are
+  // closed now by borrowing the shape of a whole ring further down and sizing
+  // it to the cloth that is there. Joining the two lips of the gap instead,
+  // which was the first attempt, closes a head slice into a circle 237mm
+  // around where the cuff is 430, and a fraction of 237 is nearly twice the
+  // design per millimetre that a fraction of 430 is.
   //
-  // Coverage is 0.875 to 0.909 rather than 1 because these are cut panels and
-  // not rectangles: a shirt panel has a neck curve and two armholes taken out
-  // of it, and it fills its own bounding box exactly that much. The corners of
-  // a design land where the neck and the armholes are, which is what printing a
-  // rectangle on a cut panel does. `CUT_PANELS` says so and holds them to it.
+  // What is left plain is the hem and the last 8mm of each cuff, which are
+  // turned under -- and the fold is built out of cloth the print does not own,
+  // so something has to hold those rims.
   //
-  // Stretch is 1.19 to 1.23 for the same reason the tote's is 1.12: a body is
-  // not a cylinder and a sleeve is not a pipe, so a design filling one closes
-  // up where the cloth narrows. Free edges, hard edges and shells are all where
-  // they were, and nothing draws a line over anything flat.
+  // Coverage: the body panels fill 0.875 to 0.879 of their square and the
+  // sleeves 0.579 to 0.590, because none of them is a rectangle. A body panel
+  // has a neck curve and two armholes taken out of it; a whole sleeve laid
+  // flat is a bell. The corners of a design land where the cloth is not, which
+  // is what printing a rectangle on a cut panel does, and each panel's
+  // template draws its outline. `CUT_PANELS` holds each to its own figure.
+  //
+  // Stretch is 1.25 to 1.26 on the body, for the same reason the tote's is
+  // 1.12: a body is not a cylinder, so a design filling one closes up where
+  // the cloth narrows. On the sleeves it is 1.67, and all of it is in one
+  // place -- the tongue of cloth at the shoulder point, about 7 of the
+  // sleeve's 730 square centimetres, takes 1.6 to 1.8 times the design per
+  // square millimetre the rest does. Trimming the print back off that tongue
+  // brings it to 1.33 at 15 per cent of the sleeve's length left bare, which
+  // is a 48mm blank band at the shoulder: worse to look at than the density it
+  // buys. Free edges are 600 against 592 because the cuff band moved; hard
+  // edges, shells and splits are where they were.
   tshirt: {
     blackMaterials: [],
-    boundaryEdges: 592,
+    boundaryEdges: 600,
     coincidentFaces: 0,
     degenerateTriangles: 0,
-    hardInteriorEdges: 690,
+    hardInteriorEdges: 679,
     nonManifoldEdges: 0,
     shadingSplitsOnFlat: 0,
     shells: 4,
     strayTrianglesOnHardware: 0,
     zones: {
-      Shirt_Back: { coverage: 0.879, islands: 1, mirroredTriangles: 1, stretch: 1.23 },
-      Shirt_Front: { coverage: 0.875, islands: 1, mirroredTriangles: 0, stretch: 1.23 },
-      Shirt_Sleeve_Left: { coverage: 0.909, islands: 1, mirroredTriangles: 1, stretch: 1.19 },
-      Shirt_Sleeve_Right: { coverage: 0.903, islands: 1, mirroredTriangles: 4, stretch: 1.19 },
+      Shirt_Back: { coverage: 0.879, islands: 1, mirroredTriangles: 1, stretch: 1.25 },
+      Shirt_Front: { coverage: 0.875, islands: 1, mirroredTriangles: 0, stretch: 1.26 },
+      Shirt_Sleeve_Left: { coverage: 0.579, islands: 1, mirroredTriangles: 3, stretch: 1.67 },
+      Shirt_Sleeve_Right: { coverage: 0.59, islands: 1, mirroredTriangles: 5, stretch: 1.67 },
     },
   },
   // The wrap runs past 1 in u because it goes all the way round, which is what

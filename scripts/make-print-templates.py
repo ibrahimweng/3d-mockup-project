@@ -58,8 +58,8 @@ TEMPLATES = [
     ("tote-bag-right", 814, 2048, "TOTE  ·  RIGHT GUSSET", "147 x 370 mm, fold to fold", "flat"),
     ("tshirt-front", 1603, 2048, "T-SHIRT  ·  FRONT", "458 x 586 mm, seam to seam", "flat"),
     ("tshirt-back", 1519, 2048, "T-SHIRT  ·  BACK", "448 x 604 mm, seam to seam", "flat"),
-    ("tshirt-sleeve-left", 2048, 517, "T-SHIRT  ·  LEFT SLEEVE", "407 mm around  ·  103 mm cuff to underarm  ·  seam underneath", "wrap"),
-    ("tshirt-sleeve-right", 2048, 517, "T-SHIRT  ·  RIGHT SLEEVE", "407 mm around  ·  103 mm cuff to underarm  ·  seam underneath", "wrap"),
+    ("tshirt-sleeve-left", 2048, 1545, "T-SHIRT  ·  LEFT SLEEVE", "407 mm around  ·  307 mm cuff to shoulder  ·  seam underneath", "wrap"),
+    ("tshirt-sleeve-right", 2048, 1545, "T-SHIRT  ·  RIGHT SLEEVE", "407 mm around  ·  307 mm cuff to shoulder  ·  seam underneath", "wrap"),
     ("water-bottle-body", 2048, 1490, "WATER BOTTLE  ·  BODY WRAP", "137 mm around  ·  100 mm foot to neck  ·  seam at the back", "wrap"),
 ]
 

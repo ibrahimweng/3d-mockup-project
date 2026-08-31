@@ -47,7 +47,7 @@ const FACES = { "+x": 0, "-z": 0.25, "-x": 0.5, "+z": 0.75 };
  * it.
  */
 export function unrollAround(triangles, {
-  axis = [0, 1, 0], bands = 64, bins = 720, seam = [1, 0, 0],
+  axis = [0, 1, 0], bands = 64, bins = 720, partial = "borrow", seam = [1, 0, 0],
 } = {}) {
   // Everything below works in the frame's own coordinates: across, along, and
   // up. `place` is the only thing that knows about world space.
@@ -89,7 +89,8 @@ export function unrollAround(triangles, {
    * happened to hit, and the design there arrived at three times the ink of the
    * rest and thirty-five triangles of it backwards.
    */
-  const whole = rings.map((row) => row.reduce((n, r) => n + (r > 0 ? 1 : 0), 0) > bins * 0.6);
+  const hits = rings.map((row) => row.reduce((n, r) => n + (r > 0 ? 1 : 0), 0));
+  const whole = hits.map((n) => n > bins * 0.6);
   const first = whole.indexOf(true), last = whole.lastIndexOf(true);
   const nearest = (b) => {
     for (let away = 1; away < bands; away += 1) {
@@ -98,8 +99,52 @@ export function unrollAround(triangles, {
     }
     return b;
   };
+  /**
+   * Close a ring the rays only partly met, by borrowing the shape of a whole
+   * one and sizing it to the cloth that is here.
+   *
+   * A gap is where the piece was cut away -- the armhole out of a sleeve --
+   * and what belongs there is the cross-section the piece would have had if it
+   * had gone on round. Two things that do not work: carrying the last radius
+   * forward, which draws a straight edge where the cloth curves; and joining
+   * the two lips of the gap, which for a gap most of the way round the ring
+   * closes it into a circle far smaller than the piece really is. The head of
+   * this shirt's sleeve came back 237mm around where its cuff is 430, and a
+   * fraction of 237 is nearly twice the design per millimetre that a fraction
+   * of 430 is -- which is the ink piling up at the shoulder.
+   *
+   * A whole ring elsewhere on the same piece already knows the shape, so the
+   * gap takes that, scaled by how the two compare where both have an answer.
+   */
+  const closeGaps = (row, model) => {
+    const at = [];
+    for (let i = 0; i < bins; i += 1) if (row[i] > 0) at.push(i);
+    if (at.length === 0 || at.length === bins) return;
+    if (!model) {
+      for (let k = 0; k < at.length; k += 1) {
+        const a = at[k], b = at[(k + 1) % at.length];
+        const span = ((b - a) % bins + bins) % bins;
+        for (let s = 1; s < span; s += 1) row[(a + s) % bins] = row[a] + ((row[b] - row[a]) * s) / span;
+      }
+      return;
+    }
+    let mine = 0, theirs = 0;
+    for (const i of at) { mine += row[i]; theirs += model[i]; }
+    const scale = theirs > 0 ? mine / theirs : 1;
+    for (let i = 0; i < bins; i += 1) if (row[i] <= 0) row[i] = model[i] * scale;
+  };
+  // The whole rings as they were measured, so a partial one can borrow a shape
+  // that has not itself been filled in from something else.
+  const shape = rings.map((row) => Float64Array.from(row));
   for (let b = 0; b < bands; b += 1) {
-    if (!whole[b] && whole.some(Boolean)) rings[b] = rings[nearest(b)];
+    // "borrow" is for a surface that is closed over the part being measured
+    // and simply runs out at its ends -- the bag above its mouth. "fill" is
+    // for a piece cut along a curve, where the slices at the cut are real
+    // measurements of less than the whole way round and the nearest whole ring
+    // is the wrong shape by however far the cut has travelled.
+    const useNearest = partial === "borrow" ? !whole[b] : hits[b] === 0;
+    if (useNearest && whole.some(Boolean)) rings[b] = rings[nearest(b)];
+    else if (partial === "fill" && !whole[b]) closeGaps(rings[b], whole.some(Boolean) ? shape[nearest(b)] : null);
     // A ray that met nothing takes its neighbour's answer rather than the
     // middle of the model, which would fold the ring in on itself.
     for (let i = 0; i < bins * 2; i += 1) {
@@ -179,6 +224,7 @@ export function unrollAround(triangles, {
     const gap = c - a - Math.round(c - a);
     return (((a + gap * f) % 1) + 1) % 1;
   };
+
 
   /** How far a point is from the middle of one side: -0.5 to 0.5 of the way round. */
   const offset = (w, middle) => ((((roundAt(w) - middle + 0.5) % 1) + 1) % 1) - 0.5;
