@@ -228,10 +228,10 @@ const report = await prepZones({
     //
     // Each unwrap runs left to right as somebody standing in front of that side
     // sees it, so none of the four needs reversing to read the right way round.
-    Bag_Front: { ...CANVAS, template: template("tote-bag-front"), unwrap: roll.sector("-x"), weaveAxes: ["z", "y"] },
-    Bag_Back: { ...CANVAS, template: template("tote-bag-back"), unwrap: roll.sector("+x"), weaveAxes: ["z", "y"] },
-    Bag_Left: { ...CANVAS, template: template("tote-bag-left"), unwrap: roll.sector("-z"), weaveAxes: ["x", "y"] },
-    Bag_Right: { ...CANVAS, template: template("tote-bag-right"), unwrap: roll.sector("+z"), weaveAxes: ["x", "y"] },
+    Bag_Front: { ...CANVAS, flatten: true, template: template("tote-bag-front"), unwrap: roll.sector("-x"), weaveAxes: ["z", "y"] },
+    Bag_Back: { ...CANVAS, flatten: true, template: template("tote-bag-back"), unwrap: roll.sector("+x"), weaveAxes: ["z", "y"] },
+    Bag_Left: { ...CANVAS, flatten: true, template: template("tote-bag-left"), unwrap: roll.sector("-z"), weaveAxes: ["x", "y"] },
+    Bag_Right: { ...CANVAS, flatten: true, template: template("tote-bag-right"), unwrap: roll.sector("+z"), weaveAxes: ["x", "y"] },
     // The bottom, which takes no design: it is a separate piece of cloth on a
     // real bag and it is the one outward surface nobody sees.
     Bag_Base: { ...PLAIN, weaveAxes: ["x", "z"] },

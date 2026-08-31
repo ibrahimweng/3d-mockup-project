@@ -34,8 +34,16 @@ import type { DeviceId } from "./product-domain";
  * rectangle and has to stay at 0.95.
  */
 export const CUT_PANELS: Readonly<Record<string, number>> = {
-  Shirt_Back: 0.85,
-  Shirt_Front: 0.85,
+  // A tote's panel is a rectangle of canvas until it is sewn round a base and
+  // pulled in at the mouth. Flattened it is the shape the cloth really is,
+  // which is a little wider at the bottom than the top and does not fill the
+  // box drawn round it.
+  Bag_Back: 0.93,
+  Bag_Front: 0.93,
+  Bag_Left: 0.93,
+  Bag_Right: 0.93,
+  Shirt_Back: 0.8,
+  Shirt_Front: 0.8,
   // A sleeve is the least rectangular panel in the catalog: a tube at the cuff
   // opening out into a cap cut along the armhole curve, and the curve runs a
   // third of the way back down the sleeve's own axis. Laid flat it is a bell,
@@ -52,6 +60,14 @@ export const ZONE_TARGET = {
   islands: 1,
   /** Read the same way round throughout, or the artwork folds back on itself. */
   mirroredTriangles: 0,
+  /**
+   * Keep a square a square, allowing for the shape of the panel.
+   *
+   * The distortion a checkerboard shows and `stretch` cannot: halve a check's
+   * width and double its height and the ink per square millimetre has not
+   * moved at all.
+   */
+  squareness: 1.1,
   /** Keep a circle a circle. */
   stretch: 1.25,
 } as const;
@@ -100,6 +116,8 @@ export type ZoneBaseline = {
   coverage: number;
   islands: number;
   mirroredTriangles: number;
+  /** How far from square a printed square arrives, at the 99th percentile. */
+  squareness: number;
   stretch: number;
 };
 
@@ -144,8 +162,8 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
     shells: 7,
     strayTrianglesOnHardware: 0,
     zones: {
-      Card_Back: { coverage: 0.987, islands: 1, mirroredTriangles: 0, stretch: 1 },
-      Card_Front: { coverage: 0.987, islands: 1, mirroredTriangles: 0, stretch: 1 },
+      Card_Back: { coverage: 0.987, islands: 1, mirroredTriangles: 0, squareness: 1.02, stretch: 1.01 },
+      Card_Front: { coverage: 0.987, islands: 1, mirroredTriangles: 0, squareness: 1.02, stretch: 1 },
     },
   },
   // Phase 4 prepped it like the rest, so the file says what its parts are
@@ -170,7 +188,7 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
     shells: 15,
     strayTrianglesOnHardware: 0,
     zones: {
-      Folder_Pad: { coverage: 0.998, islands: 1, mirroredTriangles: 0, stretch: 1 },
+      Folder_Pad: { coverage: 0.989, islands: 1, mirroredTriangles: 0, squareness: 1, stretch: 1 },
     },
   },
   // Rebuilt on a source that was modelled as a bag: closed, consistently wound,
@@ -234,10 +252,10 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
     shells: 3,
     strayTrianglesOnHardware: 0,
     zones: {
-      Bag_Back: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.13 },
-      Bag_Front: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.17 },
-      Bag_Left: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.12 },
-      Bag_Right: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.12 },
+      Bag_Back: { coverage: 0.94, islands: 1, mirroredTriangles: 0, squareness: 1.02, stretch: 1.01 },
+      Bag_Front: { coverage: 0.951, islands: 1, mirroredTriangles: 0, squareness: 1.02, stretch: 1.01 },
+      Bag_Left: { coverage: 0.938, islands: 1, mirroredTriangles: 0, squareness: 1.14, stretch: 1.03 },
+      Bag_Right: { coverage: 0.938, islands: 1, mirroredTriangles: 0, squareness: 1.14, stretch: 1.03 },
     },
   },
   // Every panel prints edge to edge now: the front and back from the shoulder
@@ -309,10 +327,10 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
     shells: 4,
     strayTrianglesOnHardware: 0,
     zones: {
-      Shirt_Back: { coverage: 0.879, islands: 1, mirroredTriangles: 1, stretch: 1.25 },
-      Shirt_Front: { coverage: 0.875, islands: 1, mirroredTriangles: 0, stretch: 1.26 },
-      Shirt_Sleeve_Left: { coverage: 0.579, islands: 1, mirroredTriangles: 3, stretch: 1.67 },
-      Shirt_Sleeve_Right: { coverage: 0.59, islands: 1, mirroredTriangles: 5, stretch: 1.67 },
+      Shirt_Back: { coverage: 0.821, islands: 1, mirroredTriangles: 0, squareness: 1.02, stretch: 1.02 },
+      Shirt_Front: { coverage: 0.817, islands: 1, mirroredTriangles: 0, squareness: 1.03, stretch: 1.02 },
+      Shirt_Sleeve_Left: { coverage: 0.568, islands: 1, mirroredTriangles: 0, squareness: 1.08, stretch: 1.05 },
+      Shirt_Sleeve_Right: { coverage: 0.574, islands: 1, mirroredTriangles: 0, squareness: 1.09, stretch: 1.04 },
     },
   },
   // The wrap runs past 1 in u because it goes all the way round, which is what
@@ -351,7 +369,7 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
     shells: 3,
     strayTrianglesOnHardware: 0,
     zones: {
-      Bottle_Body: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.2 },
+      Bottle_Body: { coverage: 1, islands: 1, mirroredTriangles: 0, squareness: 1.22, stretch: 1.2 },
     },
   },
 };

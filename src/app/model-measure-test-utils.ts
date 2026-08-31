@@ -74,6 +74,98 @@ function worldArea(t: Triangle): number {
 }
 
 /** Signed, so its sign says which way round the triangle reads in the atlas. */
+/**
+ * How far from square one triangle's slice of the design arrives.
+ *
+ * `stretch` measures ink per square millimetre, which is area, and area cannot
+ * see a square delivered as a rectangle: halve one side, double the other, and
+ * the density is unchanged. That is exactly the fault a checkerboard shows and
+ * the number missed -- the shirt's neckline read 1.25 while its checks were
+ * drawn out into stripes.
+ *
+ * So this reads the map itself. The triangle is laid flat on its own, which is
+ * exact for one triangle, and the linear map from that copy to the atlas has
+ * two singular values: how much the design is scaled along each of two
+ * perpendicular directions. Their ratio is 1 when a square arrives a square,
+ * whatever size it arrives at.
+ */
+function mapOf(t: Triangle): number[] | null {
+  const [a, b, c] = t.position;
+  const e1 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+  const e2 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+  const len = Math.hypot(...e1);
+  if (len < 1e-9) return null;
+  const unit = e1.map((v) => v / len);
+  const along = e2[0] * unit[0] + e2[1] * unit[1] + e2[2] * unit[2];
+  const off = Math.hypot(...e2.map((v, i) => v - along * unit[i]));
+  if (off < 1e-9) return null;
+  // Edges of the flat copy, and of its slice of the atlas, then the map
+  // between them: [du1 du2] = J [dx1 dx2], so J is the one divided by the other.
+  const uv = t.uv as [Vec2, Vec2, Vec2];
+  const d1 = [uv[1][0] - uv[0][0], uv[1][1] - uv[0][1]];
+  const d2 = [uv[2][0] - uv[0][0], uv[2][1] - uv[0][1]];
+  const j = [
+    d1[0] / len, (d2[0] - (along / len) * d1[0]) / off,
+    d1[1] / len, (d2[1] - (along / len) * d1[1]) / off,
+  ];
+  return j;
+}
+
+/** The two scales a 2x2 map applies, largest first. */
+function scalesOf(j: number[]): [number, number] {
+  const frobenius = j[0] * j[0] + j[1] * j[1] + j[2] * j[2] + j[3] * j[3];
+  const determinant = Math.abs(j[0] * j[3] - j[1] * j[2]);
+  const gap = Math.sqrt(Math.max(0, frobenius * frobenius - 4 * determinant * determinant));
+  return [
+    Math.sqrt(Math.max(0, (frobenius + gap) / 2)),
+    Math.sqrt(Math.max(0, (frobenius - gap) / 2)),
+  ];
+}
+
+/**
+ * Every triangle's squareness, after allowing for the shape of the panel.
+ *
+ * A zone's unwrap fills a 0 to 1 square whatever shape the panel is, so a
+ * gusset 158mm wide and 375mm tall is stretched by two and a half on its way
+ * into the atlas. That is not distortion: the design is authored at the panel's
+ * own proportions -- the template says 158 by 375 -- and the two cancel. Read
+ * without allowing for it, a perfectly flat ID card scores 1.59, which is its
+ * own aspect ratio and nothing to do with the unwrap.
+ *
+ * So the one stretch that best explains the whole panel is divided out first,
+ * found by trying candidates and keeping the one that leaves the least
+ * distortion behind. What is left is the part that varies from triangle to
+ * triangle, which is the part a checkerboard shows.
+ */
+function squarenessAcross(maps: number[][]): number[] {
+  if (maps.length === 0) return [];
+  const worst = (k: number): number => {
+    let sum = 0;
+    for (const j of maps) {
+      const [big, small] = scalesOf([j[0] * k, j[1] * k, j[2], j[3]]);
+      if (small > 1e-12) sum += Math.log(big / small) ** 2;
+    }
+    return sum;
+  };
+  let best = 1;
+  for (let pass = 0, span = 4, step = 0.05; pass < 3; pass += 1, step /= 8) {
+    let found = best, low = worst(best);
+    for (let e = -span; e <= span; e += step) {
+      const k = best * Math.exp(e * Math.LN2 / 4);
+      const here = worst(k);
+      if (here < low) { low = here; found = k; }
+    }
+    best = found;
+    span = step * 8;
+  }
+  const out: number[] = [];
+  for (const j of maps) {
+    const [big, small] = scalesOf([j[0] * best, j[1] * best, j[2], j[3]]);
+    if (small > 1e-12) out.push(big / small);
+  }
+  return out;
+}
+
 function signedUvArea(uv: [Vec2, Vec2, Vec2]): number {
   const [a, b, c] = uv;
   return 0.5 * ((b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1]));
@@ -169,6 +261,14 @@ export type UvSummary = {
   mirroredTriangles: number;
   /** The box the unwrap occupies, as `[minU, minV, maxU, maxV]`. */
   range: [number, number, number, number];
+  /**
+   * How far from square the design arrives, at the 99th percentile.
+   *
+   * 1 means a printed square is a square. Separate from `stretch`, which is
+   * about how much design lands per square millimetre and is blind to a square
+   * arriving as a rectangle of the same area.
+   */
+  squareness: number;
   /** Atlas area per unit of surface at the 99th percentile over the median. */
   stretch: number;
 };
@@ -187,6 +287,7 @@ export function uvOf(zone: Triangle[]): UvSummary | null {
   const lo: Vec2 = [Infinity, Infinity];
   const hi: Vec2 = [-Infinity, -Infinity];
   const density: number[] = [];
+  const maps: number[][] = [];
   let coverage = 0;
   let flipped = 0;
   for (const t of mine) {
@@ -196,6 +297,8 @@ export function uvOf(zone: Triangle[]): UvSummary | null {
     coverage += Math.abs(signed);
     const surface = worldArea(t);
     if (surface > 1e-9) density.push(Math.abs(signed) / surface);
+    const map = mapOf(t);
+    if (map !== null) maps.push(map);
     for (const p of uv) {
       for (let i = 0; i < 2; i += 1) {
         lo[i] = Math.min(lo[i], p[i]);
@@ -204,6 +307,7 @@ export function uvOf(zone: Triangle[]): UvSummary | null {
     }
   }
   density.sort((a, b) => a - b);
+  const square = squarenessAcross(maps).sort((a, b) => a - b);
   const median = density[Math.floor(density.length / 2)] || 1;
   const round = (n: number): number => Number(n.toFixed(3));
   return {
@@ -211,6 +315,7 @@ export function uvOf(zone: Triangle[]): UvSummary | null {
     islands: uvIslandsOf(mine),
     mirroredTriangles: Math.min(flipped, mine.length - flipped),
     range: [round(lo[0]), round(lo[1]), round(hi[0]), round(hi[1])],
+    squareness: Number((square[Math.floor(square.length * 0.99)] ?? 1).toFixed(2)),
     stretch: Number((density[Math.floor(density.length * 0.99)] / median).toFixed(2)),
   };
 }

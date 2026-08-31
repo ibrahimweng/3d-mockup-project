@@ -53,10 +53,10 @@ const report = await prepZones({
   // Carrying it onto a printable face would stamp a design into it.
   weaveDefault: false,
   zones: {
-    Card_Front: { ...PVC, template: template("id-card-front"), unwrap: ["x", "y"] },
+    Card_Front: { ...PVC, flatten: true, template: template("id-card-front"), unwrap: ["x", "y"] },
     // Mirrored in u so the artwork reads the right way round when the card is
     // turned over rather than appearing back to front.
-    Card_Back: { ...PVC, flipU: true, template: template("id-card-back"), unwrap: ["x", "y"] },
+    Card_Back: { ...PVC, flatten: true, flipU: true, template: template("id-card-back"), unwrap: ["x", "y"] },
     Card_Edge: { ...PVC, baseColor: [0.93, 0.93, 0.94, 1] },
     Clip: { baseColor: [0.79, 0.8, 0.82, 1], metalness: 1, roughness: 0.28 },
   },

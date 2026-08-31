@@ -30,6 +30,7 @@ import { NodeIO } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 
 import { along, axisBasis, cutAlongSeams, tangentBasis } from "./prep-model-clip.mjs";
+import { flattenZone } from "./prep-model-flatten.mjs";
 import { assignShells, mulN, mulP, smoothNormals } from "./prep-model-geometry.mjs";
 import { boundaryLoops, hemFaces } from "./prep-model-hem.mjs";
 import { weldFaces } from "./prep-model-mend.mjs";
@@ -177,7 +178,8 @@ export async function prepZones({
   for (const list of byZone.values()) for (const f of list) for (const w of f.world) for (let q = 0; q < 3; q += 1) {
     span[q][0] = Math.min(span[q][0], w[q]); span[q][1] = Math.max(span[q][1], w[q]);
   }
-  const dropped = weldFaces(byZone, Math.max((Math.hypot(...span.map(([a, b]) => b - a)) || 1) * 1e-5, snap));
+  const diagonal = Math.hypot(...span.map(([a, b]) => b - a)) || 1;
+  const dropped = weldFaces(byZone, Math.max(diagonal * 1e-5, snap));
   if (dropped) console.log(`  welded away ${dropped} pieces the cut left with no area`);
 
   // Last, so a hem shades as one piece with the cloth it folds from.
@@ -209,20 +211,18 @@ export async function prepZones({
      * The plane a supplied weave is laid out from.
      *
      * Cloth tiles at one thread count everywhere, so the two axes have to be
-     * ones the part actually lies in. Taken from the print unwrap where that is
-     * two axes, and stated by a part that does not print or unwraps some other
-     * way. Falling back to x and y whatever direction a part faced ran the
-     * threads on the tote's base from a fourteenth of the density to five times
-     * it, which is a weave smeared along a surface rather than woven into it.
+     * ones the part actually lies in. Falling back to x and y whatever
+     * direction a part faced ran the threads on the tote's base from a
+     * fourteenth of the density to five times it, which is a weave smeared
+     * along a surface rather than woven into it.
      */
     const [wU, wV] = spec.weaveAxes ?? (Array.isArray(spec.unwrap) ? spec.unwrap : ["x", "y"]);
 
     /**
      * Where this zone is unwrapped across: two world axes, a plane laid on the
-     * surface for a zone too curved for any of them, or a measurement of the
-     * surface the product supplies as a function. The last is for a zone a
-     * plane cannot hold at all -- a tote's sides run round two folds each, and
-     * what a design should follow there is distance along the cloth.
+     * surface, or a measurement the product supplies as a function. The last is
+     * for a zone a plane cannot hold at all -- a tote's sides run round two
+     * folds each.
      */
     const measured = typeof spec.unwrap === "function";
     const [uA, vA] = Array.isArray(spec.unwrap) ? spec.unwrap : ["x", "y"];
@@ -236,15 +236,12 @@ export async function prepZones({
      *
      * A measurement that goes all the way round starts over somewhere, and a
      * face lying across that line gets one corner at nearly none of the way
-     * round and another at nearly all of it: read as they come it covers the
-     * whole design at once, which put a sleeve's at 57 times the ink of the
-     * rest. Corners short of half way go round once more instead -- the same
-     * answer for both faces sharing an edge along the join, and it leaves the
-     * join the one place the design does not carry across, which is a seam.
-     *
-     * Only where the unwrap is a measurement. Down a world axis the number is a
-     * distance in the model's own units, half of one means nothing, and the
-     * two-unit-wide ID card had 64 faces sent round the world.
+     * round and another at nearly all of it, which put a sleeve's at 57 times
+     * the ink of the rest. Corners short of half way go round once more
+     * instead, leaving the join the one place a design does not carry across.
+     * Only where the unwrap is a measurement: down a world axis the number is a
+     * distance, half of one means nothing, and the two-unit-wide ID card had 64
+     * faces sent round the world.
      */
     const cornersOf = (f) => {
       const corners = f.world.map(at);
@@ -253,15 +250,23 @@ export async function prepZones({
       if (Math.max(...us) - Math.min(...us) <= 0.5) return corners;
       return corners.map((c) => (c[0] < 0.5 ? [c[0] + 1, c[1]] : c));
     };
+    // The unwrap above is a measurement of the model; `flatten` takes it as a
+    // starting guess and relaxes it into an actual flattening of the patch,
+    // which is what makes a printed square arrive a square.
+    const guess = spec.unwrap ? list.map(cornersOf) : null;
+    const placed = guess && spec.flatten
+      ? flattenZone(list.map((f) => f.world), guess, { span: diagonal })
+      : guess;
     const lo = [Infinity, Infinity], hi = [-Infinity, -Infinity];
-    if (spec.unwrap) for (const f of list) for (const p of cornersOf(f)) {
+    if (placed) for (const corners of placed) for (const p of corners) {
       for (let i = 0; i < 2; i += 1) { lo[i] = Math.min(lo[i], p[i]); hi[i] = Math.max(hi[i], p[i]); }
     }
     const span = [hi[0] - lo[0] || 1, hi[1] - lo[1] || 1];
 
     let t = 0;
-    for (const f of list) {
-      const corners = spec.unwrap ? cornersOf(f) : null;
+    for (let n = 0; n < list.length; n += 1) {
+      const f = list[n];
+      const corners = placed ? placed[n] : null;
       for (let k = 0; k < 3; k += 1) {
       P.set(f.P[k], t*3); N.set(f.N[k], t*3); UV1.set(f.UV0[k], t*2);
       UVW[t*2] = f.world[k][AXIS[wU]] * density;
@@ -304,14 +309,10 @@ export async function prepZones({
      *
      * It cannot ride the 0..1 unwrap a design uses: that stretches one copy of
      * an image across a whole panel, and cloth needs hundreds of thread
-     * crossings over the same distance. So a second channel carries tiling
-     * coordinates and the normal map is pointed at it.
-     *
-     * Two sources. A file that shipped a weave has one authored against its own
-     * coordinates -- the shirt's are in millimetres, which already tile -- and
-     * those travel with the vertices unchanged. A file that shipped none gets a
-     * supplied map laid out from world position at a stated density, so every
-     * panel carries the same thread size however big it is.
+     * crossings over the same distance, so a second channel carries tiling
+     * coordinates. A file that shipped a weave has one authored against its own
+     * coordinates; a file that shipped none gets a supplied map laid out from
+     * world position at a stated density.
      */
     const supplied = spec.weaveFile ? sharedWeave(spec.weaveFile) : null;
     const weave = supplied ?? ((spec.weave ?? weaveDefault) ? source?.getNormalTexture() : null);

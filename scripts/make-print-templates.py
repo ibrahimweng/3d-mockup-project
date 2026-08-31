@@ -42,8 +42,9 @@ GUIDE = (198, 201, 206)
 # sublimated bag or tee, the whole face on the card, the full wrap on a bottle
 # or a sleeve. None of the cloth panels is a flat rectangle -- a tote narrows
 # toward its mouth, a shirt panel has a neck curve and two armholes cut out of
-# it -- so the millimetres are the width the panel averages over its height,
-# which is what the design is scaled to.
+# it -- so the millimetres are the box the panel occupies once it is flattened,
+# which is the shape the design is scaled to and the shape a real pattern piece
+# would be cut from.
 #
 # "flat" is a panel: a rectangle of cloth or card with four free edges. "wrap"
 # is a cylinder cut open, so its left and right edges are the same edge, and it
@@ -52,14 +53,14 @@ GUIDE = (198, 201, 206)
 TEMPLATES = [
     ("id-card-front", 1291, 2048, "ID CARD  ·  FRONT", "full bleed, prints around the punch hole", "flat"),
     ("id-card-back", 1291, 2048, "ID CARD  ·  BACK", "full bleed, prints around the punch hole", "flat"),
-    ("tote-bag-front", 1660, 2048, "TOTE BAG  ·  FRONT", "301 x 372 mm, fold to fold", "flat"),
-    ("tote-bag-back", 1660, 2048, "TOTE BAG  ·  BACK", "301 x 372 mm, fold to fold", "flat"),
-    ("tote-bag-left", 814, 2048, "TOTE  ·  LEFT GUSSET", "147 x 370 mm, fold to fold", "flat"),
-    ("tote-bag-right", 814, 2048, "TOTE  ·  RIGHT GUSSET", "147 x 370 mm, fold to fold", "flat"),
-    ("tshirt-front", 1603, 2048, "T-SHIRT  ·  FRONT", "458 x 586 mm, seam to seam", "flat"),
-    ("tshirt-back", 1519, 2048, "T-SHIRT  ·  BACK", "448 x 604 mm, seam to seam", "flat"),
-    ("tshirt-sleeve-left", 2048, 1545, "T-SHIRT  ·  LEFT SLEEVE", "407 mm around  ·  307 mm cuff to shoulder  ·  seam underneath", "wrap"),
-    ("tshirt-sleeve-right", 2048, 1545, "T-SHIRT  ·  RIGHT SLEEVE", "407 mm around  ·  307 mm cuff to shoulder  ·  seam underneath", "wrap"),
+    ("tote-bag-front", 1745, 2048, "TOTE BAG  ·  FRONT", "319 x 375 mm, flattened panel, fold to fold", "flat"),
+    ("tote-bag-back", 1725, 2048, "TOTE BAG  ·  BACK", "320 x 379 mm, flattened panel, fold to fold", "flat"),
+    ("tote-bag-left", 860, 2048, "TOTE  ·  LEFT GUSSET", "158 x 375 mm, flattened panel, fold to fold", "flat"),
+    ("tote-bag-right", 859, 2048, "TOTE  ·  RIGHT GUSSET", "158 x 376 mm, flattened panel, fold to fold", "flat"),
+    ("tshirt-front", 1742, 2048, "T-SHIRT  ·  FRONT", "528 x 622 mm, flattened panel, seam to seam", "flat"),
+    ("tshirt-back", 1683, 2048, "T-SHIRT  ·  BACK", "521 x 634 mm, flattened panel, seam to seam", "flat"),
+    ("tshirt-sleeve-left", 2048, 1586, "T-SHIRT  ·  LEFT SLEEVE", "427 x 331 mm, flattened panel  ·  cuff at the top  ·  underarm seam at the sides", "flat"),
+    ("tshirt-sleeve-right", 2048, 1577, "T-SHIRT  ·  RIGHT SLEEVE", "426 x 328 mm, flattened panel  ·  cuff at the top  ·  underarm seam at the sides", "flat"),
     ("water-bottle-body", 2048, 1490, "WATER BOTTLE  ·  BODY WRAP", "137 mm around  ·  100 mm foot to neck  ·  seam at the back", "wrap"),
 ]
 
