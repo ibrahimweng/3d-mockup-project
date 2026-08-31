@@ -206,11 +206,12 @@ export const MERCHANDISE_CATALOG = {
       trim: { materials: ["Folder_Pen"] },
     },
     excludedNodes: [],
-    // Measured from the file: 43.97 by 1.85 by 23.74 units. It read
-    // [0.793326, 0.040254, 0.607464] before, which is not this model -- the
-    // camera stood as if the folio were narrower and deeper than it is, and the
-    // folio ran off the right of the canvas and under the controls panel.
-    frame: [0.879361, 0.036983, 0.474717],
+    // Measured from the file: 31.00 by 2.02 by 22.00 units, over the length of
+    // that box, which is what makes this a direction rather than a size. It was
+    // 43.97 long before, and 13 of those were the pad standing off the end of
+    // the board -- so the camera framed a shape a third of which was a part in
+    // the wrong place.
+    frame: [0.814364, 0.052934, 0.577936],
     label: "Clipboard",
     modelFile: "tablet-folder.glb",
     artworkSurface: "print",

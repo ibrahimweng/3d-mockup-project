@@ -32,7 +32,7 @@ import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 import { along, axisBasis, cutAlongSeams, tangentBasis } from "./prep-model-clip.mjs";
 import { flattenZone } from "./prep-model-flatten.mjs";
 import { dressZone, makeTextureCache } from "./prep-model-surface.mjs";
-import { assignShells, mulN, mulP, smoothNormals } from "./prep-model-geometry.mjs";
+import { assignShells, inv4, mulN, mulP, smoothNormals } from "./prep-model-geometry.mjs";
 import { boundaryLoops, hemFaces } from "./prep-model-hem.mjs";
 import { weldFaces } from "./prep-model-mend.mjs";
 import { cutPrintRegions } from "./prep-model-regions.mjs";
@@ -187,7 +187,20 @@ export async function prepZones({
   if (smoothCreases) smoothNormals([...byZone.values()].flat(), smoothCreases);
 
   // Pass 3: rebuild one primitive per zone, unwrapped.
+  /**
+   * The node every rebuilt zone is hung under, and the way back into its space.
+   *
+   * All the zones go into one mesh, and a mesh's vertices are in its own node's
+   * space -- so a face that arrived under a different node has to be carried
+   * across rather than copied. Copied, it lands wherever the difference between
+   * the two nodes puts it: the clipboard's parts sit under five nodes and the
+   * first of them is offset 13.59 units, so the board, the clip, the pen and
+   * the sheets all arrived 13.59 units from the pad, which is 42 per cent of
+   * the length of the board. That looked like a modelling fault in the bought
+   * file and was this.
+   */
   const src = owners[0];
+  const back = inv4(src.m);
   for (const { mesh, prim } of owners) { mesh.removePrimitive(prim); prim.dispose(); }
 
   const share = makeTextureCache(doc);
@@ -263,7 +276,9 @@ export async function prepZones({
       const f = list[n];
       const corners = placed ? placed[n] : null;
       for (let k = 0; k < 3; k += 1) {
-      P.set(f.P[k], t*3); N.set(f.N[k], t*3); UV1.set(f.UV0[k], t*2);
+      P.set(mulP(back, f.world[k]), t*3);
+      N.set(mulN(back, mulN(f.m, f.N[k])), t*3);
+      UV1.set(f.UV0[k], t*2);
       UVW[t*2] = f.world[k][AXIS[wU]] * density;
       UVW[t*2+1] = f.world[k][AXIS[wV]] * density;
       if (spec.unwrap) {

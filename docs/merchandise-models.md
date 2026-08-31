@@ -214,6 +214,26 @@ roughness 1, which renders it black, and hangs a photograph of somebody's
 document off it. The parts are separated at prep time and each is given the
 material it is made of.
 
+**Where the parts sit was a bug in the engine, not in the file.** All the zones
+are rebuilt into one mesh, and a mesh's vertices live in its own node's space —
+so a face that arrived under a different node has to be carried across rather
+than copied. Copied, it lands wherever the difference between the two nodes puts
+it. This model's five parts sit under five nodes and the first of them is offset
+13.59 units, so the board, the clip, the pen and the sheets all arrived 13.59
+units away from the pad: 42 per cent of the length of the board, which read as
+the pad hanging off the end of it. `prep-model-zones.mjs` now writes every
+vertex as `inv(destination) · world`. Nothing else in the catalog has parts
+under more than one node, which is why nothing else showed it.
+
+What was genuinely out of place in the file is smaller and is corrected before
+the zones are cut: the pad sat 0.19 sunk into the board and about a unit off
+centre, the pen floated a quarter of a unit above everything at the clip end,
+and the loose sheets stood 23.7 deep against a 22-deep board. Each part is moved
+by its own node; the sheets are six disconnected pieces inside one mesh, so they
+are moved a vertex at a time and stacked on each other over the pad at a sheet's
+thickness apart. Laid on each other at their own heights instead they built a
+pile taller than the pad, which reads as a lump of something rather than paper.
+
 Each material is a tiling map from `scripts/make-material-textures.mjs`, laid
 out from world position at a stated tile size rather than through the 0–1 unwrap
 a design uses. Two things it taught:
