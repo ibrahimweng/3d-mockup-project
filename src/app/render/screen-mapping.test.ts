@@ -1,7 +1,12 @@
 import * as THREE from "three";
 import { describe, expect, test } from "vitest";
 
-import { applyScreenTransform, type ScreenSlack, type ScreenTransform } from "./screen-mapping";
+import {
+  applyScreenTransform,
+  measureScreenAspect,
+  type ScreenSlack,
+  type ScreenTransform,
+} from "./screen-mapping";
 
 /**
  * The panel is measured height over width, so a screen twice as wide as it is
@@ -144,4 +149,27 @@ describe("a design with no transform", () => {
     expect(texture.offset.y).toBe(0);
     expect(slack).toEqual({ x: 0, y: 0 });
   });
+});
+
+test("a panel taller than it is wide is measured as taller than it is wide", () => {
+  // The ID card is 2.13 across and 3.38 up. Returning the smaller extent over
+  // the larger reads that as 0.63, which is the reciprocal of the truth, and
+  // every square upload arrived squeezed into a tall ellipse because Fit and
+  // Fill then corrected the wrong axis. A square platen cannot catch this;
+  // only a panel that is not square can.
+  const panel = (x: number, y: number, z: number) => {
+    const skin = new THREE.MeshStandardMaterial();
+    return [new THREE.Mesh(new THREE.BoxGeometry(x, y, z), skin), skin] as const;
+  };
+
+  const [card, cardSkin] = panel(2.132, 3.38, 0.005);
+  expect(measureScreenAspect(card, [cardSkin], 1)).toBeCloseTo(3.38 / 2.132, 4);
+
+  const [wide, wideSkin] = panel(3.38, 2.132, 0.005);
+  expect(measureScreenAspect(wide, [wideSkin], 1)).toBeCloseTo(2.132 / 3.38, 4);
+
+  // A pad lying flat on a folio: what reads as height is the axis running away
+  // from the viewer, not its thickness.
+  const [pad, padSkin] = panel(27.9, 0.001, 21.1);
+  expect(measureScreenAspect(pad, [padSkin], 1)).toBeCloseTo(21.1 / 27.9, 4);
 });

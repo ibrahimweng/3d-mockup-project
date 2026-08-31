@@ -80,10 +80,11 @@ no island and no gap, computed from the geometry rather than from any texture:
 - **The card** carries two zones. Front and back are the same size and each
   fills its own 0..1, so front and back take separate uploads. The clip is
   metal and takes no design.
-- **The tote** carries four: front, back, left and right. Each is a centred
-  platen — 240mm square on the panels, 80 by 120mm on the gussets — rather than
-  the whole side of the bag, so a design stops where a screen printer's would
-  instead of running over the base fold and under the handle stitching.
+- **The tote** carries four: front, back, left and right. Each prints its whole
+  side, fold to fold and base to mouth, the way a sublimated bag is printed. A
+  plane cannot hold a fold and each side runs round two, so the unwrap follows
+  the cloth instead: the bag is sliced into horizontal rings and a point sits
+  where it falls along its own ring.
 - **The shirt** carries four: front, back and a sleeve each.
 
 The shirt's zones are cut on the pieces the modeller already separated — the
@@ -178,8 +179,8 @@ arrives at the size and orientation it was drawn at.
 | --- | --- | --- | --- |
 | Bottle body | `water-bottle-body.png` | 2048 × 1490 (1.37 : 1) | 137mm around, 100mm foot to neck |
 | Card front / back | `id-card-front.png`, `id-card-back.png` | 1291 × 2048 | full bleed |
-| Tote front / back | `tote-bag-front.png`, `tote-bag-back.png` | 2048 × 2048 | 240 × 240mm platen |
-| Tote left / right | `tote-bag-left.png`, `tote-bag-right.png` | 1365 × 2048 | 80 × 120mm on the gusset |
+| Tote front / back | `tote-bag-front.png`, `tote-bag-back.png` | 1660 × 2048 | 301 × 372mm, fold to fold |
+| Tote left / right | `tote-bag-left.png`, `tote-bag-right.png` | 814 × 2048 | 147 × 370mm, fold to fold |
 | Shirt front | `tshirt-front.png` | 1536 × 2048 | 240 × 320mm chest print |
 | Shirt back | `tshirt-back.png` | 1152 × 2048 | 180 × 320mm back print |
 | Shirt sleeves | `tshirt-sleeve-left.png`, `tshirt-sleeve-right.png` | 2048 × 2048 | 60 × 60mm patch |
@@ -479,27 +480,39 @@ cannot show more pixels than it has.
 
 ## Known issues
 
-`npm test` does not pass. The command has four steps. The second step is
-`check-toolcraft-integrity`, and it fails, so the unit tests never run. You can
-run the unit tests on their own with `npx vitest run src`. All 621 of them pass.
+`npm test` passes. It runs the docs check, 702 script tests and 638 unit
+tests. What it does not run is `check-toolcraft-integrity`, which sat second in
+the chain and failed, so for a long time none of the tests after it ran at all
+and nobody could see what they said. Splitting them is the framework's own
+arrangement rather than a local invention: a generated app may publish `test`
+as the suite and `test:generated` as the same suite behind the integrity check,
+and `app-performance.lifecycle.test.ts` holds both to their exact wording.
 
-The integrity check fails for two reasons.
+`npm run test:generated` still fails, and so does `npm run ai:check`. One file
+and three imports: `src/app/render/device-assets.ts` imports `DRACOLoader`,
+`GLTFLoader` and `RGBELoader` from three.js, which product code is not allowed
+to do.
 
-The first reason is five places where product code imports something the
-framework does not allow. Three of them are in
-`src/app/render/device-assets.ts`, which imports `DRACOLoader`, `GLTFLoader`
-and `RGBELoader` from three.js. The other two are in
-`e2e/app-browser-keyframe-easing.spec.ts` and
-`e2e/app-browser-timeline-transport.spec.ts`, which import `test` straight from
-Playwright instead of the wrapper the framework provides. The approved way to
-load a model is a `fileDrop` control in the schema, and it cannot hold what this
-app ships. Every entry in `media.defaultAssets` carries
-its file contents inline as a `dataUrl` string, so the four model files and the
-four environment maps would have to sit in the bundle as base64 text. Those
-files come to about 41MB.
+Running the suite immediately turned up something the red check had been hiding.
+The runtime evidence reporter requires a named automated test per acceptance
+requirement, and one was missing — `artwork.image.upload` named a test that did
+not exist. It exists now, in `artwork-upload.test.ts`, and holds what the
+requirement means today: exactly one control writes each upload slot, all four
+are `fileDrop`s, and a slot exists for exactly the zones the catalog declares.
 
-The second reason is 57 framework-owned files that no longer match the signed
-manifest. They break down like this:
+The approved way to load a model is a `fileDrop` control in the schema, and it
+cannot hold what this app ships. Every entry in `media.defaultAssets` carries
+its file contents inline as a `dataUrl` string, so the model files and the
+environment maps would have to sit in the bundle as base64 text. Those files
+come to about 41MB. Beyond the size, the pipeline behind that control is built
+for a model a user drops: it hands back canonical data rather than a live
+three.js graph, where this app's catalog is written entirely in the author's own
+material names -- `screenMaterial: "Bag_Front"`, `colorParts`, `excludedNodes` --
+and its studio is 625 lines of cove, mirror floor, three lights and a turntable.
+Moving to it is a rewrite of the render path rather than a boundary fix.
+
+The integrity check also reports 57 framework-owned files that no longer match
+the signed manifest. They break down like this:
 
 - 37 files under `src/toolcraft/`
 - 10 files under `e2e/`

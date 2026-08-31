@@ -24,8 +24,9 @@
 import { simplify, weld } from "@gltf-transform/functions";
 import { MeshoptSimplifier } from "meshoptimizer";
 
-import { faceNormal } from "./prep-model-geometry.mjs";
+import { assignShells, faceNormal } from "./prep-model-geometry.mjs";
 import { boxOf, objDocument, placeObj, readObj } from "./prep-model-obj.mjs";
+import { unrollAround } from "./prep-model-wrap.mjs";
 import { prepZones, repoPath, sourceModel } from "./prep-model-zones.mjs";
 
 const template = (name) => repoPath("public", "templates", `${name}.png`);
@@ -72,49 +73,6 @@ const CANVAS = {
 };
 const PLAIN = { ...CANVAS, baseColor: [0.9, 0.89, 0.86, 1] };
 
-/**
- * What actually prints: a centred rectangle the size of a real platen.
- *
- * Printing a panel edge to edge sounds generous and is not: the print runs over
- * the base fold and under the handle stitching, so part of every design lands
- * where nobody can see it, and the template a user downloads is not a picture
- * of what they will get. 240mm on a 380 by 374mm panel is a common tote print
- * and leaves about 70mm of plain canvas all round.
- *
- * The gussets take a side-logo print rather than a scaled-down panel one. They
- * are 155mm across, so a rectangle sized like the panels' would hang off the
- * cloth at both edges.
- */
-const PLATEN = { front: [240 * MM, 240 * MM], gusset: [80 * MM, 120 * MM] };
-
-// Front and back are the same panel mirrored, and so are the gussets, so each
-// pair takes its print area from the pair's shared extent rather than from its
-// own. Measured separately they land a couple of millimetres apart, and the bag
-// ends up cut on both sets of lines with a ribbon of slivers in between.
-const PANELS = ["Bag_Front", "Bag_Back"];
-const GUSSETS = ["Bag_Left", "Bag_Right"];
-
-/**
- * How squarely a face has to point along an axis to be that side of the bag.
- *
- * The cloth is slack, so no panel is flat and no threshold catches all of one.
- * What is left over is canvas either way -- the rounded corners join the plain
- * cloth outside the print areas -- so this only has to be tight enough that a
- * corner never lands in a print zone.
- */
-const SQUARELY = 0.6;
-
-// Which side of the bag a normal pointing this way belongs to: the axis, and
-// the direction along it. The bag is yawed 90 degrees to face the camera, which
-// sends -X to +Z, so the panel at -X is the one a viewer calls the front.
-const SIDES = [
-  ["Bag_Base", 1, -1],
-  ["Bag_Front", 0, -1],
-  ["Bag_Back", 0, 1],
-  ["Bag_Left", 2, -1],
-  ["Bag_Right", 2, 1],
-];
-
 // The source is z-up and a third again as wide as it is deep. x is its width,
 // y its depth and z its height; the product wants depth on x, height on y and
 // width on z, which is the cycle below. `rest` stands it on the same spot the
@@ -126,6 +84,35 @@ const doc = objDocument(placed, { material: "Canvas" });
 
 await MeshoptSimplifier.ready;
 await doc.transform(weld(), simplify({ error: 0.002, ratio: KEEP, simplifier: MeshoptSimplifier }));
+
+/**
+ * The bag measured as the thing it is: rings of cloth, one above another.
+ *
+ * Full bleed is what makes this necessary. A platen print sits on the flat of a
+ * panel and a plane is a fine thing to project it onto; a print that runs to
+ * the folds does not, because a plane cannot hold a fold. Measured on this bag,
+ * projecting a gusset onto the plane it faces left the typical face carrying
+ * 1.42 times less ink per square millimetre than the flat middle of the same
+ * panel -- the design squeezed into the corners -- and no rectangle in that
+ * plane covered more than 0.92 of the panel.
+ *
+ * `unrollAround` answers both by measuring distance along the cloth instead.
+ * The handles are left out of it: they hang outside the rings they would
+ * otherwise widen, and they are the two shells that are not the bag.
+ */
+const corners = [];
+for (const mesh of doc.getRoot().listMeshes()) for (const prim of mesh.listPrimitives()) {
+  const pos = prim.getAttribute("POSITION"), idx = prim.getIndices();
+  const count = idx ? idx.getCount() : pos.getCount();
+  for (let i = 0; i < count; i += 3) {
+    corners.push({ world: [0, 1, 2].map((k) => pos.getElement(idx ? idx.getScalar(i + k) : i + k, [0, 0, 0])) });
+  }
+}
+assignShells(corners);
+const roll = unrollAround(corners.filter((f) => f.shell === 0).map((f) => f.world));
+
+/** Which zone each of the four sides is, by the way it faces. */
+const SIDE = { "+x": "Bag_Back", "+z": "Bag_Right", "-x": "Bag_Front", "-z": "Bag_Left" };
 
 const box = boxOf(placed.positions);
 console.log(`  placed ${box.size.map((n) => (n * 66.84).toFixed(0)).join(" x ")} mm, `
@@ -143,61 +130,75 @@ const report = await prepZones({
    * The bag is closed, so every panel has an inside as well as an outside and
    * the two face opposite ways. A face is outside if it looks away from the
    * middle of the bag, and only the outside is ever printed on -- otherwise the
-   * front's print area catches the back of the lining, which sits directly
-   * behind it and inside the same rectangle.
+   * front's design catches the back of the lining, which sits a few
+   * millimetres behind it and would print in mirror image.
    *
-   * Both of those ask the shading normal, which is the average over the cloth
-   * around a face and so is steady where a single triangle is not. Joining a
-   * print zone additionally asks the triangle itself, and only for the sign:
-   * simplifying the mesh turns about fifteen of its 60,220 faces inside out,
-   * and a face whose shading says front while its surface faces back arrives in
-   * the print zone reading mirrored. One of them was four times the median size
-   * -- a patch of any design printed in reverse. They go to plain canvas, which
-   * is where a scrap of cloth folded away from the platen belongs.
+   * Which side it is asks the same measurement the unwrap uses, so what a face
+   * is called and where its design lands cannot disagree: each side ends
+   * exactly where the next one's cloth begins.
    *
-   * Asking the triangle for the other two decisions as well, which a first
-   * version did, is what those fifteen faces punish: the grazing ones flip the
-   * inside-outside test, which puts holes in the outer skin. Free edges went
-   * from none to eight and the front print area came apart into four islands.
+   * The outward tests ask the shading normal, which is the average over the
+   * cloth around a face and so is steady where a single triangle is not.
+   * Simplifying the mesh turns about fifteen of its 60,220 faces inside out,
+   * and asking those the wrong question puts holes in the outer skin: an
+   * earlier version asked the triangle itself for the inside-outside test too,
+   * and free edges went from none to eight.
    */
   classify: (f) => {
     if (f.shell !== 0) return "Bag_Handles";
     const middle = f.shellInfo.centre;
     if (f.WN.reduce((sum, n, q) => sum + n * (f.C[q] - middle[q]), 0) <= 0) return "Bag_Lining";
-    const side = SIDES.find(([, axis, sign]) => f.WN[axis] * sign > SQUARELY);
-    if (!side) return "Bag_Canvas";
-    const [name, axis, sign] = side;
-    return faceNormal(f)[axis] * sign > 0 ? name : "Bag_Canvas";
+    // The bottom is a separate piece of cloth and takes no design, so it is
+    // still found by facing downward rather than by where it sits.
+    if (f.WN[1] < -0.6) return "Bag_Base";
+    // The crown of the mouth: the two millimetres where the cloth turns over
+    // the rim and starts back down inside. It is still outward-facing, so the
+    // test above keeps it, but it is a fold, and an unwrap that runs up the
+    // side of the bag cannot hold one -- the design arrived there doubled back
+    // on itself. A printed panel stops at the top of its hem for the same
+    // reason, and this is that hem.
+    //
+    // Two ways to be past the crest and both have to be caught: pointing up
+    // rather than sideways, which is the crest itself, or pointing back inward
+    // while still standing above the middle of the bag, which is the cloth just
+    // over it on the way down inside. 136 faces of the front were doing the
+    // second at half a millimetre below the crest, up and inward at once.
+    //
+    // Both questions go to the triangle rather than to the cloth around it. The
+    // roll is about as wide as one triangle, so the average over a face's
+    // neighbours is half wall and half rim and answers for neither: asking it
+    // left 320 of the roll's 400 faces in the print zones, every one mirrored.
+    const facet = faceNormal(f);
+    if (facet[1] > Math.hypot(facet[0], facet[2])) return "Bag_Lining";
+    if (facet[0] * (f.C[0] - middle[0]) + facet[2] * (f.C[2] - middle[2]) <= 0) return "Bag_Lining";
+    return SIDE[roll.facing(f.C)];
   },
   input: doc,
-  leftover: "Bag_Canvas",
+  // Nothing falls through -- every outward face is one of the four sides or the
+  // base, and every inward one is lining -- but a leftover is required, and the
+  // base is the part a stray would least disfigure.
+  leftover: "Bag_Base",
   material: "Canvas",
   output: repoPath("public", "models", "tote-bag.glb"),
-  regions: {
-    // Each panel's leftover cloth goes to the canvas that lies in its own plane,
-    // so the weave on it is laid out from axes the cloth is actually in.
-    Bag_Front: { axes: ["z", "y"], from: PANELS, outside: "Bag_Canvas", size: PLATEN.front },
-    Bag_Back: { axes: ["z", "y"], from: PANELS, outside: "Bag_Canvas", size: PLATEN.front },
-    Bag_Left: { axes: ["x", "y"], from: GUSSETS, outside: "Bag_Gusset", size: PLATEN.gusset },
-    Bag_Right: { axes: ["x", "y"], from: GUSSETS, outside: "Bag_Gusset", size: PLATEN.gusset },
-  },
   // A fold in cotton duck is a soft one. Past 50 degrees the cloth is doubled
   // over -- the mouth, the base seam, the edge of a strap -- and that is a line
   // you can see; below it the surface is slack cloth and shading across it is
   // what makes it read as cloth rather than as a box.
   smoothCreases: { thresholdDegrees: 50 },
   zones: {
-    Bag_Front: { ...CANVAS, template: template("tote-bag-front"), unwrap: ["z", "y"] },
-    // Mirrored so artwork reads correctly from behind rather than reversed.
-    Bag_Back: { ...CANVAS, flipU: true, template: template("tote-bag-back"), unwrap: ["z", "y"] },
-    Bag_Left: { ...CANVAS, flipU: true, template: template("tote-bag-left"), unwrap: ["x", "y"] },
-    Bag_Right: { ...CANVAS, template: template("tote-bag-right"), unwrap: ["x", "y"] },
-    // The cloth outside the print areas, on the same colour slot as the rest of
-    // the bag so a user can change the bag's colour under a design. Split from
-    // the gussets and the base only so each takes its weave from the plane it
-    // lies in: threads run across a panel, not down a world axis.
-    Bag_Canvas: { ...PLAIN, weaveAxes: ["z", "y"] },
-    Bag_Gusset: { ...PLAIN, weaveAxes: ["x", "y"] },
+    // Each side is the whole panel, edge to edge. The design runs into the
+    // corner folds and under the handle stitching, which is what a sublimated
+    // bag does; the 240mm platen this replaces was a screen printer's rectangle
+    // and left three quarters of every side plain.
+    //
+    // Each unwrap runs left to right as somebody standing in front of that side
+    // sees it, so none of the four needs reversing to read the right way round.
+    Bag_Front: { ...CANVAS, template: template("tote-bag-front"), unwrap: roll.sector("-x"), weaveAxes: ["z", "y"] },
+    Bag_Back: { ...CANVAS, template: template("tote-bag-back"), unwrap: roll.sector("+x"), weaveAxes: ["z", "y"] },
+    Bag_Left: { ...CANVAS, template: template("tote-bag-left"), unwrap: roll.sector("-z"), weaveAxes: ["x", "y"] },
+    Bag_Right: { ...CANVAS, template: template("tote-bag-right"), unwrap: roll.sector("+z"), weaveAxes: ["x", "y"] },
+    // The bottom, which takes no design: it is a separate piece of cloth on a
+    // real bag and it is the one outward surface nobody sees.
     Bag_Base: { ...PLAIN, weaveAxes: ["x", "z"] },
     Bag_Handles: { ...PLAIN, weaveAxes: ["z", "y"] },
     // The inside of the bag, which you look straight down into. Same cloth, and

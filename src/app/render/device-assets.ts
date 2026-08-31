@@ -2,7 +2,9 @@ import * as THREE from "three";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
+// HDRLoader, not RGBELoader: as of three r180 the latter is a subclass that
+// does nothing but log a deprecation warning, four times per export run.
+import { HDRLoader } from "three/examples/jsm/loaders/HDRLoader.js";
 
 /**
  * Everything the scene has to fetch, and the caches that mean it fetches once.
@@ -145,7 +147,7 @@ export async function loadEnvironment(
   const cached = perRenderer.get(url);
   if (cached) return cached;
 
-  const equirectangular = await new RGBELoader().loadAsync(url);
+  const equirectangular = await new HDRLoader().loadAsync(url);
   const pmrem = new THREE.PMREMGenerator(renderer);
   pmrem.compileEquirectangularShader();
   const environment = pmrem.fromEquirectangular(equirectangular).texture;

@@ -1,6 +1,7 @@
 import { expect, test, vi } from "vitest";
 
 import { DEVICE_CATALOG } from "../product-domain";
+import { DEFAULT_PART_COLORS } from "../product-parts";
 import { readArtworkBackground } from "./settings";
 import { createScreenTexture } from "./screen-texture";
 
@@ -92,7 +93,9 @@ test("a display is left alone", () => {
   const values = { "artwork.background": "#ff0000" };
   expect(readArtworkBackground(values, false)).toBeUndefined();
   expect(readArtworkBackground(values, true)).toBe("#ff0000");
-  expect(readArtworkBackground({}, true)).toBe("#ffffff");
+  // The blank stock, not white: filling the transparent part of a design with
+  // white puts a brighter rectangle on the product with a hard edge round it.
+  expect(readArtworkBackground({}, true)).toBe(DEFAULT_PART_COLORS.main);
 
   const untouched = vi.fn();
   Object.defineProperty(globalThis, "document", {

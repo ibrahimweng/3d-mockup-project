@@ -30,10 +30,9 @@ import { NodeIO } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 
 import { along, axisBasis, tangentBasis } from "./prep-model-clip.mjs";
-import {
-  assignShells, mulN, mulP, smoothNormals, weldFaces,
-} from "./prep-model-geometry.mjs";
+import { assignShells, mulN, mulP, smoothNormals } from "./prep-model-geometry.mjs";
 import { boundaryLoops, hemFaces } from "./prep-model-hem.mjs";
+import { mendSlivers, weldFaces } from "./prep-model-mend.mjs";
 import { cutPrintRegions } from "./prep-model-regions.mjs";
 
 const AXIS = { x: 0, y: 1, z: 2 };
@@ -111,6 +110,12 @@ export async function prepZones({
       }
     }
   }
+
+  // Before anything asks the mesh a question: cut the four-cornered patches a
+  // simplifier left cut the wrong way. A sliver has no direction to face and no
+  // reliable place in an atlas, and both matter from here on.
+  const mended = mendSlivers(faces);
+  if (mended) console.log(`  mended ${mended} slivers left over from simplifying`);
 
   const shells = assignShells(faces);
 
@@ -220,19 +225,38 @@ export async function prepZones({
      */
     const [wU, wV] = spec.weaveAxes ?? (Array.isArray(spec.unwrap) ? spec.unwrap : ["x", "y"]);
 
-    // Where this zone is unwrapped across: two world axes, or -- for a zone too
-    // curved for any of them -- a plane laid on the surface itself.
+    /**
+     * Where this zone is unwrapped across.
+     *
+     * Two world axes, or -- for a zone too curved for any of them -- a plane
+     * laid on the surface itself, or a measurement of the surface the product
+     * supplies as a function. The last is for a zone a plane cannot hold at
+     * all: the tote's sides run round two folds each, and what a design should
+     * follow there is distance along the cloth, which only something that has
+     * measured the cloth can say.
+     */
+    const measured = typeof spec.unwrap === "function";
     const [uA, vA] = Array.isArray(spec.unwrap) ? spec.unwrap : ["x", "y"];
     // The plane the region cut on, where there was one, so the rectangle stays a
     // rectangle in the atlas. Otherwise whatever the zone declares.
-    const basis = unwrapBasis.get(zoneName)
-      ?? (spec.unwrap === "tangent" ? tangentBasis(list) : axisBasis([uA, vA]));
-    const at = (w) => [along(basis.u, w), along(basis.v, w)];
+    const basis = measured ? null : (unwrapBasis.get(zoneName)
+      ?? (spec.unwrap === "tangent" ? tangentBasis(list) : axisBasis([uA, vA])));
+    const at = measured ? spec.unwrap : (w) => [along(basis.u, w), along(basis.v, w)];
     const lo = [Infinity, Infinity], hi = [-Infinity, -Infinity];
     if (spec.unwrap) for (const f of list) for (const w of f.world) {
       const p = at(w);
       for (let i = 0; i < 2; i += 1) { lo[i] = Math.min(lo[i], p[i]); hi[i] = Math.max(hi[i], p[i]); }
     }
+    // A measured unwrap has already said how far across its own zone a point
+    // is; only the height it hands back is raw. Measuring the first coordinate
+    // again and rescaling to fit would undo the answer: a face belongs to the
+    // side its middle is on, so a few at each fold reach a little past the end
+    // of it, and rescaling to include those shrinks the design over the whole
+    // panel to leave room -- 5% of it on a gusset, to spare two triangles.
+    // Left alone, that cloth carries the last column of its own side's design,
+    // which is what the clamped sampler gives it, and the rest of the panel
+    // gets the design at full width.
+    if (measured) { lo[0] = 0; hi[0] = 1; }
     const span = [hi[0] - lo[0] || 1, hi[1] - lo[1] || 1];
 
     let t = 0;

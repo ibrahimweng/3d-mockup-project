@@ -93,8 +93,20 @@ export function measureScreenAspect(
     const box = object.geometry.boundingBox;
     if (!box) return;
     const size = box.getSize(new THREE.Vector3());
-    const axes = [size.x, size.y, size.z].sort((a, b) => b - a);
-    if (axes[0] > 0 && axes[1] > 0) aspect = axes[1] / axes[0];
+    // Height over width, which is what every caller reads this as. Sorting the
+    // extents and returning the smaller over the larger, which this did, is
+    // height over width only for a panel wider than it is tall -- and the
+    // reciprocal of it for one taller than it is wide. A square platen hid it;
+    // the ID card is 0.63 to 1 and every square upload arrived on it squeezed
+    // into a tall ellipse, with Fit and Fill both correcting the wrong axis.
+    //
+    // Up is up where the panel stands up, and where it lies flat -- a pad of
+    // paper on a folio -- the axis running away from the viewer is what reads
+    // as height, which is the shorter of the two the panel does span.
+    const across = Math.max(size.x, size.z);
+    const flat = size.y <= Math.min(size.x, size.z);
+    const up = flat ? Math.min(size.x, size.z) : size.y;
+    if (across > 0 && up > 0) aspect = up / across;
   });
   return aspect;
 }
