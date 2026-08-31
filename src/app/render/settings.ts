@@ -124,6 +124,12 @@ export function readRasterSettings(
       main: str(values, "product.color.main", DEFAULT_PART_COLORS.main),
       trim: str(values, "product.color.trim", DEFAULT_PART_COLORS.trim),
     },
+    // The same value `readArtworkBackground` composites under a design, read
+    // here too so the cloth beside a printed panel is painted the same colour
+    // the panel is printed on. Read unconditionally: whether it lands anywhere
+    // is the product's business, and only one that names `blankStockMaterials`
+    // has anywhere for it to land.
+    printBackground: str(values, "artwork.background", DEFAULT_ARTWORK_BACKGROUND),
     framing: pad(values, "camera.framing"),
     spin: num(values, "device.spin", 0),
     transform: {

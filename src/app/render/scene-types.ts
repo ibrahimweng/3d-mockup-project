@@ -115,6 +115,8 @@ export type DeviceScene = {
   setFinish: (finish: FinishId) => void;
   /** Repaint the product's named parts without rebuilding anything. */
   setPartColors: (colors: PartColors) => void;
+  /** Recolour the blank cloth a design is printed on, panels and plain alike. */
+  setBlankStock: (hex: string | undefined) => void;
   /** Move and re-balance the rig without rebuilding anything. */
   setLighting: (lighting: LightingSettings) => void;
   /** Show, hide, and recolour the ground without rebuilding anything. */

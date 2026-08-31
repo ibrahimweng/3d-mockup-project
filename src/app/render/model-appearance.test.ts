@@ -9,6 +9,7 @@ import {
   type DeviceId,
 } from "../product-domain";
 import {
+  applyBlankStock,
   applyPartColors,
   captureBaseColors,
   splitMaterialsByMesh,
@@ -139,5 +140,61 @@ describe("splitting a shared material", () => {
         "Chrome",
       ]),
     );
+  });
+});
+
+describe("the cloth a product is printed on", () => {
+  const withStock = (Object.keys(DEVICE_CATALOG) as DeviceId[]).filter(
+    (id) => (DEVICE_CATALOG[id].blankStockMaterials ?? []).length > 0,
+  );
+
+  test("no material is both blank stock and a colour slot", () => {
+    // The two would fight on every repaint, and which won would be the order
+    // the painters happen to run in rather than anything the catalog says.
+    // They mean opposite things: blank stock is the cloth the whole product is
+    // made of, a slot is a part made of something else.
+    expect(withStock.length).toBeGreaterThan(0);
+    for (const id of withStock) {
+      const definition = DEVICE_CATALOG[id];
+      const slots = new Set(
+        COLOR_PART_IDS.flatMap(
+          (part) => definition.colorParts?.[part]?.materials ?? [],
+        ),
+      );
+      for (const name of definition.blankStockMaterials ?? []) {
+        expect(slots.has(name), `${id}: ${name} is blank stock and a colour slot`).toBe(false);
+      }
+    }
+  });
+
+  test("the print background paints the cloth and nothing else", () => {
+    for (const id of withStock) {
+      const definition = DEVICE_CATALOG[id];
+      const cloth = definition.blankStockMaterials ?? [];
+      // One material the product does not call cloth, to prove the paint is
+      // aimed rather than sprayed: a rib collar keeps its own colour.
+      const other =
+        COLOR_PART_IDS.flatMap(
+          (part) => definition.colorParts?.[part]?.materials ?? [],
+        )[0] ?? "Something_Else";
+      const root = buildSubject([...cloth, other]);
+      const base = captureBaseColors(root);
+
+      applyBlankStock(base, definition, "#123456");
+      const painted = new Map(
+        [...base.keys()].map((m) => [m.name, `#${m.color.getHexString()}`]),
+      );
+      for (const name of cloth) expect(painted.get(name), `${id}: ${name}`).toBe("#123456");
+      expect(painted.get(other), `${id}: ${other} took the cloth's colour`).toBe("#808080");
+    }
+  });
+
+  test("no print background means no repaint", () => {
+    // A device prints on nothing and declares no cloth, so this has to be a
+    // no-op rather than a black product.
+    const root = buildSubject(["Shirt_Body"]);
+    const base = captureBaseColors(root);
+    applyBlankStock(base, DEVICE_CATALOG["tshirt"], undefined);
+    for (const [material] of base) expect(`#${material.color.getHexString()}`).toBe("#808080");
   });
 });

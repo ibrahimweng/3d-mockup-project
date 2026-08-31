@@ -95,6 +95,8 @@ import {
 
 export async function buildDeviceScene(options: {
   backgroundColor: string;
+  /** The colour the product's blank cloth starts on. See `blankStockMaterials`. */
+  blankStock?: string;
   device: DeviceDefinition;
   environmentUrl: string;
   finish: FinishId;
@@ -157,6 +159,7 @@ export async function buildDeviceScene(options: {
   }
 
   const painter = prepareProductMaterials(subject, options.device, {
+    blankStock: options.blankStock,
     finish: options.finish,
     partColors: options.partColors,
   });
@@ -407,6 +410,37 @@ export async function buildDeviceScene(options: {
       slack: { x: 0, y: 0 },
     });
   }
+  /**
+   * The design on each zone and the cloth under it, remembered.
+   *
+   * Both reach the scene from outside and either can move without the other:
+   * an upload rebinds one zone, a print background recolours the cloth every
+   * zone is drawn on. Whichever arrives second has to be able to redo the
+   * binding with what the first left, or the shirt keeps the template it had
+   * when the colour changed.
+   */
+  let lastArtwork: {
+    textures: ReadonlyMap<ArtworkZoneId, THREE.Texture | null>;
+    transform?: ScreenTransform;
+  } = { textures: new Map() };
+  // Only where the product says its unprinted cloth is the print background;
+  // everywhere else a template is drawn on white and stays on white.
+  let blankStock = options.device.blankStockMaterials
+    ? options.blankStock
+    : undefined;
+  const rebindArtwork = (): void => {
+    for (const [id, binding] of zones) {
+      bindZoneArtwork({
+        binding,
+        blankStock,
+        clearRelief,
+        printed: options.device.artworkSurface === "print",
+        texture: lastArtwork.textures.get(id) ?? null,
+        transform: lastArtwork.transform,
+      });
+    }
+  };
+
   // The front is what a pointer drags on and what the unwrap is rebuilt for.
   const front = zones.get("front");
   const screenMaterials = front?.materials ?? [];
@@ -547,15 +581,18 @@ export async function buildDeviceScene(options: {
     },
     scene,
     setArtwork: (textures, transform) => {
-      for (const [id, binding] of zones) {
-        bindZoneArtwork({
-          binding,
-          clearRelief,
-          printed: options.device.artworkSurface === "print",
-          texture: textures.get(id) ?? null,
-          transform,
-        });
-      }
+      lastArtwork = { textures, transform };
+      rebindArtwork();
+    },
+    setBlankStock: (hex) => {
+      painter.setBlankStock(hex);
+      // And again through the zones, because a zone with nothing uploaded is
+      // showing its template and that template is drawn on the cloth. The
+      // colour reaches the scene by two routes -- this and a re-decode of
+      // every design -- which can arrive in either order, so both of them have
+      // to leave the same answer behind.
+      blankStock = hex;
+      rebindArtwork();
     },
     subject,
     framing,

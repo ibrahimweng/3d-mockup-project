@@ -35,6 +35,11 @@ type Pose = Readonly<{
 export type RasterSettings = {
   backgroundColor: string;
   device: string;
+  /**
+   * The blank cloth a print sits on, for the parts of the product that are
+   * made of it. Undefined on a device, which prints on nothing.
+   */
+  printBackground: string | undefined;
   environment: string;
   exposure: number;
   finish: string;
@@ -75,6 +80,42 @@ export type RasterSettings = {
   /** How tightly the picture is cropped on the fitted framing, 1 being it. */
   zoom: number;
 };
+
+/**
+ * The settings a built scene can absorb, and therefore the ones its guard key
+ * has to be made of.
+ *
+ * Named here rather than spelled out inside the key, because the two got out
+ * of step exactly once and that was enough: `partColors` was applied to the
+ * scene but left out of the key, so picking a colour in Parts changed nothing
+ * on the model until some *other* control moved -- an orbit, a slider -- and
+ * carried the waiting paint along with it. Every field `applyLiveSettings`
+ * reads belongs in this list, and a test holds it to that.
+ *
+ * The camera is deliberately absent. Framing, zoom and focal length are
+ * applied through the pose rather than through the scene, and they move on
+ * every pointer sample of a drag; keying on them would repaint the whole model
+ * sixty times a second to answer a question nobody asked.
+ */
+export const LIVE_SETTINGS = [
+  "backgroundColor",
+  "environment",
+  "finish",
+  "floor",
+  "lighting",
+  "partColors",
+  "printBackground",
+  "showBackground",
+  "spin",
+  "surface",
+  "sweep",
+  "transform",
+] as const satisfies readonly (keyof RasterSettings)[];
+
+/** What the scene on screen is currently showing, as one comparable string. */
+export function liveSettingsKey(settings: RasterSettings): string {
+  return JSON.stringify(LIVE_SETTINGS.map((name) => settings[name]));
+}
 
 /**
  * Real-time renderer for the device scene.
@@ -207,6 +248,7 @@ export class RasterRenderer {
         this.invalidateShadow();
         this.onEnvironmentReady?.();
       },
+      blankStock: settings.printBackground,
       partColors: settings.partColors,
       renderer: this.renderer,
       showGround: settings.showBackground,
@@ -265,34 +307,24 @@ export class RasterRenderer {
   /**
    * Everything a scene can absorb without being rebuilt.
    *
-   * Guarded by its own key because the settings object is rebuilt on every
-   * store change, and during a drag that is every pointer move. Without the
-   * guard a rotation repainted every material in the model, replaced the whole
-   * light rig and rebuilt the ground sixty times a second, none of which had
-   * changed.
+   * Guarded by `liveSettingsKey` because the settings object is rebuilt on
+   * every store change, and during a drag that is every pointer move. Without
+   * the guard a rotation repainted every material in the model, replaced the
+   * whole light rig and rebuilt the ground sixty times a second, none of which
+   * had changed.
    */
   private applyLiveSettings(settings: RasterSettings): void {
     const built = this.built;
     if (!built) return;
 
-    const key = JSON.stringify([
-      settings.backgroundColor,
-      settings.environment,
-      settings.finish,
-      settings.floor,
-      settings.lighting,
-      settings.showBackground,
-      settings.spin,
-      settings.transform,
-      settings.surface,
-      settings.sweep,
-    ]);
+    const key = liveSettingsKey(settings);
     if (key === this.lastLiveKey) return;
     this.lastLiveKey = key;
 
     this.applyEnvironment(built, settings.environment);
     built.setFinish(readFinishId(settings.finish));
     built.setPartColors(settings.partColors);
+    built.setBlankStock(settings.printBackground);
     built.setLighting(settings.lighting);
     built.setSurface(settings.surface);
     built.setSweep(settings.sweep);

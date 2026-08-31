@@ -238,6 +238,35 @@ export function applyPartColors(
 }
 
 /**
+ * Paint the parts made of the same blank cloth the print zones sit on.
+ *
+ * The print background is composited under a design when its bitmap is
+ * decoded, so a printed panel wears it and the cloth beside the panel does
+ * not. On a garment they are the same fabric -- the hem band and the sleeve
+ * heads are the shirt -- so the colour that fills a print behind a logo has to
+ * fill them too, or the garment reads as a contrast-yoke tee whenever the two
+ * controls differ.
+ *
+ * Base colour only, and only for materials the product names, so a rib collar
+ * on a slot of its own keeps its own colour and every device is untouched.
+ */
+export function applyBlankStock(
+  baseColors: BaseColors,
+  device: DeviceDefinition,
+  hex: string | undefined,
+): void {
+  const cloth = device.blankStockMaterials;
+  if (!cloth || !hex) return;
+  const named = new Set(cloth);
+  for (const [material] of baseColors) {
+    if (named.has(material.name)) {
+      material.color.set(hex);
+      material.needsUpdate = true;
+    }
+  }
+}
+
+/**
  * Everything that has to happen to a freshly cloned product's materials, and
  * the handle that keeps repainting it.
  *
@@ -251,8 +280,13 @@ export function applyPartColors(
 export function prepareProductMaterials(
   root: THREE.Object3D,
   device: DeviceDefinition,
-  initial: { finish: FinishId; partColors?: PartColors },
+  initial: {
+    blankStock?: string;
+    finish: FinishId;
+    partColors?: PartColors;
+  },
 ): {
+  setBlankStock: (hex: string | undefined) => void;
   setFinish: (finish: FinishId) => void;
   setPartColors: (colors: PartColors) => void;
 } {
@@ -260,15 +294,24 @@ export function prepareProductMaterials(
   applyMaterialCorrections(root, device);
   const baseColors = captureBaseColors(root);
 
+  let blankStock = initial.blankStock;
   let finish = initial.finish;
   let partColors: PartColors = initial.partColors ?? {};
   const repaint = (): void => {
     applyFinish(baseColors, device, finish);
+    // Before the slots, so a product that names a material in both -- which
+    // nothing does today and the catalog does not forbid -- gives the slot the
+    // last word, the way an accent wins over a colourway's shell.
+    applyBlankStock(baseColors, device, blankStock);
     applyPartColors(baseColors, device, partColors);
   };
   repaint();
 
   return {
+    setBlankStock: (next) => {
+      blankStock = next;
+      repaint();
+    },
     setFinish: (next) => {
       finish = next;
       repaint();

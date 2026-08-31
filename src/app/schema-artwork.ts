@@ -95,7 +95,7 @@ export const ARTWORK_SECTION = {
       },
       defaultValue: DEFAULT_ARTWORK_BACKGROUND,
       description:
-        "What a design is printed on where the design is transparent. A print file is a mark on nothing, so this is the colour that shows through it \u2014 the shirt behind a logo. It covers the printed zones only; the parts a design never reaches keep their own colours.",
+        "What a design is printed on where the design is transparent. A print file is a mark on nothing, so this is the colour that shows through it \u2014 the shirt behind a logo. On a garment it is the cloth, so it covers the hem, the cuffs and the sleeve heads with the panels; on a product whose unprinted parts are something else, those keep their own colours.",
       label: "Print background",
       performanceReason:
         "The colour is composited under the design once when the image is decoded; nothing is rebuilt and no frame costs more.",

@@ -115,13 +115,18 @@ describe("what the merchandise models are made of", () => {
     // one for months -- the woven label at the back of the neck, carrying the
     // source's own texture at a roughness no other piece of cloth here uses.
     //
-    // Three ways to be accounted for: a print zone, a colour part, or a
-    // `fixedMaterials` entry, which is the catalog saying out loud that a part
-    // is meant to hold its own colour. The point of the third is that it is
-    // written down; silence is what this test is for.
+    // Four ways to be accounted for: a print zone, a colour part, a
+    // `blankStockMaterials` entry -- the catalog saying this part is the same
+    // cloth the prints are printed on, so it follows the print background --
+    // or a `fixedMaterials` entry, which says out loud that a part is meant to
+    // hold its own colour. The point of the last two is that they are written
+    // down; silence is what this test is for.
     for (const [id] of models) {
       const device = DEVICE_CATALOG[id];
-      const claimed = new Set<string>(device.fixedMaterials ?? []);
+      const claimed = new Set<string>([
+        ...(device.fixedMaterials ?? []),
+        ...(device.blankStockMaterials ?? []),
+      ]);
       for (const part of Object.values(device.colorParts ?? {})) {
         for (const name of part.materials) claimed.add(name.split(SPLIT_MATERIAL_SEPARATOR)[0]);
       }
@@ -131,7 +136,7 @@ describe("what the merchandise models are made of", () => {
       const named = (readGltfJson(fileOf(id)).materials ?? []).map((m) => m.name ?? "");
       expect(
         named.filter((name) => !claimed.has(name)).sort(),
-        `${id}: materials in the file that no zone, colour part or fixedMaterials entry names`,
+        `${id}: materials in the file that no zone, colour part, blankStockMaterials or fixedMaterials entry names`,
       ).toEqual([]);
     }
   });
