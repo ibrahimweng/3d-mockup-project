@@ -23,31 +23,11 @@
  * design arrives sheared.
  */
 
+import { castOnto, frameOf, ringArc, sliceAt } from "./prep-model-rings.mjs";
+
 const TAU = Math.PI * 2;
 
-const cross2 = (a, b) => a[0] * b[1] - a[1] * b[0];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-const unit = (v) => { const l = Math.hypot(...v) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
-const cross = (a, b) => [
-  a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0],
-];
-
-/**
- * The frame a model is measured in: rings lie across `axis`, and the count
- * round them starts at `from` and turns the way a clock does seen from along
- * the axis.
- *
- * Both are worth stating rather than assuming world up and world +x. A sleeve
- * is a tube lying at an angle to every world axis, so its rings are not
- * horizontal ones; and where the count starts is where a design that goes all
- * the way round has its seam, which for a sleeve is the underarm.
- */
-function frameOf(axis, from) {
-  const up = unit(axis);
-  const along = dot(from, up);
-  const one = unit(from.map((c, q) => c - along * up[q]));
-  return { one, two: cross(up, one), up };
-}
 
 /**
  * The four ways a side can face, in the order they come round the model and
@@ -56,67 +36,6 @@ function frameOf(axis, from) {
  * run left to right for somebody standing in front of it.
  */
 const FACES = { "+x": 0, "-z": 0.25, "-x": 0.5, "+z": 0.75 };
-
-/**
- * Where a triangle crosses a horizontal plane: two points, or nothing.
- *
- * A closed surface cut by a plane gives closed rings, so every ray from a
- * point inside meets one -- which is what lets a ring be read off by angle
- * below with none of it going missing.
- */
-function sliceAt(t, y) {
-  const out = [];
-  for (let k = 0; k < 3; k += 1) {
-    const a = t[k], b = t[(k + 1) % 3];
-    if ((a[1] > y) === (b[1] > y)) continue;
-    const f = (y - a[1]) / (b[1] - a[1]);
-    out.push([a[0] + (b[0] - a[0]) * f, a[2] + (b[2] - a[2]) * f]);
-  }
-  return out.length === 2 ? out : null;
-}
-
-/**
- * How far out the surface is, along every ray this segment crosses.
- *
- * The furthest hit wins. A bag is closed, so a ray leaving the middle passes
- * through the lining before it reaches the outside, and it is the outside that
- * is printed on.
- */
-function castOnto(row, bins, A, B) {
-  const start = Math.atan2(A[1], A[0]);
-  let turn = Math.atan2(B[1], B[0]) - start;
-  // The short way round: a slice of one triangle is a few millimetres of a ring
-  // hundreds of millimetres across, never the long way.
-  while (turn > Math.PI) turn -= TAU;
-  while (turn < -Math.PI) turn += TAU;
-  const AB = [B[0] - A[0], B[1] - A[1]];
-  const first = Math.ceil((Math.min(start, start + turn) / TAU) * bins - 0.5);
-  const last = Math.floor((Math.max(start, start + turn) / TAU) * bins - 0.5);
-  for (let i = first; i <= last; i += 1) {
-    const angle = ((i + 0.5) / bins) * TAU;
-    const ray = [Math.cos(angle), Math.sin(angle)];
-    const den = cross2(AB, ray);
-    if (den === 0) continue;
-    const t = -cross2(A, ray) / den;
-    const r = (A[0] + AB[0] * t) * ray[0] + (A[1] + AB[1] * t) * ray[1];
-    const b = ((i % bins) + bins) % bins;
-    if (r > row[b]) row[b] = r;
-  }
-}
-
-/** Distance travelled round one ring, from the middle of bin zero. */
-function ringArc(row, bins) {
-  const at = (i) => {
-    const angle = ((i + 0.5) / bins) * TAU;
-    return [row[i] * Math.cos(angle), row[i] * Math.sin(angle)];
-  };
-  const cum = new Float64Array(bins + 1);
-  for (let i = 0; i < bins; i += 1) {
-    const a = at(i), b = at((i + 1) % bins);
-    cum[i + 1] = cum[i] + Math.hypot(b[0] - a[0], b[1] - a[1]);
-  }
-  return cum;
-}
 
 /**
  * Measure a model's rings, and answer where a point sits on it.
@@ -157,12 +76,35 @@ export function unrollAround(triangles, {
       }
     }
   }
-  for (const row of rings) {
+  /**
+   * A slice that did not come back a ring is not one, and borrows the nearest
+   * that did.
+   *
+   * Every slice of a closed surface is a closed ring, and most of what this
+   * measures is closed over most of its length. A sleeve is not: it is a tube
+   * cut off at the armhole along a curve that runs a third of the way back down
+   * its own axis, so the slices through that end meet the cloth on some sides
+   * and not others. Measured as if they were rings, the last third of the
+   * sleeve is read off an outline stitched together from whichever rays
+   * happened to hit, and the design there arrived at three times the ink of the
+   * rest and thirty-five triangles of it backwards.
+   */
+  const whole = rings.map((row) => row.reduce((n, r) => n + (r > 0 ? 1 : 0), 0) > bins * 0.6);
+  const first = whole.indexOf(true), last = whole.lastIndexOf(true);
+  const nearest = (b) => {
+    for (let away = 1; away < bands; away += 1) {
+      if (whole[b - away]) return b - away;
+      if (whole[b + away]) return b + away;
+    }
+    return b;
+  };
+  for (let b = 0; b < bands; b += 1) {
+    if (!whole[b] && whole.some(Boolean)) rings[b] = rings[nearest(b)];
     // A ray that met nothing takes its neighbour's answer rather than the
     // middle of the model, which would fold the ring in on itself.
     for (let i = 0; i < bins * 2; i += 1) {
-      const b = i % bins;
-      if (!row[b]) row[b] = row[(b + bins - 1) % bins];
+      const k = i % bins;
+      if (!rings[b][k]) rings[b][k] = rings[b][(k + bins - 1) % bins];
     }
   }
   const arcs = rings.map((row) => ringArc(row, bins));
@@ -262,6 +204,43 @@ export function unrollAround(triangles, {
         const half = width[middle] / 2;
         return (w) => Math.abs(offset(w, middle)) - half;
       });
+    },
+    /**
+     * Which way is out from the axis at a point, in world space.
+     *
+     * A printed face looks this way. One that looks the other way is on the
+     * inside of a fold -- a seam allowance tucked under, the crease inside an
+     * underarm -- and an unwrap measured round the outside has nothing to say
+     * about it, so its slice of the design arrives backwards.
+     */
+    outward(world) {
+      const p = place(world);
+      const across = p[0] - centre[0], round = p[2] - centre[2];
+      const length = Math.hypot(across, round) || 1;
+      return [0, 1, 2].map((q) => (frame.one[q] * across + frame.two[q] * round) / length);
+    },
+    /**
+     * The stretch along the axis over which the slices did come back as rings,
+     * in the same measurement `across` hands back as its second number.
+     *
+     * Outside it there is nothing to measure a way round from, so it is also
+     * the stretch a design can cover. On a sleeve that is the cuff up to where
+     * the armhole curve starts, which is the part of a sleeve that is a tube.
+     */
+    tube() {
+      return [lo[1] + (first + 0.5) * step, lo[1] + (last + 0.5) * step];
+    },
+    /**
+     * The line the count starts at, as a signed measurement to cut along.
+     *
+     * A zone that goes all the way round has to start and stop somewhere, and
+     * where it does the coordinate jumps from one end of the design to the
+     * other. Cut along this and the jump lands on an edge instead of across the
+     * middle of a triangle, which would otherwise smear the whole design over
+     * it. On a sleeve, this is the underarm seam.
+     */
+    start() {
+      return (w) => dot(w, frame.two) - centre[2];
     },
     /**
      * How far round the model a point lies and how far along it, raw.

@@ -11,15 +11,15 @@
  * seams, and cutting them in separate passes divides those edges in two places.
  *
  * `classify(face)` decides which zone a triangle belongs to. It receives the
- * face's world centroid `C`, world normal `WN`, mean texture coordinate, the
- * `source` material and `mesh` it arrived on, the `shell` it belongs to and
- * that shell's box, and the world box of its source primitive. Prefer `shell`: it is the boundary the mesh already draws, and a
- * coordinate threshold guessing at the same boundary is what put the card's
- * artwork on its clasp. See `docs/merchandise-models.md`.
+ * face's world corners and centroid, its world normal, mean texture coordinate,
+ * the `source` material and `mesh` it arrived on, the `shell` it belongs to and
+ * that shell's box, and the world box of its source primitive. Prefer `shell`:
+ * it is the boundary the mesh already draws, and a coordinate threshold
+ * guessing at the same boundary is what put the card's artwork on its clasp.
+ * See `docs/merchandise-models.md`.
  *
  * Each zone is rebuilt as one primitive with a fresh material, unwrapped to
- * fill 0..1 across two world axes so a design authored at the zone's aspect
- * ratio lands undistorted.
+ * fill 0..1 so a design authored at the zone's aspect ratio lands undistorted.
  */
 
 import { readFileSync } from "node:fs";
@@ -145,12 +145,8 @@ export async function prepZones({
   const unwrapBasis = cutPrintRegions({ byZone, faces, regions });
 
   /**
-   * Fold the rims over.
-   *
-   * After the print areas are cut, so a hem is never sliced by one, and after
-   * any reshaping, so it follows the surface where the surface ended up. Rims
-   * are taken longest first, which is the order a product names them: the mouth
-   * of a bag; the hem of a shirt, then its cuffs.
+   * Fold the rims over. After the print areas are cut, so a hem is never sliced
+   * by one, and longest first, which is the order a product names them.
    */
   if (hems?.length) {
     const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
@@ -213,25 +209,20 @@ export async function prepZones({
      * The plane a supplied weave is laid out from.
      *
      * Cloth tiles at one thread count everywhere, so the two axes have to be
-     * ones the part actually lies in. Taken from the print unwrap where there is
-     * one, but a part that does not print has no unwrap to borrow and was
-     * falling back to x and y whatever direction it faced. Measured against the
-     * area they cover, the threads on the tote's base ran from a fourteenth of
-     * the density to nearly five times it, and a third of the base, a third of
-     * the canvas and a sixth of the handles were squashed past half -- which is
-     * the weave smeared along the surface rather than woven into it.
+     * ones the part actually lies in. Taken from the print unwrap where that is
+     * two axes, and stated by a part that does not print or unwraps some other
+     * way. Falling back to x and y whatever direction a part faced ran the
+     * threads on the tote's base from a fourteenth of the density to five times
+     * it, which is a weave smeared along a surface rather than woven into it.
      */
     const [wU, wV] = spec.weaveAxes ?? (Array.isArray(spec.unwrap) ? spec.unwrap : ["x", "y"]);
 
     /**
-     * Where this zone is unwrapped across.
-     *
-     * Two world axes, or -- for a zone too curved for any of them -- a plane
-     * laid on the surface itself, or a measurement of the surface the product
-     * supplies as a function. The last is for a zone a plane cannot hold at
-     * all: the tote's sides run round two folds each, and what a design should
-     * follow there is distance along the cloth, which only something that has
-     * measured the cloth can say.
+     * Where this zone is unwrapped across: two world axes, a plane laid on the
+     * surface for a zone too curved for any of them, or a measurement of the
+     * surface the product supplies as a function. The last is for a zone a
+     * plane cannot hold at all -- a tote's sides run round two folds each, and
+     * what a design should follow there is distance along the cloth.
      */
     const measured = typeof spec.unwrap === "function";
     const [uA, vA] = Array.isArray(spec.unwrap) ? spec.unwrap : ["x", "y"];
@@ -240,26 +231,50 @@ export async function prepZones({
     const basis = measured ? null : (unwrapBasis.get(zoneName)
       ?? (spec.unwrap === "tangent" ? tangentBasis(list) : axisBasis([uA, vA])));
     const at = measured ? spec.unwrap : (w) => [along(basis.u, w), along(basis.v, w)];
+    /**
+     * One face's three corners, all on the same side of the join.
+     *
+     * A measurement that goes all the way round starts over somewhere, and a
+     * face lying across that line gets one corner at nearly none of the way
+     * round and another at nearly all of it: read as they come it covers the
+     * whole design at once, which put a sleeve's at 57 times the ink of the
+     * rest. Corners short of half way go round once more instead -- the same
+     * answer for both faces sharing an edge along the join, and it leaves the
+     * join the one place the design does not carry across, which is a seam.
+     *
+     * Only where the unwrap is a measurement. Down a world axis the number is a
+     * distance in the model's own units, half of one means nothing, and the
+     * two-unit-wide ID card had 64 faces sent round the world.
+     */
+    const cornersOf = (f) => {
+      const corners = f.world.map(at);
+      if (!measured) return corners;
+      const us = corners.map((c) => c[0]);
+      if (Math.max(...us) - Math.min(...us) <= 0.5) return corners;
+      return corners.map((c) => (c[0] < 0.5 ? [c[0] + 1, c[1]] : c));
+    };
     const lo = [Infinity, Infinity], hi = [-Infinity, -Infinity];
-    if (spec.unwrap) for (const f of list) for (const w of f.world) {
-      const p = at(w);
+    if (spec.unwrap) for (const f of list) for (const p of cornersOf(f)) {
       for (let i = 0; i < 2; i += 1) { lo[i] = Math.min(lo[i], p[i]); hi[i] = Math.max(hi[i], p[i]); }
     }
     const span = [hi[0] - lo[0] || 1, hi[1] - lo[1] || 1];
 
     let t = 0;
-    for (const f of list) for (let k = 0; k < 3; k += 1) {
+    for (const f of list) {
+      const corners = spec.unwrap ? cornersOf(f) : null;
+      for (let k = 0; k < 3; k += 1) {
       P.set(f.P[k], t*3); N.set(f.N[k], t*3); UV1.set(f.UV0[k], t*2);
       UVW[t*2] = f.world[k][AXIS[wU]] * density;
       UVW[t*2+1] = f.world[k][AXIS[wV]] * density;
       if (spec.unwrap) {
-        const p = at(f.world[k]);
+        const p = corners[k];
         let u = (p[0] - lo[0]) / span[0];
         const v = 1 - (p[1] - lo[1]) / span[1];
         if (spec.flipU) u = 1 - u;
         UV[t*2] = u; UV[t*2+1] = v;
       }
       t += 1;
+      }
     }
 
     const prim = doc.createPrimitive()
@@ -287,18 +302,16 @@ export async function prepZones({
     /**
      * The weave, on its own channel.
      *
-     * Whichever weave a zone gets, it cannot ride the 0..1 unwrap a design
-     * uses: that unwrap stretches one copy of an image across a whole panel,
-     * and cloth needs hundreds of thread crossings across the same distance.
-     * So a second channel carries coordinates meant for tiling, and the normal
-     * map is pointed at it.
+     * It cannot ride the 0..1 unwrap a design uses: that stretches one copy of
+     * an image across a whole panel, and cloth needs hundreds of thread
+     * crossings over the same distance. So a second channel carries tiling
+     * coordinates and the normal map is pointed at it.
      *
      * Two sources. A file that shipped a weave has one authored against its own
      * coordinates -- the shirt's are in millimetres, which already tile -- and
      * those travel with the vertices unchanged. A file that shipped none gets a
      * supplied map laid out from world position at a stated density, so every
-     * panel of a product carries the same thread size no matter how big the
-     * panel is: a tote's narrow side reads as the same cloth as its front.
+     * panel carries the same thread size however big it is.
      */
     const supplied = spec.weaveFile ? sharedWeave(spec.weaveFile) : null;
     const weave = supplied ?? ((spec.weave ?? weaveDefault) ? source?.getNormalTexture() : null);

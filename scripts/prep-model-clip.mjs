@@ -13,6 +13,7 @@
  */
 
 import { faceNormal, inv4, mulP } from "./prep-model-geometry.mjs";
+import { mendSlivers } from "./prep-model-mend.mjs";
 
 const AXIS = { x: 0, y: 1, z: 2 };
 
@@ -113,12 +114,20 @@ function fanOut(f, poly, into) {
     into.push({
       C: [0, 1, 2].map((q) => corners.reduce((sum, c) => sum + c.world[q] / 3, 0)),
       m: f.m,
+      // Everything a classifier may ask about comes along, not only what the
+      // rebuild needs. A region cut runs after the zones are decided and never
+      // wanted these; a seam cut runs before, and a piece that cannot say which
+      // part of the garment it came off has nothing to be classified by.
+      mesh: f.mesh,
       N: corners.map((c) => c.N),
       owner: f.owner,
+      ownerBox: f.ownerBox,
       P: corners.map((c) => mulP(ivm, c.world)),
       shell: f.shell,
       shellInfo: f.shellInfo,
+      source: f.source,
       UV0: corners.map((c) => c.UV0),
+      uvV: corners.reduce((sum, c) => sum + c.UV0[1] / 3, 0),
       world: corners.map((c) => [...c.world]),
       WN: f.WN,
     });

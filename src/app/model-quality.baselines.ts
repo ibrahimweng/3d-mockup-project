@@ -15,6 +15,30 @@ import type { DeviceId } from "./product-domain";
  * additionally held to the target itself, so it can never be loosened back.
  */
 
+/**
+ * Zones whose printable area is a panel the garment was cut from rather than a
+ * rectangle a printer holds under a head.
+ *
+ * The coverage bar below assumes a print area is a rectangle, and for a platen,
+ * a card face or a side of a tote it is. A shirt panel is not: it has a neck
+ * curve and two armholes cut out of it, and a sleeve is a tube whose top is cut
+ * along the armhole curve. Their unwraps fill their own square exactly as much
+ * as their silhouettes fill their own bounding box -- 0.875 on the front, 0.879
+ * on the back, 0.903 and 0.909 on the sleeves -- and no unwrap can raise that
+ * without stretching the design into the shoulders. So the corners of a design
+ * land where the neck and the armholes are, which is what printing a rectangle
+ * on a cut panel does.
+ *
+ * Listed one by one rather than lowering the bar for everything, because every
+ * other zone in the catalog is a rectangle and has to stay at 0.95.
+ */
+export const CUT_PANELS: readonly string[] = [
+  "Shirt_Back", "Shirt_Front", "Shirt_Sleeve_Left", "Shirt_Sleeve_Right",
+];
+
+/** What a cut panel's unwrap has to reach, its own silhouette being the limit. */
+export const PANEL_COVERAGE = 0.85;
+
 /** What a print zone's unwrap must eventually do. */
 export const ZONE_TARGET = {
   /** Fill its own square, so no part of the template is lost off the product. */
@@ -45,11 +69,10 @@ export const MODEL_TARGET = {
  *
  * Pinned rather than driven to zero, because most of them are supposed to be
  * there and the count is only meaningful once you know what it is made of.
- * Measured on the shirt: 310 run down the side seams and 53 round the armholes,
- * which is what a sewn seam is -- two panels stitched together fold sharply.
- * Another 314 are the hems added in phase 3, one per corner of each rim, which
- * is what a fold is. Twenty sit in open cloth, and those are the ones worth
- * chasing. The tote's 985 are the seams, the mouth and the edges of the straps
+ * Measured on the shirt: most run down the side seams and round the armholes,
+ * which is what a sewn seam is -- two panels stitched together fold sharply --
+ * and the rest are the hems, one per corner of each rim, which is what a fold
+ * is. The few in open cloth are the ones worth chasing. The tote's 985 are the seams, the mouth and the edges of the straps
  * on a bag that was modelled with all three.
  *
  * Shading is measured separately and is not affected: `shadingSplitsOnFlat` is
@@ -212,51 +235,63 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
       Bag_Right: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.12 },
     },
   },
-  // Phase 2. Every zone is a platen now, and every one of them fills its square
-  // exactly: a 240 by 320mm chest print, a 180 by 320mm back print -- narrower
-  // because the back panel wraps further round before its surface turns away --
-  // and a 60mm patch on each sleeve. Mirrored triangles went from 156, 411, 667
-  // and 678 to none, because artwork no longer reaches the sides of the chest or
-  // the underside of a sleeve, which is where the cloth turned away from the
-  // direction it was projected along.
+  // Every panel prints edge to edge now: the front and back from the shoulder
+  // to the hem and side seam to side seam, each sleeve round the tube from the
+  // cuff to the underarm curve. That replaced a 240 by 320mm platen on the
+  // chest, a 180 by 320mm one on the back and a 60mm patch on each sleeve,
+  // which between them printed on about an eighth of the cloth.
   //
-  // The sleeves are unwrapped on a plane laid across the patch rather than down
-  // a world axis. A sleeve is a cone lying at an angle to all three, and down
-  // any of them the tightest one per cent of the patch carried 1.6 times the ink
-  // per square millimetre the middle did; making the patch smaller barely moved
-  // that, because the fault was the direction.
+  // The platen was there for a reason and this is the answer to it. A panel is
+  // not flat: it wraps round the body, and where it curved past the direction
+  // it was projected along -- the sides of the chest, the underside of a sleeve
+  // -- its triangles projected back to front and their slice of the design came
+  // out mirrored, 156 of them on the front, 411 on the back and about 670 on
+  // each sleeve. So the design follows the cloth instead of a plane: the shirt
+  // is sliced into rings, each ring is walked round to give distance travelled,
+  // and a point sits where it falls along its own ring. Six triangles of the
+  // whole garment now read the wrong way round, all of them cloth folded into a
+  // seam where an unwrap measured round the outside has nothing to say.
   //
-  // Free edges still total 4,440mm, exactly what they did before the cut. The
-  // rise in the count, and in the hard edges from 348, is the same cloth divided
-  // into more pieces.
+  // Rings across the body for the panels and across each sleeve's own axis for
+  // the sleeves, because a sleeve lies at about forty degrees to every world
+  // axis. A sleeve's axis is found armhole-to-cuff rather than by where it is
+  // most spread: a flared sleeve is spread across as much as along, and the
+  // axis that gives is six degrees steeper, which walks it out through the
+  // cloth -- the nearest surface fell to 2mm from it, and a ring measured about
+  // an axis lying on its own surface spins.
   //
-  // Phase 3 turned four rims under -- the hem, both cuffs and the neck -- which
-  // is what the close-up shots this garment is for will show. Hard edges went
-  // from 384 to 718, and the 334 new ones are one per corner of those rims.
+  // The print stops at the hem, the cuffs and the sleeve head. The first two
+  // are turned under and no printer puts ink on a fold; the third is the part
+  // of a sleeve that is not a tube, cut along the armhole curve a third of the
+  // way back down its own axis, so there is nothing there to measure a way
+  // round from. Filling it anyway put the design at more than twice the ink
+  // over the head with forty triangles of it backwards.
   //
-  // The two edges that were used by more than two faces are gone. They were
-  // splinters left by the cut, at one spot on the top line of the chest print,
-  // sitting right at the distance below which two points are the same point --
-  // and no split tolerance removed them without opening seams elsewhere. What
-  // removed them was fusing the near-duplicates instead of avoiding them:
-  // `weldFaces` runs after every cut and pulls vertices closer together than
-  // the weld onto each other, which turns a splinter into nothing and takes its
-  // doubled edge with it.
+  // Coverage is 0.875 to 0.909 rather than 1 because these are cut panels and
+  // not rectangles: a shirt panel has a neck curve and two armholes taken out
+  // of it, and it fills its own bounding box exactly that much. The corners of
+  // a design land where the neck and the armholes are, which is what printing a
+  // rectangle on a cut panel does. `CUT_PANELS` says so and holds them to it.
+  //
+  // Stretch is 1.19 to 1.23 for the same reason the tote's is 1.12: a body is
+  // not a cylinder and a sleeve is not a pipe, so a design filling one closes
+  // up where the cloth narrows. Free edges, hard edges and shells are all where
+  // they were, and nothing draws a line over anything flat.
   tshirt: {
     blackMaterials: [],
     boundaryEdges: 592,
     coincidentFaces: 0,
     degenerateTriangles: 0,
-    hardInteriorEdges: 718,
+    hardInteriorEdges: 690,
     nonManifoldEdges: 0,
     shadingSplitsOnFlat: 0,
     shells: 4,
     strayTrianglesOnHardware: 0,
     zones: {
-      Shirt_Back: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.04 },
-      Shirt_Front: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.06 },
-      Shirt_Sleeve_Left: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.05 },
-      Shirt_Sleeve_Right: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.04 },
+      Shirt_Back: { coverage: 0.879, islands: 1, mirroredTriangles: 1, stretch: 1.23 },
+      Shirt_Front: { coverage: 0.875, islands: 1, mirroredTriangles: 0, stretch: 1.23 },
+      Shirt_Sleeve_Left: { coverage: 0.909, islands: 1, mirroredTriangles: 1, stretch: 1.19 },
+      Shirt_Sleeve_Right: { coverage: 0.903, islands: 1, mirroredTriangles: 4, stretch: 1.19 },
     },
   },
   // The wrap runs past 1 in u because it goes all the way round, which is what
