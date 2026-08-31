@@ -64,6 +64,7 @@ test("every live setting moves the key", () => {
     floor: { "floor.reflection": 55 },
     lighting: { "light.keyIntensity": 42 },
     partColors: { "product.color.main": "#ff00ff" },
+    printBackground: { "artwork.background": "#00ff88" },
     showBackground: { "export.includeBackground": false },
     spin: { "device.spin": 33 },
     surface: { "surface.kind": "walnut" },

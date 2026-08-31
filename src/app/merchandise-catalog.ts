@@ -15,16 +15,19 @@ export const MERCHANDISE_CATALOG = {
     // Front and back were already separate materials in the file, which is
     // what made four zones cheap: 116740 carries the +z faces and .010 the
     // -z ones, and the sleeves split by which side of the centre they sit on.
-    // Two slots, not three. The four print zones cover every panel of this
-    // garment, which leaves the collar rib and the facings turned under the
-    // hem as the only parts a design does not land on. The topstitch thread
-    // was tried as a third and dropped: in the render where the collar and
-    // the hem both took their new colours, the thread did not change, so it
-    // would have been a control that appears to do nothing.
+    //
+    // One slot, not three. A tee is one bolt of jersey with a rib collar sewn
+    // to it, and the collar is the only part of it made of something else, so
+    // it is the only part with a colour of its own. Everything the four prints
+    // do not reach -- the hem band, the cuffs, the head of each sleeve, the
+    // facings turned under -- is the same cloth as the panels, and follows the
+    // print background with them. On slots of their own they were a second
+    // opinion: colouring the shirt in Parts turned the hem, the cuffs and the
+    // sleeve heads that colour and left every printed panel on the background,
+    // which is a contrast-yoke ringer tee arrived at by accident.
+    blankStockMaterials: ["Shirt_Body", "Shirt_Front_Trim"],
     colorParts: {
       accent: { materials: ["Rib_1X1_486gsm_116764"] },
-      main: { materials: ["Shirt_Body"] },
-      trim: { materials: ["Shirt_Front_Trim"] },
     },
     excludedNodes: [],
     frame: [0.693905, 0.657851, 0.292794],

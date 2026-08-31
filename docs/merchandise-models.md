@@ -108,9 +108,20 @@ A heavyweight cotton tee, photographed close up.
 | --- | --- | --- | --- |
 | Front, back panels | `Shirt_Front`, `Shirt_Back` | yes, seam to seam | jersey: metallic 0, roughness 0.86, weave normal map on TEXCOORD_1 |
 | Sleeves | `Shirt_Sleeve_Left`, `Shirt_Sleeve_Right` | yes, round the tube from the cuff to the underarm curve | as above |
-| Hem, cuffs, sleeve heads, and the woven neck label | `Shirt_Body` | no, colour slot | as above |
-| Collar rib and hem facings | `Rib_1X1_486gsm_116764` | no, colour slot | cotton at roughness 0.9, a shade duller than the body |
-| Placket trim | `Shirt_Front_Trim` | no, colour slot | as above |
+| Hem, cuffs, sleeve heads, and the woven neck label | `Shirt_Body` | no, follows the print background | as above |
+| Collar rib and hem facings | `Rib_1X1_486gsm_116764` | no, accent colour slot | cotton at roughness 0.9, a shade duller than the body |
+| Placket trim | `Shirt_Front_Trim` | no, follows the print background | as above |
+
+A tee is one bolt of jersey with a rib collar sewn to it, so the collar is the
+only part of it with a colour of its own. Everything the four prints do not
+reach is the same cloth as the panels and takes the same print background,
+declared as `blankStockMaterials` in the catalog: the hem band, the cuffs, the
+head of each sleeve, the facings turned under. On colour slots of their own
+they were a second opinion about what the garment was made of — colouring the
+shirt in Parts turned the hem, the cuffs and the sleeve heads that colour and
+left every printed panel on the background, which is a contrast-yoke ringer tee
+arrived at by accident. A zone with nothing uploaded shows its template over
+that same cloth rather than over white, so the empty garment is one colour too.
 
 The modeller cut this garment into pieces and each panel is its own primitive,
 so a panel's boundary is the seam it is sewn on rather than anything guessed.

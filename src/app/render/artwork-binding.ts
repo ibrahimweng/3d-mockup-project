@@ -67,13 +67,26 @@ export function capturePrintRelief(
 }
 
 export function bindArtwork(request: {
+  /**
+   * The cloth this product is printed on, where it has one.
+   *
+   * A zone with nothing uploaded shows the template the file ships with, which
+   * is a print guide drawn on white. On a product whose unprinted parts follow
+   * the print background -- see `blankStockMaterials` -- white is the one
+   * colour that cannot be right: the hem band and the sleeve heads are the
+   * garment's colour and the panel between them is not, which is the contrast
+   * yoke this whole arrangement exists to avoid. So the template is shown over
+   * the cloth instead, and it goes back to white the moment a design lands on
+   * it and must not be tinted.
+   */
+  blankStock?: string;
   clearRelief: boolean;
   materials: readonly THREE.MeshStandardMaterial[];
   printed: boolean;
   relief: PrintRelief;
   texture: THREE.Texture | null;
 }): void {
-  const { clearRelief, materials, printed, relief, texture } = request;
+  const { blankStock, clearRelief, materials, printed, relief, texture } = request;
 
   for (const material of materials) {
     // No upload means the surface goes back to the template printed into the
@@ -85,6 +98,7 @@ export function bindArtwork(request: {
       // A coloured surface under the design would tint it, so the base colour
       // goes white for as long as there is something printed on it.
       if (texture) material.color.set("#ffffff");
+      else if (blankStock) material.color.set(blankStock);
       if (clearRelief) {
         const authored = relief.get(material);
         if (authored) {
@@ -163,16 +177,18 @@ export type ArtworkZoneBinding = {
  */
 export function bindZoneArtwork(request: {
   binding: ArtworkZoneBinding;
+  blankStock?: string;
   clearRelief: boolean;
   printed: boolean;
   texture: THREE.Texture | null;
   transform?: ScreenTransform;
 }): void {
-  const { binding, clearRelief, printed, texture, transform } = request;
+  const { binding, blankStock, clearRelief, printed, texture, transform } = request;
   if (texture && !wrapArtwork(texture, binding.fit, binding.slack)) {
     applyScreenTransform(texture, binding.aspect, transform, binding.slack);
   }
   bindArtwork({
+    blankStock,
     clearRelief,
     materials: binding.materials,
     printed,

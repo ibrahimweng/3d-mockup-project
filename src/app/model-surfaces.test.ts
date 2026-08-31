@@ -151,6 +151,11 @@ describe("the surfaces a merchandise model ships", () => {
         ...COLOR_PART_IDS.flatMap(
           (part) => device.colorParts?.[part]?.materials ?? [],
         ),
+        // Blank cloth is cloth: a shirt's hem band and its sleeve heads are
+        // seen from inside a neck and up a sleeve exactly the way a printed
+        // panel is, and they left the colour slots without leaving the
+        // garment.
+        ...(device.blankStockMaterials ?? []),
       ];
       expect(named.length, `${id} names no materials`).toBeGreaterThan(0);
 

@@ -301,6 +301,11 @@ export type DeviceDefinition = {
    */
   colorParts?: Partial<Record<ColorPartId, ColorPart>>;
   /**
+   * Parts made of the same blank cloth the print zones print on: they follow
+   * the print background, not a colour slot. See the T-shirt in the catalog.
+   */
+  blankStockMaterials?: readonly string[];
+  /**
    * The printable zones this product offers beyond its front.
    *
    * `front` needs no entry: it is `screenMaterial`, which every product

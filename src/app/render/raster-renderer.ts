@@ -35,6 +35,11 @@ type Pose = Readonly<{
 export type RasterSettings = {
   backgroundColor: string;
   device: string;
+  /**
+   * The blank cloth a print sits on, for the parts of the product that are
+   * made of it. Undefined on a device, which prints on nothing.
+   */
+  printBackground: string | undefined;
   environment: string;
   exposure: number;
   finish: string;
@@ -99,6 +104,7 @@ export const LIVE_SETTINGS = [
   "floor",
   "lighting",
   "partColors",
+  "printBackground",
   "showBackground",
   "spin",
   "surface",
@@ -242,6 +248,7 @@ export class RasterRenderer {
         this.invalidateShadow();
         this.onEnvironmentReady?.();
       },
+      blankStock: settings.printBackground,
       partColors: settings.partColors,
       renderer: this.renderer,
       showGround: settings.showBackground,
@@ -317,6 +324,7 @@ export class RasterRenderer {
     this.applyEnvironment(built, settings.environment);
     built.setFinish(readFinishId(settings.finish));
     built.setPartColors(settings.partColors);
+    built.setBlankStock(settings.printBackground);
     built.setLighting(settings.lighting);
     built.setSurface(settings.surface);
     built.setSweep(settings.sweep);
