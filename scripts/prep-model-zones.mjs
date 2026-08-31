@@ -29,10 +29,10 @@ import { fileURLToPath } from "node:url";
 import { NodeIO } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 
-import { along, axisBasis, tangentBasis } from "./prep-model-clip.mjs";
+import { along, axisBasis, cutAlongSeams, tangentBasis } from "./prep-model-clip.mjs";
 import { assignShells, mulN, mulP, smoothNormals } from "./prep-model-geometry.mjs";
 import { boundaryLoops, hemFaces } from "./prep-model-hem.mjs";
-import { mendSlivers, weldFaces } from "./prep-model-mend.mjs";
+import { weldFaces } from "./prep-model-mend.mjs";
 import { cutPrintRegions } from "./prep-model-regions.mjs";
 
 const AXIS = { x: 0, y: 1, z: 2 };
@@ -65,7 +65,7 @@ export function sourceModel(name) {
 }
 
 export async function prepZones({
-  classify, hems, input, leftover, material, output, regions,
+  classify, hems, input, leftover, material, output, regions, seams,
   smoothCreases, trimStyle, weaveDefault = true, zones,
 }) {
   const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
@@ -111,11 +111,9 @@ export async function prepZones({
     }
   }
 
-  // Before anything asks the mesh a question: cut the four-cornered patches a
-  // simplifier left cut the wrong way. A sliver has no direction to face and no
-  // reliable place in an atlas, and both matter from here on.
-  const mended = mendSlivers(faces);
-  if (mended) console.log(`  mended ${mended} slivers left over from simplifying`);
+  // Cut along the lines the zones are about to be divided on, so a design's
+  // edge is a line rather than a sawtooth as deep as the triangles are big.
+  const snap = cutAlongSeams(faces, seams);
 
   const shells = assignShells(faces);
 
@@ -183,7 +181,7 @@ export async function prepZones({
   for (const list of byZone.values()) for (const f of list) for (const w of f.world) for (let q = 0; q < 3; q += 1) {
     span[q][0] = Math.min(span[q][0], w[q]); span[q][1] = Math.max(span[q][1], w[q]);
   }
-  const dropped = weldFaces(byZone, (Math.hypot(...span.map(([a, b]) => b - a)) || 1) * 1e-5);
+  const dropped = weldFaces(byZone, Math.max((Math.hypot(...span.map(([a, b]) => b - a)) || 1) * 1e-5, snap));
   if (dropped) console.log(`  welded away ${dropped} pieces the cut left with no area`);
 
   // Last, so a hem shades as one piece with the cloth it folds from.
@@ -247,16 +245,6 @@ export async function prepZones({
       const p = at(w);
       for (let i = 0; i < 2; i += 1) { lo[i] = Math.min(lo[i], p[i]); hi[i] = Math.max(hi[i], p[i]); }
     }
-    // A measured unwrap has already said how far across its own zone a point
-    // is; only the height it hands back is raw. Measuring the first coordinate
-    // again and rescaling to fit would undo the answer: a face belongs to the
-    // side its middle is on, so a few at each fold reach a little past the end
-    // of it, and rescaling to include those shrinks the design over the whole
-    // panel to leave room -- 5% of it on a gusset, to spare two triangles.
-    // Left alone, that cloth carries the last column of its own side's design,
-    // which is what the clamped sampler gives it, and the rest of the panel
-    // gets the design at full width.
-    if (measured) { lo[0] = 0; hi[0] = 1; }
     const span = [hi[0] - lo[0] || 1, hi[1] - lo[1] || 1];
 
     let t = 0;

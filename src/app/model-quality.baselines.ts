@@ -49,7 +49,7 @@ export const MODEL_TARGET = {
  * which is what a sewn seam is -- two panels stitched together fold sharply.
  * Another 314 are the hems added in phase 3, one per corner of each rim, which
  * is what a fold is. Twenty sit in open cloth, and those are the ones worth
- * chasing. The tote's 922 are the seams, the mouth and the edges of the straps
+ * chasing. The tote's 985 are the seams, the mouth and the edges of the straps
  * on a bag that was modelled with all three.
  *
  * Shading is measured separately and is not affected: `shadingSplitsOnFlat` is
@@ -178,17 +178,19 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
   // at the base and 107mm at the mouth, and a design filling that was squeezed
   // by two fifths.
   //
-  // Coverage reads a little under 1 rather than exactly 1 because a face
-  // belongs to the side its middle is on. The folds are the smoothest part of
-  // the bag and so the part the simplifier left the largest triangles on, so a
-  // few at each fold reach up to three per cent past the end of their own side;
-  // that cloth takes the last column of its own design, which is what the
-  // clamped sampler gives it.
+  // Every boundary a design ends on is cut rather than decided per whole
+  // triangle: the four folds, the base seam and the mouth's hem. A face belongs
+  // to the side its middle is on, and the folds are the smoothest part of the
+  // bag and so the part the simplifier left the largest triangles on, so left
+  // uncut the edge of every design stepped in and out by up to 18mm on a 155mm
+  // gusset -- a zigzag anyone can see. Cut, each side fills its own square
+  // exactly, which is the coverage of 1.
   //
-  // Hard edges read 922 against the 1,839 the same bag measured before its
+  // Hard edges read 985 against the 1,839 the same bag measured before its
   // slivers were mended -- 1,906 four-cornered patches that a simplifier had
-  // cut the wrong way, each leaving a triangle standing less than a fifth of a
-  // millimetre tall over a two-millimetre edge. They print nothing, and until
+  // cut the wrong way, and 996 more that the seam cuts left, each leaving a
+  // triangle standing less than a fifth of a millimetre tall over a
+  // two-millimetre edge. They print nothing, and until
   // they were mended a scatter of them landed reversed in the atlas, because
   // which way round a triangle that thin falls is decided by the last digits of
   // its corners. None of the 922 draws a line over anything flat, which is what
@@ -198,15 +200,15 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
     boundaryEdges: 0,
     coincidentFaces: 0,
     degenerateTriangles: 0,
-    hardInteriorEdges: 922,
+    hardInteriorEdges: 985,
     nonManifoldEdges: 0,
     shadingSplitsOnFlat: 0,
     shells: 3,
     strayTrianglesOnHardware: 0,
     zones: {
-      Bag_Back: { coverage: 0.996, islands: 1, mirroredTriangles: 0, stretch: 1.12 },
-      Bag_Front: { coverage: 0.996, islands: 1, mirroredTriangles: 0, stretch: 1.13 },
-      Bag_Left: { coverage: 0.998, islands: 1, mirroredTriangles: 0, stretch: 1.12 },
+      Bag_Back: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.13 },
+      Bag_Front: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.17 },
+      Bag_Left: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.12 },
       Bag_Right: { coverage: 1, islands: 1, mirroredTriangles: 0, stretch: 1.12 },
     },
   },
