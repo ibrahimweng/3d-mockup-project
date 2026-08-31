@@ -13,6 +13,7 @@
  */
 
 import { faceNormal, inv4, mulP } from "./prep-model-geometry.mjs";
+import { mendSlivers } from "./prep-model-mend.mjs";
 
 const AXIS = { x: 0, y: 1, z: 2 };
 
@@ -34,8 +35,9 @@ function lerpCorner(a, b, t) {
 }
 
 /**
- * Sutherland-Hodgman against one half-plane, given by a direction and how far
- * along it the plane sits.
+ * Sutherland-Hodgman against one half of a cut, given as a signed depth: a
+ * number that is negative on one side of the cut, positive on the other, and
+ * zero on it.
  *
  * A crossing landing within `weld` of a corner it lies between is snapped to
  * that corner instead of being added as a new point. Left unsnapped it makes a
@@ -44,8 +46,37 @@ function lerpCorner(a, b, t) {
  * by four faces. Throwing the splinter away afterwards is worse, because its
  * long edge is a real edge and dropping it opens the seam.
  */
-function clipHalfPlane(poly, normal, keepBelow, value, weld = 0) {
-  const inside = (c) => (keepBelow ? along(normal, c.world) <= value : along(normal, c.world) >= value);
+function clipHalf(poly, depth, keepBelow, weld = 0) {
+  const inside = (c) => (keepBelow ? depth(c) <= 0 : depth(c) >= 0);
+  /**
+   * Where along an edge the cut falls.
+   *
+   * One step of proportion, then three of secant. A flat cut is found exactly
+   * by the first and the rest do not move it; a cut that follows a surface is
+   * not, and the corner it leaves has to land on the cut rather than merely
+   * near it. Near it is enough to draw and not enough to cut along twice: the
+   * next pass sees a corner a tenth of a millimetre off the line, slices there
+   * too, and leaves a splinter between the two. Cutting this tote's four folds
+   * that way opened 262 free edges in a mesh that had none.
+   *
+   * Walked from whichever end of the edge sorts first, never from whichever end
+   * this triangle happens to start at. The two faces either side of an edge
+   * meet it in opposite directions, and starting from opposite ends of a
+   * measurement that changes quickly lands in different places and tears them
+   * apart. This way both get the same answer to the last bit.
+   */
+  const meet = (from, to) => {
+    const [a, b] = order(from.world) > order(to.world) ? [to, from] : [from, to];
+    let lowT = 0, highT = 1, low = depth(a), high = depth(b);
+    let t = low / (low - high);
+    for (let step = 0; step < 3; step += 1) {
+      const d = depth(lerpCorner(a, b, t));
+      if (d === 0) break;
+      if ((d < 0) === (low < 0)) { lowT = t; low = d; } else { highT = t; high = d; }
+      t = lowT + ((highT - lowT) * low) / (low - high);
+    }
+    return lerpCorner(a, b, t);
+  };
   const out = [];
   const push = (c) => {
     const last = out[out.length - 1];
@@ -56,9 +87,8 @@ function clipHalfPlane(poly, normal, keepBelow, value, weld = 0) {
     const aIn = inside(a), bIn = inside(b);
     if (aIn) push(a);
     if (aIn === bIn) continue;
-    const span = along(normal, b.world) - along(normal, a.world);
-    if (span === 0) continue;
-    const at = lerpCorner(a, b, (value - along(normal, a.world)) / span);
+    if (depth(a) === depth(b)) continue;
+    const at = meet(a, b);
     if (apart(at, a) < weld) push(a);
     else if (apart(at, b) < weld) push(b);
     else push(at);
@@ -68,6 +98,9 @@ function clipHalfPlane(poly, normal, keepBelow, value, weld = 0) {
   while (out.length > 1 && apart(out[0], out[out.length - 1]) === 0) out.pop();
   return out;
 }
+
+/** A point's place in a fixed order, so an edge can be walked the same way twice. */
+const order = (w) => `${w[0]},${w[1]},${w[2]}`;
 
 const apart = (a, b) => Math.hypot(
   a.world[0] - b.world[0], a.world[1] - b.world[1], a.world[2] - b.world[2],
@@ -81,12 +114,20 @@ function fanOut(f, poly, into) {
     into.push({
       C: [0, 1, 2].map((q) => corners.reduce((sum, c) => sum + c.world[q] / 3, 0)),
       m: f.m,
+      // Everything a classifier may ask about comes along, not only what the
+      // rebuild needs. A region cut runs after the zones are decided and never
+      // wanted these; a seam cut runs before, and a piece that cannot say which
+      // part of the garment it came off has nothing to be classified by.
+      mesh: f.mesh,
       N: corners.map((c) => c.N),
       owner: f.owner,
+      ownerBox: f.ownerBox,
       P: corners.map((c) => mulP(ivm, c.world)),
       shell: f.shell,
       shellInfo: f.shellInfo,
+      source: f.source,
       UV0: corners.map((c) => c.UV0),
+      uvV: corners.reduce((sum, c) => sum + c.UV0[1] / 3, 0),
       world: corners.map((c) => [...c.world]),
       WN: f.WN,
     });
@@ -107,12 +148,32 @@ function fanOut(f, poly, into) {
  * slice of artwork on them reads mirrored.
  */
 export function splitFacesByPlane(faces, normal, value, tolerance = 0, weld = 0) {
+  return splitFacesByField(faces, (w) => along(normal, w) - value, tolerance, weld);
+}
+
+/**
+ * Cut every face along a line drawn on the surface itself.
+ *
+ * `depth` is negative on one side of the cut, positive on the other, and zero
+ * on it. It need not be flat: a tote's four folds run up a bag that tapers, so
+ * they lean, and no plane passes through one. A triangle is a couple of
+ * millimetres of a surface the measurement varies smoothly over, so one step
+ * along an edge already finds the crossing closely and `meet` finishes it.
+ *
+ * This is what makes a zone boundary a line rather than a sawtooth. Deciding
+ * per whole triangle which side of a fold it is on leaves the design's edge
+ * stepping in and out by however big the triangles are, and the folds are the
+ * smoothest part of a bag and so the part a simplifier leaves the largest
+ * triangles on -- 18mm of zigzag on a 155mm gusset.
+ */
+export function splitFacesByField(faces, depth, tolerance = 0, weld = 0) {
   const out = [];
+  const at = (c) => depth(c.world);
   for (const f of faces) {
     const poly = [0, 1, 2].map((k) => cornerAt(f, k));
     let mn = Infinity, mx = -Infinity;
     for (const c of poly) {
-      const d = along(normal, c.world);
+      const d = at(c);
       mn = Math.min(mn, d); mx = Math.max(mx, d);
     }
     // Wholly on one side, or straddling by less than the tolerance: pass it
@@ -126,9 +187,9 @@ export function splitFacesByPlane(faces, normal, value, tolerance = 0, weld = 0)
     // The tolerance is a millionth of the model's own size -- far below any
     // feature, and far below the weld, so a neighbour cut at a point this one
     // was not still closes up.
-    if (mx <= value + tolerance || mn >= value - tolerance) { out.push(f); continue; }
+    if (mx <= tolerance || mn >= -tolerance) { out.push(f); continue; }
     for (const keepBelow of [true, false]) {
-      fanOut(f, clipHalfPlane(poly, normal, keepBelow, value, weld), out);
+      fanOut(f, clipHalf(poly, at, keepBelow, weld), out);
     }
   }
   return out;
@@ -173,4 +234,60 @@ export function tangentBasis(faces) {
 export function faceInBox(f, basis, min, max) {
   const c = [basis.u, basis.v].map((n) => f.world.reduce((sum, w) => sum + along(n, w) / 3, 0));
   return c[0] >= min[0] && c[0] <= max[0] && c[1] >= min[1] && c[1] <= max[1];
+}
+
+/**
+ * Cut a mesh along every line its zones will be divided on, and leave it sound.
+ *
+ * Before anything is classified, because these are the boundaries the
+ * classifier is about to use: cutting first is what lets it answer per whole
+ * triangle and still land exactly on the line. `cutPrintRegions` cuts later and
+ * for a different reason -- it takes a rectangle out of a zone that has already
+ * been chosen.
+ *
+ * Three passes, and each earns its place.
+ *
+ * The mend before, because a simplifier leaves triangles with their three
+ * corners nearly in a line, and one of those crossing a seam hangs half its
+ * length over it.
+ *
+ * The cut with no tolerance. On a plane, passing through a face that straddles
+ * by a millionth costs nothing, because its neighbours straddle by the same
+ * millionth and are passed through too. On a cut that follows a surface they
+ * are not, and every face passed through beside one that was cut leaves their
+ * shared edge split on one side only: at a millionth of a turn round a tote,
+ * 20 free edges, and at a ten-thousandth, 123. The snap is what keeps the
+ * splinters out instead -- a crossing landing within it of a corner takes that
+ * corner, so the cut wanders by up to that much and never leaves a piece
+ * thinner than it.
+ *
+ * And the mend again after, on what the cut itself left: a crossing landing
+ * just outside the snap adds a corner a hundredth of a millimetre from one
+ * already there, and the needle that leaves shades against all three of its
+ * neighbours -- six lines drawn over flat cloth along a tote's base seam.
+ *
+ * Returns the snap, because anything the cut may move a corner by is also
+ * something the weld afterwards has to close: two corners a snap apart are the
+ * same corner, and left unfused they shade as two.
+ */
+export function cutAlongSeams(faces, seams) {
+  const mended = mendSlivers(faces);
+  if (mended) console.log(`  mended ${mended} slivers left over from simplifying`);
+  if (!seams?.length) return 0;
+
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (const f of faces) for (const w of f.world) for (let q = 0; q < 3; q += 1) {
+    lo[q] = Math.min(lo[q], w[q]); hi[q] = Math.max(hi[q], w[q]);
+  }
+  const snap = (Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) || 1) * 2e-5;
+  const was = faces.length;
+  let cut = faces;
+  for (const seam of seams) cut = splitFacesByField(cut, seam, 0, snap);
+  faces.length = 0;
+  faces.push(...cut);
+  console.log(`  cut ${faces.length - was} faces out of the seams`);
+
+  const after = mendSlivers(faces);
+  if (after) console.log(`  mended ${after} slivers the cut left`);
+  return snap;
 }

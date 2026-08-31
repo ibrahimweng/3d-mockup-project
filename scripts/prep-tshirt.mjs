@@ -17,6 +17,11 @@ import { copyFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 
+import { NodeIO } from "@gltf-transform/core";
+import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
+
+import { faceNormal, mulP } from "./prep-model-geometry.mjs";
+import { unrollAround } from "./prep-model-wrap.mjs";
 import { prepZones, repoPath, sourceModel } from "./prep-model-zones.mjs";
 
 const template = (name) => repoPath("public", "templates", `${name}.png`);
@@ -91,36 +96,138 @@ for (const [material, leftover, zones, classify] of passes) {
   await copyFile(step, source);
 }
 /**
- * What actually prints, cut in one last pass with every panel present.
+ * What actually prints, in one last pass with every panel present.
  *
- * A garment is not a rectangle and its panels are not flat, so unwrapping a
- * whole panel onto a square did two things wrong at once. Artwork ran off the
- * cloth at the edges -- the square is bigger than the panel -- and where the
- * panel curved past the direction it was projected along, at the sides of the
- * chest and under the sleeves, its triangles projected back to front and their
- * slice of the design came out mirrored: 156 triangles on the front, 411 on the
- * back, and about 670 on each sleeve.
+ * A design fills its panel: front and back from the shoulder to the hem and
+ * side seam to side seam, each sleeve from the armhole to the cuff. The
+ * boundaries are the garment's own -- the modeller cut this shirt into pieces
+ * and each panel is its own primitive -- so nothing has to be guessed and no
+ * edge comes out a sawtooth. What replaced is a 240 by 320mm platen on the
+ * chest and a 60mm patch on each sleeve, which between them printed on an
+ * eighth of the cloth.
  *
- * A printer has the same problem and solves it with a platen: a flat rectangle
- * of cloth held under the head. 240 by 320mm on the body is a standard chest
- * print, and it sits inside the 277mm the front panel keeps facing forward. The
- * sleeves take a patch, because a sleeve is a cone and the only part of it that
- * faces one way for long enough to print on is the outer upper face.
+ * The platen was there for a reason, and this is the answer to it. A panel is
+ * not flat: it wraps round the body, and where it curved past the direction it
+ * was projected along -- the sides of the chest, the underside of a sleeve --
+ * its triangles projected back to front and their slice of the design came out
+ * mirrored, 156 of them on the front and about 670 on each sleeve. So the
+ * design follows the cloth instead of a plane. The shirt is sliced into rings,
+ * each ring is walked round to give distance travelled, and a point sits where
+ * it falls along its own ring.
  *
- * The cut runs over every panel at once rather than per pass. The front and
- * back share ninety edges down their side seams, and cutting them separately
- * divides those edges in two different places, which opens the seam.
+ * Rings across the body for the panels, and rings across each sleeve's own axis
+ * for the sleeves, because a sleeve is a tube lying at about forty degrees to
+ * every world axis and a horizontal slice of one is not a ring.
  */
+const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
+const stitched = await io.read(source);
+
+/** Every triangle of the garment, in world space, under the piece it belongs to. */
+const cloth = new Map();
+for (const node of stitched.getRoot().listNodes()) {
+  const mesh = node.getMesh();
+  if (!mesh) continue;
+  const m = node.getWorldMatrix();
+  for (const prim of mesh.listPrimitives()) {
+    const name = prim.getMaterial()?.getName() ?? "";
+    const pos = prim.getAttribute("POSITION"), idx = prim.getIndices();
+    const count = idx ? idx.getCount() : pos.getCount();
+    const list = cloth.get(name) ?? cloth.set(name, []).get(name);
+    for (let i = 0; i < count; i += 3) {
+      list.push([0, 1, 2].map((k) => mulP(m, pos.getElement(idx ? idx.getScalar(i + k) : i + k, [0, 0, 0]))));
+    }
+  }
+}
+
+const BODY = ["Shirt_Front", "Shirt_Back"];
+const SLEEVES = ["Shirt_Sleeve_Left", "Shirt_Sleeve_Right"];
+
+/**
+ * A sleeve's own axis, and where its rings start.
+ *
+ * From the middle of the fifth nearest the body to the middle of the fifth
+ * furthest from it, which is armhole to cuff. Taking the direction the sleeve
+ * is most spread along instead -- the obvious thing, and what a first version
+ * did -- gives an axis six degrees steeper, because a flared sleeve is spread
+ * across as much as along. Six degrees is enough to walk the axis out through
+ * the cloth: the nearest point of the surface fell to 2mm from it, and a ring
+ * measured about an axis lying on its own surface spins.
+ *
+ * The rings start underneath, so that is where a design going all the way round
+ * has its join, which is where a sleeve is sewn.
+ */
+function sleeveFrame(name) {
+  const points = cloth.get(name).flat();
+  const centre = [0, 1, 2].map((q) => points.reduce((sum, p) => sum + p[q], 0) / points.length);
+  const out = name.endsWith("Left") ? -1 : 1;
+  const reach = points.map((p) => p[0] * out).sort((a, b) => a - b);
+  const middle = (of) => {
+    const some = points.filter(of);
+    return [0, 1, 2].map((q) => some.reduce((sum, p) => sum + p[q], 0) / some.length);
+  };
+  const armhole = middle((p) => p[0] * out <= reach[Math.floor(reach.length * 0.2)]);
+  const cuff = middle((p) => p[0] * out >= reach[Math.floor(reach.length * 0.8)]);
+  const along = [0, 1, 2].map((q) => cuff[q] - armhole[q]);
+  const length = Math.hypot(...along) || 1;
+  return { axis: along.map((c) => c / length), centre };
+}
+
+/**
+ * One unroll per zone, each starting its count where that zone's design should
+ * start and stop.
+ *
+ * The body panels are measured on rings taken across both of them at once,
+ * because a horizontal slice of a shirt is a ring only if the front and the
+ * back are both in it. Each panel then counts from the middle of the other,
+ * which puts the one place the count jumps as far from its own cloth as the
+ * garment allows.
+ */
+const body = BODY.flatMap((name) => cloth.get(name));
+const roll = {
+  Shirt_Front: unrollAround(body, { seam: [0, 0, -1] }),
+  Shirt_Back: unrollAround(body, { seam: [0, 0, 1] }),
+};
+for (const name of SLEEVES) {
+  roll[name] = unrollAround(cloth.get(name), { axis: sleeveFrame(name).axis, seam: [0, -1, 0] });
+}
+
 const MM = 1 / 1000;   // the source's own texture coordinates are in millimetres
-// The front keeps 277mm facing forward and the back only 185mm, so the back
-// print is the narrower of the two. That is the garment, not a preference: the
-// back panel wraps further round the body before the surface turns away, and
-// artwork past that point projects back to front.
-const CHEST_FRONT = [240 * MM, 320 * MM];
-const CHEST_BACK = [180 * MM, 320 * MM];
-// A sleeve is a cone. Only its outer upper face holds one direction long enough
-// to print on, and that face measures about 84mm top to bottom.
-const PATCH = [60 * MM, 60 * MM];
+/**
+ * The band at the hem that the print stops short of.
+ *
+ * A tee's hem is turned under and topstitched, and no printer puts ink on a
+ * fold. It also has to belong to a zone of its own for the fold itself to be
+ * added later: `hems` turns the three longest rims of the body cloth under, and
+ * if the panels own those rims to the last vertex there is no body cloth left
+ * holding one. Stated as a height and cut as one, which is what makes it a
+ * straight line rather than a sawtooth at triangle scale.
+ */
+const HEM_BAND = 32 * MM;
+/** Below anything the model can tell apart, and far above float noise. */
+const HAIR = 1e-9;
+
+const floor = Math.min(...body.flat().map((p) => p[1]));
+const hemLine = floor + HEM_BAND;
+/**
+ * How far along each sleeve the design runs.
+ *
+ * A sleeve is a tube for most of its length and not one at the top: the armhole
+ * is cut along a curve running a third of the way back down the sleeve's own
+ * axis, so the slices through that end meet the cloth on some sides and not
+ * others and there is nothing there to measure a way round from. `tube` is the
+ * part that is one; the sleeve head above it stays plain, which is where a
+ * sleeve is sewn in and a fair place for a print to stop. Filling it anyway put
+ * the design at twice the ink with forty triangles of it backwards. The cuff is
+ * turned under like the hem and takes no ink for the same reason.
+ */
+const CUFF_BAND = 28 * MM;
+const alongSleeve = {};
+for (const name of SLEEVES) {
+  const at = (w) => roll[name].across()(w)[1];
+  const [head, end] = roll[name].tube();
+  alongSleeve[name] = { at, cuff: end - CUFF_BAND, head };
+}
+
 /**
  * Hem, cuffs and neck, turned under.
  *
@@ -136,8 +243,6 @@ const HEMS = [
   { loops: 1, segments: 6, thickness: 4 * MM, width: 10 * MM, zone: "Rib_1X1_486gsm_116764" },
 ];
 
-const BODY = ["Shirt_Front", "Shirt_Back"];
-const SLEEVES = ["Shirt_Sleeve_Left", "Shirt_Sleeve_Right"];
 /**
  * The woven label at the back of the neck.
  *
@@ -151,34 +256,69 @@ const SLEEVES = ["Shirt_Sleeve_Left", "Shirt_Sleeve_Right"];
 const LABEL = "Cotton_Heavy_Twill_116740.004";
 
 const printed = await prepZones({
-  classify: (f) => (f.source.getName() === LABEL ? "Shirt_Body" : f.source.getName()),
+  /**
+   * Which piece of the garment a triangle is.
+   *
+   * The modeller already cut this shirt up, so a face is whatever piece it came
+   * on -- except at the hem and the cuffs, where the printed panel stops short
+   * and hands the last band to the plain cloth that is about to be turned
+   * under. A piece has to be wholly inside the band to be printed, so a sliver
+   * left straddling the cut by the snap goes to the plain cloth rather than
+   * putting a speck of design on a fold.
+   */
+  classify: (f) => {
+    const piece = f.source.getName();
+    if (piece === LABEL) return "Shirt_Body";
+    const ys = f.world.map((w) => w[1]);
+    if (BODY.includes(piece) && Math.min(...ys) < hemLine - HAIR) return "Shirt_Body";
+    const sleeve = alongSleeve[piece];
+    if (sleeve) {
+      const along = f.world.map(sleeve.at);
+      const inside = Math.min(...along) > sleeve.head - HAIR && Math.max(...along) < sleeve.cuff + HAIR;
+      if (!inside) return "Shirt_Body";
+    } else if (!BODY.includes(piece)) {
+      return piece;
+    }
+    // Cloth tucked into a fold: the inside of a side seam, the crease under an
+    // arm. It is part of the panel and it faces inward, so an unwrap measured
+    // round the outside has nothing to say about it and its slice of the design
+    // arrives backwards -- eleven triangles down the back's side seams and half
+    // a dozen in each underarm. It goes to the plain cloth, which is where a
+    // seam allowance belongs, and it is hidden in the fold either way.
+    const facet = faceNormal(f);
+    const out = roll[piece].outward(f.C);
+    return facet[0] * out[0] + facet[1] * out[1] + facet[2] * out[2] > 0 ? piece : "Shirt_Body";
+  },
   hems: HEMS,
-  input: source,
+  input: stitched,
   leftover: "Shirt_Body",
   // The collar rib is in the cut without being printed on. It shares eighty
   // edges with the panels around the neck, and cutting the panel side of those
   // seams without cutting the rib side opened 113mm of them.
   material: [...BODY, ...SLEEVES, "Shirt_Front_Trim", "Rib_1X1_486gsm_116764", LABEL],
   output: build("tshirt.printed.glb"),
-  regions: {
-    // Sat 75mm below the collar rather than centred on the panel, which is
-    // where a chest print goes and where the panel is flattest.
-    Shirt_Front: { axes: ["x", "y"], from: BODY, offset: [0, 0.064], outside: "Shirt_Body", size: CHEST_FRONT },
-    Shirt_Back: { axes: ["x", "y"], from: BODY, offset: [0, 0.064], outside: "Shirt_Body", size: CHEST_BACK },
-    // Measured on the sleeve's own surface, and each sleeve on its own: they are
-    // mirror images, so one plane cannot serve both.
-    Shirt_Sleeve_Left: { axes: "tangent", offset: [0, 0.092], outside: "Shirt_Body", size: PATCH },
-    Shirt_Sleeve_Right: { axes: "tangent", offset: [0, 0.092], outside: "Shirt_Body", size: PATCH },
-  },
+  // Every line a design ends on that the garment does not already draw: the
+  // hem, each sleeve's two ends, and the underarm join where a sleeve's design
+  // starts and stops. Everything else is a seam the modeller already cut.
+  seams: [
+    (w) => w[1] - hemLine,
+    ...SLEEVES.flatMap((name) => [
+      (w) => alongSleeve[name].at(w) - alongSleeve[name].head,
+      (w) => alongSleeve[name].at(w) - alongSleeve[name].cuff,
+      roll[name].start(),
+    ]),
+  ],
   trimStyle: COTTON,
   zones: {
-    Shirt_Front: { ...COTTON, template: template("tshirt-front"), unwrap: ["x", "y"] },
-    Shirt_Back: { ...COTTON, flipU: true, template: template("tshirt-back"), unwrap: ["x", "y"] },
-    // Laid on the sleeve rather than projected down an axis: the cone sits at
-    // an angle to all three, and down any of them the ink bunches up where the
-    // cloth turns edge-on.
-    Shirt_Sleeve_Left: { ...COTTON, template: template("tshirt-sleeve-left"), unwrap: "tangent" },
-    Shirt_Sleeve_Right: { ...COTTON, flipU: true, template: template("tshirt-sleeve-right"), unwrap: "tangent" },
+    // Each panel measured round the cloth rather than projected onto a plane,
+    // and each running left to right as somebody facing it sees it.
+    Shirt_Front: { ...COTTON, template: template("tshirt-front"), unwrap: roll.Shirt_Front.across(), weaveAxes: ["x", "y"] },
+    Shirt_Back: { ...COTTON, template: template("tshirt-back"), unwrap: roll.Shirt_Back.across(), weaveAxes: ["x", "y"] },
+    // Round the sleeve and along it, with the join at the underarm, which is
+    // where a sleeve is sewn. Projected onto a plane instead the ink bunches up
+    // where the cloth turns edge-on, which is most of a cone.
+    Shirt_Sleeve_Left: { ...COTTON, template: template("tshirt-sleeve-left"), unwrap: roll.Shirt_Sleeve_Left.across(), weaveAxes: ["z", "y"] },
+    Shirt_Sleeve_Right: { ...COTTON, template: template("tshirt-sleeve-right"), unwrap: roll.Shirt_Sleeve_Right.across(), weaveAxes: ["z", "y"] },
     Shirt_Front_Trim: { ...COTTON },
     /**
      * The collar rib and the facings turned under the hem.

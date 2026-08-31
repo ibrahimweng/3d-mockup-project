@@ -31,17 +31,27 @@ export const MERCHANDISE_CATALOG = {
     label: "T-Shirt",
     modelFile: "tshirt.glb",
     artworkSurface: "print",
-    // Four print areas, each filling 0 to 1 on its own: a 240 by 320mm chest
-    // print, a 180 by 320mm back print, and a 60mm square patch on each sleeve.
-    // The back is the narrower of the two because the back panel wraps further
-    // round the body before its surface turns away, and artwork past that point
-    // projects back to front. `Shirt_Body` is the cloth outside them.
+    // Four print areas, each filling its whole panel and filling 0 to 1 on its
+    // own: front and back from the shoulder to the hem and side seam to side
+    // seam, and each sleeve round the tube from the cuff to the underarm curve.
+    // The boundaries are the garment's own -- the modeller cut this shirt into
+    // pieces and each panel is a primitive -- so no edge has to be guessed.
+    //
+    // The unwrap is written into the file and follows the cloth rather than a
+    // plane: the shirt is sliced into rings, across the body for the panels and
+    // across each sleeve's own axis for the sleeves, and a point sits where it
+    // falls along its own ring. A panel wraps round the body, and projected
+    // onto a plane the cloth past the turn prints back to front.
+    //
+    // A panel is not a rectangle -- there is a neck curve and two armholes cut
+    // out of it -- so the corners of a design land where the cloth is not, and
+    // its template shows the outline. `Shirt_Body` is the hem, the cuffs, the
+    // sleeve heads and the facings: everything a print stops at.
     //
     // The garment was authored in a clothing tool that writes texture
     // coordinates in millimetres, so nothing usable survived in the original
     // unwrap -- but those millimetres are what gives the model its scale: one
-    // world unit is one metre. Back and right sleeve are mirrored in u so
-    // artwork reads the right way round from those sides.
+    // world unit is one metre.
     //
     screenMaterial: "Shirt_Front",
     artworkZones: {

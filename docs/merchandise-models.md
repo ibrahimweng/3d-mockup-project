@@ -106,23 +106,46 @@ A heavyweight cotton tee, photographed close up.
 
 | Part | Material | Prints? | Surface |
 | --- | --- | --- | --- |
-| Front, back panels | `Shirt_Front`, `Shirt_Back` | yes | jersey: metallic 0, roughness 0.86, weave normal map on TEXCOORD_1 |
-| Sleeve print patches | `Shirt_Sleeve_Left`, `Shirt_Sleeve_Right` | yes, flat patch on the outer upper sleeve | as above |
-| Cloth outside every print area, and the woven neck label | `Shirt_Body` | no, colour slot | as above |
+| Front, back panels | `Shirt_Front`, `Shirt_Back` | yes, seam to seam | jersey: metallic 0, roughness 0.86, weave normal map on TEXCOORD_1 |
+| Sleeves | `Shirt_Sleeve_Left`, `Shirt_Sleeve_Right` | yes, round the tube from the cuff to the underarm curve | as above |
+| Hem, cuffs, sleeve heads, and the woven neck label | `Shirt_Body` | no, colour slot | as above |
 | Collar rib and hem facings | `Rib_1X1_486gsm_116764` | no, colour slot | cotton at roughness 0.9, a shade duller than the body |
 | Placket trim | `Shirt_Front_Trim` | no, colour slot | as above |
 
-One garment shell, so panels are separated by face direction, not by island.
+The modeller cut this garment into pieces and each panel is its own primitive,
+so a panel's boundary is the seam it is sewn on rather than anything guessed.
 Hem, cuffs and neck are turned under — 20mm on the body and the cuffs, 10mm at
 the neck, each rim reading at twice its cloth. The shirt is shot close up, and a
 paper-thin rim is exactly what gives that away. Every panel renders both faces so the
 cloth is never see-through from an angle.
 
-A sleeve is a cone and cannot flatten into a square without either distortion
-or a cut. So it does not try: the sleeve carries a **flat rectangular print
-patch on its outer upper face, about 8 by 8 cm**, which is what a sleeve print
-physically is. The patch unwraps with no stretch and no mirroring, and the rest
-of the sleeve is plain cloth.
+Each panel prints **to its seams** — 458 by 586mm on the front, 448 by 604mm on
+the back, 407mm round each sleeve by 103mm from the cuff to the underarm curve.
+Ink stops at the hem, the cuffs, the collar rib and the sleeve heads, which is
+where a tee is sewn and folded and where no printer puts ink.
+
+A plane cannot hold a panel that wraps round a body: projected onto one, the
+cloth past the turn prints back to front — 156 triangles on the front, 411 on
+the back and about 670 on each sleeve, which is why this used to be a 240 by
+320mm platen. So the design follows the cloth. The shirt is sliced into rings,
+each ring is walked round to give distance travelled, and a point sits where it
+falls along its own ring: across the body for the panels, across each sleeve's
+own axis for the sleeves. Six triangles of the whole garment still read the
+wrong way round, all of them cloth folded into a seam.
+
+A sleeve's axis is found armhole-to-cuff, not by where the sleeve is most spread
+— a flared sleeve is spread across as much as along, and that axis is six
+degrees steeper, which walks it out through the cloth. The sleeve head is left
+plain because it is the part of a sleeve that is not a tube: the armhole is cut
+along a curve running a third of the way back down the axis, so the slices
+through it are not rings and there is nothing there to measure a way round from.
+
+A shirt panel is not a rectangle. It has a neck curve and two armholes cut out
+of it, so it fills its own bounding box 0.875 to 0.909 and the corners of a
+rectangular design land where the cloth is not — which is what printing a
+rectangle on a cut panel does. `CUT_PANELS` in the baselines names the zones
+this applies to and holds them to it; every other zone is a rectangle and stays
+at 0.95.
 
 ### Water bottle
 
@@ -189,8 +212,8 @@ three are declared `fixedMaterials`, and the test now exists.
 
 | id | Invariant | When the schema was written |
 | --- | --- | --- |
-| B1 | A print zone's unwrap covers ≥ 0.95 of its 0–1 square, measured against the area the zone declares printable (full bleed on the card and on every side of the tote, patch on the sleeves). Below that, part of the template the user is handed never reaches the product. | — all of them: card 0.987 · tote 0.996–1.00 · shirt 1.00 · bottle 1.00 · folder 0.998 |
-| B2 | Stretch ≤ 1.25 — the ink per square millimetre in the tightest one per cent of a zone, against the middle of it, so a design lands at an even density. | — all of them: card 1.00 · tote ≤ 1.13 · shirt ≤ 1.06 · bottle 1.20 · folder 1.00 |
+| B1 | A print zone's unwrap covers ≥ 0.95 of its 0–1 square, or, for a zone that is a panel the garment was cut from rather than a rectangle, as much of it as the panel's own silhouette fills its bounding box. Below that, part of the template the user is handed never reaches the product. | — all of them: card 0.987 · tote 1.00 · shirt 0.875–0.909 as cut panels · bottle 1.00 · folder 0.998 |
+| B2 | Stretch ≤ 1.25 — the ink per square millimetre in the tightest one per cent of a zone, against the middle of it, so a design lands at an even density. | — all of them: card 1.00 · tote ≤ 1.17 · shirt ≤ 1.23 · bottle 1.20 · folder 1.00 |
 | B3 | Zero mirrored triangles within a zone: every triangle in a zone has the same UV handedness, or the artwork folds back on itself. | card 0, tote 0 — · **shirt 156/411/678/667** |
 | B4 | A zone's triangles form one connected atlas island, so text is never cut across a gap. | — all of them |
 | B5 | Each template PNG's aspect ratio matches its print area's measured aspect within 2%. | — regenerated with the areas |
@@ -400,7 +423,8 @@ the shirt's two long-standing ones with it.
 
 | Question | Decision |
 | --- | --- |
-| Sleeve artwork | A flat 8×8 cm patch on the outer upper sleeve, not a full-sleeve wrap |
+| Sleeve artwork | Round the sleeve from the cuff to the underarm curve, with the join at the underarm; the sleeve head stays plain because it is the part of a sleeve that is not a tube |
+| Shirt print extent | Each panel to the seams it is sewn on, unwrapped round the body's and each sleeve's own cross-sections rather than projected onto a plane |
 | Tote print extent | The whole of each side, fold to fold and base to mouth, unwrapped round the bag's own cross-sections rather than projected onto a plane |
 | Open rims | Real folded hems on the tote mouth and the shirt hem, cuffs and neck |
 | Review cadence | One branch per phase, renders reviewed before the next begins |

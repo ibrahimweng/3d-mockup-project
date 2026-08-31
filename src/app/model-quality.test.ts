@@ -3,9 +3,11 @@ import { describe, expect, test } from "vitest";
 import { readGltfJson, readModelTriangles, type Triangle } from "./model-file-test-utils";
 import { edgesOf, geometryOf, shellsOf, uvOf } from "./model-measure-test-utils";
 import {
+  CUT_PANELS,
   HARDWARE_MATERIALS,
   MODEL_BASELINES,
   MODEL_TARGET,
+  PANEL_COVERAGE,
   SOFT_GOODS,
   ZONE_TARGET,
   type ModelBaseline,
@@ -153,7 +155,10 @@ describe("what the merchandise models are made of", () => {
         const uv = uvOf(zoneTriangles(triangles, material));
         expect(uv, `${id} ${material} carries no texture coordinates`).not.toBeNull();
         if (!uv) continue;
-        ratchet(`${id} ${material} coverage`, uv.coverage, want.coverage, ZONE_TARGET.coverage, "higher");
+        // A zone that is a cut panel fills its square as much as its own
+        // silhouette fills its bounding box, and no unwrap raises that.
+        const fill = CUT_PANELS.includes(material) ? PANEL_COVERAGE : ZONE_TARGET.coverage;
+        ratchet(`${id} ${material} coverage`, uv.coverage, want.coverage, fill, "higher");
         ratchet(`${id} ${material} islands`, uv.islands, want.islands, ZONE_TARGET.islands, "lower");
         ratchet(`${id} ${material} mirrored triangles`, uv.mirroredTriangles, want.mirroredTriangles,
           ZONE_TARGET.mirroredTriangles, "lower");

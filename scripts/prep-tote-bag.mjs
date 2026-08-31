@@ -109,10 +109,43 @@ for (const mesh of doc.getRoot().listMeshes()) for (const prim of mesh.listPrimi
   }
 }
 assignShells(corners);
-const roll = unrollAround(corners.filter((f) => f.shell === 0).map((f) => f.world));
+const bag = corners.filter((f) => f.shell === 0).map((f) => f.world);
+const roll = unrollAround(bag);
+
+// The bag's own floor and mouth, which the two horizontal seams are measured
+// from. Taken off the bag rather than off the whole model, whose top is the
+// handles standing 238mm above the mouth.
+let floor = Infinity, mouth = -Infinity;
+for (const t of bag) for (const w of t) { floor = Math.min(floor, w[1]); mouth = Math.max(mouth, w[1]); }
 
 /** Which zone each of the four sides is, by the way it faces. */
 const SIDE = { "+x": "Bag_Back", "+z": "Bag_Right", "-x": "Bag_Front", "-z": "Bag_Left" };
+
+/**
+ * Where the printed cloth starts and stops up the bag.
+ *
+ * Both are real lines on a real tote: the base is a separate panel stitched on
+ * at the bottom of the roll, and the mouth is turned under and topstitched. So
+ * both are stated as a height and cut as one, which is what makes them
+ * straight. Deciding them from which way a face points instead -- the wall
+ * turns down onto the base over four millimetres, and over the rim in two --
+ * puts the boundary wherever the triangles happen to fall, and the design's
+ * edge comes out a zigzag four millimetres deep.
+ *
+ * A piece is printed only if it lies wholly between the two, rather than merely
+ * have its middle between them. The cut leaves corners on the line to within a
+ * rounding error, but a crossing landing within a hair of an existing corner
+ * takes that corner instead of adding one, so a few slivers along each seam do
+ * straddle it. Judged by their middles they scattered twenty specks of printed
+ * cloth into the hem, each a fraction of a square millimetre and each its own
+ * island in the atlas; judged the other way round they take plain canvas into
+ * the print, which is the same defect facing the other way. Whole or not at
+ * all, and a straddler goes to the plain cloth, where a sliver among more of
+ * the same is nothing at all.
+ */
+const SEAM = { base: 3.5 * MM, hem: 3 * MM };
+/** Below anything the model can tell apart, and far above float noise. */
+const HAIR = 1e-6;
 
 const box = boxOf(placed.positions);
 console.log(`  placed ${box.size.map((n) => (n * 66.84).toFixed(0)).join(" x ")} mm, `
@@ -148,28 +181,25 @@ const report = await prepZones({
     if (f.shell !== 0) return "Bag_Handles";
     const middle = f.shellInfo.centre;
     if (f.WN.reduce((sum, n, q) => sum + n * (f.C[q] - middle[q]), 0) <= 0) return "Bag_Lining";
-    // The bottom is a separate piece of cloth and takes no design, so it is
-    // still found by facing downward rather than by where it sits.
-    if (f.WN[1] < -0.6) return "Bag_Base";
-    // The crown of the mouth: the two millimetres where the cloth turns over
-    // the rim and starts back down inside. It is still outward-facing, so the
-    // test above keeps it, but it is a fold, and an unwrap that runs up the
-    // side of the bag cannot hold one -- the design arrived there doubled back
-    // on itself. A printed panel stops at the top of its hem for the same
-    // reason, and this is that hem.
-    //
-    // Two ways to be past the crest and both have to be caught: pointing up
-    // rather than sideways, which is the crest itself, or pointing back inward
-    // while still standing above the middle of the bag, which is the cloth just
-    // over it on the way down inside. 136 faces of the front were doing the
-    // second at half a millimetre below the crest, up and inward at once.
-    //
-    // Both questions go to the triangle rather than to the cloth around it. The
-    // roll is about as wide as one triangle, so the average over a face's
-    // neighbours is half wall and half rim and answers for neither: asking it
-    // left 320 of the roll's 400 faces in the print zones, every one mirrored.
+    // The bottom is a separate piece of cloth and takes no design.
+    const ys = f.world.map((w) => w[1]);
+    if (Math.min(...ys) < floor + SEAM.base - HAIR) return "Bag_Base";
+    // The mouth's hem: the last few millimetres, where the cloth turns over the
+    // rim and starts back down inside. A printed panel stops at the top of its
+    // hem on a real bag, and an unwrap that runs up the side of this one could
+    // not hold that fold anyway -- the design arrived there doubled back on
+    // itself, 136 faces of the front alone at half a millimetre below the
+    // crest, pointing up and inward at once.
+    if (Math.max(...ys) > mouth - SEAM.hem + HAIR) return "Bag_Lining";
+    // Inside the rim, below the hem. The outward test above measures away from
+    // the middle of the whole bag, and near the mouth that is mostly upward, so
+    // it reads the inner face of the rim as outward and prints on it -- twenty
+    // specks of design on the wrong side of the cloth, each its own island in
+    // the atlas because the outer skin they belong to is on the other side of
+    // the fold. Measured only across, an inner face points inward wherever it
+    // sits. This one asks the triangle, because a fold one triangle wide
+    // averages to nothing useful.
     const facet = faceNormal(f);
-    if (facet[1] > Math.hypot(facet[0], facet[2])) return "Bag_Lining";
     if (facet[0] * (f.C[0] - middle[0]) + facet[2] * (f.C[2] - middle[2]) <= 0) return "Bag_Lining";
     return SIDE[roll.facing(f.C)];
   },
@@ -180,6 +210,11 @@ const report = await prepZones({
   leftover: "Bag_Base",
   material: "Canvas",
   output: repoPath("public", "models", "tote-bag.glb"),
+  // Divide the cloth along every line a zone ends on, before deciding what
+  // anything is: the four folds, the base seam and the mouth's hem. A boundary
+  // decided per whole triangle is a sawtooth as deep as the triangles are big,
+  // and these are the boundaries between one uploaded design and the next.
+  seams: [...roll.seams(), (w) => w[1] - (floor + SEAM.base), (w) => w[1] - (mouth - SEAM.hem)],
   // A fold in cotton duck is a soft one. Past 50 degrees the cloth is doubled
   // over -- the mouth, the base seam, the edge of a strap -- and that is a line
   // you can see; below it the surface is slack cloth and shading across it is
