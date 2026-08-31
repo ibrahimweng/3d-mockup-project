@@ -30,6 +30,8 @@ export type GltfMaterial = {
   pbrMetallicRoughness?: {
     baseColorTexture?: { index: number; texCoord?: number };
     metallicFactor?: number;
+    /** Roughness in its green channel and metalness in its blue. */
+    metallicRoughnessTexture?: { index: number; texCoord?: number };
     roughnessFactor?: number;
   };
 };

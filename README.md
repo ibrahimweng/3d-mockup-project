@@ -48,7 +48,7 @@ studio and the same export work on all of them.
 | Tote Bag | `tote-bag.glb` | Front, Back, Left side, Right side | Canvas, handles and lining; base |
 | Water Bottle | `water-bottle.glb` | One, wrapped 360° around the body | Cap, ring, latch |
 | ID Card | `id-card.glb` | Front, Back (full bleed, around the punch hole) | Clip, card edge |
-| Tablet Folder | `tablet-folder.glb` | One, on the top sheet | Board, pen, clip |
+| Clipboard | `tablet-folder.glb` | One, on the top sheet | Hardboard, plastic pen, steel clip |
 
 ### Where the design lands, and why it flows
 

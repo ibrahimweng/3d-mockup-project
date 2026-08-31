@@ -188,12 +188,18 @@ export const MERCHANDISE_CATALOG = {
     },
   },
   "tablet-folder": {
-    // Prepped like every other product now, so the file says what the parts are
-    // instead of the catalog correcting them on the way to the screen. The
-    // source paints all five with one material at metallic 1 and roughness 1 --
-    // which renders near black -- and hangs a photograph of somebody's document
-    // off it. Colour slots and a material correction rescued three of the five;
-    // the loose sheets were left, and shipped that artwork in plain view.
+    // A clipboard, which is what the shape is: a hardboard panel with a nickel
+    // spring clip, a writing pad and loose sheets on it, and a pen. It was
+    // labelled a folder and dressed as one, which is why every part of it read
+    // as the same white slab -- there is no cover, no flap and no spine here to
+    // make a folio out of. Each part now carries a tiling map of the material
+    // it is actually made of rather than a flat colour and a roughness number.
+    //
+    // Three slots on the three parts a design never lands on. Each multiplies
+    // its material's map rather than replacing it, so picking a colour stains
+    // the board and tints the clip rather than painting the grain and the brush
+    // out; all three default to a near-white, which is what leaves the board
+    // its own brown and the pen its own dark barrel out of the box.
     colorParts: {
       accent: { materials: ["Folder_Clip"] },
       main: { materials: ["Folder_Board"] },
@@ -205,7 +211,7 @@ export const MERCHANDISE_CATALOG = {
     // camera stood as if the folio were narrower and deeper than it is, and the
     // folio ran off the right of the canvas and under the controls panel.
     frame: [0.879361, 0.036983, 0.474717],
-    label: "Tablet Folder",
+    label: "Clipboard",
     modelFile: "tablet-folder.glb",
     artworkSurface: "print",
     // The top of the pad: the largest flat face, and the one the folio is a

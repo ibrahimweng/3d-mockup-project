@@ -31,6 +31,7 @@ import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 
 import { along, axisBasis, cutAlongSeams, tangentBasis } from "./prep-model-clip.mjs";
 import { flattenZone } from "./prep-model-flatten.mjs";
+import { dressZone, makeTextureCache } from "./prep-model-surface.mjs";
 import { assignShells, mulN, mulP, smoothNormals } from "./prep-model-geometry.mjs";
 import { boundaryLoops, hemFaces } from "./prep-model-hem.mjs";
 import { weldFaces } from "./prep-model-mend.mjs";
@@ -189,13 +190,7 @@ export async function prepZones({
   const src = owners[0];
   for (const { mesh, prim } of owners) { mesh.removePrimitive(prim); prim.dispose(); }
 
-  const weaveCache = new Map();
-  const sharedWeave = (file) => {
-    if (!weaveCache.has(file)) {
-      weaveCache.set(file, doc.createTexture("weave").setImage(readFileSync(file)).setMimeType("image/png"));
-    }
-    return weaveCache.get(file);
-  };
+  const share = makeTextureCache(doc);
 
   const report = {};
   // Non-enumerable so callers that walk the zone entries do not trip over it.
@@ -287,51 +282,17 @@ export async function prepZones({
       .setAttribute("NORMAL", doc.createAccessor().setType("VEC3").setArray(N));
     if (spec.unwrap) prim.setAttribute("TEXCOORD_0", doc.createAccessor().setType("VEC2").setArray(UV));
 
-    // The weave comes from the material this zone's own cloth arrived on. With
-    // one source material that is the only one there is; with several it is the
-    // difference between a panel keeping its own cloth and wearing the collar's.
-    const source = list[0]?.source ?? owners[0].material;
-    const mat = doc.createMaterial(zoneName)
-      .setMetallicFactor(spec.metalness ?? 0)
-      .setRoughnessFactor(spec.roughness ?? 0.5)
-      .setBaseColorFactor(spec.baseColor ?? [1, 1, 1, 1])
-      // A new material is single-sided, and every zone here is an open patch of
-      // surface because splitting the product into zones is what made it one.
-      // An open patch culled from behind is a hole: a garment is a single-layer
-      // shell, so its inside is visible up a sleeve, through a neck and across
-      // an armhole, and a bag's is visible down its mouth. This is a
-      // consequence of the split rather than a departure from the file -- the
-      // author's single material was closed where these are not.
-      .setDoubleSided(spec.doubleSided ?? true);
-
-    /**
-     * The weave, on its own channel.
-     *
-     * It cannot ride the 0..1 unwrap a design uses: that stretches one copy of
-     * an image across a whole panel, and cloth needs hundreds of thread
-     * crossings over the same distance, so a second channel carries tiling
-     * coordinates. A file that shipped a weave has one authored against its own
-     * coordinates; a file that shipped none gets a supplied map laid out from
-     * world position at a stated density.
-     */
-    const supplied = spec.weaveFile ? sharedWeave(spec.weaveFile) : null;
-    const weave = supplied ?? ((spec.weave ?? weaveDefault) ? source?.getNormalTexture() : null);
-    if (weave) {
-      prim.setAttribute("TEXCOORD_1", doc.createAccessor().setType("VEC2").setArray(supplied ? UVW : UV1));
-      mat.setNormalTexture(weave).setNormalScale(spec.weaveScale ?? source?.getNormalScale() ?? 1);
-      const info = mat.getNormalTextureInfo();
-      info?.setTexCoord(1);
-      // Tiling is the whole point, so the sampler has to repeat rather than
-      // clamp -- a clamped coordinate of 59 is one texel dragged across a panel.
-      info?.setWrapS(10497).setWrapT(10497);
-    }
-
-    if (spec.template) {
-      mat.setBaseColorTexture(
-        doc.createTexture(`${zoneName}-template`).setImage(readFileSync(spec.template)).setMimeType("image/png"),
-      );
-    }
-    prim.setMaterial(mat);
+    // What this zone is made of comes from the material its own triangles
+    // arrived on. With one source material that is the only one there is; with
+    // several it is the difference between a panel keeping its own cloth and
+    // wearing the collar's.
+    prim.setMaterial(dressZone(doc, zoneName, prim, spec, {
+      share,
+      source: list[0]?.source ?? owners[0].material,
+      tiling: UVW,
+      weaveDefault,
+      woven: UV1,
+    }));
     src.mesh.addPrimitive(prim);
     report[zoneName] = { span: spec.unwrap ? span.map((v) => Number(v.toFixed(4))) : null, tris: list.length };
   }

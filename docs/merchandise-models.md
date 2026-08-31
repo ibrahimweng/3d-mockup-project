@@ -190,16 +190,49 @@ height: the shoulder loses 5mm of radius over 8mm of height, so it is longer
 than it is tall, and by height alone its share of the label arrives squeezed
 into a band. Measured at the widest ring the wrap is 1.37 to 1.
 
-### Tablet folder
+### Clipboard
 
-A folio with a pen loop and a clasp pin, holding a pad of paper.
+A hardboard panel with a nickel-plated spring clip, a writing pad and a couple
+of loose sheets on it, and a plastic pen.
+
+It was labelled a tablet folder and dressed as one, and that is why it read as a
+single white slab: there is no cover, no flap and no spine in this geometry to
+make a folio out of, so every part was given a pale colour and a roughness
+number and none of them looked like anything. What the shape is, is a clipboard
+— and a clipboard is one of each of the four ordinary materials.
+
+| Part | Material | Prints? | Surface |
+| --- | --- | --- | --- |
+| Board | `Folder_Board` | no, main colour slot | hardboard: tiling albedo, normal and roughness, flecked pressed fibre at a 40mm tile |
+| Writing pad, face | `Folder_Pad` | yes, projected straight down and flattened | paper: relief and finish only, so a design is not tinted by a picture of paper |
+| Pad block edge, loose sheets | `Folder_Pad_Edge`, `Folder_Sheet` | no | as above; the edge is laid out across x and y because it stands vertical |
+| Pen | `Folder_Pen` | no, trim colour slot | moulded plastic: a tight even sheen and the faint orange-peel of a mould |
+| Spring clip | `Folder_Clip` | no, accent colour slot | nickel plate over steel, brushed: metalness 0.55 in the map's blue channel |
 
 The file paints all five of its meshes with one material at metallic 1 and
 roughness 1, which renders it black, and hangs a photograph of somebody's
-document off it. Phase 4 prepped it like the rest, so the file now names its
-own parts -- `Folder_Board`, `Folder_Pen`, `Folder_Clip`, `Folder_Sheet` and
-`Folder_Pad`, which is the only one that prints -- instead of the catalog
-correcting them on the way to the screen.
+document off it. The parts are separated at prep time and each is given the
+material it is made of.
+
+Each material is a tiling map from `scripts/make-material-textures.mjs`, laid
+out from world position at a stated tile size rather than through the 0–1 unwrap
+a design uses. Two things it taught:
+
+- **Author the noise against the resolution the map ships at.** Paper's fibre
+  was first written at 700 lattice cells and the map is written at 256 pixels;
+  each cell landed on a third of a pixel and averaged to flat grey, so the pad
+  came back a smooth white slab while the board beside it read correctly — the
+  board's flecking rides an albedo map, which is never resampled.
+- **Fibre is not what makes paper look like paper.** At the distance a product
+  is photographed from, a quarter-millimetre fibre is a fraction of a pixel. The
+  cockle is what reads: a sheet takes up moisture and stops being flat. The
+  paper map is weighted to the coarse end and tiled at 110mm for that reason.
+
+A material carrying a metallic-roughness map has both factors at 1, because glTF
+multiplies the factor into the map. That is not the setting **D3** looks for —
+it is what a material says when it means "the map decides", and the clipboard's
+paper reads 1 and 1 while its map holds metalness 0 in every texel — so D3 skips
+a material that carries one.
 
 ## 2b. Flattening
 
@@ -345,7 +378,7 @@ make-up written down. The four phases are finished.
 | --- | --- | --- |
 | D1 | Every material a product names is `doubleSided`. | — all five |
 | D2 | Fabric keeps its authored weave normal map. | — tote, shirt |
-| D3 | No material is both fully metallic and fully rough. Metal shows what it reflects rather than a colour of its own, and a fully rough surface reflects nothing coherent, so such a material has neither diffuse nor highlight left and renders near black whatever base colour it names. | — all five |
+| D3 | No material is both fully metallic and fully rough, unless it carries a metallic-roughness map — in which case the factors are multipliers on the map rather than the setting. Metal shows what it reflects rather than a colour of its own, and a fully rough surface reflects nothing coherent, so such a material has neither diffuse nor highlight left and renders near black whatever base colour it names. | — all five |
 
 ## 4. Building them
 

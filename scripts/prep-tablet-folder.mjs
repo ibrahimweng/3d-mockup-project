@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Build the tablet folder: a folio holding a pad of paper, with a pen and a
- * clip.
+ * Build the clipboard: a hardboard panel with a spring clip, a writing pad, a
+ * couple of loose sheets and a pen.
  *
  * Usage:
  *   node scripts/prep-tablet-folder.mjs
@@ -12,26 +12,80 @@
  * The file paints all five of its parts with one material, `blinn2`, at
  * metallic 1 and roughness 1 -- which has neither diffuse nor highlight left
  * and renders near black -- and hangs a baked texture off it that is a
- * photograph of somebody's document: a dark panel with red text, colour
- * swatches, an orange rule. Three of the five parts were rescued from that at
- * load time by catalog corrections and colour slots. The pad of loose sheets
- * was not, so it shipped that artwork in plain view.
+ * photograph of somebody's document. So the parts are separated here, in the
+ * file, and each is given the material it is actually made of.
  *
- * So the parts are separated here, in the file, the way every other product's
- * are, and each gets a finish that says what it is made of. Nothing is left
- * needing a correction on the way to the screen.
+ * Four materials, from what the shape is: a clipboard is a hardboard panel
+ * with a nickel-plated steel clip, paper on it and a plastic pen. Each one is
+ * a tiling map from `make-material-textures.mjs` rather than a flat colour and
+ * a roughness number, because a flat colour is the reason every part of this
+ * read as the same white slab whatever number it was given.
  */
 
 import { prepZones, repoPath, sourceModel } from "./prep-model-zones.mjs";
 
-// Board, paper, plastic and steel. None of them metal except the clip, and
-// none of them mirror-smooth.
-const BOARD = { metalness: 0, roughness: 0.55 };
-const PAPER = { metalness: 0, roughness: 0.85 };
-const PLASTIC = { metalness: 0, roughness: 0.4 };
-const STEEL = { metalness: 1, roughness: 0.35 };
+const texture = (name) => repoPath("public", "textures", name);
 
-/** Which part of the folio each mesh in the file is. */
+/**
+ * How many times a map repeats across one unit of this model.
+ *
+ * The board is 43.97 units on its long side and a clipboard is about 320mm, so
+ * a unit is a little over 7mm. These are chosen as a tile size in millimetres
+ * and divided back: hardboard flecking reads at about 40mm, a sheet's cockle
+ * at 110mm, and the brush on the clip at 12mm because the clip is small and
+ * its streaks have to be finer than it is.
+ */
+const MM_PER_UNIT = 320 / 43.97;
+const TILE = (mm) => MM_PER_UNIT / mm;
+
+const HARDBOARD = {
+  metalness: 0,
+  roughness: 0.62,
+  surface: {
+    albedo: texture("hardboard-albedo.jpg"),
+    normal: texture("hardboard-normal.png"),
+    rough: texture("hardboard-rough.png"),
+  },
+  weaveRepeatsPerUnit: TILE(40),
+  weaveScale: 0.7,
+};
+const PAPER = {
+  metalness: 0,
+  roughness: 0.88,
+  // Relief and finish only. The pad is the face a design prints on, so its
+  // base colour belongs to the design and a picture of paper underneath would
+  // multiply into it.
+  surface: { normal: texture("paper-normal.png"), rough: texture("paper-rough.png") },
+  // A far bigger tile than the others. What reads as paper at the distance a
+  // product is photographed from is the sheet's own cockle, and a tile small
+  // enough to hold fibre is a tile too small to hold that.
+  weaveRepeatsPerUnit: TILE(110),
+  weaveScale: 1.1,
+};
+const PLASTIC = {
+  metalness: 0,
+  roughness: 0.33,
+  surface: {
+    albedo: texture("plastic-albedo.jpg"),
+    normal: texture("plastic-normal.png"),
+    rough: texture("plastic-rough.png"),
+  },
+  weaveRepeatsPerUnit: TILE(18),
+  weaveScale: 0.4,
+};
+const STEEL = {
+  metalness: 1,
+  roughness: 0.3,
+  surface: {
+    albedo: texture("nickel-albedo.jpg"),
+    normal: texture("nickel-normal.png"),
+    rough: texture("nickel-rough.png"),
+  },
+  weaveRepeatsPerUnit: TILE(12),
+  weaveScale: 0.6,
+};
+
+/** Which part of the clipboard each mesh in the file is. */
 const PARTS = {
   Paper_blinn2_0: "Folder_Sheet",
   Pen_blinn2_0: "Folder_Pen",
@@ -60,16 +114,27 @@ const report = await prepZones({
   // would emboss somebody else's page into whatever a user prints.
   weaveDefault: false,
   zones: {
-    // Neutral board. What it actually shows is the main colour slot, which the
-    // app paints over this; a darker value here changes nothing on screen.
-    Folder_Board: { ...BOARD, baseColor: [0.91, 0.90, 0.87, 1] },
+    // Hardboard: pressed wood fibre, laid out across the panel it lies in. The
+    // main colour slot paints over this, and because the colour multiplies the
+    // map rather than replacing it, picking one stains the board rather than
+    // painting the grain out. The slot's default is a near-white, so out of the
+    // box the board is the brown the map says it is.
+    Folder_Board: { ...HARDBOARD, baseColor: [1, 1, 1, 1], weaveAxes: ["x", "z"] },
     // The face a design lands on: the top of the pad, flat in y, so it is
-    // projected straight down onto it.
-    Folder_Pad: { ...PAPER, flatten: true, baseColor: [0.97, 0.97, 0.96, 1], unwrap: ["x", "z"] },
-    Folder_Pad_Edge: { ...PAPER, baseColor: [0.95, 0.94, 0.92, 1] },
-    Folder_Sheet: { ...PAPER, baseColor: [0.97, 0.97, 0.96, 1] },
-    Folder_Pen: { ...PLASTIC, baseColor: [0.78, 0.78, 0.76, 1] },
-    Folder_Clip: { ...STEEL, baseColor: [0.76, 0.77, 0.79, 1] },
+    // projected straight down onto it and then flattened.
+    Folder_Pad: { ...PAPER, flatten: true, baseColor: [0.97, 0.97, 0.96, 1], unwrap: ["x", "z"], weaveAxes: ["x", "z"] },
+    // The cut edge of the block, which stands vertical -- so its map is laid
+    // out across x and y rather than across the face, or every tile would be
+    // one row of texels dragged down the side.
+    Folder_Pad_Edge: { ...PAPER, baseColor: [0.95, 0.94, 0.92, 1], weaveAxes: ["x", "y"] },
+    Folder_Sheet: { ...PAPER, baseColor: [0.97, 0.97, 0.96, 1], weaveAxes: ["x", "z"] },
+    Folder_Pen: { ...PLASTIC, baseColor: [1, 1, 1, 1], weaveAxes: ["x", "z"] },
+    // Nickel plate over steel. Fully metallic in the file and brought back by
+    // the map, whose blue channel holds 0.85: a plated part is a coat over the
+    // metal and keeps a little diffuse, which is the difference between a clip
+    // and a silhouette. The brush runs across x and y because the clip stands
+    // up off the board rather than lying in it.
+    Folder_Clip: { ...STEEL, baseColor: [1, 1, 1, 1], weaveAxes: ["x", "y"] },
   },
 });
 
