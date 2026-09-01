@@ -13,7 +13,7 @@ import {
 import { forgetArtworkUrl, publishArtworkUrl } from "./artwork-store";
 import { readZoneAssets } from "./artwork-slots";
 import { resolveCanvasCursor } from "./canvas-cursor";
-import { useAdaptiveQuality } from "./adaptive-quality";
+import { DRAG_SAMPLING, PLAYBACK_SAMPLING, useAdaptiveQuality } from "./adaptive-quality";
 import { useScenePreset } from "./apply-scene-preset";
 import { useSurfaceFraming } from "./apply-surface-framing";
 import { useDesignDrag } from "./design-drag";
@@ -192,6 +192,21 @@ export function MockupPreview(): React.ReactElement {
   React.useEffect(() => {
     publishObservation();
   }, [observation, publishObservation, timelineReport]);
+
+  /**
+   * Start each run of playback measuring from scratch.
+   *
+   * The sampler folds the gap between one timed frame and the next, so without
+   * this the first gap it sees when playback starts is the whole idle stretch
+   * since the last drag -- seconds, usually -- and it would drop the
+   * resolution to the floor for a scene that had not been asked to draw
+   * anything yet. Clearing it on both edges also means stopping playback does
+   * not leave a stale timestamp for the next drag to measure against.
+   */
+  const isPlaying = state.timeline.isPlaying;
+  React.useEffect(() => {
+    quality.reset();
+  }, [isPlaying, quality]);
 
   // The renderer owns a WebGL context, so it is created once against the canvas
   // and torn down only on unmount.
@@ -526,9 +541,24 @@ export function MockupPreview(): React.ReactElement {
       // Sampled here rather than anywhere else because the drawing buffer is
       // only readable in the same task as the draw that filled it.
       publishObservation(renderer.sampleSignature());
-      // Only a drag is timed. A frame drawn because a slider moved says
-      // nothing about whether the machine can hold a rotation.
-      if (interactingRef.current) quality.sample(now);
+      // Timed whenever frames have to keep arriving: a drag, and playback.
+      //
+      // Only the drag was timed before, and playback is the case that needs
+      // this most. Adaptive quality is the one safety net the preview has --
+      // it notices late frames and trades resolution for them until they
+      // arrive on time -- and a turntable ran entirely outside it, rendering
+      // at full sharpness however slowly each frame came back, with nothing
+      // watching. Dragging the same scene adapted within a few frames and felt
+      // fine, which is what made playback the thing that stuttered.
+      //
+      // A frame drawn because a slider moved is still not timed: one frame in
+      // isolation says nothing about whether the machine can hold a rotation.
+      //
+      // Judged differently in each case: a drag discards long gaps because a
+      // hand that stopped is not a machine that struggled, and playback must
+      // not, because there is no hand.
+      if (interactingRef.current) quality.sample(now, DRAG_SAMPLING);
+      else if (timelineRef.current.isPlaying) quality.sample(now, PLAYBACK_SAMPLING);
     };
     handle = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(handle);
