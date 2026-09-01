@@ -204,8 +204,8 @@ number and none of them looked like anything. What the shape is, is a clipboard
 | Part | Material | Prints? | Surface |
 | --- | --- | --- | --- |
 | Board | `Folder_Board` | no, main colour slot | hardboard: tiling albedo, normal and roughness, flecked pressed fibre at a 40mm tile |
-| Writing pad, face | `Folder_Pad` | yes, projected straight down and flattened | paper: relief and finish only, so a design is not tinted by a picture of paper |
-| Pad block edge, loose sheets | `Folder_Pad_Edge`, `Folder_Sheet` | no | as above; the edge is laid out across x and y because it stands vertical |
+| Sheet, face | `Folder_Pad` | yes, projected straight down and flattened | paper: relief and finish only, so a design is not tinted by a picture of paper |
+| Sheet block edge | `Folder_Pad_Edge` | no | as above; laid out across x and y because it stands vertical |
 | Pen | `Folder_Pen` | no, trim colour slot | moulded plastic: a tight even sheen and the faint orange-peel of a mould |
 | Spring clip | `Folder_Clip` | no, accent colour slot | nickel plate over steel, brushed: metalness 0.55 in the map's blue channel |
 
@@ -225,14 +225,35 @@ the pad hanging off the end of it. `prep-model-zones.mjs` now writes every
 vertex as `inv(destination) · world`. Nothing else in the catalog has parts
 under more than one node, which is why nothing else showed it.
 
-What was genuinely out of place in the file is smaller and is corrected before
-the zones are cut: the pad sat 0.19 sunk into the board and about a unit off
-centre, the pen floated a quarter of a unit above everything at the clip end,
-and the loose sheets stood 23.7 deep against a 22-deep board. Each part is moved
-by its own node; the sheets are six disconnected pieces inside one mesh, so they
-are moved a vertex at a time and stacked on each other over the pad at a sheet's
-thickness apart. Laid on each other at their own heights instead they built a
-pile taller than the pad, which reads as a lump of something rather than paper.
+What was genuinely out of place in the file is corrected before the zones are
+cut, checked against photographs of real clipboards:
+
+- **The sheet is cut to A4.** It was 288 by 217mm, which is no paper size at
+  all, sitting 0.19 sunk into the board and a unit off centre. It is 297 by 210
+  now on a 320 by 227mm board, which leaves about 11mm above and below and 8mm
+  at each side — and makes the print area a standard 1:1.414, so a design
+  authored at A4 lands undistorted. More board above the sheet than below it,
+  because the clip needs somewhere to be.
+- **The clip presses the paper.** It sat 1.8mm *below* the face of the board, so
+  the one part whose job is to hold the sheet down was underneath it. Its
+  underside now rests on the sheet, and since the sheet's top edge lands where
+  the clip begins, the jaw covers about 25mm of paper.
+- **The pen lies on the sheet**, across the lower right at 32°, turned about its
+  own middle rather than about a node origin metres away. It floated a quarter
+  of a unit above everything at the clip end.
+- **The loose sheets are gone.** They were not sheets: six disconnected scraps
+  inside one mesh, the largest a 13 by 1 strip and two of the six the same strip
+  twice over, standing 23.7 deep against a 22-deep board. Stacked into a pile
+  they read as creases across the paper, and no photograph of a real clipboard
+  has anything of the sort on it. The mesh is disposed rather than detached: one
+  only unhooked from its node still holds its primitives, which still name the
+  source material, so the sweep that drops orphaned materials leaves `blinn2`
+  parented and the file ships a material nothing in the catalog names.
+
+The sheet is two coplanar triangles projected straight down and flattened, and
+its template is cut to the panel's own aspect, so the map is exact: squareness
+1.00, stretch 1.00. Measured off a render of a 15mm checker through a 300mm lens
+with the sheet face-on, the checks come back 30 pixels wide and 30 pixels tall.
 
 Each material is a tiling map from `scripts/make-material-textures.mjs`, laid
 out from world position at a stated tile size rather than through the 0–1 unwrap

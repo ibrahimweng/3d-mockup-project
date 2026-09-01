@@ -206,26 +206,27 @@ export const MERCHANDISE_CATALOG = {
       trim: { materials: ["Folder_Pen"] },
     },
     excludedNodes: [],
-    // Measured from the file: 31.00 by 2.02 by 22.00 units, over the length of
+    // Measured from the file: 31.00 by 2.36 by 22.00 units, over the length of
     // that box, which is what makes this a direction rather than a size. It was
-    // 43.97 long before, and 13 of those were the pad standing off the end of
+    // 43.97 long before, and 13 of those were the sheet standing off the end of
     // the board -- so the camera framed a shape a third of which was a part in
     // the wrong place.
-    frame: [0.814364, 0.052934, 0.577936],
+    frame: [0.813947, 0.061834, 0.57764],
     label: "Clipboard",
     modelFile: "tablet-folder.glb",
     artworkSurface: "print",
-    // The top of the pad: the largest flat face, and the one the folio is a
-    // mockup of. Two triangles projected straight down onto it, filling 0 to 1,
-    // so a design at 1.33 to 1 lands undistorted. Its four edges are their own
-    // material -- they stand square to the face and unwrapping them with it
-    // would smear the design down the side of the block. The loose sheets are
-    // `Folder_Sheet`, plain paper and not a slot.
+    // The face of the sheet, which is what a clipboard is a mockup of. Two
+    // triangles projected straight down onto it and flattened, filling 0 to 1.
+    // The sheet is cut to A4 at prep time -- 297 by 210mm on a 320 by 227mm
+    // board -- so a design authored at 1:1.414 lands undistorted and the print
+    // area is a paper size rather than whatever the bought file happened to
+    // draw. Its four edges are their own material: they stand square to the
+    // face, and unwrapping them with it would smear the design down the side of
+    // the block.
     screenMaterial: "Folder_Pad",
-    // Paper, and paper-coloured. The four edges of the pad stand square to its
-    // face, so they are not part of the print; the loose sheets are not the pad
-    // a design lands on. Neither is a slot, because neither is a part anyone
-    // would want to paint a different colour from the paper beside it.
-    fixedMaterials: ["Folder_Pad_Edge", "Folder_Sheet"],
+    // Paper, and paper-coloured. Not a slot, because the cut edge of a stack of
+    // paper is not a part anyone would want to paint a different colour from
+    // the sheet on top of it.
+    fixedMaterials: ["Folder_Pad_Edge"],
   },
 } satisfies Readonly<Record<string, DeviceDefinition>>;

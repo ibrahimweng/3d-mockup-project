@@ -179,16 +179,16 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
   // was authored in, and now fills it.
   "tablet-folder": {
     blackMaterials: [],
-    boundaryEdges: 124,
+    boundaryEdges: 88,
     coincidentFaces: 0,
     degenerateTriangles: 0,
-    hardInteriorEdges: 158,
+    hardInteriorEdges: 153,
     nonManifoldEdges: 0,
     shadingSplitsOnFlat: 0,
-    shells: 15,
+    shells: 9,
     strayTrianglesOnHardware: 0,
     zones: {
-      Folder_Pad: { coverage: 0.989, islands: 1, mirroredTriangles: 0, squareness: 1, stretch: 1 },
+      Folder_Pad: { coverage: 0.991, islands: 1, mirroredTriangles: 0, squareness: 1, stretch: 1 },
     },
   },
   // Rebuilt on a source that was modelled as a bag: closed, consistently wound,

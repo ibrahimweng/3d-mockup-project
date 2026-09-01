@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Build the clipboard: a hardboard panel with a spring clip, a writing pad, a
- * couple of loose sheets and a pen.
+ * Build the clipboard: a hardboard panel with a spring clip, an A4 sheet and a
+ * pen.
  *
  * Usage:
  *   node scripts/prep-tablet-folder.mjs
@@ -32,13 +32,13 @@ const texture = (name) => repoPath("public", "textures", name);
 /**
  * How many times a map repeats across one unit of this model.
  *
- * The board is 43.97 units on its long side and a clipboard is about 320mm, so
- * a unit is a little over 7mm. These are chosen as a tile size in millimetres
+ * The board is 31 units on its long side and a clipboard is about 320mm, so a
+ * unit is a shade over 10mm. These are chosen as a tile size in millimetres
  * and divided back: hardboard flecking reads at about 40mm, a sheet's cockle
  * at 110mm, and the brush on the clip at 12mm because the clip is small and
  * its streaks have to be finer than it is.
  */
-const MM_PER_UNIT = 320 / 43.97;
+const MM_PER_UNIT = 320 / 31;
 const TILE = (mm) => MM_PER_UNIT / mm;
 
 const HARDBOARD = {
@@ -90,7 +90,6 @@ const STEEL = {
 
 /** Which part of the clipboard each mesh in the file is. */
 const PARTS = {
-  Paper_blinn2_0: "Folder_Sheet",
   Pen_blinn2_0: "Folder_Pen",
   Pin_blinn2_0: "Folder_Clip",
   StackOfPaper_blinn2_0: "Folder_Pad",
@@ -100,17 +99,17 @@ const PARTS = {
 /**
  * Put the parts where a clipboard's parts are, before anything else runs.
  *
- * The bought file has them scattered. Measured in its own units, the board runs
- * x -28.9 to 2.1 and the pad x -12.9 to 15.1 -- so 13 units of the pad, 42 per
- * cent of it, hang off the far end of the board, and where the two do overlap
- * the pad's face sits 0.14 below the board's, buried in it. The loose sheets
- * are six scraps 23.7 deep against a 22-deep board, poking out past both edges,
- * and the pen floats a quarter of a unit above everything at the clip end.
+ * Checked against two photographs of real clipboards, the bought file gets four
+ * things wrong and every one of them is placement rather than material. The
+ * sheet is 288 by 217mm, which is no paper size at all, and it sits 0.19 sunk
+ * into the board and a unit off centre. The clip -- the one part whose job is
+ * to hold the sheet down -- sits 1.8mm *below* the face of the board, so the
+ * paper goes on top of it. The pen floats a quarter of a unit above everything
+ * at the clip end. And the loose sheets are six scraps standing 23.7 deep
+ * against a 22-deep board.
  *
- * None of that is a material problem and no amount of dressing hides it, so it
- * is fixed here rather than lived with. Each part is moved by its own node
- * where it has one, which is every part but the sheets: those are six
- * disconnected pieces inside one mesh, so they are moved a vertex at a time.
+ * No amount of dressing hides any of that, so it is fixed here. Every part is
+ * moved by its own node.
  */
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
 const doc = await io.read(sourceModel("tablet-folder.glb"));
@@ -147,92 +146,89 @@ const before = boxes();
 const board = before.get("Tablet_blinn2_0");
 const pad = before.get("StackOfPaper_blinn2_0");
 
-/** Slide a node's own part by a world offset, leaving its parents alone. */
-const slide = (box, by) => {
-  const t = box.node.getTranslation();
-  box.node.setTranslation([t[0] + by[0], t[1] + by[1], t[2] + by[2]]);
-};
-
-// The pad, centred on the board with an even margin and its face resting on
-// the board's rather than sunk through it. Its top edge lands under the clip,
-// which is where a clipboard holds a pad.
-slide(pad, [
-  board.lo[0] + (board.size[0] - pad.size[0]) / 2 - pad.lo[0],
-  board.hi[1] - pad.lo[1],
-  board.lo[2] + (board.size[2] - pad.size[2]) / 2 - pad.lo[2],
-]);
-
-const padTop = board.hi[1] + pad.size[1];
-const padMid = [
-  board.lo[0] + board.size[0] / 2,
-  padTop,
-  board.lo[2] + board.size[2] / 2,
+/**
+ * A4, and where it sits on the board.
+ *
+ * The sheet the file drew is 288 by 217mm against a 320 by 227mm board, which
+ * is nothing in particular -- wide margins at the ends, five millimetres at the
+ * sides. A clipboard holds A4, so it holds A4 here: 297 by 210, which leaves
+ * about 11mm above and below and 8mm at each side, and makes the print area a
+ * standard 1:1.414 so a design authored at A4 lands undistorted.
+ *
+ * More board above the sheet than below it, because the clip needs somewhere
+ * to be. That is what both references show and it is what the geometry wants:
+ * the clip runs from 1.44 to 3.92 units in from the top edge, so a sheet whose
+ * top edge lands at 1.4 arrives directly under the jaw.
+ */
+const A4 = [297, 210];
+const MM = board.size[0] / 320;
+const TOP = 1.4;
+const sheetSize = [A4[0] * MM, A4[1] * MM];
+const paper = [
+  board.lo[0] + TOP,
+  board.hi[1],
+  board.lo[2] + (board.size[2] - sheetSize[1]) / 2,
 ];
 
 /**
- * The loose sheets, stacked on each other on the pad.
+ * Set a node's own part down at a corner, at a scale, leaving its parents be.
  *
- * Six disconnected scraps in one mesh, so a node cannot move them apart: the
- * vertices are welded into pieces and each piece is carried to the same place
- * over the pad and laid on the one below. Two of the six are the same 13 by 1
- * strip twice over, which is what the file shipped.
+ * A node's translation moves what is under it and its scale grows it about its
+ * own origin, and the parents above contribute an offset this must not disturb
+ * -- so the offset is read off the world matrix while the node itself is still
+ * at zero, and taken back out of the answer.
  */
-const sheets = before.get("Paper_blinn2_0");
-for (const prim of sheets.node.getMesh().listPrimitives()) {
-  const pos = prim.getAttribute("POSITION");
-  const idx = prim.getIndices();
-  const count = idx ? idx.getCount() : pos.getCount();
-  const step = Math.max(...board.size) * 1e-4;
-  const key = (p) => p.map((c) => Math.round(c / step)).join(",");
-  // Which piece each vertex belongs to, by walking the triangles and joining.
-  const owner = new Map();
-  const root = (a) => { let n = a; while (owner.get(n) !== n) n = owner.get(n); return n; };
-  const seen = [];
-  for (let i = 0; i < count; i += 1) {
-    const v = idx ? idx.getScalar(i) : i;
-    const k = key(pos.getElement(v, [0, 0, 0]));
-    if (!owner.has(k)) owner.set(k, k);
-    seen.push({ k, v });
-  }
-  for (let i = 0; i < seen.length; i += 3) {
-    for (const j of [1, 2]) {
-      const a = root(seen[i].k), b = root(seen[i + j].k);
-      if (a !== b) owner.set(a, b);
-    }
-  }
-  // Each piece's own box, so it can be carried by its middle rather than by
-  // wherever its first vertex happened to be.
-  const piece = new Map();
-  for (const { k, v } of seen) {
-    const p = pos.getElement(v, [0, 0, 0]);
-    const r = root(k);
-    const box = piece.get(r) ?? { hi: [-Infinity, -Infinity, -Infinity], lo: [Infinity, Infinity, Infinity], vs: new Set() };
-    for (let q = 0; q < 3; q += 1) {
-      if (p[q] < box.lo[q]) box.lo[q] = p[q];
-      if (p[q] > box.hi[q]) box.hi[q] = p[q];
-    }
-    box.vs.add(v);
-    piece.set(r, box);
-  }
-  // Largest first, so the pile reads as sheets rather than as a scrap on top
-  // of a bigger scrap.
-  const pile = [...piece.values()].sort((a, b) =>
-    (b.hi[0] - b.lo[0]) * (b.hi[2] - b.lo[2]) - (a.hi[0] - a.lo[0]) * (a.hi[2] - a.lo[2]));
-  // A sheet's thickness, not a scrap's. Each piece carries a body of its own --
-  // 0.17 to 0.36 of a unit, where the whole pad is 0.62 -- so laying each on
-  // top of the last one's height builds a pile taller than the pad it sits on,
-  // which reads as a lump of something rather than as paper.
-  const SHEET = 0.035;
-  let rest = padTop;
-  for (const box of pile) {
-    const by = [padMid[0] - (box.hi[0] + box.lo[0]) / 2, rest - box.lo[1], padMid[2] - (box.hi[2] + box.lo[2]) / 2];
-    for (const v of box.vs) {
-      const p = pos.getElement(v, [0, 0, 0]);
-      pos.setElement(v, [p[0] + by[0], p[1] + by[1], p[2] + by[2]]);
-    }
-    rest += SHEET;
-  }
-}
+const place = (box, corner, scale) => {
+  const at = box.node.getWorldMatrix().slice(12, 15);
+  box.node.setScale(scale);
+  box.node.setTranslation([0, 1, 2].map((q) =>
+    corner[q] - scale[q] * (box.lo[q] - at[q]) - at[q]));
+};
+
+// The pad: A4 across and along, its own thickness left alone, resting on the
+// board's face rather than sunk through it.
+place(pad, paper, [sheetSize[0] / pad.size[0], 1, sheetSize[1] / pad.size[2]]);
+
+const padTop = board.hi[1] + pad.size[1];
+const padMid = [
+  paper[0] + sheetSize[0] / 2,
+  padTop,
+  paper[2] + sheetSize[1] / 2,
+];
+
+/**
+ * The clip, brought up to press the paper.
+ *
+ * It sat 1.8mm below the face of the board, which is to say inside it, and the
+ * paper then went on above -- so the one part of a clipboard whose whole job is
+ * to hold the sheet down was underneath it. Its underside now rests on the
+ * sheet, and since the sheet's top edge lands where the clip begins, the jaw
+ * covers about 25mm of paper, which is what both references show.
+ */
+const clip = before.get("Pin_blinn2_0");
+clip.node.setTranslation([0, 1, 2].map((q) =>
+  clip.node.getTranslation()[q] + (q === 1 ? padTop - clip.lo[1] : 0)));
+
+/**
+ * The loose sheets, taken out.
+ *
+ * They are not sheets. Six disconnected scraps inside one mesh, the largest a
+ * 13 by 1 strip and two of the six the same strip twice over, standing 23.7
+ * deep against a 22-deep board so they poked out past both edges. Stacked into
+ * a pile they read as creases across the paper; neither reference of a real
+ * clipboard has anything of the sort on it, and the sheet is better without
+ * them and free for a design.
+ */
+const scraps = before.get("Paper_blinn2_0").node;
+const scrapMesh = scraps.getMesh();
+scraps.setMesh(null);
+for (const prim of scrapMesh.listPrimitives()) prim.dispose();
+// Disposed rather than detached: a mesh that is only unhooked from its node
+// still holds its primitives, and those still name the source material, so the
+// sweep that drops orphaned materials at the end finds `blinn2` still parented
+// and leaves it -- and the file ships a material nothing in the catalog names.
+scrapMesh.dispose();
+scraps.dispose();
 
 /**
  * The pen, laid across the lower right of the pad at an angle.
@@ -288,7 +284,6 @@ const report = await prepZones({
     // out across x and y rather than across the face, or every tile would be
     // one row of texels dragged down the side.
     Folder_Pad_Edge: { ...PAPER, baseColor: [0.95, 0.94, 0.92, 1], weaveAxes: ["x", "y"] },
-    Folder_Sheet: { ...PAPER, baseColor: [0.97, 0.97, 0.96, 1], weaveAxes: ["x", "z"] },
     Folder_Pen: { ...PLASTIC, baseColor: [1, 1, 1, 1], weaveAxes: ["x", "z"] },
     // Nickel plate over steel. Fully metallic in the file and brought back by
     // the map, whose blue channel holds 0.85: a plated part is a coat over the
