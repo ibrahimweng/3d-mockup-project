@@ -22,7 +22,17 @@ import { useViewPan } from "./view-pan";
 import { readDeviceDefinition, type ArtworkZoneId } from "./product-domain";
 import { fingerprint } from "./render/fingerprint";
 import { RasterRenderer } from "./render/raster-renderer";
-import { createScreenTexture } from "./render/screen-texture";
+import {
+  createScreenPainter,
+  createScreenTexture,
+  type ScreenPainter,
+} from "./render/screen-texture";
+import {
+  isAnimatedMimeType,
+  openAnimatedArtwork,
+  type AnimatedArtwork,
+  type ArtworkFrame,
+} from "./render/animated-artwork";
 import {
   readArtworkBackground,
   readRasterSettings,
@@ -33,6 +43,21 @@ import styles from "./preview.module.css";
 /** Drawing above the display's own ratio is pixels nobody can see. */
 const MAX_PIXEL_RATIO = 2;
 
+/**
+ * One zone whose design moves, and what is needed to keep it moving.
+ *
+ * `shown` is what is currently painted onto the texture, held so a frame that
+ * has not changed is not redrawn: a GIF at twenty-five frames a second on a
+ * display running at sixty means better than half of all frames are the same
+ * picture, and blitting them again is work with nothing to show for it.
+ */
+type MovingSlot = {
+  painter: ScreenPainter;
+  shown: ArtworkFrame | null;
+  source: AnimatedArtwork;
+  zone: ArtworkZoneId;
+};
+
 export function MockupPreview(): React.ReactElement {
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
   const rendererRef = React.useRef<RasterRenderer | null>(null);
@@ -42,6 +67,9 @@ export function MockupPreview(): React.ReactElement {
   // A frame is only drawn when something has invalidated it. Redrawing a static
   // scene every tick would hold the GPU at load for no visible change.
   const dirtyRef = React.useRef(true);
+  // The zones whose designs move, walked once a frame. Empty for every product
+  // nobody has dropped a GIF or a video onto, which is the ordinary case.
+  const movingRef = React.useRef<MovingSlot[]>([]);
   const [sceneVersion, setSceneVersion] = React.useState(0);
   // Dragging trades resolution for frame rate. Nothing is being inspected
   // closely while the scene is in motion, and the alternative is a sharp
@@ -271,6 +299,9 @@ export function MockupPreview(): React.ReactElement {
       zone,
       urls.get(asset.id) ?? null,
       asset.transform ?? null,
+      // What kind of upload it is, because a GIF and a PNG arrive down the
+      // same slot and only one of them has to be taken apart frame by frame.
+      asset.mimeType ?? null,
     ]),
   );
   const slots = React.useMemo(
@@ -279,15 +310,18 @@ export function MockupPreview(): React.ReactElement {
         ArtworkZoneId,
         string | null,
         ToolcraftImageAsset["transform"] | null,
+        string | null,
       ][],
     [slotsKey],
   );
 
   React.useEffect(() => {
     const published = [...zoneAssets.values()]
-      .map((asset) => [asset.id, urls.get(asset.id)] as const)
-      .filter((entry): entry is readonly [string, string] => Boolean(entry[1]));
-    for (const [id, url] of published) publishArtworkUrl(id, url);
+      .map((asset) => [asset.id, urls.get(asset.id), asset.mimeType ?? ""] as const)
+      .filter((entry): entry is readonly [string, string, string] => Boolean(entry[1]));
+    // With the kind, because export has to know whether a URL is one picture
+    // or a reel of them before it can ask for the frame at a given moment.
+    for (const [id, url, mimeType] of published) publishArtworkUrl(id, url, mimeType);
     return () => {
       for (const [id] of published) forgetArtworkUrl(id);
     };
@@ -312,6 +346,45 @@ export function MockupPreview(): React.ReactElement {
   React.useEffect(() => {
     let cancelled = false;
     const device = readDeviceDefinition(settings.device);
+    const opened: MovingSlot[] = [];
+
+    /**
+     * A design that moves, if this one does and this browser can take it apart.
+     *
+     * Falls back to the still path on every failure rather than reporting one,
+     * so a GIF in a browser with no image decoder shows its first frame -- the
+     * same thing an `<img>` would have shown -- instead of an empty panel.
+     */
+    const openMoving = async (
+      zone: ArtworkZoneId,
+      url: string,
+      transform: ToolcraftImageAsset["transform"] | null,
+      mimeType: string,
+    ): Promise<THREE.Texture | null> => {
+      const source = await openAnimatedArtwork(url, mimeType, () => {
+        dirtyRef.current = true;
+      });
+      if (!source) return null;
+      const painter = createScreenPainter(
+        source,
+        device,
+        transform ?? undefined,
+        rendererRef.current?.maxAnisotropy ?? 1,
+        background,
+      );
+      if (!painter) {
+        source.dispose();
+        return null;
+      }
+      if (cancelled) {
+        source.dispose();
+        painter.texture.dispose();
+        return null;
+      }
+      opened.push({ painter, shown: null, source, zone });
+      return painter.texture;
+    };
+
     const decode = async (
       url: string,
       transform: ToolcraftImageAsset["transform"] | null,
@@ -335,9 +408,13 @@ export function MockupPreview(): React.ReactElement {
     };
 
     void Promise.all(
-      slots.map(async ([zone, url, transform]) =>
-        url ? ([zone, await decode(url, transform)] as const) : null,
-      ),
+      slots.map(async ([zone, url, transform, mimeType]) => {
+        if (!url) return null;
+        const moving = isAnimatedMimeType(mimeType ?? undefined)
+          ? await openMoving(zone, url, transform, mimeType ?? "")
+          : null;
+        return [zone, moving ?? (await decode(url, transform))] as const;
+      }),
     ).then((decoded) => {
       const textures = new Map<ArtworkZoneId, THREE.Texture | null>(
         decoded.filter((entry) => entry !== null),
@@ -348,12 +425,18 @@ export function MockupPreview(): React.ReactElement {
       }
       for (const texture of artworkRef.current.values()) texture?.dispose();
       artworkRef.current = textures;
+      movingRef.current = opened;
       rendererRef.current?.setArtwork(textures, screenRef.current);
       dirtyRef.current = true;
     });
 
     return () => {
       cancelled = true;
+      // Decoders and video elements are not garbage: one holds a parsed file
+      // and a frame, the other a media pipeline. Both are let go when the slot
+      // that opened them changes.
+      for (const slot of opened) slot.source.dispose();
+      if (movingRef.current === opened) movingRef.current = [];
     };
   }, [background, slots, sceneVersion, settings.device]);
 
@@ -533,6 +616,29 @@ export function MockupPreview(): React.ReactElement {
     let handle = 0;
     const tick = (now: number) => {
       handle = requestAnimationFrame(tick);
+      /**
+       * Move every design that moves, before anything decides to draw.
+       *
+       * On the timeline's clock rather than the clip's, so scrubbing scrubs
+       * the design, pausing holds it on a frame, and the same export rendered
+       * twice is the same animation both times. `frameAt` never waits: it
+       * hands back the newest frame it has and goes after the one asked for,
+       * so a slow decode costs this frame nothing.
+       */
+      const moving = movingRef.current;
+      if (moving.length > 0) {
+        const { currentTimeSeconds, isPlaying } = timelineRef.current;
+        for (const slot of moving) {
+          const frame = slot.source.frameAt(currentTimeSeconds, isPlaying);
+          if (!frame) continue;
+          // A video hands back the same element every time and changes what is
+          // inside it, so identity cannot be the whole test.
+          if (!isPlaying && frame === slot.shown && !dirtyRef.current) continue;
+          slot.painter.paint(frame);
+          slot.shown = frame;
+          dirtyRef.current = true;
+        }
+      }
       if (!dirtyRef.current) return;
       const renderer = rendererRef.current;
       if (!renderer?.ready) return;

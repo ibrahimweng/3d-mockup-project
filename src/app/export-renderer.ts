@@ -2,11 +2,11 @@ import type * as THREE from "three";
 
 import type { ToolcraftProductExportRenderer } from "@/toolcraft/runtime";
 import { readToolcraftOrientationPose } from "@/toolcraft/runtime/react";
-import { getExportArtworkImage } from "./artwork-store";
+import { getExportArtworkFrame } from "./artwork-store";
 import { readZoneAssets } from "./artwork-slots";
 import { readDeviceDefinition, type ArtworkZoneId } from "./product-domain";
 import { RasterRenderer } from "./render/raster-renderer";
-import { createScreenTexture } from "./render/screen-texture";
+import { createScreenPainter } from "./render/screen-texture";
 import {
   readArtworkBackground,
   readRasterSettings,
@@ -101,7 +101,7 @@ function acquireExportRenderer(
 
 export const mockupExportRenderer: ToolcraftProductExportRenderer = {
   baseFileName: "mockup",
-  renderFrame: async ({ context, frame, pixelRatio, state }) => {
+  renderFrame: async ({ context, frame, pixelRatio, state, timeSeconds }) => {
     const values = state.values as Record<string, unknown>;
     const settings = readRasterSettings(values, state.canvas.mode);
     const pose = readToolcraftOrientationPose(values["camera.orbit"]);
@@ -142,25 +142,27 @@ export const mockupExportRenderer: ToolcraftProductExportRenderer = {
         values,
         device.artworkSurface === "print",
       );
+      // At this frame's own moment, so a design that moves is exported the
+      // way it was previewed rather than wherever its decoder had got to.
       const decoded = await Promise.all(
         [...readZoneAssets(state.mediaAssets)].map(
           async ([zone, asset]) =>
-            [zone, await getExportArtworkImage(asset.id), asset] as const,
+            [zone, await getExportArtworkFrame(asset.id, timeSeconds), asset] as const,
         ),
       );
       const textures = new Map<ArtworkZoneId, THREE.Texture | null>();
-      for (const [zone, image, asset] of decoded) {
-        if (!image) continue;
-        textures.set(
-          zone,
-          createScreenTexture(
-            image,
-            device,
-            asset.transform,
-            renderer.maxAnisotropy,
-            background,
-          ),
+      for (const [zone, shot, asset] of decoded) {
+        if (!shot) continue;
+        const painter = createScreenPainter(
+          shot,
+          device,
+          asset.transform,
+          renderer.maxAnisotropy,
+          background,
         );
+        if (!painter) continue;
+        painter.paint(shot.frame);
+        textures.set(zone, painter.texture);
       }
       // Always, even with nothing to show. Skipping the call left the model's
       // own wallpaper glowing on the display — which the preview had already

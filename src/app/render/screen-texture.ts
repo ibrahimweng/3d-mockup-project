@@ -85,6 +85,12 @@ export function createScreenTexture(
         userFlipY,
       });
 
+  dressTexture(texture, maxAnisotropy);
+  return texture;
+}
+
+/** How every design is sampled, still or moving. */
+function dressTexture(texture: THREE.Texture, maxAnisotropy: number): void {
   texture.anisotropy = Math.max(1, maxAnisotropy);
   texture.colorSpace = THREE.SRGBColorSpace;
   // Trilinear between mip levels rather than a hard switch, so a screen at a
@@ -96,31 +102,37 @@ export function createScreenTexture(
   // wallpaper was authored.
   texture.flipY = false;
   texture.needsUpdate = true;
-  return texture;
 }
 
-function bake(
-  image: HTMLImageElement,
-  options: {
-    background?: string;
-    deviceFlipX: boolean;
-    deviceFlipY: boolean;
-    rotationDeg: number;
-    userFlipX: boolean;
-    userFlipY: boolean;
-  },
-): THREE.Texture {
-  const width = Math.max(1, image.naturalWidth || image.width);
-  const height = Math.max(1, image.naturalHeight || image.height);
-  const quarterTurned =
-    options.rotationDeg === 90 || options.rotationDeg === 270;
+type PaintOptions = {
+  background?: string;
+  deviceFlipX: boolean;
+  deviceFlipY: boolean;
+  rotationDeg: number;
+  userFlipX: boolean;
+  userFlipY: boolean;
+};
 
-  const canvas = document.createElement("canvas");
-  canvas.width = quarterTurned ? height : width;
-  canvas.height = quarterTurned ? width : height;
-
-  const context = canvas.getContext("2d");
-  if (!context) return new THREE.Texture(image);
+/**
+ * Draw one frame into a canvas already sized for it.
+ *
+ * Pulled out of `bake` so a design that moves can be redrawn into the same
+ * canvas on every frame, through exactly the transforms the still path uses.
+ * Two copies of this would be two chances for a video to arrive mirrored on a
+ * panel where a photograph does not.
+ */
+function paintFrame(
+  context: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  source: CanvasImageSource,
+  width: number,
+  height: number,
+  options: PaintOptions,
+): void {
+  context.setTransform(1, 0, 0, 1, 0, 0);
+  // Cleared rather than drawn over: a frame with transparency would otherwise
+  // show the frame before it through its own holes.
+  context.clearRect(0, 0, canvas.width, canvas.height);
 
   // Before the transforms, and covering the whole canvas rather than the
   // image: the design is drawn over this, so it has to be under every pixel
@@ -138,7 +150,82 @@ function bake(
     context.rotate((options.rotationDeg * Math.PI) / 180);
   }
   context.scale(options.userFlipX ? -1 : 1, options.userFlipY ? -1 : 1);
-  context.drawImage(image, -width / 2, -height / 2, width, height);
+  context.drawImage(source, -width / 2, -height / 2, width, height);
+}
 
-  return new THREE.CanvasTexture(canvas);
+/** A canvas sized for this design, and the context to keep drawing into it. */
+function makeTarget(
+  width: number,
+  height: number,
+  rotationDeg: number,
+): { canvas: HTMLCanvasElement; context: CanvasRenderingContext2D } | null {
+  const quarterTurned = rotationDeg === 90 || rotationDeg === 270;
+  const canvas = document.createElement("canvas");
+  canvas.width = quarterTurned ? height : width;
+  canvas.height = quarterTurned ? width : height;
+  const context = canvas.getContext("2d");
+  return context ? { canvas, context } : null;
+}
+
+function bake(image: HTMLImageElement, options: PaintOptions): THREE.Texture {
+  const width = Math.max(1, image.naturalWidth || image.width);
+  const height = Math.max(1, image.naturalHeight || image.height);
+  const target = makeTarget(width, height, options.rotationDeg);
+  if (!target) return new THREE.Texture(image);
+  paintFrame(target.context, target.canvas, image, width, height, options);
+  return new THREE.CanvasTexture(target.canvas);
+}
+
+/** A texture that can be given a new frame without being rebuilt. */
+export type ScreenPainter = {
+  /** Draw this frame onto the texture. */
+  paint: (frame: CanvasImageSource) => void;
+  texture: THREE.Texture;
+};
+
+/**
+ * The same texture a still design gets, kept open for the next frame.
+ *
+ * Always canvas-backed, where a still may hand three.js the image directly:
+ * there has to be something to redraw into. The size is the clip's, fixed at
+ * open, so every frame lands on the same pixels and the fit maths that reads
+ * `texture.image` sees one shape for the whole clip rather than one per frame.
+ */
+export function createScreenPainter(
+  size: { height: number; width: number },
+  device: DeviceDefinition,
+  design?: DesignTransform,
+  maxAnisotropy = 1,
+  background?: string,
+): ScreenPainter | null {
+  const options = readPaintOptions(device, design, background);
+  const width = Math.max(1, size.width);
+  const height = Math.max(1, size.height);
+  const target = makeTarget(width, height, options.rotationDeg);
+  if (!target) return null;
+
+  const texture = new THREE.CanvasTexture(target.canvas);
+  dressTexture(texture, maxAnisotropy);
+  return {
+    paint: (frame) => {
+      paintFrame(target.context, target.canvas, frame, width, height, options);
+      texture.needsUpdate = true;
+    },
+    texture,
+  };
+}
+
+function readPaintOptions(
+  device: DeviceDefinition,
+  design: DesignTransform | undefined,
+  background: string | undefined,
+): PaintOptions {
+  return {
+    background,
+    deviceFlipX: device.screenFlip?.x === true,
+    deviceFlipY: device.screenFlip?.y === true,
+    rotationDeg: design?.rotationDeg ?? 0,
+    userFlipX: design?.flipHorizontal === true,
+    userFlipY: design?.flipVertical === true,
+  };
 }
