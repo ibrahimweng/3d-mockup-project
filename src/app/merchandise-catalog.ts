@@ -209,22 +209,26 @@ export const MERCHANDISE_CATALOG = {
       trim: { materials: ["Folder_Pen"] },
     },
     excludedNodes: [],
-    // Measured from the file: 320 by 24.6 by 227mm, over the length of that
-    // box, which is what makes this a direction rather than a size. It was
-    // 43.97 units long before, and 13 of those were the sheet standing off the
-    // end of the board -- so the camera framed a shape a third of which was a
-    // part in the wrong place.
-    //
-    // Landscape, though every photograph of a real clipboard is portrait, and
-    // that is not the preference it looks like. Turning it with `yawDegrees:
-    // 90` -- which is how the tote is turned, and the frame for it is
-    // [0.577612, 0.062585, 0.813908] -- makes the clip vanish from the render
-    // at every camera angle tried, while the board, the sheet and the pen all
-    // still draw. The clip is in the file either way: 220 lever triangles at
-    // x -143.4..-117.7, and it draws correctly at yaw 0. So the turn is held
-    // back until that is understood rather than shipped with a part missing.
-    frame: [0.813908, 0.062585, 0.577612],
+    // Measured from the file with the turn below applied: 227 by 26.5 by 320mm,
+    // over the length of that box, which is what makes this a direction rather
+    // than a size. It was 43.97 units long before any of this, and 13 of those
+    // were the sheet standing off the end of the board -- so the camera framed
+    // a shape a third of which was a part in the wrong place.
+    frame: [0.577431, 0.067396, 0.813653],
     label: "Clipboard",
+    // Portrait, which is how every photograph of a real clipboard is taken and
+    // how anyone holds one. It was held back for a while because turning it
+    // made the clip disappear from the render -- which turned out to have
+    // nothing to do with the turn. Leaning the board took the clip end under
+    // the floor, and the floor is drawn over whatever is below it; the turn
+    // only decided which end went down. `getDevicePose` now stands the subject
+    // back on its feet whatever the pose, so this is safe at any tilt.
+    //
+    // Turned this way rather than the other so the clip ends up at the far edge
+    // of the board rather than the near one, which is the end a clipboard is
+    // photographed from: leaning it stands it on its foot with the clip at the
+    // top, and turned the other way it stands on its head.
+    yawDegrees: -90,
     modelFile: "tablet-folder.glb",
     artworkSurface: "print",
     // The face of the sheet, which is what a clipboard is a mockup of. Two

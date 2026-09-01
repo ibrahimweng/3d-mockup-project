@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ToolcraftState } from "@/toolcraft/runtime";
 
+import { readGltfJson, readModelTriangles } from "./model-file-test-utils";
 import { DEVICE_CATALOG, type DeviceId } from "./product-domain";
 import { getMockupSceneRect } from "./scene-bounds";
 
@@ -78,6 +79,56 @@ describe("infinite scene bounds", () => {
       // half-diagonal over its own length: a unit vector, always. A digit
       // dropped or transposed while transcribing a measurement breaks this.
       expect(Math.hypot(x, y, z), id).toBeCloseTo(1, 5);
+    }
+  });
+
+  /**
+   * The frame is a measurement of a model, and a model can change under it.
+   *
+   * Being a unit vector, checked above, is what catches a mistyped digit. It
+   * does not catch the other way a written-down measurement goes wrong, which
+   * is the file moving on without it: the clipboard grew a clip jaw and the
+   * frame kept saying the shape the board was before, still a perfectly good
+   * unit vector and no longer the product. So the shape is taken off the GLB
+   * here and compared with what the catalog claims.
+   *
+   * Files holding more than one product are left out rather than measured
+   * wrongly -- the scene builder picks one of their scenes and this reads them
+   * all, so an iMac standing beside a phone would be measured into the phone --
+   * and so are devices with nodes hidden before the measurement, which are
+   * named by node while what is read back here is named by mesh. Both
+   * conditions are read rather than listed, so a model that grows either drops
+   * out of this by itself.
+   */
+  it("measures every frame against the model it names", () => {
+    for (const id of deviceIds) {
+      const device = DEVICE_CATALOG[id];
+      if (device.excludedNodes.length > 0) continue;
+      if ((readGltfJson(device.modelFile).scenes?.length ?? 1) > 1) continue;
+
+      const turn = ((device.yawDegrees ?? 0) * Math.PI) / 180;
+      const cos = Math.cos(turn);
+      const sin = Math.sin(turn);
+      const lo = [Infinity, Infinity, Infinity];
+      const hi = [-Infinity, -Infinity, -Infinity];
+      for (const triangle of readModelTriangles(device.modelFile)) {
+        for (const [x, y, z] of triangle.position) {
+          // The yaw is applied before the box is taken, because it is applied
+          // before the box is taken in the scene.
+          const turned = [x * cos + z * sin, y, -x * sin + z * cos];
+          for (const [axis, value] of turned.entries()) {
+            if (value < lo[axis]) lo[axis] = value;
+            if (value > hi[axis]) hi[axis] = value;
+          }
+        }
+      }
+
+      const half = [0, 1, 2].map((axis) => (hi[axis] - lo[axis]) / 2);
+      const radius = Math.hypot(...half);
+      for (const axis of [0, 1, 2]) {
+        expect(half[axis] / radius, `${id} frame[${axis}]`)
+          .toBeCloseTo(device.frame[axis], 3);
+      }
     }
   });
 });

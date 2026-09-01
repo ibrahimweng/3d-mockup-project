@@ -186,6 +186,9 @@ export async function buildDeviceScene(options: {
   });
   const sphere = bounds.getBoundingSphere(new THREE.Sphere());
   const centre = bounds.getCenter(new THREE.Vector3());
+  // Half the box, kept because posing needs the whole shape rather than just
+  // how far down it goes: a subject that leans stands on a different corner.
+  const half = bounds.getSize(new THREE.Vector3()).multiplyScalar(0.5);
 
   // Recentre on the origin so orbiting turns the device about itself rather
   // than swinging it around wherever it sat in the source file.
@@ -618,7 +621,7 @@ export async function buildDeviceScene(options: {
         position: nextPosition,
         rotation: nextRotation,
         scale,
-      } = getDevicePose({ groundY, radius: sphere.radius, transform });
+      } = getDevicePose({ half, radius: sphere.radius, transform });
 
       if (
         spinner.position.equals(nextPosition) &&
