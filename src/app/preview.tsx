@@ -22,17 +22,9 @@ import { useViewPan } from "./view-pan";
 import { readDeviceDefinition, type ArtworkZoneId } from "./product-domain";
 import { fingerprint } from "./render/fingerprint";
 import { RasterRenderer } from "./render/raster-renderer";
-import {
-  createScreenPainter,
-  createScreenTexture,
-  type ScreenPainter,
-} from "./render/screen-texture";
-import {
-  isAnimatedMimeType,
-  openAnimatedArtwork,
-  type AnimatedArtwork,
-  type ArtworkFrame,
-} from "./render/animated-artwork";
+import { createScreenPainter, createScreenTexture } from "./render/screen-texture";
+import { isAnimatedMimeType, openAnimatedArtwork } from "./render/animated-artwork";
+import { paintMovingSlots, type MovingSlot } from "./render/moving-slots";
 import {
   readArtworkBackground,
   readRasterSettings,
@@ -43,20 +35,6 @@ import styles from "./preview.module.css";
 /** Drawing above the display's own ratio is pixels nobody can see. */
 const MAX_PIXEL_RATIO = 2;
 
-/**
- * One zone whose design moves, and what is needed to keep it moving.
- *
- * `shown` is what is currently painted onto the texture, held so a frame that
- * has not changed is not redrawn: a GIF at twenty-five frames a second on a
- * display running at sixty means better than half of all frames are the same
- * picture, and blitting them again is work with nothing to show for it.
- */
-type MovingSlot = {
-  painter: ScreenPainter;
-  shown: ArtworkFrame | null;
-  source: AnimatedArtwork;
-  zone: ArtworkZoneId;
-};
 
 export function MockupPreview(): React.ReactElement {
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
@@ -70,6 +48,9 @@ export function MockupPreview(): React.ReactElement {
   // The zones whose designs move, walked once a frame. Empty for every product
   // nobody has dropped a GIF or a video onto, which is the ordinary case.
   const movingRef = React.useRef<MovingSlot[]>([]);
+  // When a design with no timeline to follow started running, so it loops from
+  // where it came in rather than from whenever the page was opened.
+  const freeRunFromRef = React.useRef(0);
   const [sceneVersion, setSceneVersion] = React.useState(0);
   // Dragging trades resolution for frame rate. Nothing is being inspected
   // closely while the scene is in motion, and the alternative is a sharp
@@ -626,18 +607,18 @@ export function MockupPreview(): React.ReactElement {
        * so a slow decode costs this frame nothing.
        */
       const moving = movingRef.current;
+      let paced = timelineRef.current.isPlaying;
       if (moving.length > 0) {
-        const { currentTimeSeconds, isPlaying } = timelineRef.current;
-        for (const slot of moving) {
-          const frame = slot.source.frameAt(currentTimeSeconds, isPlaying);
-          if (!frame) continue;
-          // A video hands back the same element every time and changes what is
-          // inside it, so identity cannot be the whole test.
-          if (!isPlaying && frame === slot.shown && !dirtyRef.current) continue;
-          slot.painter.paint(frame);
-          slot.shown = frame;
-          dirtyRef.current = true;
-        }
+        if (freeRunFromRef.current === 0) freeRunFromRef.current = now;
+        const moved = paintMovingSlots(
+          moving,
+          timelineRef.current,
+          (now - freeRunFromRef.current) / 1000,
+        );
+        paced = paced || moved.playing;
+        if (moved.painted) dirtyRef.current = true;
+      } else {
+        freeRunFromRef.current = 0;
       }
       if (!dirtyRef.current) return;
       const renderer = rendererRef.current;
@@ -664,7 +645,7 @@ export function MockupPreview(): React.ReactElement {
       // hand that stopped is not a machine that struggled, and playback must
       // not, because there is no hand.
       if (interactingRef.current) quality.sample(now, DRAG_SAMPLING);
-      else if (timelineRef.current.isPlaying) quality.sample(now, PLAYBACK_SAMPLING);
+      else if (paced) quality.sample(now, PLAYBACK_SAMPLING);
     };
     handle = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(handle);

@@ -260,11 +260,22 @@ frame it was late for nothing and shows up on the next one. Export is the single
 exception: it asks, waits, and asks again, because a file written one frame at a
 time cannot take a frame that arrives late.
 
-Two things to know. The design moves on the timeline's clock, so it needs the
-clock to be running — a keyframe of some kind, the Turntable preset being the
-usual one. And the GIF path needs the browser's image decoder, which Chromium
-and Safari have; where it is missing a GIF falls back to its first frame, which
-is what an `<img>` would have shown anyway.
+The design follows the timeline whenever there is a timeline to follow, and
+keeps its own time when there is not. That second half matters more than it
+sounds: the runtime stops its clock when nothing is keyframed — there is
+nothing to play, so it does not play — and a GIF dropped onto a still scene
+would otherwise sit on its first frame for ever, with a Play button that does
+nothing about it. So with no keyframes the design simply loops. Add a keyframe,
+the Turntable preset or anything else, and it falls in behind the playhead:
+scrub and it scrubs, pause and it holds.
+
+Export never reads either clock. It walks the loop itself and asks for the
+frame at each moment, so a scene with no keyframes still exports its animation,
+and exports the same one every time.
+
+One thing to know: the GIF path needs the browser's image decoder, which
+Chromium and Safari have. Where it is missing a GIF falls back to its first
+frame, which is what an `<img>` would have shown anyway.
 
 The controls they share are Screen fit and Print background: Fit, Fill,
 Stretch, scale, position, stretch and the colour under the design apply to
@@ -414,9 +425,10 @@ purpose. The editor's usual ease-in-out is right for a move that starts and
 stops, and wrong for one that repeats, because the device would slow to a stop
 at the top of the revolution and jerk as the loop came round again.
 
-A design that moves runs on this clock too, so a GIF on a shirt and the
-turntable under it are the same six seconds, and both come out of a video export
-in step. See **A design that moves** above.
+A design that moves runs on this clock whenever the clock runs, so a GIF on a
+shirt and the turntable under it are the same six seconds and both come out of a
+video export in step. With nothing keyframed the clock does not run and the
+design keeps its own time instead. See **A design that moves** above.
 
 Video export writes MP4 or WebM. The format you pick is the format you get.
 Inside an MP4 the encoder prefers H.264, and it falls back to AV1 when the

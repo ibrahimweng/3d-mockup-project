@@ -125,21 +125,30 @@ describe("the frame loop's sampling", () => {
     .split("\n")
     .filter((line) => line.includes("quality.sample("));
 
-  it("times a drag and playback, and nothing else", () => {
+  it("times a drag and anything else that has to keep up, and nothing else", () => {
     expect(sampleCalls).toHaveLength(2);
     const drag = sampleCalls.find((line) => line.includes("interactingRef.current"));
-    const play = sampleCalls.find((line) => line.includes("isPlaying"));
+    const paced = sampleCalls.find((line) => line.includes("paced"));
     expect(drag, "a drag should be timed").toBeDefined();
-    expect(play, "playback should be timed").toBeDefined();
+    expect(paced, "work running on a clock should be timed").toBeDefined();
   });
 
-  it("judges playback by its own profile, not the drag's", () => {
-    const play = sampleCalls.find((line) => line.includes("isPlaying")) ?? "";
+  it("judges paced work by its own profile, not the drag's", () => {
+    const paced = sampleCalls.find((line) => line.includes("paced")) ?? "";
     // The drag profile discards any gap over SETTLED_MS as a paused hand, which
-    // during playback throws away exactly the frames worth reacting to.
-    expect(play).toContain("PLAYBACK_SAMPLING");
+    // on a clock throws away exactly the frames worth reacting to.
+    expect(paced).toContain("PLAYBACK_SAMPLING");
     const drag = sampleCalls.find((line) => line.includes("interactingRef.current")) ?? "";
     expect(drag).toContain("DRAG_SAMPLING");
+  });
+
+  it("counts a moving design as paced, not only the timeline", () => {
+    // A GIF with nothing keyframed runs on its own clock, so the timeline says
+    // it is not playing while frames are being produced as fast as the machine
+    // manages. Timing only `isPlaying` would leave that case unmeasured, which
+    // is the same hole playback itself used to sit in.
+    expect(previewSource).toMatch(/let paced = timelineRef\.current\.isPlaying/);
+    expect(previewSource).toMatch(/paced = paced \|\| moved\.playing/);
   });
 
   it("clears the measurement when playback starts or stops", () => {

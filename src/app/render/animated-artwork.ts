@@ -315,6 +315,41 @@ export function wrap(seconds: number, durationSeconds: number): number {
   return ((seconds % durationSeconds) + durationSeconds) % durationSeconds;
 }
 
+/** The clock a moving design runs on, and whether it is running. */
+export type DesignClock = { playing: boolean; seconds: number };
+
+/**
+ * Which clock a moving design should follow.
+ *
+ * The timeline, whenever there is a timeline to follow. That is what makes
+ * scrubbing scrub the design, pausing hold it on a frame, and an export come
+ * out the same twice running.
+ *
+ * But the runtime stops its own clock when nothing is keyframed -- there is
+ * nothing to play, so it does not play -- and a GIF dropped onto a still scene
+ * is not nothing to play. Left on the timeline it would sit on its first frame
+ * for ever, with a Play button that does nothing about it, which is not what
+ * anybody means by dropping a GIF on a shirt. So with no keyframes the design
+ * keeps its own time and simply loops.
+ *
+ * Export is unaffected either way. It never reads this: it walks the loop
+ * itself and asks for the frame at each moment, so a keyframeless scene still
+ * exports its animation, and exports the same one every time.
+ */
+export function readDesignClock(
+  timeline: {
+    currentTimeSeconds: number;
+    isPlaying: boolean;
+    keyframeGroups: readonly unknown[];
+  },
+  elapsedSeconds: number,
+): DesignClock {
+  if (timeline.keyframeGroups.length > 0) {
+    return { playing: timeline.isPlaying, seconds: timeline.currentTimeSeconds };
+  }
+  return { playing: true, seconds: Math.max(0, elapsedSeconds) };
+}
+
 /**
  * Open whichever kind this is, or nothing if it will not animate.
  *
