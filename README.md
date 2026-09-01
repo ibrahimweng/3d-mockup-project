@@ -277,6 +277,23 @@ One thing to know: the GIF path needs the browser's image decoder, which
 Chromium and Safari have. Where it is missing a GIF falls back to its first
 frame, which is what an `<img>` would have shown anyway.
 
+### A design keeps its proportions
+
+Fit is the default, because a printer neither crops your artwork nor stretches
+it, and a design cut to the zone's own shape lands on it untouched.
+
+For that to be true the zone's shape has to be known, and for a long time it was
+not. The fit maths measured each panel from its mesh's *local* box while
+reasoning about how the panel sits in the world -- which way is up, which axis
+runs away from the viewer. Any model whose node turns or scales its panel
+therefore handed it the wrong shape. The shirt and the tote were unaffected,
+their nodes being identity, which is why nothing looked wrong there; the ID
+card's node stands it upright, and its local box gave 0.63 where the truth is
+1.59 -- the reciprocal. Fit and Fill then corrected the wrong axis and every
+upload arrived on the card two and a half times too wide. Measured on an export,
+a design cut to the card's ratio came back 48.9 tiles across where 20 were
+authored; it is now 20.7.
+
 The controls they share are Screen fit and Print background: Fit, Fill,
 Stretch, scale, position, stretch and the colour under the design apply to
 every zone at once. A design fitted to the front

@@ -72,9 +72,26 @@ export function findScreenMaterials(
 /**
  * Measure the display's proportions from the mesh carrying its material.
  *
- * Taking the two largest axes of the local bounding box is correct for a flat
- * panel. A screen modelled at a tilt has depth in all three axes and reports a
- * height that is too small, which is why the catalog can override this.
+ * Taking the two largest axes of the bounding box is correct for a flat panel.
+ * A screen modelled at a tilt has depth in all three axes and reports a height
+ * that is too small, which is why the catalog can override this.
+ *
+ * The box is the world one, and that is the whole of what this function got
+ * wrong for a long time. Every judgement below is about how the panel sits in
+ * the world -- which way is up, which axis runs away from the viewer -- and it
+ * was reading the mesh's *local* box to make them. A node that rotates or
+ * scales its panel therefore handed this the wrong shape entirely, and the
+ * error was invisible on exactly the products whose nodes happen to be
+ * identity: the shirt and the tote measured the same either way, so nothing
+ * looked wrong there while the ID card was off by two and a half times.
+ *
+ * The card stands upright through its node, so locally it is a flat slab
+ * 53.9 by 85.5 and in the world it is a panel 2.13 wide and 3.38 tall. Read
+ * locally it came out 0.63 to 1, which is not merely wrong but the reciprocal
+ * of the truth -- and the comment that used to sit here quoted that 0.63 as
+ * the card's shape, so the previous attempt at this was reasoning from the
+ * symptom. A design landing on it had Fit and Fill correcting the wrong axis,
+ * which is what put every square upload on the card into a tall ellipse.
  */
 export function measureScreenAspect(
   root: THREE.Object3D,
@@ -82,6 +99,12 @@ export function measureScreenAspect(
   fallback: number,
 ): number {
   let aspect = fallback;
+  // Ancestors included: a panel's shape in the world is decided as much by the
+  // nodes above it as by the mesh itself, and that is the point of measuring
+  // here rather than off the geometry.
+  root.updateWorldMatrix(true, true);
+  const box = new THREE.Box3();
+  const size = new THREE.Vector3();
   root.traverse((object) => {
     if (
       !(object instanceof THREE.Mesh) ||
@@ -89,20 +112,14 @@ export function measureScreenAspect(
     ) {
       return;
     }
-    object.geometry.computeBoundingBox();
-    const box = object.geometry.boundingBox;
-    if (!box) return;
-    const size = box.getSize(new THREE.Vector3());
-    // Height over width, which is what every caller reads this as. Sorting the
-    // extents and returning the smaller over the larger, which this did, is
-    // height over width only for a panel wider than it is tall -- and the
-    // reciprocal of it for one taller than it is wide. A square platen hid it;
-    // the ID card is 0.63 to 1 and every square upload arrived on it squeezed
-    // into a tall ellipse, with Fit and Fill both correcting the wrong axis.
+    box.setFromObject(object);
+    if (box.isEmpty()) return;
+    box.getSize(size);
+    // Height over width, which is what every caller reads this as.
     //
     // Up is up where the panel stands up, and where it lies flat -- a pad of
-    // paper on a folio -- the axis running away from the viewer is what reads
-    // as height, which is the shorter of the two the panel does span.
+    // paper on a clipboard -- the axis running away from the viewer is what
+    // reads as height, which is the shorter of the two the panel does span.
     const across = Math.max(size.x, size.z);
     const flat = size.y <= Math.min(size.x, size.z);
     const up = flat ? Math.min(size.x, size.z) : size.y;
