@@ -20,6 +20,11 @@ function stubCanvas(): {
 } {
   const calls: string[] = [];
   const context = {
+    // A canvas that will be drawn into more than once has to be reset and
+    // cleared first, or frame two arrives on top of frame one through its own
+    // transparent parts and under frame one's leftover transform.
+    clearRect: (x: number, y: number, w: number, h: number) =>
+      calls.push(`clearRect ${x},${y} ${w}x${h}`),
     drawImage: (_image: unknown, x: number, y: number, w: number, h: number) =>
       calls.push(`drawImage ${x},${y} ${w}x${h}`),
     fillRect: (x: number, y: number, w: number, h: number) =>
@@ -27,6 +32,7 @@ function stubCanvas(): {
     fillStyle: "",
     rotate: () => calls.push("rotate"),
     scale: (x: number, y: number) => calls.push(`scale ${x},${y}`),
+    setTransform: () => calls.push("setTransform"),
     translate: (x: number, y: number) => calls.push(`translate ${x},${y}`),
   };
   const canvas = {
@@ -85,6 +91,16 @@ test("a transparent design is composited onto the print background", () => {
   // The whole canvas, not the image's box: a design smaller than its canvas
   // would otherwise keep black corners.
   expect(stub.calls[fill]).toBe("fillRect 0,0 300x400");
+  // And the canvas was reset and cleared before any of it, so a second frame
+  // painted onto the same canvas starts from nothing rather than from the one
+  // before it.
+  const reset = stub.calls.indexOf("setTransform");
+  const clear = stub.calls.findIndex((call) => call.startsWith("clearRect"));
+  expect(reset).toBeGreaterThanOrEqual(0);
+  expect(reset).toBeLessThan(fill);
+  expect(clear).toBeGreaterThan(reset);
+  expect(clear).toBeLessThan(fill);
+  expect(stub.calls[clear]).toBe("clearRect 0,0 300x400");
 });
 
 test("a display is left alone", () => {

@@ -13,7 +13,7 @@ import {
 import { forgetArtworkUrl, publishArtworkUrl } from "./artwork-store";
 import { readZoneAssets } from "./artwork-slots";
 import { resolveCanvasCursor } from "./canvas-cursor";
-import { useAdaptiveQuality } from "./adaptive-quality";
+import { DRAG_SAMPLING, PLAYBACK_SAMPLING, useAdaptiveQuality } from "./adaptive-quality";
 import { useScenePreset } from "./apply-scene-preset";
 import { useSurfaceFraming } from "./apply-surface-framing";
 import { useDesignDrag } from "./design-drag";
@@ -22,7 +22,9 @@ import { useViewPan } from "./view-pan";
 import { readDeviceDefinition, type ArtworkZoneId } from "./product-domain";
 import { fingerprint } from "./render/fingerprint";
 import { RasterRenderer } from "./render/raster-renderer";
-import { createScreenTexture } from "./render/screen-texture";
+import { createScreenPainter, createScreenTexture } from "./render/screen-texture";
+import { isAnimatedMimeType, openAnimatedArtwork } from "./render/animated-artwork";
+import { paintMovingSlots, type MovingSlot } from "./render/moving-slots";
 import {
   readArtworkBackground,
   readRasterSettings,
@@ -33,6 +35,7 @@ import styles from "./preview.module.css";
 /** Drawing above the display's own ratio is pixels nobody can see. */
 const MAX_PIXEL_RATIO = 2;
 
+
 export function MockupPreview(): React.ReactElement {
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
   const rendererRef = React.useRef<RasterRenderer | null>(null);
@@ -42,6 +45,12 @@ export function MockupPreview(): React.ReactElement {
   // A frame is only drawn when something has invalidated it. Redrawing a static
   // scene every tick would hold the GPU at load for no visible change.
   const dirtyRef = React.useRef(true);
+  // The zones whose designs move, walked once a frame. Empty for every product
+  // nobody has dropped a GIF or a video onto, which is the ordinary case.
+  const movingRef = React.useRef<MovingSlot[]>([]);
+  // When a design with no timeline to follow started running, so it loops from
+  // where it came in rather than from whenever the page was opened.
+  const freeRunFromRef = React.useRef(0);
   const [sceneVersion, setSceneVersion] = React.useState(0);
   // Dragging trades resolution for frame rate. Nothing is being inspected
   // closely while the scene is in motion, and the alternative is a sharp
@@ -193,6 +202,21 @@ export function MockupPreview(): React.ReactElement {
     publishObservation();
   }, [observation, publishObservation, timelineReport]);
 
+  /**
+   * Start each run of playback measuring from scratch.
+   *
+   * The sampler folds the gap between one timed frame and the next, so without
+   * this the first gap it sees when playback starts is the whole idle stretch
+   * since the last drag -- seconds, usually -- and it would drop the
+   * resolution to the floor for a scene that had not been asked to draw
+   * anything yet. Clearing it on both edges also means stopping playback does
+   * not leave a stale timestamp for the next drag to measure against.
+   */
+  const isPlaying = state.timeline.isPlaying;
+  React.useEffect(() => {
+    quality.reset();
+  }, [isPlaying, quality]);
+
   // The renderer owns a WebGL context, so it is created once against the canvas
   // and torn down only on unmount.
   React.useEffect(() => {
@@ -256,6 +280,9 @@ export function MockupPreview(): React.ReactElement {
       zone,
       urls.get(asset.id) ?? null,
       asset.transform ?? null,
+      // What kind of upload it is, because a GIF and a PNG arrive down the
+      // same slot and only one of them has to be taken apart frame by frame.
+      asset.mimeType ?? null,
     ]),
   );
   const slots = React.useMemo(
@@ -264,15 +291,18 @@ export function MockupPreview(): React.ReactElement {
         ArtworkZoneId,
         string | null,
         ToolcraftImageAsset["transform"] | null,
+        string | null,
       ][],
     [slotsKey],
   );
 
   React.useEffect(() => {
     const published = [...zoneAssets.values()]
-      .map((asset) => [asset.id, urls.get(asset.id)] as const)
-      .filter((entry): entry is readonly [string, string] => Boolean(entry[1]));
-    for (const [id, url] of published) publishArtworkUrl(id, url);
+      .map((asset) => [asset.id, urls.get(asset.id), asset.mimeType ?? ""] as const)
+      .filter((entry): entry is readonly [string, string, string] => Boolean(entry[1]));
+    // With the kind, because export has to know whether a URL is one picture
+    // or a reel of them before it can ask for the frame at a given moment.
+    for (const [id, url, mimeType] of published) publishArtworkUrl(id, url, mimeType);
     return () => {
       for (const [id] of published) forgetArtworkUrl(id);
     };
@@ -297,6 +327,45 @@ export function MockupPreview(): React.ReactElement {
   React.useEffect(() => {
     let cancelled = false;
     const device = readDeviceDefinition(settings.device);
+    const opened: MovingSlot[] = [];
+
+    /**
+     * A design that moves, if this one does and this browser can take it apart.
+     *
+     * Falls back to the still path on every failure rather than reporting one,
+     * so a GIF in a browser with no image decoder shows its first frame -- the
+     * same thing an `<img>` would have shown -- instead of an empty panel.
+     */
+    const openMoving = async (
+      zone: ArtworkZoneId,
+      url: string,
+      transform: ToolcraftImageAsset["transform"] | null,
+      mimeType: string,
+    ): Promise<THREE.Texture | null> => {
+      const source = await openAnimatedArtwork(url, mimeType, () => {
+        dirtyRef.current = true;
+      });
+      if (!source) return null;
+      const painter = createScreenPainter(
+        source,
+        device,
+        transform ?? undefined,
+        rendererRef.current?.maxAnisotropy ?? 1,
+        background,
+      );
+      if (!painter) {
+        source.dispose();
+        return null;
+      }
+      if (cancelled) {
+        source.dispose();
+        painter.texture.dispose();
+        return null;
+      }
+      opened.push({ painter, shown: null, source, zone });
+      return painter.texture;
+    };
+
     const decode = async (
       url: string,
       transform: ToolcraftImageAsset["transform"] | null,
@@ -320,9 +389,13 @@ export function MockupPreview(): React.ReactElement {
     };
 
     void Promise.all(
-      slots.map(async ([zone, url, transform]) =>
-        url ? ([zone, await decode(url, transform)] as const) : null,
-      ),
+      slots.map(async ([zone, url, transform, mimeType]) => {
+        if (!url) return null;
+        const moving = isAnimatedMimeType(mimeType ?? undefined)
+          ? await openMoving(zone, url, transform, mimeType ?? "")
+          : null;
+        return [zone, moving ?? (await decode(url, transform))] as const;
+      }),
     ).then((decoded) => {
       const textures = new Map<ArtworkZoneId, THREE.Texture | null>(
         decoded.filter((entry) => entry !== null),
@@ -333,12 +406,18 @@ export function MockupPreview(): React.ReactElement {
       }
       for (const texture of artworkRef.current.values()) texture?.dispose();
       artworkRef.current = textures;
+      movingRef.current = opened;
       rendererRef.current?.setArtwork(textures, screenRef.current);
       dirtyRef.current = true;
     });
 
     return () => {
       cancelled = true;
+      // Decoders and video elements are not garbage: one holds a parsed file
+      // and a frame, the other a media pipeline. Both are let go when the slot
+      // that opened them changes.
+      for (const slot of opened) slot.source.dispose();
+      if (movingRef.current === opened) movingRef.current = [];
     };
   }, [background, slots, sceneVersion, settings.device]);
 
@@ -518,6 +597,29 @@ export function MockupPreview(): React.ReactElement {
     let handle = 0;
     const tick = (now: number) => {
       handle = requestAnimationFrame(tick);
+      /**
+       * Move every design that moves, before anything decides to draw.
+       *
+       * On the timeline's clock rather than the clip's, so scrubbing scrubs
+       * the design, pausing holds it on a frame, and the same export rendered
+       * twice is the same animation both times. `frameAt` never waits: it
+       * hands back the newest frame it has and goes after the one asked for,
+       * so a slow decode costs this frame nothing.
+       */
+      const moving = movingRef.current;
+      let paced = timelineRef.current.isPlaying;
+      if (moving.length > 0) {
+        if (freeRunFromRef.current === 0) freeRunFromRef.current = now;
+        const moved = paintMovingSlots(
+          moving,
+          timelineRef.current,
+          (now - freeRunFromRef.current) / 1000,
+        );
+        paced = paced || moved.playing;
+        if (moved.painted) dirtyRef.current = true;
+      } else {
+        freeRunFromRef.current = 0;
+      }
       if (!dirtyRef.current) return;
       const renderer = rendererRef.current;
       if (!renderer?.ready) return;
@@ -526,9 +628,24 @@ export function MockupPreview(): React.ReactElement {
       // Sampled here rather than anywhere else because the drawing buffer is
       // only readable in the same task as the draw that filled it.
       publishObservation(renderer.sampleSignature());
-      // Only a drag is timed. A frame drawn because a slider moved says
-      // nothing about whether the machine can hold a rotation.
-      if (interactingRef.current) quality.sample(now);
+      // Timed whenever frames have to keep arriving: a drag, and playback.
+      //
+      // Only the drag was timed before, and playback is the case that needs
+      // this most. Adaptive quality is the one safety net the preview has --
+      // it notices late frames and trades resolution for them until they
+      // arrive on time -- and a turntable ran entirely outside it, rendering
+      // at full sharpness however slowly each frame came back, with nothing
+      // watching. Dragging the same scene adapted within a few frames and felt
+      // fine, which is what made playback the thing that stuttered.
+      //
+      // A frame drawn because a slider moved is still not timed: one frame in
+      // isolation says nothing about whether the machine can hold a rotation.
+      //
+      // Judged differently in each case: a drag discards long gaps because a
+      // hand that stopped is not a machine that struggled, and playback must
+      // not, because there is no hand.
+      if (interactingRef.current) quality.sample(now, DRAG_SAMPLING);
+      else if (paced) quality.sample(now, PLAYBACK_SAMPLING);
     };
     handle = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(handle);

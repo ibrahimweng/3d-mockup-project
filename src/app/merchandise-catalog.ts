@@ -206,12 +206,22 @@ export const MERCHANDISE_CATALOG = {
       trim: { materials: ["Folder_Pen"] },
     },
     excludedNodes: [],
-    // Measured from the file: 31.00 by 2.36 by 22.00 units, over the length of
-    // that box, which is what makes this a direction rather than a size. It was
-    // 43.97 long before, and 13 of those were the sheet standing off the end of
-    // the board -- so the camera framed a shape a third of which was a part in
-    // the wrong place.
-    frame: [0.813947, 0.061834, 0.57764],
+    // Measured from the file: 320 by 24.6 by 227mm, over the length of that
+    // box, which is what makes this a direction rather than a size. It was
+    // 43.97 units long before, and 13 of those were the sheet standing off the
+    // end of the board -- so the camera framed a shape a third of which was a
+    // part in the wrong place.
+    //
+    // Landscape, though every photograph of a real clipboard is portrait, and
+    // that is not the preference it looks like. Turning it with `yawDegrees:
+    // 90` -- which is how the tote is turned, and the frame for it is
+    // [0.577612, 0.062585, 0.813908] -- makes the clip vanish from the render
+    // at every camera angle tried, while the board, the sheet and the pen all
+    // still draw. The clip is in the file either way: 220 triangles at
+    // x -143.4..-117.7, y 10.1..23.1, and it draws correctly at yaw 0. So the
+    // turn is held back until that is understood rather than shipped with a
+    // part missing.
+    frame: [0.813908, 0.062585, 0.577612],
     label: "Clipboard",
     modelFile: "tablet-folder.glb",
     artworkSurface: "print",

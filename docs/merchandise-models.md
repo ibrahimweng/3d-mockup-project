@@ -230,14 +230,23 @@ cut, checked against photographs of real clipboards:
 
 - **The sheet is cut to A4.** It was 288 by 217mm, which is no paper size at
   all, sitting 0.19 sunk into the board and a unit off centre. It is 297 by 210
-  now on a 320 by 227mm board, which leaves about 11mm above and below and 8mm
-  at each side — and makes the print area a standard 1:1.414, so a design
-  authored at A4 lands undistorted. More board above the sheet than below it,
-  because the clip needs somewhere to be.
-- **The clip presses the paper.** It sat 1.8mm *below* the face of the board, so
-  the one part whose job is to hold the sheet down was underneath it. Its
-  underside now rests on the sheet, and since the sheet's top edge lands where
-  the clip begins, the jaw covers about 25mm of paper.
+  now on a 320 by 227mm board, 17.2mm of board above it and 5.9mm below, 8.5mm
+  at each side — and the print area is a standard 1:1.414, so a design authored
+  at A4 lands undistorted. Far more board above the sheet than below, because
+  everything a clipboard has to fit goes at the top and the bottom only has to
+  stop the paper sliding off.
+- **The clip sits on the paper.** It sat 1.8mm *below* the face of the board, so
+  the one part whose job is to hold the sheet down was underneath it. It now
+  rests on the sheet and reaches about 23mm in over it.
+- **Nothing shares a plane with anything.** Every part was first set down at
+  exactly the height of the surface below it, which is right to the millimetre
+  and wrong on screen: two faces in one plane give the depth buffer nothing to
+  choose between, so it picks differently from pixel to pixel and the metal
+  appears to be sawing into the paper. It was not — an exact triangle-against-
+  triangle test over all 336 of them finds no pair overlapping — but a rendering
+  with no answer looks the same as one with the wrong answer. The clip now
+  clears the sheet by 0.30mm and the pen by 0.15mm, both under a pixel at any
+  framing this is shot at.
 - **The pen lies on the sheet**, across the lower right at 32°, turned about its
   own middle rather than about a node origin metres away. It floated a quarter
   of a unit above everything at the clip end.
@@ -252,8 +261,40 @@ cut, checked against photographs of real clipboards:
 
 The sheet is two coplanar triangles projected straight down and flattened, and
 its template is cut to the panel's own aspect, so the map is exact: squareness
-1.00, stretch 1.00. Measured off a render of a 15mm checker through a 300mm lens
-with the sheet face-on, the checks come back 30 pixels wide and 30 pixels tall.
+1.00, stretch 1.00. Read straight out of the built file, one unit of u spans
+298.1mm and one unit of v spans 210.8mm, both running 0 to 1 — a ratio of 1.414,
+which is A4, so a design authored at that ratio is correct for it.
+
+Checking that off the pixels instead needs care, and a first attempt got it
+wrong. The studio camera compresses the vertical by about 1.55 at the angle that
+looks face-on, and that compression very nearly cancels a stretch the upload
+path introduces, so a distorted print measures square. Corrected against the
+board's known 320 by 227mm, an uploaded A4-ratio checker lands 19.8 columns
+across, which is right, and about 8.7 rows down where 13.9 are expected. The
+model's unwrap and the source image are both exact, so that stretch belongs to
+the runtime artwork fit, not to anything in this file.
+
+### One part that will not turn
+
+Every photograph of a real clipboard is portrait, and this one presents
+landscape. That is `yawDegrees`, the same field that turns the tote, and setting
+it to 90 here makes the **clip vanish from the render** at every camera angle
+tried — while the board, the sheet and the pen all still draw. The clip is in
+the file either way: 220 triangles at x -143.4..-117.7, y 10.1..23.1, and it
+draws correctly at yaw 0. The frame vector for the turned version is
+`[0.577612, 0.062585, 0.813908]`. Held back until the disappearance is
+understood, rather than shipped with a part missing.
+
+### What the clip can and cannot do
+
+It is a sprung lever, not a jaw. Sectioned along the board it touches down once,
+at its lowest point, and climbs from there: 9.8mm at x -140, 16.3 at -135, 18.1
+at -130, 22.8 at -119. So it can rest on a stack of paper and it cannot straddle
+one — there is no opening between two bands of metal for sheets to slide into.
+Lowering it to grip the block only buries it: dropped far enough for its base to
+reach the board it puts 32 triangles of metal inside the paper and the board.
+Making it actually press a stack would mean modelling a jaw, which is new
+geometry rather than a placement.
 
 Each material is a tiling map from `scripts/make-material-textures.mjs`, laid
 out from world position at a stated tile size rather than through the 0–1 unwrap

@@ -234,6 +234,49 @@ rotate and flip actions under each uploader turn that zone's image alone. The
 export reads the same four slots the canvas does, so the file matches the frame
 you were looking at.
 
+### A design that moves
+
+Every zone takes a GIF, an MP4 or a WebM as readily as a PNG, and plays it on
+the timeline's clock. Scrubbing the playhead scrubs the design, pausing holds it
+on a frame, and an exported video carries the same animation every time it is
+rendered rather than wherever the decoder happened to have reached.
+
+A GIF is taken apart with the browser's own image decoder, one frame at a time.
+The timings are read once on upload, by decoding every frame and keeping only
+when it belongs; that costs about four milliseconds a frame, so a hundred and
+twenty of them is half a second of waiting, once, at upload. Afterwards a frame
+costs about four milliseconds whether it is the next one or one from the far end
+of the clip, which is what makes scrubbing as cheap as playing. Exactly one
+decoded frame is held at a time: a twenty megabyte GIF is nearer three hundred
+decoded, so keeping them all is not an option and, at these speeds, not a need.
+
+A video is left to play and nudged only when it drifts, because seeking one per
+frame would make it unwatchable. Paused or scrubbed it is seeked, because then
+the exact frame is the whole point.
+
+Neither ever makes the preview wait. A source hands back the newest frame it has
+and goes after the one asked for in the background, so a slow decode costs the
+frame it was late for nothing and shows up on the next one. Export is the single
+exception: it asks, waits, and asks again, because a file written one frame at a
+time cannot take a frame that arrives late.
+
+The design follows the timeline whenever there is a timeline to follow, and
+keeps its own time when there is not. That second half matters more than it
+sounds: the runtime stops its clock when nothing is keyframed — there is
+nothing to play, so it does not play — and a GIF dropped onto a still scene
+would otherwise sit on its first frame for ever, with a Play button that does
+nothing about it. So with no keyframes the design simply loops. Add a keyframe,
+the Turntable preset or anything else, and it falls in behind the playhead:
+scrub and it scrubs, pause and it holds.
+
+Export never reads either clock. It walks the loop itself and asks for the
+frame at each moment, so a scene with no keyframes still exports its animation,
+and exports the same one every time.
+
+One thing to know: the GIF path needs the browser's image decoder, which
+Chromium and Safari have. Where it is missing a GIF falls back to its first
+frame, which is what an `<img>` would have shown anyway.
+
 The controls they share are Screen fit and Print background: Fit, Fill,
 Stretch, scale, position, stretch and the colour under the design apply to
 every zone at once. A design fitted to the front
@@ -381,6 +424,11 @@ takes Spin from 0 to 360 degrees across the whole loop. That track is linear on
 purpose. The editor's usual ease-in-out is right for a move that starts and
 stops, and wrong for one that repeats, because the device would slow to a stop
 at the top of the revolution and jerk as the loop came round again.
+
+A design that moves runs on this clock whenever the clock runs, so a GIF on a
+shirt and the turntable under it are the same six seconds and both come out of a
+video export in step. With nothing keyframed the clock does not run and the
+design keeps its own time instead. See **A design that moves** above.
 
 Video export writes MP4 or WebM. The format you pick is the format you get.
 Inside an MP4 the encoder prefers H.264, and it falls back to AV1 when the

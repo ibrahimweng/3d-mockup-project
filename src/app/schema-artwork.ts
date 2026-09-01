@@ -23,7 +23,7 @@ import { DEFAULT_ARTWORK_BACKGROUND } from "./product-domain";
 export const ARTWORK_SECTION = {
   controls: {
     image: {
-      accept: "image/png,image/jpeg,image/webp",
+      accept: "image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm",
       applicability: { mode: "always" },
       assetKind: "image",
       defaultValue: null,
@@ -32,13 +32,13 @@ export const ARTWORK_SECTION = {
       label: false,
       multiple: false,
       performanceReason:
-        "The screenshot is decoded once into a texture and swapped onto the display material; it does not affect per-frame cost.",
+        "A still is decoded once into a texture and swapped onto the material, costing nothing per frame. A GIF or a video costs one frame decode and one blit whenever the timeline reaches a new frame of it, and nothing on the frames in between.",
       performanceRole: "responsiveness",
       target: "artwork.image",
       type: "fileDrop",
     },
     imageBack: {
-      accept: "image/png,image/jpeg,image/webp",
+      accept: "image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm",
       applicability: {
         all: [{ oneOf: ARTWORK_ZONE_DEVICES.back, target: "device.model" }],
         mode: "conditional",
@@ -49,13 +49,13 @@ export const ARTWORK_SECTION = {
       label: "Back",
       multiple: false,
       performanceReason:
-        "The image is decoded once into a texture and swapped onto that zone's material; it does not affect per-frame cost.",
+        "A still is decoded once into a texture and swapped onto that zone's material, costing nothing per frame. A GIF or a video costs one frame decode and one blit whenever the timeline reaches a new frame of it.",
       performanceRole: "responsiveness",
       target: "artwork.imageBack",
       type: "fileDrop",
     },
     imageLeft: {
-      accept: "image/png,image/jpeg,image/webp",
+      accept: "image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm",
       applicability: {
         all: [{ oneOf: ARTWORK_ZONE_DEVICES.left, target: "device.model" }],
         mode: "conditional",
@@ -66,13 +66,13 @@ export const ARTWORK_SECTION = {
       label: "Left",
       multiple: false,
       performanceReason:
-        "The image is decoded once into a texture and swapped onto that zone's material; it does not affect per-frame cost.",
+        "A still is decoded once into a texture and swapped onto that zone's material, costing nothing per frame. A GIF or a video costs one frame decode and one blit whenever the timeline reaches a new frame of it.",
       performanceRole: "responsiveness",
       target: "artwork.imageLeft",
       type: "fileDrop",
     },
     imageRight: {
-      accept: "image/png,image/jpeg,image/webp",
+      accept: "image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm",
       applicability: {
         all: [{ oneOf: ARTWORK_ZONE_DEVICES.right, target: "device.model" }],
         mode: "conditional",
@@ -83,7 +83,7 @@ export const ARTWORK_SECTION = {
       label: "Right",
       multiple: false,
       performanceReason:
-        "The image is decoded once into a texture and swapped onto that zone's material; it does not affect per-frame cost.",
+        "A still is decoded once into a texture and swapped onto that zone's material, costing nothing per frame. A GIF or a video costs one frame decode and one blit whenever the timeline reaches a new frame of it.",
       performanceRole: "responsiveness",
       target: "artwork.imageRight",
       type: "fileDrop",
