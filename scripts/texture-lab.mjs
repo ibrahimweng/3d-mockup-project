@@ -139,8 +139,30 @@ async function writeAlbedo(name, data) {
  * thing standing between a surface that reads as material and one that reads
  * as a soft photograph of material.
  */
-async function writeNormal(name, data) {
-  await sharp(data, { raw: { channels: 3, height: SIZE, width: SIZE } })
+async function writeNormal(name, data, size = SIZE) {
+  const image = sharp(data, { raw: { channels: 3, height: SIZE, width: SIZE } });
+  await (size === SIZE ? image : image.resize(size, size))
+    .png({ compressionLevel: 9 })
+    .toFile(join(OUT, name));
+}
+
+/**
+ * Roughness and metalness in the two channels glTF reads them from.
+ *
+ * They travel as one image because the format says so: green is roughness and
+ * blue is metalness, and red is spare. It has to be lossless for the same
+ * reason a normal map does -- worse, in fact, since JPEG's chroma subsampling
+ * would smear the two channels into each other and a scratch in the roughness
+ * would arrive as a patch of bare metal.
+ */
+async function writePacked(name, rough, metal, size = SIZE) {
+  const data = Buffer.alloc(SIZE * SIZE * 3);
+  for (let index = 0; index < SIZE * SIZE; index += 1) {
+    data[index * 3 + 1] = rough[index];
+    data[index * 3 + 2] = clamp(metal * 255);
+  }
+  const image = sharp(data, { raw: { channels: 3, height: SIZE, width: SIZE } });
+  await (size === SIZE ? image : image.resize(size, size))
     .png({ compressionLevel: 9 })
     .toFile(join(OUT, name));
 }
@@ -154,4 +176,4 @@ async function writeRough(name, data) {
 }
 
 
-export { SIZE, OUT, valueNoise, fbm, normalFromHeight, ramp, clamp, clamp01, writeAlbedo, writeNormal, writeRough };
+export { SIZE, OUT, valueNoise, fbm, normalFromHeight, ramp, clamp, clamp01, writeAlbedo, writeNormal, writePacked, writeRough };

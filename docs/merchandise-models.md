@@ -190,16 +190,90 @@ height: the shoulder loses 5mm of radius over 8mm of height, so it is longer
 than it is tall, and by height alone its share of the label arrives squeezed
 into a band. Measured at the widest ring the wrap is 1.37 to 1.
 
-### Tablet folder
+### Clipboard
 
-A folio with a pen loop and a clasp pin, holding a pad of paper.
+A hardboard panel with a nickel-plated spring clip, a writing pad and a couple
+of loose sheets on it, and a plastic pen.
+
+It was labelled a tablet folder and dressed as one, and that is why it read as a
+single white slab: there is no cover, no flap and no spine in this geometry to
+make a folio out of, so every part was given a pale colour and a roughness
+number and none of them looked like anything. What the shape is, is a clipboard
+— and a clipboard is one of each of the four ordinary materials.
+
+| Part | Material | Prints? | Surface |
+| --- | --- | --- | --- |
+| Board | `Folder_Board` | no, main colour slot | hardboard: tiling albedo, normal and roughness, flecked pressed fibre at a 40mm tile |
+| Sheet, face | `Folder_Pad` | yes, projected straight down and flattened | paper: relief and finish only, so a design is not tinted by a picture of paper |
+| Sheet block edge | `Folder_Pad_Edge` | no | as above; laid out across x and y because it stands vertical |
+| Pen | `Folder_Pen` | no, trim colour slot | moulded plastic: a tight even sheen and the faint orange-peel of a mould |
+| Spring clip | `Folder_Clip` | no, accent colour slot | nickel plate over steel, brushed: metalness 0.55 in the map's blue channel |
 
 The file paints all five of its meshes with one material at metallic 1 and
 roughness 1, which renders it black, and hangs a photograph of somebody's
-document off it. Phase 4 prepped it like the rest, so the file now names its
-own parts -- `Folder_Board`, `Folder_Pen`, `Folder_Clip`, `Folder_Sheet` and
-`Folder_Pad`, which is the only one that prints -- instead of the catalog
-correcting them on the way to the screen.
+document off it. The parts are separated at prep time and each is given the
+material it is made of.
+
+**Where the parts sit was a bug in the engine, not in the file.** All the zones
+are rebuilt into one mesh, and a mesh's vertices live in its own node's space —
+so a face that arrived under a different node has to be carried across rather
+than copied. Copied, it lands wherever the difference between the two nodes puts
+it. This model's five parts sit under five nodes and the first of them is offset
+13.59 units, so the board, the clip, the pen and the sheets all arrived 13.59
+units away from the pad: 42 per cent of the length of the board, which read as
+the pad hanging off the end of it. `prep-model-zones.mjs` now writes every
+vertex as `inv(destination) · world`. Nothing else in the catalog has parts
+under more than one node, which is why nothing else showed it.
+
+What was genuinely out of place in the file is corrected before the zones are
+cut, checked against photographs of real clipboards:
+
+- **The sheet is cut to A4.** It was 288 by 217mm, which is no paper size at
+  all, sitting 0.19 sunk into the board and a unit off centre. It is 297 by 210
+  now on a 320 by 227mm board, which leaves about 11mm above and below and 8mm
+  at each side — and makes the print area a standard 1:1.414, so a design
+  authored at A4 lands undistorted. More board above the sheet than below it,
+  because the clip needs somewhere to be.
+- **The clip presses the paper.** It sat 1.8mm *below* the face of the board, so
+  the one part whose job is to hold the sheet down was underneath it. Its
+  underside now rests on the sheet, and since the sheet's top edge lands where
+  the clip begins, the jaw covers about 25mm of paper.
+- **The pen lies on the sheet**, across the lower right at 32°, turned about its
+  own middle rather than about a node origin metres away. It floated a quarter
+  of a unit above everything at the clip end.
+- **The loose sheets are gone.** They were not sheets: six disconnected scraps
+  inside one mesh, the largest a 13 by 1 strip and two of the six the same strip
+  twice over, standing 23.7 deep against a 22-deep board. Stacked into a pile
+  they read as creases across the paper, and no photograph of a real clipboard
+  has anything of the sort on it. The mesh is disposed rather than detached: one
+  only unhooked from its node still holds its primitives, which still name the
+  source material, so the sweep that drops orphaned materials leaves `blinn2`
+  parented and the file ships a material nothing in the catalog names.
+
+The sheet is two coplanar triangles projected straight down and flattened, and
+its template is cut to the panel's own aspect, so the map is exact: squareness
+1.00, stretch 1.00. Measured off a render of a 15mm checker through a 300mm lens
+with the sheet face-on, the checks come back 30 pixels wide and 30 pixels tall.
+
+Each material is a tiling map from `scripts/make-material-textures.mjs`, laid
+out from world position at a stated tile size rather than through the 0–1 unwrap
+a design uses. Two things it taught:
+
+- **Author the noise against the resolution the map ships at.** Paper's fibre
+  was first written at 700 lattice cells and the map is written at 256 pixels;
+  each cell landed on a third of a pixel and averaged to flat grey, so the pad
+  came back a smooth white slab while the board beside it read correctly — the
+  board's flecking rides an albedo map, which is never resampled.
+- **Fibre is not what makes paper look like paper.** At the distance a product
+  is photographed from, a quarter-millimetre fibre is a fraction of a pixel. The
+  cockle is what reads: a sheet takes up moisture and stops being flat. The
+  paper map is weighted to the coarse end and tiled at 110mm for that reason.
+
+A material carrying a metallic-roughness map has both factors at 1, because glTF
+multiplies the factor into the map. That is not the setting **D3** looks for —
+it is what a material says when it means "the map decides", and the clipboard's
+paper reads 1 and 1 while its map holds metalness 0 in every texel — so D3 skips
+a material that carries one.
 
 ## 2b. Flattening
 
@@ -345,7 +419,7 @@ make-up written down. The four phases are finished.
 | --- | --- | --- |
 | D1 | Every material a product names is `doubleSided`. | — all five |
 | D2 | Fabric keeps its authored weave normal map. | — tote, shirt |
-| D3 | No material is both fully metallic and fully rough. Metal shows what it reflects rather than a colour of its own, and a fully rough surface reflects nothing coherent, so such a material has neither diffuse nor highlight left and renders near black whatever base colour it names. | — all five |
+| D3 | No material is both fully metallic and fully rough, unless it carries a metallic-roughness map — in which case the factors are multipliers on the map rather than the setting. Metal shows what it reflects rather than a colour of its own, and a fully rough surface reflects nothing coherent, so such a material has neither diffuse nor highlight left and renders near black whatever base colour it names. | — all five |
 
 ## 4. Building them
 

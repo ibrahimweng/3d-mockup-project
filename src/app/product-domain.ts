@@ -59,7 +59,7 @@ export const DEVICE_OPTIONS = [
   { label: "Tote Bag", value: "tote-bag" },
   { label: "Water Bottle", value: "water-bottle" },
   { label: "ID Card", value: "id-card" },
-  { label: "Tablet Folder", value: "tablet-folder" },
+  { label: "Clipboard", value: "tablet-folder" },
 ] as const;
 
 export type DeviceId = (typeof DEVICE_OPTIONS)[number]["value"];

@@ -188,37 +188,45 @@ export const MERCHANDISE_CATALOG = {
     },
   },
   "tablet-folder": {
-    // Prepped like every other product now, so the file says what the parts are
-    // instead of the catalog correcting them on the way to the screen. The
-    // source paints all five with one material at metallic 1 and roughness 1 --
-    // which renders near black -- and hangs a photograph of somebody's document
-    // off it. Colour slots and a material correction rescued three of the five;
-    // the loose sheets were left, and shipped that artwork in plain view.
+    // A clipboard, which is what the shape is: a hardboard panel with a nickel
+    // spring clip, a writing pad and loose sheets on it, and a pen. It was
+    // labelled a folder and dressed as one, which is why every part of it read
+    // as the same white slab -- there is no cover, no flap and no spine here to
+    // make a folio out of. Each part now carries a tiling map of the material
+    // it is actually made of rather than a flat colour and a roughness number.
+    //
+    // Three slots on the three parts a design never lands on. Each multiplies
+    // its material's map rather than replacing it, so picking a colour stains
+    // the board and tints the clip rather than painting the grain and the brush
+    // out; all three default to a near-white, which is what leaves the board
+    // its own brown and the pen its own dark barrel out of the box.
     colorParts: {
       accent: { materials: ["Folder_Clip"] },
       main: { materials: ["Folder_Board"] },
       trim: { materials: ["Folder_Pen"] },
     },
     excludedNodes: [],
-    // Measured from the file: 43.97 by 1.85 by 23.74 units. It read
-    // [0.793326, 0.040254, 0.607464] before, which is not this model -- the
-    // camera stood as if the folio were narrower and deeper than it is, and the
-    // folio ran off the right of the canvas and under the controls panel.
-    frame: [0.879361, 0.036983, 0.474717],
-    label: "Tablet Folder",
+    // Measured from the file: 31.00 by 2.36 by 22.00 units, over the length of
+    // that box, which is what makes this a direction rather than a size. It was
+    // 43.97 long before, and 13 of those were the sheet standing off the end of
+    // the board -- so the camera framed a shape a third of which was a part in
+    // the wrong place.
+    frame: [0.813947, 0.061834, 0.57764],
+    label: "Clipboard",
     modelFile: "tablet-folder.glb",
     artworkSurface: "print",
-    // The top of the pad: the largest flat face, and the one the folio is a
-    // mockup of. Two triangles projected straight down onto it, filling 0 to 1,
-    // so a design at 1.33 to 1 lands undistorted. Its four edges are their own
-    // material -- they stand square to the face and unwrapping them with it
-    // would smear the design down the side of the block. The loose sheets are
-    // `Folder_Sheet`, plain paper and not a slot.
+    // The face of the sheet, which is what a clipboard is a mockup of. Two
+    // triangles projected straight down onto it and flattened, filling 0 to 1.
+    // The sheet is cut to A4 at prep time -- 297 by 210mm on a 320 by 227mm
+    // board -- so a design authored at 1:1.414 lands undistorted and the print
+    // area is a paper size rather than whatever the bought file happened to
+    // draw. Its four edges are their own material: they stand square to the
+    // face, and unwrapping them with it would smear the design down the side of
+    // the block.
     screenMaterial: "Folder_Pad",
-    // Paper, and paper-coloured. The four edges of the pad stand square to its
-    // face, so they are not part of the print; the loose sheets are not the pad
-    // a design lands on. Neither is a slot, because neither is a part anyone
-    // would want to paint a different colour from the paper beside it.
-    fixedMaterials: ["Folder_Pad_Edge", "Folder_Sheet"],
+    // Paper, and paper-coloured. Not a slot, because the cut edge of a stack of
+    // paper is not a part anyone would want to paint a different colour from
+    // the sheet on top of it.
+    fixedMaterials: ["Folder_Pad_Edge"],
   },
 } satisfies Readonly<Record<string, DeviceDefinition>>;

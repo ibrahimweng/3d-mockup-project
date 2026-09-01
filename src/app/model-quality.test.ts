@@ -233,9 +233,16 @@ describe("what the merchandise models are made of", () => {
     // the reflection away by making it fully rough and there is nothing left,
     // so the surface renders near black whatever base colour it names. It is
     // never a deliberate setting, only a default nobody replaced.
+    //
+    // Unless the material carries a metallic-roughness map, in which case the
+    // two factors are not the setting at all -- glTF multiplies them into the
+    // map, so 1 and 1 is what a material says when it means "the map decides".
+    // The clipboard's paper reads 1 and 1 here and is neither metallic nor
+    // fully rough; its map holds metalness 0 in every texel.
     for (const [id, baseline] of models) {
       const black = (readGltfJson(fileOf(id)).materials ?? [])
-        .filter((material) => (material.pbrMetallicRoughness?.metallicFactor ?? 1) >= 0.9
+        .filter((material) => material.pbrMetallicRoughness?.metallicRoughnessTexture === undefined
+          && (material.pbrMetallicRoughness?.metallicFactor ?? 1) >= 0.9
           && (material.pbrMetallicRoughness?.roughnessFactor ?? 1) >= 0.9)
         .map((material) => material.name ?? "")
         .sort();

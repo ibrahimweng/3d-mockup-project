@@ -49,7 +49,7 @@ test("browser: each device option renders its own model on the canvas", async ({
       "Tote Bag",
       "Water Bottle",
       "ID Card",
-      "Tablet Folder",
+      "Clipboard",
     ],
     { requirementId: "device.model.selection", target: "device.model" },
   );
