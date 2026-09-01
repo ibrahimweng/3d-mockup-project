@@ -12,20 +12,19 @@
  * The file paints all five of its parts with one material, `blinn2`, at
  * metallic 1 and roughness 1 -- which has neither diffuse nor highlight left
  * and renders near black -- and hangs a baked texture off it that is a
- * photograph of somebody's document. So the parts are separated here, in the
- * file, and each is given the material it is actually made of.
- *
- * Four materials, from what the shape is: a clipboard is a hardboard panel
- * with a nickel-plated steel clip, paper on it and a plastic pen. Each one is
- * a tiling map from `make-material-textures.mjs` rather than a flat colour and
- * a roughness number, because a flat colour is the reason every part of this
- * read as the same white slab whatever number it was given.
+ * photograph of somebody's document. So the parts are separated here and each
+ * is given the material it is actually made of, from what the shape is: a
+ * hardboard panel, a nickel-plated steel clip, paper and a plastic pen. Each
+ * is a tiling map from `make-material-textures.mjs` rather than a flat colour
+ * and a roughness number, because a flat colour is the reason every part of
+ * this read as the same white slab whatever number it was given.
  */
 
 import { NodeIO } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 
 import { prepZones, repoPath, sourceModel } from "./prep-model-zones.mjs";
+import { sweepProfile, worldBoxes } from "./prep-model-solid.mjs";
 
 const texture = (name) => repoPath("public", "textures", name);
 
@@ -90,6 +89,9 @@ const STEEL = {
 
 /** Which part of the clipboard each mesh in the file is. */
 const PARTS = {
+  // Built here rather than found in the file; see the jaw below. Its own
+  // zone, and not the lever's, only because of which way each one lies.
+  Jaw_blinn2_0: "Folder_Clip_Jaw",
   Pen_blinn2_0: "Folder_Pen",
   Pin_blinn2_0: "Folder_Clip",
   StackOfPaper_blinn2_0: "Folder_Pad",
@@ -102,11 +104,10 @@ const PARTS = {
  * Checked against two photographs of real clipboards, the bought file gets four
  * things wrong and every one of them is placement rather than material. The
  * sheet is 288 by 217mm, which is no paper size at all, and it sits 0.19 sunk
- * into the board and a unit off centre. The clip -- the one part whose job is
- * to hold the sheet down -- sits 1.8mm *below* the face of the board, so the
- * paper goes on top of it. The pen floats a quarter of a unit above everything
- * at the clip end. And the loose sheets are six scraps standing 23.7 deep
- * against a 22-deep board.
+ * into the board and a unit off centre. The clip is under the board's face
+ * rather than on it. The pen floats a quarter of a unit above everything at the
+ * clip end. And the loose sheets are six scraps standing 23.7 deep against a
+ * 22-deep board.
  *
  * No amount of dressing hides any of that, so it is fixed here. Every part is
  * moved by its own node.
@@ -114,35 +115,7 @@ const PARTS = {
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
 const doc = await io.read(sourceModel("tablet-folder.glb"));
 
-/** Every mesh's world box, which is what the placement is worked out from. */
-function boxes() {
-  const found = new Map();
-  for (const node of doc.getRoot().listNodes()) {
-    const mesh = node.getMesh();
-    if (!mesh) continue;
-    const m = node.getWorldMatrix();
-    const box = { hi: [-Infinity, -Infinity, -Infinity], lo: [Infinity, Infinity, Infinity], node };
-    for (const prim of mesh.listPrimitives()) {
-      const pos = prim.getAttribute("POSITION");
-      for (let i = 0; i < pos.getCount(); i += 1) {
-        const p = pos.getElement(i, [0, 0, 0]);
-        const w = [p[0] * m[0] + p[1] * m[4] + p[2] * m[8] + m[12],
-          p[0] * m[1] + p[1] * m[5] + p[2] * m[9] + m[13],
-          p[0] * m[2] + p[1] * m[6] + p[2] * m[10] + m[14]];
-        for (let q = 0; q < 3; q += 1) {
-          if (w[q] < box.lo[q]) box.lo[q] = w[q];
-          if (w[q] > box.hi[q]) box.hi[q] = w[q];
-        }
-      }
-    }
-    box.size = [0, 1, 2].map((q) => box.hi[q] - box.lo[q]);
-    box.mid = [0, 1, 2].map((q) => (box.hi[q] + box.lo[q]) / 2);
-    found.set(mesh.getName(), box);
-  }
-  return found;
-}
-
-const before = boxes();
+const before = worldBoxes(doc);
 const board = before.get("Tablet_blinn2_0");
 const pad = before.get("StackOfPaper_blinn2_0");
 
@@ -210,23 +183,58 @@ const padMid = [
 ];
 
 /**
- * The clip, brought up to press the paper.
+ * The clip: the lever the file has, and the jaw it does not.
  *
- * It sat 1.8mm below the face of the board, which is to say inside it, and the
- * paper then went on above -- so the one part of a clipboard whose whole job is
- * to hold the sheet down was underneath it. Its underside now sits a third of a
- * millimetre above the sheet, and since the sheet's top edge lands where the
- * clip begins, it reaches about 25mm in over the paper.
+ * The lever sat 1.8mm below the face of the board, which is to say inside it,
+ * and the paper went on above -- so the one part of a clipboard whose whole job
+ * is to hold the sheet down was underneath it. Raising it was not enough,
+ * because on its own it cannot hold anything: sectioned along the board it
+ * touches down once, at 1.4 units in, and climbs from there to 13mm clear at
+ * its far end, so there is no opening between two bands of metal for a sheet to
+ * go into. Pushing it down far enough to grip only buried 32 triangles of it in
+ * the paper and the board.
  *
- * Only its lowest point actually meets the sheet. This part is a sprung lever
- * rather than a jaw: it touches down once, at 1.4 units in, and climbs from
- * there to 13mm clear at its far end. So it can rest on a stack of paper and it
- * cannot straddle one -- there is no opening between two bands of metal for the
- * sheets to slide into, and pushing it down only buries it in the block.
+ * So a jaw is built for it below, and the lever rises out of that.
  */
+const JAW = { lip: 2, lipRun: 5, reach: 34, thick: 2.2 };
+const jawTop = padTop + CLEAR(0.3 + JAW.thick);
 const clip = before.get("Pin_blinn2_0");
+// Sunk a little into the jaw rather than set on top of it. They are one folded
+// piece of metal, so an overlap is what they are; a lever resting exactly on a
+// face would be the coplanar pair this file spent a commit getting rid of.
 clip.node.setTranslation([0, 1, 2].map((q) =>
-  clip.node.getTranslation()[q] + (q === 1 ? padTop - clip.lo[1] + CLEAR(0.3) : 0)));
+  clip.node.getTranslation()[q] + (q === 1 ? jawTop - CLEAR(0.3) - clip.lo[1] : 0)));
+
+/**
+ * The jaw: a plate drawn from the side and run across the width of the clip,
+ * lying along the sheet from under the lever's own back edge -- so the paper's
+ * cut edge goes under it rather than meeting it -- and turned up at the far end
+ * into a lip.
+ *
+ * Which end the lip goes on is the lever's to say, and it says it plainly: that
+ * climb to 13mm clear is a thumb tab over the middle of the board, and pressing
+ * a tab there lifts the far end of the plate. So that is the end a sheet goes
+ * in at, and the metal presses everything behind it.
+ *
+ * `reach` is the plate's length. Real clips hold about thirty millimetres of
+ * sheet, which is also about what it takes to read as holding anything at all:
+ * less looks like a trim, and more starts covering the design.
+ */
+const jawBack = clip.lo[0];
+const jawTip = jawBack + CLEAR(JAW.reach);
+sweepProfile(doc, {
+  material: doc.getRoot().listMaterials().find((m) => m.getName() === "blinn2"),
+  name: "Jaw_blinn2_0",
+  profile: [
+    [jawBack, padTop + CLEAR(0.3)],
+    [jawTip - CLEAR(JAW.lipRun), padTop + CLEAR(0.3)],
+    [jawTip, padTop + CLEAR(JAW.lip)],
+    [jawTip, padTop + CLEAR(JAW.lip + 0.6)],
+    [jawBack, jawTop],
+  ],
+  z0: clip.lo[2],
+  z1: clip.hi[2],
+});
 
 /**
  * The loose sheets, taken out.
@@ -258,7 +266,7 @@ scraps.dispose();
  * `R w + (c + move - R c)`, and the second half of that is what the node is
  * given to hold.
  */
-const pen = boxes().get("Pen_blinn2_0");
+const pen = worldBoxes(doc).get("Pen_blinn2_0");
 const TURN = (-32 * Math.PI) / 180;
 const cos = Math.cos(TURN), sin = Math.sin(TURN);
 const rest = [padMid[0] + board.size[0] * 0.26,
@@ -308,9 +316,16 @@ const report = await prepZones({
     // Nickel plate over steel. Fully metallic in the file and brought back by
     // the map, whose blue channel holds 0.85: a plated part is a coat over the
     // metal and keeps a little diffuse, which is the difference between a clip
-    // and a silhouette. The brush runs across x and y because the clip stands
+    // and a silhouette. The brush runs across x and y because the lever stands
     // up off the board rather than lying in it.
     Folder_Clip: { ...STEEL, baseColor: [1, 1, 1, 1], weaveAxes: ["x", "y"] },
+    // The same metal, laid out from the other plane, because the jaw is the one
+    // part of the clip that lies flat: nine tenths of it faces straight up or
+    // straight down, and a map projected from x and y meets those faces edge on
+    // and drags one row of texels the width of the clip. It is a separate zone
+    // for that reason alone -- it shares the accent colour slot with the lever,
+    // so nothing about the product gained a control.
+    Folder_Clip_Jaw: { ...STEEL, baseColor: [1, 1, 1, 1], weaveAxes: ["x", "z"] },
   },
 });
 

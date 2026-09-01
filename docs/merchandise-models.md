@@ -207,7 +207,8 @@ number and none of them looked like anything. What the shape is, is a clipboard
 | Sheet, face | `Folder_Pad` | yes, projected straight down and flattened | paper: relief and finish only, so a design is not tinted by a picture of paper |
 | Sheet block edge | `Folder_Pad_Edge` | no | as above; laid out across x and y because it stands vertical |
 | Pen | `Folder_Pen` | no, trim colour slot | moulded plastic: a tight even sheen and the faint orange-peel of a mould |
-| Spring clip | `Folder_Clip` | no, accent colour slot | nickel plate over steel, brushed: metalness 0.55 in the map's blue channel |
+| Spring clip, lever | `Folder_Clip` | no, accent colour slot | nickel plate over steel, brushed: metalness 0.55 in the map's blue channel |
+| Spring clip, jaw | `Folder_Clip_Jaw` | no, same accent slot | as above, but laid out across x and z: the jaw lies flat where the lever stands up |
 
 The file paints all five of its meshes with one material at metallic 1 and
 roughness 1, which renders it black, and hangs a photograph of somebody's
@@ -235,18 +236,20 @@ cut, checked against photographs of real clipboards:
   at A4 lands undistorted. Far more board above the sheet than below, because
   everything a clipboard has to fit goes at the top and the bottom only has to
   stop the paper sliding off.
-- **The clip sits on the paper.** It sat 1.8mm *below* the face of the board, so
-  the one part whose job is to hold the sheet down was underneath it. It now
-  rests on the sheet and reaches about 23mm in over it.
+- **The clip sits on the paper, and has something to hold it with.** It sat
+  1.8mm *below* the face of the board, so the one part whose job is to hold the
+  sheet down was underneath it. It now rests on the sheet — and a jaw is built
+  for it, because the part in the file cannot hold anything on its own. See
+  *The jaw the file does not have* below.
 - **Nothing shares a plane with anything.** Every part was first set down at
   exactly the height of the surface below it, which is right to the millimetre
   and wrong on screen: two faces in one plane give the depth buffer nothing to
   choose between, so it picks differently from pixel to pixel and the metal
   appears to be sawing into the paper. It was not — an exact triangle-against-
-  triangle test over all 336 of them finds no pair overlapping — but a rendering
-  with no answer looks the same as one with the wrong answer. The clip now
-  clears the sheet by 0.30mm and the pen by 0.15mm, both under a pixel at any
-  framing this is shot at.
+  triangle test over all 352 of them finds no pair overlapping but the lever and
+  its own jaw, which are one folded piece — but a rendering with no answer looks
+  the same as one with the wrong answer. The jaw now clears the sheet by 0.30mm
+  and the pen by 0.15mm, both under a pixel at any framing this is shot at.
 - **The pen lies on the sheet**, across the lower right at 32°, turned about its
   own middle rather than about a node origin metres away. It floated a quarter
   of a unit above everything at the clip end.
@@ -289,21 +292,57 @@ Every photograph of a real clipboard is portrait, and this one presents
 landscape. That is `yawDegrees`, the same field that turns the tote, and setting
 it to 90 here makes the **clip vanish from the render** at every camera angle
 tried — while the board, the sheet and the pen all still draw. The clip is in
-the file either way: 220 triangles at x -143.4..-117.7, y 10.1..23.1, and it
-draws correctly at yaw 0. The frame vector for the turned version is
+the file either way: 220 lever triangles at x -143.4..-117.7, and it draws
+correctly at yaw 0. The frame vector for the turned version is
 `[0.577612, 0.062585, 0.813908]`. Held back until the disappearance is
 understood, rather than shipped with a part missing.
 
-### What the clip can and cannot do
+### The jaw the file does not have
 
-It is a sprung lever, not a jaw. Sectioned along the board it touches down once,
-at its lowest point, and climbs from there: 9.8mm at x -140, 16.3 at -135, 18.1
-at -130, 22.8 at -119. So it can rest on a stack of paper and it cannot straddle
-one — there is no opening between two bands of metal for sheets to slide into.
-Lowering it to grip the block only buries it: dropped far enough for its base to
-reach the board it puts 32 triangles of metal inside the paper and the board.
-Making it actually press a stack would mean modelling a jaw, which is new
-geometry rather than a placement.
+What the file calls the clip is a sprung lever, not a jaw. Sectioned along the
+board it touches down once, at its lowest point, and climbs from there: 9.8mm at
+x -140, 16.3 at -135, 18.1 at -130, 22.8 at -119. So it can rest on a stack of
+paper and it cannot straddle one — there is no opening between two bands of
+metal for a sheet to go into. Lowering it to grip the block only buries it:
+dropped far enough for its base to reach the board it puts 32 triangles of metal
+inside the paper and the board.
+
+So the jaw is built, by `scripts/prep-model-solid.mjs`. It is the one thing in
+this catalog that is added to a bought file rather than moved within it, and the
+bar for that is a part that is *absent* rather than misplaced: no amount of
+moving what is there produces a mouth for paper to go into.
+
+A profile drawn from the side and swept across the width of the clip, which is
+what these parts are — a jaw, a hinge plate, a spine are all a shape drawn from
+the side and run across a width, and a side view is also the drawing a person
+checks it against. Five points: the plate lies 0.30mm over the sheet from under
+the lever's own back edge, so the paper's cut edge goes *under* it rather than
+meeting it, and turns up at the far end into a 2mm lip.
+
+Which end the lip goes on is the lever's to say, and it says it plainly. That
+climb to 22.8mm is a thumb tab over the middle of the board; pressing a tab
+there lifts the far end of the plate, so that is the end a sheet goes in at and
+the metal presses everything behind it. Built the other way round — mouth at the
+board's top edge — it renders as a slot in the wrong place, which is how the
+first version of this was found to be backwards.
+
+Measured off the built file: the plate lies over 31.7mm of the sheet, 10.7% of
+its length, and is 85.7mm across a 227.1mm board. Real clipboard clips hold
+about thirty millimetres of sheet, which is also about what it takes to read as
+holding anything at all — less looks like a trim, and more starts covering the
+design.
+
+It is flat-shaded on purpose, one normal per face and no shared vertices:
+pressed metal whose edges are meant to read as edges, and a smoothed one looks
+like a bar of soap. 16 triangles, one new closed shell, no new free edges.
+
+It carries its own zone, `Folder_Clip_Jaw`, for one reason: the brushed map is a
+plane projection, and the lever stands up off the board while the jaw lies flat
+on it. Nine tenths of the jaw's area faces straight up or straight down, so the
+lever's x-y layout meets those faces edge on and drags one row of texels the
+whole width of the clip — which is exactly how it rendered before it was split
+out, a dark slab with vertical stripes. The jaw is laid out across x and z. Both
+zones sit in the same accent colour slot, so the product gained no control.
 
 Each material is a tiling map from `scripts/make-material-textures.mjs`, laid
 out from world position at a stated tile size rather than through the 0–1 unwrap

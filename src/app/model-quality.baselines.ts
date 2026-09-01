@@ -182,10 +182,10 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
     boundaryEdges: 88,
     coincidentFaces: 0,
     degenerateTriangles: 0,
-    hardInteriorEdges: 153,
+    hardInteriorEdges: 167,
     nonManifoldEdges: 0,
     shadingSplitsOnFlat: 0,
-    shells: 9,
+    shells: 10,
     strayTrianglesOnHardware: 0,
     zones: {
       Folder_Pad: { coverage: 0.991, islands: 1, mirroredTriangles: 0, squareness: 1, stretch: 1 },
