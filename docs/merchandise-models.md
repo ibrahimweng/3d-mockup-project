@@ -286,16 +286,67 @@ severe version of the same bug was on the ID card, whose node stands it upright:
 there the local box gave the reciprocal of the truth and every upload arrived
 two and a half times too wide.
 
-### One part that will not turn
+### The clip that vanished, and the floor that was eating it
 
-Every photograph of a real clipboard is portrait, and this one presents
-landscape. That is `yawDegrees`, the same field that turns the tote, and setting
-it to 90 here makes the **clip vanish from the render** at every camera angle
-tried — while the board, the sheet and the pen all still draw. The clip is in
-the file either way: 220 lever triangles at x -143.4..-117.7, and it draws
-correctly at yaw 0. The frame vector for the turned version is
-`[0.577612, 0.062585, 0.813908]`. Held back until the disappearance is
-understood, rather than shipped with a part missing.
+Every photograph of a real clipboard is portrait, and this one presented
+landscape for a while, because turning it with `yawDegrees` made the **clip
+disappear from the render** — the board, the sheet and the pen all still drew.
+It was held back at that, on the grounds that a product with a part missing is
+not a product. The turn was never the problem.
+
+What was measured, once the scene was asked instead of guessed at. The clip is
+in the scene graph, visible, on the camera's layer, its material intact and its
+world box exactly where the model says: 0.30mm over the sheet, at the board's
+top edge. Painting its material red put no red anywhere in the frame. Turning
+frustum culling off changed nothing. Hiding the room's own meshes brought it
+straight back.
+
+So it was being drawn over. Sweeping the tilt says the rest:
+
+| Tilt | Clip, in scene units | Floor | Clip pixels |
+| --- | --- | --- | --- |
+| 0° | 0.02 … 1.28 | −1.28 | 5,599 |
+| 8° | −1.93 … −0.34 | −1.28 | 2,033 |
+| 20° | −4.78 … −2.75 | −1.28 | **0** |
+| 48° | −10.43 … −7.74 | −1.28 | **0** |
+
+Every pose turns the subject about its own centre — right for a turntable,
+wrong for a table. Nothing put it back on its feet afterwards, so a lean drove
+one end of it through the floor, and the floor is drawn over whatever is under
+it. The clip is at one end of a 320mm board, so 20 degrees of tilt put the whole
+of it under the table — its highest point 15mm below the floor, its lowest 36mm
+— which does not look sunk, it looks absent, and that is what sent someone
+looking through the model file for a part that was there the whole time.
+
+The turn only chose which end went down. At yaw 0 the clip sits on the tilt's
+own axis and barely moves; turned, it is 128mm out along the axis that swings.
+
+`getDevicePose` now lifts the subject back onto the floor for any pose, not just
+for scale. A box turned about its centre reaches lowest at one corner, and which
+corner falls out of the arithmetic: the row of the rotation that lands on the
+vertical, taken against the box's half extents with every term positive. With
+nothing turned it collapses to the shortfall from scaling alone, which is what
+the function did before — the old behaviour is the no-rotation case of the new
+one. It costs one matrix per pose and no search.
+
+Two things follow. The clipboard is portrait now, turned to `-90` rather than
+`90` so it stands on its foot with the clip at the top rather than on its head.
+And every product stands on the table at every pose, which none of them did.
+Taking each `frame` and leaning it 35°, as a share of the product's own radius:
+
+| | Clipboard | Watch | Shirt | Bottle | Card | Phone |
+| --- | --- | --- | --- | --- | --- | --- |
+| Below the floor | **45.5%** | 23.2% | 4.9% | 5.1% | −12.7% | −12.1% |
+
+The negative two were never sinking; they were hovering, which is the same
+correction with its sign the other way round. Only the clipboard is far enough
+out for the floor to swallow a whole part.
+
+`scene-bounds.test.ts` also measures each `frame` against the GLB it names now.
+Being a unit vector, which was the only check, catches a mistyped digit; it does
+not catch a model moving on underneath a written-down measurement, which is
+exactly what happened when the clip grew a jaw and the clipboard's frame kept
+describing the board's old height.
 
 ### The jaw the file does not have
 
