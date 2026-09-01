@@ -173,3 +173,75 @@ test("a panel taller than it is wide is measured as taller than it is wide", () 
   const [pad, padSkin] = panel(27.9, 0.001, 21.1);
   expect(measureScreenAspect(pad, [padSkin], 1)).toBeCloseTo(21.1 / 27.9, 4);
 });
+
+test("a panel is measured where it ends up, not where it was modelled", () => {
+  // The case the test above cannot catch, because it builds its panels already
+  // standing the right way up at identity -- which is not how any of these
+  // models are authored. The ID card's mesh is a flat slab lying down, 53.9 by
+  // 85.5 in its own coordinates, and its node stands it upright and shrinks it
+  // to a card 2.13 across and 3.38 tall. Measured locally that is 0.63; measured
+  // where the card actually is it is 1.59, and 0.63 is its reciprocal. Fit and
+  // Fill corrected the wrong axis for as long as this read the local box.
+  const skin = new THREE.MeshStandardMaterial();
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(53.917, 0.12, 85.537), skin);
+  const node = new THREE.Group();
+  node.add(slab);
+  node.rotation.x = -Math.PI / 2; // lay it down, then stand it up
+  node.scale.setScalar(2.131 / 53.917);
+
+  const measured = measureScreenAspect(node, [skin], 1);
+  expect(measured).toBeCloseTo(3.381 / 2.131, 2);
+  // And emphatically not what its own coordinates say.
+  expect(measured).not.toBeCloseTo(53.917 / 85.537, 2);
+});
+
+test("a node's scale counts, even when it does not turn the panel", () => {
+  // The clipboard's sheet is cut to A4 by scaling its node, not its geometry:
+  // 27.9 by 21.1 in its own coordinates becomes 28.8 by 20.3 in the world,
+  // which is 297 by 210mm. Read locally it measures 0.754 and a design authored
+  // at A4 lands seven per cent out -- small enough to look like anything, which
+  // is exactly what makes it worth pinning.
+  const skin = new THREE.MeshStandardMaterial();
+  const sheet = new THREE.Mesh(new THREE.BoxGeometry(27.912, 0.001, 21.057), skin);
+  const node = new THREE.Group();
+  node.add(sheet);
+  node.scale.set(28.772 / 27.912, 1, 20.344 / 21.057);
+
+  const measured = measureScreenAspect(node, [skin], 1);
+  // A4 on its side: 210 over 297.
+  expect(measured).toBeCloseTo(210 / 297, 3);
+  expect(measured).not.toBeCloseTo(21.057 / 27.912, 3);
+});
+
+test("a design authored at the panel's own ratio lands on it untouched", () => {
+  // The contract the whole of this file exists to keep, stated end to end:
+  // measure the panel, fit a design cut to that shape, and nothing should move.
+  // Measuring and fitting were each correct on their own and wrong together,
+  // which is why neither of their own tests caught it.
+  const skin = new THREE.MeshStandardMaterial();
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(53.917, 0.12, 85.537), skin);
+  const node = new THREE.Group();
+  node.add(slab);
+  node.rotation.x = -Math.PI / 2;
+  node.scale.setScalar(2.131 / 53.917);
+
+  const aspect = measureScreenAspect(node, [skin], 1);
+  const design = new THREE.Texture();
+  // A card-shaped design: 2.131 across by 3.381 up.
+  design.image = { height: 3381, width: 2131 };
+  const slack: ScreenSlack = { x: 0, y: 0 };
+  applyScreenTransform(design, aspect, neutral, slack);
+
+  expect(design.repeat.x).toBeCloseTo(1, 2);
+  expect(design.repeat.y).toBeCloseTo(1, 2);
+  expect(slack.x).toBeCloseTo(0, 2);
+  expect(slack.y).toBeCloseTo(0, 2);
+
+  // Read from the local box instead and the same design is stretched to two
+  // and a half times its width, which is what an ID card upload used to get.
+  const local = 53.917 / 85.537;
+  const wrong = new THREE.Texture();
+  wrong.image = { height: 3381, width: 2131 };
+  applyScreenTransform(wrong, local, { ...neutral }, { x: 0, y: 0 });
+  expect(wrong.repeat.x).toBeGreaterThan(2.4);
+});

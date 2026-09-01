@@ -265,14 +265,23 @@ its template is cut to the panel's own aspect, so the map is exact: squareness
 298.1mm and one unit of v spans 210.8mm, both running 0 to 1 — a ratio of 1.414,
 which is A4, so a design authored at that ratio is correct for it.
 
-Checking that off the pixels instead needs care, and a first attempt got it
-wrong. The studio camera compresses the vertical by about 1.55 at the angle that
-looks face-on, and that compression very nearly cancels a stretch the upload
-path introduces, so a distorted print measures square. Corrected against the
-board's known 320 by 227mm, an uploaded A4-ratio checker lands 19.8 columns
-across, which is right, and about 8.7 rows down where 13.9 are expected. The
-model's unwrap and the source image are both exact, so that stretch belongs to
-the runtime artwork fit, not to anything in this file.
+Checking that off the pixels instead needs care, and two attempts got it wrong
+before one got it right. The studio camera compresses the vertical by a factor
+of nearly two at the angle that looks face-on -- the sheet renders at 2.49 to 1
+where A4 is 1.41 -- and any count of rows that does not divide that out is
+measuring the camera. The first attempt read the compression as square and
+called the print verified; the second read it as a stretch in the print and
+called it broken. Both were reading the same lens.
+
+Divided out against the sheet's own known 1.414, an uploaded A4-ratio checker
+lands 19.8 columns across, which is exact, and 13.4 rows down where 14 are
+expected. There was a real error here as well, and a small one: the fit maths
+was measuring this panel at 0.754 rather than 0.707, because it read the mesh's
+local box and the sheet is cut to A4 by a scale on its node. That is fixed in
+`measureScreenAspect`, which now measures where the panel actually is. The
+severe version of the same bug was on the ID card, whose node stands it upright:
+there the local box gave the reciprocal of the truth and every upload arrived
+two and a half times too wide.
 
 ### One part that will not turn
 
