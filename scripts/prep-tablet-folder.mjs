@@ -151,18 +151,31 @@ const pad = before.get("StackOfPaper_blinn2_0");
  *
  * The sheet the file drew is 288 by 217mm against a 320 by 227mm board, which
  * is nothing in particular -- wide margins at the ends, five millimetres at the
- * sides. A clipboard holds A4, so it holds A4 here: 297 by 210, which leaves
- * about 11mm above and below and 8mm at each side, and makes the print area a
- * standard 1:1.414 so a design authored at A4 lands undistorted.
+ * sides. A clipboard holds A4, so it holds A4 here: 297 by 210, which makes the
+ * print area a standard 1:1.414 so a design authored at A4 lands undistorted.
  *
- * More board above the sheet than below it, because the clip needs somewhere
- * to be. That is what both references show and it is what the geometry wants:
- * the clip runs from 1.44 to 3.92 units in from the top edge, so a sheet whose
- * top edge lands at 1.4 arrives directly under the jaw.
+ * 17.2mm of board above the sheet and 5.9mm below it, which is where the sheet
+ * was set from the bench. Both references show the same lopsided margin and the
+ * reason is the clip: everything a clipboard has to fit goes at the top, and
+ * the bottom only has to stop the paper sliding off.
  */
 const A4 = [297, 210];
 const MM = board.size[0] / 320;
-const TOP = 1.4;
+const TOP_MM = 17.2;
+const TOP = TOP_MM * MM;
+
+/**
+ * A hair of daylight, in millimetres, between one part and the one under it.
+ *
+ * Every part was set down at exactly the height of the surface below it, which
+ * is right to the millimetre and wrong on screen: two faces in the same plane
+ * give the depth buffer nothing to choose between, so it picks differently from
+ * pixel to pixel and the metal appears to be sawing into the paper. It is not
+ * -- the parts do not overlap by a single triangle -- but a rendering with no
+ * answer looks exactly like one with the wrong answer. A third of a millimetre
+ * is under a pixel at any framing this product is shot at, and it settles it.
+ */
+const CLEAR = (mm) => mm * MM;
 const sheetSize = [A4[0] * MM, A4[1] * MM];
 const paper = [
   board.lo[0] + TOP,
@@ -201,13 +214,19 @@ const padMid = [
  *
  * It sat 1.8mm below the face of the board, which is to say inside it, and the
  * paper then went on above -- so the one part of a clipboard whose whole job is
- * to hold the sheet down was underneath it. Its underside now rests on the
- * sheet, and since the sheet's top edge lands where the clip begins, the jaw
- * covers about 25mm of paper, which is what both references show.
+ * to hold the sheet down was underneath it. Its underside now sits a third of a
+ * millimetre above the sheet, and since the sheet's top edge lands where the
+ * clip begins, it reaches about 25mm in over the paper.
+ *
+ * Only its lowest point actually meets the sheet. This part is a sprung lever
+ * rather than a jaw: it touches down once, at 1.4 units in, and climbs from
+ * there to 13mm clear at its far end. So it can rest on a stack of paper and it
+ * cannot straddle one -- there is no opening between two bands of metal for the
+ * sheets to slide into, and pushing it down only buries it in the block.
  */
 const clip = before.get("Pin_blinn2_0");
 clip.node.setTranslation([0, 1, 2].map((q) =>
-  clip.node.getTranslation()[q] + (q === 1 ? padTop - clip.lo[1] : 0)));
+  clip.node.getTranslation()[q] + (q === 1 ? padTop - clip.lo[1] + CLEAR(0.3) : 0)));
 
 /**
  * The loose sheets, taken out.
@@ -242,7 +261,8 @@ scraps.dispose();
 const pen = boxes().get("Pen_blinn2_0");
 const TURN = (-32 * Math.PI) / 180;
 const cos = Math.cos(TURN), sin = Math.sin(TURN);
-const rest = [padMid[0] + board.size[0] * 0.26, padTop + pen.size[1] / 2, padMid[2] + board.size[2] * 0.24];
+const rest = [padMid[0] + board.size[0] * 0.26,
+  padTop + pen.size[1] / 2 + CLEAR(0.15), padMid[2] + board.size[2] * 0.24];
 pen.node
   .setRotation([0, Math.sin(TURN / 2), 0, Math.cos(TURN / 2)])
   .setTranslation([
