@@ -195,13 +195,16 @@ export const MERCHANDISE_CATALOG = {
     // make a folio out of. Each part now carries a tiling map of the material
     // it is actually made of rather than a flat colour and a roughness number.
     //
-    // Three slots on the three parts a design never lands on. Each multiplies
+    // Three slots on the three parts a design never lands on -- the clip is two
+    // materials in one slot, because its lever and its jaw lie in different
+    // planes and take the brushed map from different axes, which is a fact
+    // about the map and not a thing to colour separately. Each slot multiplies
     // its material's map rather than replacing it, so picking a colour stains
     // the board and tints the clip rather than painting the grain and the brush
     // out; all three default to a near-white, which is what leaves the board
     // its own brown and the pen its own dark barrel out of the box.
     colorParts: {
-      accent: { materials: ["Folder_Clip"] },
+      accent: { materials: ["Folder_Clip", "Folder_Clip_Jaw"] },
       main: { materials: ["Folder_Board"] },
       trim: { materials: ["Folder_Pen"] },
     },
@@ -217,10 +220,9 @@ export const MERCHANDISE_CATALOG = {
     // 90` -- which is how the tote is turned, and the frame for it is
     // [0.577612, 0.062585, 0.813908] -- makes the clip vanish from the render
     // at every camera angle tried, while the board, the sheet and the pen all
-    // still draw. The clip is in the file either way: 220 triangles at
-    // x -143.4..-117.7, y 10.1..23.1, and it draws correctly at yaw 0. So the
-    // turn is held back until that is understood rather than shipped with a
-    // part missing.
+    // still draw. The clip is in the file either way: 220 lever triangles at
+    // x -143.4..-117.7, and it draws correctly at yaw 0. So the turn is held
+    // back until that is understood rather than shipped with a part missing.
     frame: [0.813908, 0.062585, 0.577612],
     label: "Clipboard",
     modelFile: "tablet-folder.glb",
