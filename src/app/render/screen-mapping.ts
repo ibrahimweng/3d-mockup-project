@@ -13,9 +13,21 @@ import type { DeviceDefinition } from "../product-domain";
  */
 
 export type ScreenTransform = {
+  /**
+   * One design across every panel that prints, at one size.
+   *
+   * The other fields describe a design placed *on* a surface; this one says it
+   * is not placed at all. An all-over print is cloth printed before it was cut,
+   * so the design repeats at a physical size and each panel shows however much
+   * of that repeat it is big enough to hold -- which is why the fit, the pan
+   * and the stretch all stop meaning anything while it is on.
+   */
+  allOver: boolean;
   fit: "fill" | "fit" | "stretch";
   /** Pan, 0..1 per axis with 0.5 centred. */
   offset: { x: number; y: number };
+  /** How many times an all-over design repeats across the front. */
+  repeats: number;
   /** Uniform zoom, as a percentage. */
   scale: number;
   /** Independent width/height, -1..1 per axis with 0 unstretched. */
@@ -127,6 +139,88 @@ export function measureScreenAspect(
   });
   return aspect;
 }
+/**
+ * How much of the world one whole turn of a zone's unwrap covers, per axis.
+ *
+ * A print zone's coordinates run 0 to 1 whatever the panel measures, so 0.5 is
+ * halfway across a sleeve and halfway across a back and those are not the same
+ * distance. An all-over print is the one thing that cares: the whole point of
+ * it is that the repeat is the same size on every panel, which cannot be said
+ * in a coordinate that means something different on each.
+ *
+ * Two numbers rather than one, because these unwraps are not square. A tote's
+ * front is 380mm across and 430mm up and its coordinates run 0 to 1 both ways,
+ * so one turn of u and one turn of v are different distances -- what keeps a
+ * design undistorted is that its template is cut to the panel's own shape, not
+ * that the two axes agree. Measured as one number, from the square root of the
+ * area, the bag's narrow side came out 1.7 times too large and its pattern
+ * printed correspondingly bigger than the front's, which is the exact fault
+ * this exists to prevent.
+ *
+ * Per triangle: the world edges against the coordinate edges give the two
+ * directions the cloth runs in per unit of u and of v, and their lengths are
+ * the distances. Averaged over the zone weighted by world area, so a panel is
+ * described by the cloth it actually has rather than by whichever triangle
+ * happened to be first.
+ *
+ * Zeroes when the zone carries no unwrap to measure, which the caller reads as
+ * "cannot be tiled" rather than as a size.
+ */
+export function measureZoneScale(
+  root: THREE.Object3D,
+  screenMaterials: readonly THREE.MeshStandardMaterial[],
+): { u: number; v: number } {
+  let alongU = 0;
+  let alongV = 0;
+  let weight = 0;
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  const edge1 = new THREE.Vector3();
+  const edge2 = new THREE.Vector3();
+  const runU = new THREE.Vector3();
+  const runV = new THREE.Vector3();
+  root.updateWorldMatrix(true, true);
+  root.traverse((object) => {
+    if (
+      !(object instanceof THREE.Mesh) ||
+      !screenMaterials.includes(object.material as THREE.MeshStandardMaterial)
+    ) {
+      return;
+    }
+    const position = object.geometry.getAttribute("position");
+    const uv = object.geometry.getAttribute("uv");
+    if (!position || !uv) return;
+    const index = object.geometry.getIndex();
+    const count = index ? index.count : position.count;
+    for (let i = 0; i + 2 < count; i += 3) {
+      const corners = [0, 1, 2].map((k) => (index ? index.getX(i + k) : i + k));
+      a.fromBufferAttribute(position, corners[0]).applyMatrix4(object.matrixWorld);
+      b.fromBufferAttribute(position, corners[1]).applyMatrix4(object.matrixWorld);
+      c.fromBufferAttribute(position, corners[2]).applyMatrix4(object.matrixWorld);
+      edge1.subVectors(b, a);
+      edge2.subVectors(c, a);
+      const du1 = uv.getX(corners[1]) - uv.getX(corners[0]);
+      const dv1 = uv.getY(corners[1]) - uv.getY(corners[0]);
+      const du2 = uv.getX(corners[2]) - uv.getX(corners[0]);
+      const dv2 = uv.getY(corners[2]) - uv.getY(corners[0]);
+      const det = du1 * dv2 - du2 * dv1;
+      // A triangle with no area in the unwrap says nothing about its scale.
+      if (Math.abs(det) < 1e-12) continue;
+      const area = edge1.clone().cross(edge2).length() / 2;
+      if (area <= 0) continue;
+      runU.copy(edge1).multiplyScalar(dv2).addScaledVector(edge2, -dv1).divideScalar(det);
+      runV.copy(edge2).multiplyScalar(du1).addScaledVector(edge1, -du2).divideScalar(det);
+      alongU += runU.length() * area;
+      alongV += runV.length() * area;
+      weight += area;
+    }
+  });
+  return weight > 0
+    ? { u: alongU / weight, v: alongV / weight }
+    : { u: 0, v: 0 };
+}
+
 /**
  * Map the screen controls onto a texture's repeat/offset.
  *

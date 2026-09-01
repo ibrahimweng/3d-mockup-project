@@ -1,4 +1,5 @@
 import {
+  ALL_OVER_DEVICES,
   ARTWORK_TEMPLATE_DEVICES,
   ARTWORK_ZONE_DEVICES,
   PRINT_DEVICES,
@@ -34,13 +35,20 @@ export const ARTWORK_SECTION = {
       performanceReason:
         "A still is decoded once into a texture and swapped onto the material, costing nothing per frame. A GIF or a video costs one frame decode and one blit whenever the timeline reaches a new frame of it, and nothing on the frames in between.",
       performanceRole: "responsiveness",
+      semanticGroup: "design",
       target: "artwork.image",
       type: "fileDrop",
     },
     imageBack: {
       accept: "image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm",
       applicability: {
-        all: [{ oneOf: ARTWORK_ZONE_DEVICES.back, target: "device.model" }],
+        all: [
+          { oneOf: ARTWORK_ZONE_DEVICES.back, target: "device.model" },
+          // Nothing to put here while one design is covering the whole
+          // product: this slot would be an upload with no surface left to
+          // land on.
+          { notEquals: true, target: "artwork.allOver" },
+        ],
         mode: "conditional",
       },
       assetKind: "image",
@@ -51,13 +59,20 @@ export const ARTWORK_SECTION = {
       performanceReason:
         "A still is decoded once into a texture and swapped onto that zone's material, costing nothing per frame. A GIF or a video costs one frame decode and one blit whenever the timeline reaches a new frame of it.",
       performanceRole: "responsiveness",
+      semanticGroup: "design",
       target: "artwork.imageBack",
       type: "fileDrop",
     },
     imageLeft: {
       accept: "image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm",
       applicability: {
-        all: [{ oneOf: ARTWORK_ZONE_DEVICES.left, target: "device.model" }],
+        all: [
+          { oneOf: ARTWORK_ZONE_DEVICES.left, target: "device.model" },
+          // Nothing to put here while one design is covering the whole
+          // product: this slot would be an upload with no surface left to
+          // land on.
+          { notEquals: true, target: "artwork.allOver" },
+        ],
         mode: "conditional",
       },
       assetKind: "image",
@@ -68,13 +83,20 @@ export const ARTWORK_SECTION = {
       performanceReason:
         "A still is decoded once into a texture and swapped onto that zone's material, costing nothing per frame. A GIF or a video costs one frame decode and one blit whenever the timeline reaches a new frame of it.",
       performanceRole: "responsiveness",
+      semanticGroup: "design",
       target: "artwork.imageLeft",
       type: "fileDrop",
     },
     imageRight: {
       accept: "image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm",
       applicability: {
-        all: [{ oneOf: ARTWORK_ZONE_DEVICES.right, target: "device.model" }],
+        all: [
+          { oneOf: ARTWORK_ZONE_DEVICES.right, target: "device.model" },
+          // Nothing to put here while one design is covering the whole
+          // product: this slot would be an upload with no surface left to
+          // land on.
+          { notEquals: true, target: "artwork.allOver" },
+        ],
         mode: "conditional",
       },
       assetKind: "image",
@@ -85,8 +107,48 @@ export const ARTWORK_SECTION = {
       performanceReason:
         "A still is decoded once into a texture and swapped onto that zone's material, costing nothing per frame. A GIF or a video costs one frame decode and one blit whenever the timeline reaches a new frame of it.",
       performanceRole: "responsiveness",
+      semanticGroup: "design",
       target: "artwork.imageRight",
       type: "fileDrop",
+    },
+    allOver: {
+      applicability: {
+        all: [{ oneOf: ALL_OVER_DEVICES, target: "device.model" }],
+        mode: "conditional",
+      },
+      defaultValue: false,
+      description:
+        "Print the front design across every panel at one size, the way cloth is printed before it is cut, rather than placing it on the front alone. The other slots stand down while this is on: there is one design and it is everywhere. A repeating pattern is what this is for \u2014 a design with a top and a bottom will be tiled like one.",
+      label: "All-over print",
+      performanceReason:
+        "Each panel takes a copy of the front design that shares its picture in memory, and the copy is rebuilt only when the design changes. Turning it on writes a repeat per panel and redraws one frame.",
+      performanceRole: "responsiveness",
+      semanticGroup: "coverage",
+      target: "artwork.allOver",
+      type: "switch",
+    },
+    repeats: {
+      applicability: {
+        all: [
+          { oneOf: ALL_OVER_DEVICES, target: "device.model" },
+          { equals: true, target: "artwork.allOver" },
+        ],
+        mode: "conditional",
+      },
+      defaultValue: 3,
+      description:
+        "How many times the design repeats across the front. Every other panel takes the same size rather than the same count, which is what makes the sleeve and the back read as one piece of cloth: a narrow panel simply holds fewer of them.",
+      label: "Repeat",
+      max: 12,
+      min: 1,
+      performanceReason:
+        "Writes one number onto each panel's texture and redraws one frame; nothing is decoded or rebuilt.",
+      performanceRole: "responsiveness",
+      sliderValueKind: "continuous",
+      step: 0.5,
+      semanticGroup: "coverage",
+      target: "artwork.repeats",
+      type: "slider",
     },
     background: {
       applicability: {
@@ -100,6 +162,7 @@ export const ARTWORK_SECTION = {
       performanceReason:
         "The colour is composited under the design once when the image is decoded; nothing is rebuilt and no frame costs more.",
       performanceRole: "responsiveness",
+      semanticGroup: "stock",
       target: "artwork.background",
       type: "color",
     },
@@ -112,6 +175,7 @@ export const ARTWORK_SECTION = {
       performanceReason:
         "Position writes the display texture's offset and redraws one frame.",
       performanceRole: "responsiveness",
+      semanticGroup: "placement",
       target: "artwork.offset",
       type: "vector",
     },
@@ -124,11 +188,23 @@ export const ARTWORK_SECTION = {
       performanceReason:
         "Stretch writes the display texture's repeat and redraws one frame.",
       performanceRole: "responsiveness",
+      semanticGroup: "placement",
       target: "artwork.stretch",
       type: "vector",
     },
   },
   id: "artwork",
+  /**
+   * Declared rather than inferred, because this section holds both kinds.
+   *
+   * The uploaders and the pads are standalone controls and the all-over switch
+   * and its repeat are grouped ones, and a section holding both is cut into
+   * unlabelled fragments -- three of them here. The switch cannot simply move
+   * out: it gates the three uploaders above it, and a gate belongs in the
+   * section it gates, which is a rule of the framework and also the only
+   * arrangement that reads. So the section says what it is instead.
+   */
+  layout: "standalone",
   title: "Screenshot",
 } as const;
 

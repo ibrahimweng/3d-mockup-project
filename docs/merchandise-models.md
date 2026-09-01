@@ -464,6 +464,70 @@ a rectangle, which is not a label anybody could print. Measured, it does not nee
 one either: the density is uniform to within nine per cent over the whole label,
 and the 1.20 figure is 26 triangles of essentially no area at the neck rim.
 
+## 2c. All-over print
+
+A design placed on a panel is sized to the panel. That is right for a chest
+print and wrong for the other thing a garment can be, which is cloth printed
+before it was cut: there the design repeats at a size of its own, and the panel
+simply shows however much of the repeat it is big enough to hold.
+
+The switch is **All-over print**, offered to any product with more than one
+printable surface — a product with one already puts the whole design on it. It
+takes the front upload and puts it on every zone, and the Back, Left and Right
+uploaders stand down while it is on, because there is nowhere left for them to
+print.
+
+### One size, everywhere
+
+The whole claim is that a motif measures the same on every panel. Measured off
+the shirt with a repeating pattern, as the motif's size in world units:
+
+| | Front | Back | Left sleeve | Right sleeve |
+| --- | --- | --- | --- | --- |
+| Placed on each panel | 0.5285 × 0.3916 | 0.5206 × 0.6337 | 0.4278 × 0.3312 | 0.4269 × 0.3287 |
+| Printed all over | **0.1762 × 0.1762** | **0.1762 × 0.1762** | **0.1762 × 0.1762** | **0.1762 × 0.1762** |
+
+Four panels, one size, and square on all of them. The panels are not the same
+size and they are not meant to be: the sleeve holds fewer repeats than the back
+because it is narrower, which is what a sleeve does.
+
+The control is a number of repeats **across the front**, because the front is
+the panel someone is looking at while they drag it. Everything else follows
+from the width that implies: three across a 528mm front is a 176mm tile, and
+every other panel takes the tile rather than the count.
+
+### The measurement it rests on, and the one that was wrong
+
+A zone's coordinates run 0 to 1 whatever the panel measures, so a tile size in
+those coordinates means a different size on each panel. `measureZoneScale`
+turns them back into distances: per triangle, the world edges against the
+coordinate edges give how far the cloth runs per unit of u and of v, averaged
+over the zone weighted by area. Area rather than bounding box, because a
+sleeve's box is the box of a tube and the flat it unwraps to is half as long
+again.
+
+Two numbers, not one — and this was one number first. The square root of the
+area is a perfectly good scale for a square panel and wrong for every other
+kind: these unwraps are anisotropic, a tote's front running 380mm across and
+430mm up with coordinates 0 to 1 both ways. What keeps a design undistorted is
+that its template is cut to the panel's own shape, not that the two axes agree.
+Measured as one number the bag's narrow side came out 1.7 times too large and
+printed its pattern correspondingly bigger than the front's. The renders looked
+plausible; the zone numbers did not.
+
+### What it does not cover
+
+The zones, which on the tote is all of the outside cloth — its four sides are
+printed fold to fold — and on the shirt is the four panels. The hem band, the
+cuffs, the sleeve heads and the facings are `Shirt_Body`, which carries no
+unwrap to print on and takes the print background with the collar rib, exactly
+as it does for a placed design. A sublimated tee would have those printed too;
+that needs the garment's own pattern-piece layout brought through prep as a
+print zone, and is not done here.
+
+A design with a top and a bottom will be tiled like one. This is for a repeat,
+which is what all-over artwork is.
+
 ## 3. The test schema
 
 Invariants over the shipped GLBs, read straight out of the files. Each has an

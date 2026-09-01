@@ -129,3 +129,19 @@ export const ARTWORK_ZONE_DEVICES: Readonly<
 export const PRINT_DEVICES: readonly DeviceId[] = (
   Object.keys(DEVICE_CATALOG) as DeviceId[]
 ).filter((id) => DEVICE_CATALOG[id].artworkSurface === "print");
+
+/**
+ * Which products can take one design across everything they print.
+ *
+ * A product with one printable surface already puts the whole design on it, so
+ * offering it an all-over print would be offering it the state it is in. Two
+ * or more is where the question starts: does this image go on the front, or
+ * does it run across the front, the back and both sleeves at one size.
+ */
+export const ALL_OVER_DEVICES: readonly DeviceId[] = (
+  Object.keys(DEVICE_CATALOG) as DeviceId[]
+).filter(
+  (id) =>
+    DEVICE_CATALOG[id].artworkSurface === "print" &&
+    readArtworkZones(DEVICE_CATALOG[id]).size > 1,
+);

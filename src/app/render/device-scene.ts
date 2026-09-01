@@ -8,6 +8,7 @@ import {
 } from "./model-appearance";
 import {
   bindZoneArtwork,
+  createAllOverPrint,
   capturePrintRelief,
   type ArtworkZoneBinding,
 } from "./artwork-binding";
@@ -46,6 +47,7 @@ import {
   applyScreenTransform,
   findScreenMaterials,
   measureScreenAspect,
+  measureZoneScale,
   unwrapScreen,
   type ScreenSlack,
   type ScreenTransform,
@@ -410,6 +412,7 @@ export async function buildDeviceScene(options: {
       fit: zone.fit,
       materials,
       relief: capturePrintRelief(materials, clearRelief),
+      scale: measureZoneScale(subject, materials),
       slack: { x: 0, y: 0 },
     });
   }
@@ -426,19 +429,41 @@ export async function buildDeviceScene(options: {
     textures: ReadonlyMap<ArtworkZoneId, THREE.Texture | null>;
     transform?: ScreenTransform;
   } = { textures: new Map() };
+  const allOver = createAllOverPrint();
   // Only where the product says its unprinted cloth is the print background;
   // everywhere else a template is drawn on white and stays on white.
   let blankStock = options.device.blankStockMaterials
     ? options.blankStock
     : undefined;
   const rebindArtwork = (): void => {
+    const copies = allOver.spread(
+      zones.keys(),
+      lastArtwork.textures.get("front") ?? null,
+      lastArtwork.transform?.allOver === true,
+    );
+    /**
+     * How wide one repeat is, measured off the front and then obeyed by every
+     * other panel.
+     *
+     * The control asks for a number of repeats across the front, because that
+     * is the panel someone is looking at while they turn the dial. Everything
+     * else follows from the width that implies: three across a 500mm back is a
+     * 167mm tile, and a 300mm sleeve gets the 1.8 of them it has room for.
+     */
+    const front = zones.get("front");
+    const tile =
+      front && front.scale.u > 0
+        ? front.scale.u / Math.max(0.25, lastArtwork.transform?.repeats ?? 1)
+        : 0;
     for (const [id, binding] of zones) {
+      const own = lastArtwork.textures.get(id) ?? null;
       bindZoneArtwork({
         binding,
         blankStock,
         clearRelief,
         printed: options.device.artworkSurface === "print",
-        texture: lastArtwork.textures.get(id) ?? null,
+        texture: copies?.get(id) ?? (copies ? null : own),
+        tile,
         transform: lastArtwork.transform,
       });
     }
