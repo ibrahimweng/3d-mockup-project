@@ -238,7 +238,18 @@ export async function prepZones({
     // rectangle in the atlas. Otherwise whatever the zone declares.
     const basis = measured ? null : (unwrapBasis.get(zoneName)
       ?? (spec.unwrap === "tangent" ? tangentBasis(list) : axisBasis([uA, vA])));
-    const at = measured ? spec.unwrap : (w) => [along(basis.u, w), along(basis.v, w)];
+    /**
+     * Where one corner lands, with the face it belongs to.
+     *
+     * The face goes with it because a zone is not always measured one way
+     * throughout: the shirt's plain cloth is a band round the body and a band
+     * round each sleeve, and those are rings about different axes. Only a
+     * measured unwrap is handed it -- a world-axis projection has nothing to
+     * decide -- and every measurement that does not care simply ignores it.
+     */
+    const at = measured
+      ? (w, f) => spec.unwrap(w, f)
+      : (w) => [along(basis.u, w), along(basis.v, w)];
     /**
      * One face's three corners, all on the same side of the join.
      *
@@ -252,7 +263,7 @@ export async function prepZones({
      * faces sent round the world.
      */
     const cornersOf = (f) => {
-      const corners = f.world.map(at);
+      const corners = f.world.map((w) => at(w, f));
       if (!measured) return corners;
       const us = corners.map((c) => c[0]);
       if (Math.max(...us) - Math.min(...us) <= 0.5) return corners;

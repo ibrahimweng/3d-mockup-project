@@ -108,15 +108,17 @@ A heavyweight cotton tee, photographed close up.
 | --- | --- | --- | --- |
 | Front, back panels | `Shirt_Front`, `Shirt_Back` | yes, seam to seam | jersey: metallic 0, roughness 0.86, weave normal map on TEXCOORD_1 |
 | Sleeves | `Shirt_Sleeve_Left`, `Shirt_Sleeve_Right` | yes, round the arm from the cuff to the shoulder | as above |
-| Hem, the last 8mm of each cuff, and the woven neck label | `Shirt_Body` | no, follows the print background | as above |
+| Hem cloth turned under, the seam allowances, the woven neck label | `Shirt_Body` | no slot; takes an all-over print | as above |
+| The last 8mm of each cuff | `Shirt_Cuff` | no slot; takes an all-over print | as above |
 | Collar rib and hem facings | `Rib_1X1_486gsm_116764` | no, accent colour slot | cotton at roughness 0.9, a shade duller than the body |
-| Placket trim | `Shirt_Front_Trim` | no, follows the print background | as above |
+| The 32mm hem band | `Shirt_Front_Trim` | no slot; takes an all-over print | as above |
 
 A tee is one bolt of jersey with a rib collar sewn to it, so the collar is the
 only part of it with a colour of its own. Everything the four prints do not
 reach is the same cloth as the panels and takes the same print background,
 declared as `blankStockMaterials` in the catalog: the hem band, the cuffs, the
-head of each sleeve, the facings turned under. On colour slots of their own
+facings turned under. They take an all-over print with the panels — see 2c —
+and the print background whenever there is not one. On colour slots of their own
 they were a second opinion about what the garment was made of — colouring the
 shirt in Parts turned the hem and the cuffs that colour and
 left every printed panel on the background, which is a contrast-yoke ringer tee
@@ -515,15 +517,44 @@ Measured as one number the bag's narrow side came out 1.7 times too large and
 printed its pattern correspondingly bigger than the front's. The renders looked
 plausible; the zone numbers did not.
 
-### What it does not cover
+### The cloth between the panels
 
-The zones, which on the tote is all of the outside cloth — its four sides are
-printed fold to fold — and on the shirt is the four panels. The hem band, the
-cuffs, the sleeve heads and the facings are `Shirt_Body`, which carries no
-unwrap to print on and takes the print background with the collar rib, exactly
-as it does for a placed design. A sublimated tee would have those printed too;
-that needs the garment's own pattern-piece layout brought through prep as a
-print zone, and is not done here.
+The zones are not all of a garment. The shirt's four panels stop at the hem
+band, at the last 8mm of each cuff, and at the facings turned into the folds —
+cloth nobody can upload to, because there are four slots and a tee has more
+parts than that. A placed design leaves those on the print background, which is
+right: a chest print does not run onto the hem.
+
+An all-over print does. It is cloth printed before it was cut, so a blank band
+round the bottom of a patterned shirt is the first thing anyone sees. That
+cloth is exactly what the catalog already calls `blankStockMaterials` — the
+same cotton as the panels, following the same colour — so it is what takes the
+print, and the runtime resolves it as a second kind of surface: no slot, no
+template, one binding each.
+
+Each of them needed coordinates it never had, because nothing was ever going to
+be sampled on them. They are measured on the same rings as the panels they sit
+against, and not flattened: a band round a body or a sleeve is a strip of a
+cylinder, and a cylinder unrolls exactly.
+
+The cuffs are their own zone, `Shirt_Cuff`, for a reason worth stating. Both
+are the same cotton, and until now the only question about them was what colour
+to be, which they answered the same way. An all-over print asks a second
+question — how big is a repeat here — and a ring round a sleeve is 340mm where
+a ring round the body is 1005mm. In one zone the two average into a size that
+is neither.
+
+| | Cloth across one turn | Cloth up one turn |
+| --- | --- | --- |
+| `Shirt_Front_Trim`, the hem band | 1005mm | 34mm |
+| `Shirt_Cuff` | 340mm | 43mm |
+
+What is still not covered: `Shirt_Body`'s own cloth is mostly the hem turned
+under and the seam allowances inside the folds, and its ring measurement is
+degenerate there — a fold runs horizontally, so height stops separating one row
+of cloth from the next and the pattern on it stretches. It is inside a hem or a
+seam, so it is not seen; the outer band a person looks at is
+`Shirt_Front_Trim`, which measures cleanly.
 
 A design with a top and a bottom will be tiled like one. This is for a repeat,
 which is what all-over artwork is.

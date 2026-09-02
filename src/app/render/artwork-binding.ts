@@ -1,8 +1,12 @@
 import * as THREE from "three";
 
-import type { ArtworkFit, ArtworkZoneId } from "../product-domain";
+import type { ArtworkFit, ArtworkZoneId, DeviceDefinition } from "../product-domain";
+import { readArtworkZones } from "../product-applicability";
 import {
   applyScreenTransform,
+  findScreenMaterials,
+  measureScreenAspect,
+  measureZoneScale,
   type ScreenSlack,
   type ScreenTransform,
 } from "./screen-mapping";
@@ -195,11 +199,74 @@ export function tileArtwork(
 }
 
 /**
- * One design worn by every zone at once.
+ * Every surface of a product a design can land on, resolved against its model.
  *
- * An all-over print is one upload on four panels, and each panel needs its own
- * repeat -- a sleeve holds fewer tiles than a back -- while a repeat lives on
- * the texture rather than on the material. So every panel gets a copy.
+ * Two kinds, and the difference is whether anyone can upload to it. A `zone` is
+ * a panel with a slot: the front of a shirt, the back, each sleeve. `cloth` is
+ * the rest of the same cotton -- the hem band, the cuffs, the facings turned
+ * under -- which has no slot and never will, because there are four slots and a
+ * garment has more parts than that. It follows the print background instead,
+ * and under an all-over print it follows the print.
+ *
+ * One binding per cloth material rather than one for the set, because each is
+ * measured separately and they do not agree: a ring round a sleeve is a third
+ * of a ring round the body, so a cuff and a hem given one scale between them
+ * would both be printed at a size that is neither.
+ */
+export function resolveArtworkSurfaces(
+  subject: THREE.Object3D,
+  device: DeviceDefinition,
+  clearRelief: boolean,
+): {
+  cloth: ReadonlyMap<string, ArtworkZoneBinding>;
+  zones: ReadonlyMap<ArtworkZoneId, ArtworkZoneBinding>;
+} {
+  const of = (materials: readonly THREE.MeshStandardMaterial[], aspect: number) => ({
+    aspect,
+    materials,
+    relief: capturePrintRelief(materials, clearRelief),
+    scale: measureZoneScale(subject, materials),
+    slack: { x: 0, y: 0 },
+  });
+
+  /**
+   * A zone whose material the file does not carry is dropped rather than bound
+   * to whatever the fallback finds, because the fallback is "the strongest
+   * emissive material" -- right for a display named something else after a
+   * re-export, and quite wrong for a sleeve.
+   */
+  const zones = new Map<ArtworkZoneId, ArtworkZoneBinding>();
+  for (const [id, zone] of readArtworkZones(device)) {
+    const materials = findScreenMaterials(subject, zone.material);
+    if (materials.length === 0) continue;
+    zones.set(id, {
+      ...of(
+        materials,
+        zone.aspect ??
+          (id === "front" ? device.screenAspect : undefined) ??
+          measureScreenAspect(subject, materials, 9 / 19.5),
+      ),
+      fit: zone.fit,
+    });
+  }
+
+  const cloth = new Map<string, ArtworkZoneBinding>();
+  for (const name of device.blankStockMaterials ?? []) {
+    const materials = findScreenMaterials(subject, name);
+    if (materials.length === 0) continue;
+    cloth.set(name, { ...of(materials, 1), fit: undefined });
+  }
+
+  return { cloth, zones };
+}
+
+/**
+ * One design worn by every surface at once.
+ *
+ * An all-over print is one upload on every panel and every band of plain cloth
+ * between them, and each needs its own repeat -- a sleeve holds fewer tiles
+ * than a back, a cuff fewer again -- while a repeat lives on the texture rather
+ * than on the material. So every surface gets a copy.
  *
  * Copies rather than decodes: a clone shares the original's picture, which
  * three.js uploads once and counts references to, so four panels of the same
@@ -215,26 +282,25 @@ export function createAllOverPrint(): {
    * print and every zone keeps its own upload.
    */
   spread: (
-    zones: Iterable<ArtworkZoneId>,
+    surfaces: Iterable<string>,
     source: THREE.Texture | null,
     allOver: boolean,
-  ) => ReadonlyMap<ArtworkZoneId, THREE.Texture> | null;
+  ) => ReadonlyMap<string, THREE.Texture> | null;
 } {
-  let held: { copies: Map<ArtworkZoneId, THREE.Texture>; of: THREE.Texture } | null =
-    null;
+  let held: { copies: Map<string, THREE.Texture>; of: THREE.Texture } | null = null;
   const release = (): void => {
     for (const copy of held?.copies.values() ?? []) copy.dispose();
     held = null;
   };
   return {
     dispose: release,
-    spread: (zones, source, allOver) => {
+    spread: (surfaces, source, allOver) => {
       const wanted = allOver ? source : null;
       if (held?.of === wanted) return held?.copies ?? null;
       release();
       if (!wanted) return null;
-      const copies = new Map<ArtworkZoneId, THREE.Texture>();
-      for (const id of zones) {
+      const copies = new Map<string, THREE.Texture>();
+      for (const id of surfaces) {
         if (id === "front") {
           copies.set(id, wanted);
           continue;

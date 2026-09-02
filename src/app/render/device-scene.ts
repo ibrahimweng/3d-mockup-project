@@ -9,6 +9,7 @@ import {
 import {
   bindZoneArtwork,
   createAllOverPrint,
+  resolveArtworkSurfaces,
   capturePrintRelief,
   type ArtworkZoneBinding,
 } from "./artwork-binding";
@@ -392,30 +393,8 @@ export async function buildDeviceScene(options: {
 
   const clearRelief = options.device.clearPrintRelief === true;
 
-  /**
-   * One binding per zone the product declares, resolved against this model.
-   *
-   * A zone whose material the file does not carry is dropped rather than
-   * bound to whatever the fallback finds, because the fallback is "the
-   * strongest emissive material" — right for a display named something else
-   * after a re-export, and quite wrong for a sleeve.
-   */
-  const zones = new Map<ArtworkZoneId, ArtworkZoneBinding>();
-  for (const [id, zone] of readArtworkZones(options.device)) {
-    const materials = findScreenMaterials(subject, zone.material);
-    if (materials.length === 0) continue;
-    zones.set(id, {
-      aspect:
-        zone.aspect ??
-        (id === "front" ? options.device.screenAspect : undefined) ??
-        measureScreenAspect(subject, materials, 9 / 19.5),
-      fit: zone.fit,
-      materials,
-      relief: capturePrintRelief(materials, clearRelief),
-      scale: measureZoneScale(subject, materials),
-      slack: { x: 0, y: 0 },
-    });
-  }
+  const { cloth, zones } = resolveArtworkSurfaces(subject, options.device, clearRelief);
+
   /**
    * The design on each zone and the cloth under it, remembered.
    *
@@ -437,7 +416,7 @@ export async function buildDeviceScene(options: {
     : undefined;
   const rebindArtwork = (): void => {
     const copies = allOver.spread(
-      zones.keys(),
+      [...zones.keys(), ...cloth.keys()],
       lastArtwork.textures.get("front") ?? null,
       lastArtwork.transform?.allOver === true,
     );
@@ -463,6 +442,19 @@ export async function buildDeviceScene(options: {
         clearRelief,
         printed: options.device.artworkSurface === "print",
         texture: copies?.get(id) ?? (copies ? null : own),
+        tile,
+        transform: lastArtwork.transform,
+      });
+    }
+    // And the plain cloth, which has nothing of its own to show: a copy of the
+    // design while the whole product is printed, and the blank stock otherwise.
+    for (const [name, binding] of cloth) {
+      bindZoneArtwork({
+        binding,
+        blankStock,
+        clearRelief,
+        printed: options.device.artworkSurface === "print",
+        texture: copies?.get(name) ?? null,
         tile,
         transform: lastArtwork.transform,
       });
