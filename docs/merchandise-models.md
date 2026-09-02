@@ -434,9 +434,12 @@ Laplacian for the layout that best matches all of them at once — a rotation be
 the one map that leaves a square a square. `scripts/prep-model-flatten.mjs` owns
 it, and a zone opts in with `flatten: true`.
 
-Two things it needs. A patch it can flatten, which means a disc — so a sleeve has
-to arrive already cut along its underarm, and the weld that finds shared corners
-compares the starting guess as well as the position, or the cut closes again. And
+Two things it needs. A patch it can flatten, which means a disc. A cut in the
+geometry is one way to get there — a sleeve arrives already cut along its
+underarm — but it is not the only one: the weld that finds shared corners
+compares the starting guess as well as the position, so wherever a measurement
+that goes all the way round starts over, the two lips at that line arrive apart
+and the ring is handed over as a strip. That is why a hem band needs no cut. And
 enough steps in the linear solve: capped at a flat 240 the tote's back panel came
 back at 1.13 against 1.01 for its front, the same panel measured the same way and
 simply not finished. The cap is taken from the size of the patch.
@@ -545,8 +548,7 @@ template, one binding each.
 
 Each of them needed coordinates it never had, because nothing was ever going to
 be sampled on them. They are measured on the same rings as the panels they sit
-against, and not flattened: a band round a body or a sleeve is a strip of a
-cylinder, and a cylinder unrolls exactly.
+against, and flattened like them.
 
 The cuffs are their own zone, `Shirt_Cuff`, for a reason worth stating. Both
 are the same cotton, and until now the only question about them was what colour
@@ -566,13 +568,33 @@ that was wrong — hiding it changes 41,000 pixels of a default render, and abou
 5,000 of those are its own surface rather than what is behind it. It is the lip
 of the hem and the sliver of the inside you see under it.
 
-Its ring measurement is genuinely degenerate on a fold, where the cloth runs
-horizontally and height stops separating one row from the next. That is 12% of
-its exposed area, and those triangles still take a compressed slice of the
-design. The other 88% is unwrapped correctly and is now sized correctly too,
-which is what the median above bought. Fixing the last 12% means flattening the
-zone, and flattening wants a disc where a hem band is a ring — it would need a
-cut down the garment first, and it is not done here.
+Its ring measurement is degenerate on a fold, where the cloth runs horizontally
+and height stops separating one row from the next: the underside of a hem covers
+twenty millimetres of cotton at no height at all. It was said here that fixing
+that meant a cut down the garment, because a flattening wants a disc where a hem
+band is a ring. That was wrong on its own terms — the weld opens a ring at the
+line its count starts over, as above — and the whole of it needed was
+`flatten: true`.
+
+What it was worth, measured on the file:
+
+| Zone | Squareness before | After |
+| --- | --- | --- |
+| `Shirt_Body` | 38.75 | 2.37 |
+| `Shirt_Cuff` | 12.94 | 1.34 |
+| `Shirt_Front_Trim` | 16.62 | 2.66 |
+
+Against 1.03 on the front panel stitched to them. Squareness is the 99th
+percentile, so those numbers were the folds and nothing else, and what they
+describe is a band of smeared ink round the bottom of an otherwise clean shirt.
+All three are now ratcheted in `model-quality.baselines.ts` under `blankStock`,
+which is asserted against the catalog's own `blankStockMaterials` so a product
+cannot grow blank stock without a baseline for it.
+
+What is left is phase rather than shape: each fold is its own island in the
+layout, so the pattern is square on the underside of the hem but does not carry
+round the fold from the face above it. You have to tilt the garment up twenty
+degrees to see any of it.
 
 A design with a top and a bottom will be tiled like one. This is for a repeat,
 which is what all-over artwork is.

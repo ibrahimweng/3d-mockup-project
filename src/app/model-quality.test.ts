@@ -200,10 +200,21 @@ describe("what the merchandise models are made of", () => {
     // fails quietly is a measurement that collapses: coordinates that cover no
     // area answer with a scale of nothing, and a part printed at a scale of
     // nothing is one texel stretched over the whole of it.
-    for (const [id] of models) {
+    //
+    // And having coordinates is not the same as having good ones. This cloth
+    // is the folds -- a hem turned under, a cuff, the facings stitched behind
+    // them -- and a fold is the one place an unwrap measured on height above
+    // the floor has nothing to say: the underside of a hem covers twenty
+    // millimetres of cotton in no height at all. Every panel beside it keeps a
+    // square square to within three per cent, so the same is asked here.
+    for (const [id, baseline] of models) {
       const cloth = DEVICE_CATALOG[id].blankStockMaterials ?? [];
-      if (cloth.length === 0) continue;
-      const triangles = trianglesOf(fileOf(id));
+      const triangles = cloth.length > 0 ? trianglesOf(fileOf(id)) : [];
+      expect(
+        Object.keys(baseline.blankStock).sort(),
+        `${id}: the baselines and the catalog disagree about which cloth is blank stock`,
+      ).toEqual([...cloth].sort());
+
       for (const material of cloth) {
         const mine = triangles.filter((triangle) => triangle.material === material);
         if (mine.length === 0) continue;
@@ -212,6 +223,19 @@ describe("what the merchandise models are made of", () => {
         const across = cloth3d(mine);
         expect(across.u, `${id} ${material} cloth across one turn`).toBeGreaterThan(0.001);
         expect(across.v, `${id} ${material} cloth up one turn`).toBeGreaterThan(0.001);
+
+        const want = baseline.blankStock[material];
+        const uv = uvOf(mine);
+        expect(uv, `${id} ${material} carries no texture coordinates`).not.toBeNull();
+        if (!uv || !want) continue;
+        // Coverage and islands are left out on purpose: this is several
+        // separate bands of cloth and none of them is a panel meant to fill a
+        // square. What a repeating pattern reads is the other two.
+        ratchet(
+          `${id} ${material} squareness`,
+          uv.squareness, want.squareness, ZONE_TARGET.squareness, "lower",
+        );
+        ratchet(`${id} ${material} stretch`, uv.stretch, want.stretch, ZONE_TARGET.stretch, "lower");
       }
     }
   });

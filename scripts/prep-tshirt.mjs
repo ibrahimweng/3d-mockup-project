@@ -39,8 +39,7 @@ await mkdir(repoPath("build"), { recursive: true });
  * It is 590,408 triangles of thread over thirty-five meshes -- 96 per cent of
  * the model and the whole reason the file was 22MB -- and at anything but an
  * extreme close-up each stitch lands smaller than a pixel and aliases into a
- * broken grey line with clumped ends, which reads as a smudge on the fabric
- * rather than as stitching.
+ * broken grey line with clumped ends, which reads as a smudge, not stitching.
  */
 const noStitch = build("tshirt-nostitch.glb");
 if (!existsSync(noStitch)) {
@@ -106,14 +105,12 @@ for (const [material, leftover, zones, classify] of passes) {
  * not flat: it wraps round the body, and where it curved past the direction it
  * was projected along -- the sides of the chest, the underside of a sleeve --
  * its triangles projected back to front and their slice of the design came out
- * mirrored, 156 of them on the front and about 670 on each sleeve. So the
- * design follows the cloth instead of a plane. The shirt is sliced into rings,
- * each ring is walked round to give distance travelled, and a point sits where
- * it falls along its own ring.
- *
- * Rings across the body for the panels, and rings across each sleeve's own axis
- * for the sleeves, because a sleeve is a tube lying at about forty degrees to
- * every world axis and a horizontal slice of one is not a ring.
+ * mirrored, 156 on the front and about 670 on each sleeve. So the design
+ * follows the cloth instead of a plane: the shirt is sliced into rings, each
+ * walked round to give distance travelled, and a point sits where it falls
+ * along its own ring. Rings across the body for the panels and across each
+ * sleeve's own axis for the sleeves, because a sleeve is a tube lying at forty
+ * degrees to every world axis and a horizontal slice of one is not a ring.
  */
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
 const stitched = await io.read(source);
@@ -139,10 +136,8 @@ const BODY = ["Shirt_Front", "Shirt_Back"];
 const SLEEVES = ["Shirt_Sleeve_Left", "Shirt_Sleeve_Right"];
 
 /**
- * A sleeve's own axis, measured off its own cloth.
- *
- * The rings start underneath, so that is where a design going all the way round
- * has its join, which is where a sleeve is sewn.
+ * A sleeve's own axis, measured off its own cloth. The rings start underneath,
+ * so a design going all the way round joins where a sleeve is sewn.
  */
 const sleeveFrame = (name) =>
   limbAxis(cloth.get(name).flat(), [name.endsWith("Left") ? -1 : 1, 0, 0]);
@@ -151,11 +146,10 @@ const sleeveFrame = (name) =>
  * One unroll per zone, each starting its count where that zone's design should
  * start and stop.
  *
- * The body panels are measured on rings taken across both of them at once,
- * because a horizontal slice of a shirt is a ring only if the front and the
- * back are both in it. Each panel then counts from the middle of the other,
- * which puts the one place the count jumps as far from its own cloth as the
- * garment allows.
+ * The body panels are measured on rings taken across both at once, because a
+ * horizontal slice of a shirt is a ring only if the front and the back are
+ * both in it. Each panel counts from the middle of the other, putting the one
+ * place the count jumps as far from its own cloth as the garment allows.
  */
 const body = BODY.flatMap((name) => cloth.get(name));
 const roll = {
@@ -172,11 +166,11 @@ const MM = 1 / 1000;   // the source's own texture coordinates are in millimetre
 /**
  * The band at the hem that the print stops short of.
  *
- * A tee's hem is turned under and topstitched, and it has to belong to a zone
- * of its own for the fold to be added later: `hems` turns the three longest
- * rims of the body cloth under, and if the panels own those rims there is no
- * body cloth left holding one. Stated as a height and cut as one, which makes
- * it a straight line rather than a sawtooth.
+ * A tee's hem is turned under and topstitched, and it needs a zone of its own
+ * for the fold to be added later: `hems` turns the three longest rims of the
+ * body cloth under, and if the panels own those rims there is no body cloth
+ * left holding one. Stated as a height and cut as one, so it is a straight
+ * line rather than a sawtooth.
  */
 const HEM_BAND = 32 * MM;
 /** Below anything the model can tell apart, and far above float noise. */
@@ -192,8 +186,8 @@ const hemLine = floor + HEM_BAND;
  * of anything to measure a way round from, leaving a third of each arm in flat
  * colour that read as a contrast raglan yoke. `partial: "fill"` closes its
  * slices now, at the price the baselines record. Only the last few millimetres
- * at the cuff stay plain: the fold turned under there is built out of cloth
- * the print does not own.
+ * at the cuff stay plain, where the fold is built out of cloth the print does
+ * not own.
  */
 const CUFF_BAND = 8 * MM;
 const alongSleeve = {};
@@ -224,10 +218,10 @@ const HEMS = [
  *
  * 720 triangles across 33mm, and the one material of the eight in the file that
  * no pass touched and no catalog entry named: it kept the source's own material
- * and the source's own texture, at roughness 0.5 where every other piece of
- * cloth here is 0.86. It goes into the body cloth, which is what the back of a
- * collar is made of, and takes the main colour with the rest of the shirt
- * instead of staying whatever the file happened to bake into it.
+ * and texture, at roughness 0.5 where every other piece of cloth here is 0.86.
+ * It goes into the body cloth, which is what the back of a collar is made of,
+ * and takes the main colour with the rest of the shirt instead of staying
+ * whatever the file happened to bake into it.
  */
 const LABEL = "Cotton_Heavy_Twill_116740.004";
 
@@ -306,13 +300,24 @@ const printed = await prepZones({
      * cut, so the hem is printed with everything else, and a blank band round
      * the bottom of a patterned shirt is the first thing anyone sees.
      *
-     * On the same rings as the panels they sit against, and not flattened: a
-     * band round a body or a sleeve is a strip of a cylinder, and a cylinder
-     * unrolls exactly. There is nothing for a flattening to relax.
+     * On the same rings as the panels, and flattened like them. It was not, on
+     * the grounds that a band round a body is a strip of a cylinder and a
+     * cylinder unrolls exactly -- true of a band, false of these, because none
+     * of these is only a band. Each is cloth turned back on itself, and a
+     * fold's underside covers twenty millimetres of cotton at no height at
+     * all, where height above the floor is what the ring counts. So a printed
+     * square arrived 38.75 times out of square on the body, 12.94 on the cuffs
+     * and 16.62 on the facings, against 1.03 on the panel stitched to them.
+     * Flattened: 2.37, 1.34 and 2.66.
+     *
+     * No cut in the geometry is needed for this the way a sleeve needs one:
+     * `weldCorners` tells corners apart by the guess as well as the position,
+     * and a count that goes all the way round starts over somewhere, so the
+     * lips at that line arrive apart and the patch handed over is a strip.
      */
-    Shirt_Front_Trim: { ...COTTON, unwrap: roll.Shirt_Front.across() },
+    Shirt_Front_Trim: { ...COTTON, flatten: true, unwrap: roll.Shirt_Front.across() },
     Shirt_Cuff: {
-      ...COTTON, unwrap: (w, f) => roll[f.source.getName()].across()(w), weaveAxes: ["z", "y"],
+      ...COTTON, flatten: true, unwrap: (w, f) => roll[f.source.getName()].across()(w), weaveAxes: ["z", "y"],
     },
     /**
      * The collar rib and the facings turned under the hem.
@@ -335,7 +340,7 @@ const printed = await prepZones({
     Rib_1X1_486gsm_116764: { ...COTTON, baseColor: [0.94, 0.94, 0.93, 1], roughness: 0.9 },
     // The cloth outside every print area: the hem below the panels, the label,
     // and the seam allowances turned into the folds.
-    Shirt_Body: { ...COTTON, unwrap: roll.Shirt_Front.across() },
+    Shirt_Body: { ...COTTON, flatten: true, unwrap: roll.Shirt_Front.across() },
   },
 });
 for (const [zone, { span, tris }] of Object.entries(printed)) {
