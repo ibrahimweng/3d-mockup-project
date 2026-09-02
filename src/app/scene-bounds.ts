@@ -146,10 +146,11 @@ function tightAspect(state: ToolcraftState): number {
         basis,
         box,
         halfFovRad,
-        // Zero, so the fit is the box and nothing else. The renderer drops the
-        // same rule for the same frame, which is what makes the picture fill
-        // the rectangle measured here rather than sit in the middle of it.
-        subjectRadius: 0,
+        // No composition, so the fit is the box and nothing else. The renderer
+        // drops the same rule for the same frame, which is what makes the
+        // picture fill the rectangle measured here rather than sit in the
+        // middle of it.
+        subject: null,
       }),
     });
     const wanted = THREE.MathUtils.clamp(

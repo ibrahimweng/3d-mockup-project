@@ -34,7 +34,7 @@ test("focal length drives camera FOV and viewing distance", () => {
       basis: straightOn,
       box: lowWideSet(),
       halfFovRad: THREE.MathUtils.degToRad(fov / 2),
-      subjectRadius: 1,
+      subject: lowWideSet(),
     }),
   );
   for (let i = 1; i < distances.length; i += 1) {
@@ -47,7 +47,7 @@ test("zoom crops the frame without moving the camera", () => {
   // camera stands. Standing further back is the focal length's job, and the
   // two are separate controls precisely because they look different.
   const halfFov = THREE.MathUtils.degToRad(fovDegreesFor(85) / 2);
-  const request = { aspect: 1, basis: straightOn, box: lowWideSet(), halfFovRad: halfFov, subjectRadius: 1 };
+  const request = { aspect: 1, basis: straightOn, box: lowWideSet(), halfFovRad: halfFov, subject: lowWideSet() };
 
   // The same lens and the same set give the same distance every time; nothing
   // about a crop enters this calculation at all.
@@ -57,6 +57,55 @@ test("zoom crops the frame without moving the camera", () => {
   // camera, so the check above is not passing for want of any sensitivity.
   const wider = fitDistance({ ...request, halfFovRad: halfFov * 2 });
   expect(wider).toBeLessThan(fitDistance(request));
+});
+
+/**
+ * The composition rule, on the two shapes that broke the one before it.
+ *
+ * Air is given round the product's own box. Measured against a sphere instead
+ * -- which is what this was -- a shape whose box is much smaller than the ball
+ * drawn round it is composed for a subject that is not there: a T-shirt's box
+ * is two thirds of its sphere and it came out filling 43 per cent of a
+ * portrait artboard's height, over half the picture empty.
+ */
+test("gives the product air round it, whatever shape the product is", () => {
+  const halfFov = THREE.MathUtils.degToRad(fovDegreesFor(85) / 2);
+  const tall = new THREE.Box3(new THREE.Vector3(-0.1, -1, -0.1), new THREE.Vector3(0.1, 1, 0.1));
+  const squat = new THREE.Box3(new THREE.Vector3(-1, -0.7, -0.4), new THREE.Vector3(1, 0.7, 0.4));
+
+  for (const aspect of [0.8, 1, 16 / 9]) {
+    for (const box of [tall, squat]) {
+      const distance = fitDistance({
+        aspect, basis: straightOn, box, halfFovRad: halfFov, subject: box,
+      });
+      // What share of the frame the box's near face covers on each axis.
+      const ahead = distance - box.max.z;
+      const across =
+        (box.max.x - box.min.x) / (2 * ahead * Math.tan(halfFov) * aspect);
+      const upright = (box.max.y - box.min.y) / (2 * ahead * Math.tan(halfFov));
+      // One axis fills four fifths of the frame and neither exceeds it, on
+      // every frame shape and either subject. The sphere rule managed this on
+      // a tall thin subject only, and only on a square frame.
+      expect(Math.max(across, upright), `${aspect} ${box.max.x}`).toBeGreaterThan(0.7);
+      expect(Math.max(across, upright), `${aspect} ${box.max.x}`).toBeLessThanOrEqual(0.8);
+    }
+  }
+});
+
+test("holds the furniture in shot without giving it air too", () => {
+  const halfFov = THREE.MathUtils.degToRad(fovDegreesFor(85) / 2);
+  const device = new THREE.Box3(new THREE.Vector3(-0.2, -0.5, -0.2), new THREE.Vector3(0.2, 0.5, 0.2));
+  // A table four times the width of what is standing on it, which is a table.
+  const set = new THREE.Box3(new THREE.Vector3(-1.6, -1.2, -1.6), new THREE.Vector3(1.6, 0.5, 1.6));
+  const distance = fitDistance({
+    aspect: 1, basis: straightOn, box: set, halfFovRad: halfFov, subject: device,
+  });
+  const ahead = distance - set.max.z;
+  const across = (set.max.x - set.min.x) / (2 * ahead * Math.tan(halfFov));
+  // The table reaches the edge of frame rather than sitting inside a margin of
+  // its own: a set is held, a product is composed.
+  expect(across).toBeGreaterThan(0.9);
+  expect(across).toBeLessThanOrEqual(1);
 });
 
 test("framing offset shifts the picture without leaning it", () => {

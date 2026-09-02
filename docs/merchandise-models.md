@@ -599,6 +599,95 @@ degrees to see any of it.
 A design with a top and a bottom will be tiled like one. This is for a repeat,
 which is what all-over artwork is.
 
+## 2d. The picture that comes out
+
+Three things were wrong with the file an export wrote, and all three were
+invisible to anything that only read its header.
+
+### A canvas is not as big as you ask for
+
+Every browser caps a canvas's backing store — Chrome at 33.6 million pixels —
+and applies the cap without a word. Assigning `canvas.width` never throws, and
+the attribute reads back whatever it was assigned however little was really
+allocated behind it. The only place the truth appears is `drawingBufferWidth`.
+
+An 8K portrait export is 6553 by 8192, which is 53.7 million pixels. Measured
+on Chromium: the store came back **5151 by 6440**, the same shape at 78.6 per
+cent of the size, and nothing said so.
+
+What that costs depends on how the platform then presents the short buffer.
+Stretched, the file is soft: an 8K export carrying 6.4K of detail under an 8K
+name. Laid into the top left corner at 1:1, the file has two bands of bare
+export background down the right hand side and along the bottom — which is
+what it looked like on the machine that reported it.
+
+The fix is not to ask for less. `src/app/render/export-grid.ts` cuts the frame
+into pieces the context will really allocate, each drawn at its own full
+resolution and butted together, so 8K is 8K on a machine that cannot hold an
+8K frame. It asks the context rather than carrying a number for the cap: the
+limit varies with the platform and with how much memory is already spoken for,
+and a figure written down here would be wrong on the first machine that
+disagreed. The 8K frame above is drawn as two tiles of 6554 by 4096, and both
+come back honoured.
+
+A tile is not composed for itself. The camera stays fitted to the whole
+picture and the tile selects a window of the frustum through `setViewOffset`,
+added to the window the framing pad already asks for — a quarter of a frame
+composed as if it were the frame is a quarter of a different photograph.
+
+### And it was resampling itself on the way in
+
+Separately: the finished raster was drawn into the artifact canvas in **CSS**
+coordinates on a context scaled by the pixel ratio, so its destination edge
+landed on 6553.6 device pixels while the canvas was 6554 wide. A fractional
+destination resamples, and it resamples the whole picture. The tiles are
+blitted in raw device pixels instead, and how many of them there are is read
+off the artifact canvas rather than recomputed from the frame and the ratio —
+the two agreed to within a pixel most of the time and not always, because the
+artifact rounds its width up where this rounded to nearest and a video export
+rounds both edges to even, and a pixel of disagreement is a line of bare
+background down an edge. Measured on the steepest one-pixel step
+across the print — which is what resolution means once the header has stopped
+talking — 4K went from 133 to 197 and 8K from 140 to 205 out of 255.
+
+`e2e/app-browser-export-evidence.spec.ts` holds both: an edge in the file has
+to arrive as an edge, and the frame's last row and column may not be one flat
+colour.
+
+### The frame was composed against a ball
+
+The camera stands back far enough for the product to sit inside four fifths of
+the frame. It used to be four fifths for the *sphere drawn round* the product,
+at the same margin, and a sphere is a poor stand-in for anything that is not
+one:
+
+How much of the default 1080x1350 artboard each product's box covers, before
+and after, computed from the catalog's own measurements:
+
+| Product | Before | Now |
+| --- | --- | --- |
+| iPhone 17 Pro Max | 0.34 x 0.57 | 0.48 x 0.78 |
+| MacBook | 0.56 x 0.30 | 0.78 x 0.42 |
+| T-shirt | 0.57 x 0.43 | 0.78 x 0.60 |
+| Tote bag | 0.42 x 0.54 | 0.61 x 0.78 |
+| Water bottle | 0.26 x 0.58 | 0.35 x 0.78 |
+| Clipboard | 0.51 x 0.05 | 0.78 x 0.07 |
+
+Two things were adding up. A phone's box is 0.90 of the sphere round it and a
+T-shirt's 0.66, so the shirt was composed for a subject half again the size of
+the one in front of the camera. And on a frame taller than it is wide the old
+rule stood the camera back by a further `1 / aspect` — which is what fitting a
+*sphere* across a narrow frame genuinely needs, and is not what fitting a shirt
+across one needs, so every portrait export of everything was another 25 per
+cent too small on top. Nothing filled more than 58 per cent of the height of
+the artboard it was composed for.
+
+Furniture is not given the same treatment. A table is held in shot and no more
+— it is what the product is standing on, not what the picture is of — so the
+fit takes the larger of the set at its own edges and the product inside its
+margin. `Table.product` is the product's world box kept beside `Table.framing`
+for exactly this.
+
 ## 3. The test schema
 
 Invariants over the shipped GLBs, read straight out of the files. Each has an

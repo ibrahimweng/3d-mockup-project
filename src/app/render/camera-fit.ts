@@ -105,34 +105,67 @@ export function fitDistance(request: {
   basis: FitBasis;
   box: THREE.Box3;
   halfFovRad: number;
-  subjectRadius: number;
+  /**
+   * The product on its own, to be composed with air around it. Null cuts the
+   * frame to the set and nothing more, which is what Infinity canvas wants.
+   */
+  subject: THREE.Box3 | null;
 }): number {
-  const { aspect, basis, box, halfFovRad, subjectRadius } = request;
+  const { aspect, basis, box, halfFovRad, subject } = request;
   const tallness = Math.tan(halfFovRad);
   const wideness = tallness * Math.max(0.001, aspect);
+  // Every reach is measured from the same point, because the camera looks at
+  // one point: the middle of the set. A box measured about its own centre
+  // would answer for a camera pointed somewhere the camera is not.
   const centre = box.getCenter(new THREE.Vector3());
   const corner = new THREE.Vector3();
 
-  // Never tighter than the framing the studios were built against: a device
-  // standing on nothing is composed against its own radius with room around it,
-  // and a box drawn round the same device is smaller than the sphere was, so
-  // fitting the box alone would quietly crop in on every preset that has no
-  // furniture in it. This only ever stands further back.
-  let distance =
-    ((subjectRadius * 1.25) / tallness) * (aspect < 1 ? 1 / aspect : 1);
-  for (const x of [box.min.x, box.max.x]) {
-    for (const y of [box.min.y, box.max.y]) {
-      for (const z of [box.min.z, box.max.z]) {
-        corner.set(x, y, z).sub(centre);
-        const depth = corner.dot(basis.direction);
-        distance = Math.max(
-          distance,
-          depth + Math.abs(corner.dot(basis.across)) / wideness,
-          depth + Math.abs(corner.dot(basis.upright)) / tallness,
-        );
+  /**
+   * How far back this box has to be seen from to sit inside `1 / air` of the
+   * frame.
+   *
+   * Dividing the frame's own half-angles rather than scaling the answer, so
+   * the margin is a share of the picture and not a share of the distance --
+   * multiplying the distance moves the camera away from the near corners as
+   * well, which leaves a squat subject with more air than a tall one at the
+   * same setting.
+   */
+  const reach = (held: THREE.Box3, air: number): number => {
+    let distance = 0;
+    for (const x of [held.min.x, held.max.x]) {
+      for (const y of [held.min.y, held.max.y]) {
+        for (const z of [held.min.z, held.max.z]) {
+          corner.set(x, y, z).sub(centre);
+          const depth = corner.dot(basis.direction);
+          distance = Math.max(
+            distance,
+            depth + (air * Math.abs(corner.dot(basis.across))) / wideness,
+            depth + (air * Math.abs(corner.dot(basis.upright))) / tallness,
+          );
+        }
       }
     }
-  }
+    return distance;
+  };
+
+  /**
+   * The composition: the product inside four fifths of the frame.
+   *
+   * It used to be the sphere drawn round the product instead, at the same
+   * margin, and a sphere is a poor stand-in for anything that is not one. A
+   * phone is nearly as tall as the sphere round it and came out framed as
+   * intended; a T-shirt's box is two thirds of its sphere and a clipboard's a
+   * half, so both were composed for a subject much bigger than the one in
+   * front of the camera. On the default 1080 by 1350 artboard the shirt filled
+   * 57 per cent of the width and 43 per cent of the height -- over half the
+   * picture empty backdrop -- and the tablet folder 51 by 5.
+   *
+   * Worse on a tall frame than a wide one, because fitting a sphere across a
+   * narrow frame needs the extra distance and fitting a shirt across it does
+   * not: the same rule that made the phone right made every portrait export of
+   * everything else another 25 per cent too small.
+   */
+  const distance = Math.max(reach(box, 1), subject ? reach(subject, 1.25) : 0);
   // A hair of air, so nothing sits exactly on the edge of the picture.
   return distance * 1.02;
 }

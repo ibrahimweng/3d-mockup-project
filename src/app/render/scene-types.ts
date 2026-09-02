@@ -170,6 +170,16 @@ export type DeviceScene = {
    */
   framing: THREE.Box3;
   /**
+   * The product alone, without whatever it is standing on.
+   *
+   * The two boxes are composed differently and cannot be one: furniture is
+   * held in shot and no more, while the product is what the picture is of and
+   * is given air round it.
+   *
+   * Mutated in place alongside `framing`, for the same reason.
+   */
+  product: THREE.Box3;
+  /**
    * The height the device is standing at.
    *
    * Everything below it is furniture: the table's sides and its legs. A frame
