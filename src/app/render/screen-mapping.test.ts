@@ -4,6 +4,7 @@ import { describe, expect, test } from "vitest";
 import {
   applyScreenTransform,
   measureScreenAspect,
+  measureZoneScale,
   type ScreenSlack,
   type ScreenTransform,
 } from "./screen-mapping";
@@ -23,8 +24,10 @@ function squareDesign(): THREE.Texture {
 }
 
 const neutral: ScreenTransform = {
+  allOver: false,
   fit: "fit",
   offset: { x: 0.5, y: 0.5 },
+  repeats: 3,
   scale: 100,
   stretch: { x: 0, y: 0 },
 };
@@ -244,4 +247,53 @@ test("a design authored at the panel's own ratio lands on it untouched", () => {
   wrong.image = { height: 3381, width: 2131 };
   applyScreenTransform(wrong, local, { ...neutral }, { x: 0, y: 0 });
   expect(wrong.repeat.x).toBeGreaterThan(2.4);
+});
+
+/**
+ * A panel of a stated size, unwrapped over the whole 0..1 square.
+ *
+ * Built by hand rather than loaded, because the number under test is the ratio
+ * between two areas and a fixture that states both is the only one that can
+ * fail for the right reason. The unwrap covers 0..1 exactly, which is what
+ * every print zone in this catalog does.
+ */
+function panel(width: number, height: number): THREE.Object3D {
+  const geometry = new THREE.PlaneGeometry(width, height);
+  const skin = new THREE.MeshStandardMaterial();
+  const mesh = new THREE.Mesh(geometry, skin);
+  return mesh;
+}
+
+const skinOf = (object: THREE.Object3D) =>
+  (object as THREE.Mesh).material as THREE.MeshStandardMaterial;
+
+describe("how much world one turn of a zone's unwrap covers", () => {
+  test("is how far the cloth runs, along each axis separately", () => {
+    const square = panel(0.5, 0.5);
+    expect(measureZoneScale(square, [skinOf(square)])).toEqual({ u: 0.5, v: 0.5 });
+
+    // The case a single number gets wrong. This panel is two and a half times
+    // taller than it is wide and its coordinates still run 0 to 1 both ways, so
+    // the two axes are different distances; the square root of the area is
+    // neither of them.
+    const side = panel(0.155, 0.43);
+    const measured = measureZoneScale(side, [skinOf(side)]);
+    expect(measured.u).toBeCloseTo(0.155, 6);
+    expect(measured.v).toBeCloseTo(0.43, 6);
+    expect(measured.u).not.toBeCloseTo(Math.sqrt(0.155 * 0.43), 3);
+  });
+
+  test("reads the world, so the same panel scaled up measures larger", () => {
+    const sleeve = panel(0.3, 0.3);
+    sleeve.scale.setScalar(2);
+    const measured = measureZoneScale(sleeve, [skinOf(sleeve)]);
+    expect(measured.u).toBeCloseTo(0.6, 6);
+    expect(measured.v).toBeCloseTo(0.6, 6);
+  });
+
+  test("answers zero for a panel with no unwrap to measure", () => {
+    const bare = panel(1, 1);
+    (bare as THREE.Mesh).geometry.deleteAttribute("uv");
+    expect(measureZoneScale(bare, [skinOf(bare)])).toEqual({ u: 0, v: 0 });
+  });
 });

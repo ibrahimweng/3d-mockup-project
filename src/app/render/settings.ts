@@ -63,8 +63,12 @@ export function readScreenTransform(
 ): ScreenTransform {
   const fit = values["artwork.fit"];
   return {
+    allOver: values["artwork.allOver"] === true,
     fit: fit === "fit" || fit === "stretch" ? fit : "fill",
     offset: unitPad(values, "artwork.offset"),
+    // One repeat across the front is the design once, whole, which is the
+    // reading that makes the smallest number the least surprising.
+    repeats: Math.max(0.25, num(values, "artwork.repeats", 3)),
     scale: num(values, "artwork.scale", 100),
     stretch: pad(values, "artwork.stretch"),
   };

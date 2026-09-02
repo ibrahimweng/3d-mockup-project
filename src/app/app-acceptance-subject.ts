@@ -194,6 +194,42 @@ export const subjectAcceptance: readonly ToolcraftComponentAcceptance[] = [
   },
   {
     automated: true,
+    automatedTestName: "one design covers every zone at one size",
+    browser: true,
+    browserTestName:
+      "browser: an all-over print repeats at the same size on every panel",
+    componentType: "switch",
+    evidence: "rendered-pixels",
+    expectedObservable:
+      "Turning it on puts the front design on the back and both sleeves as well, repeating rather than placed, and a motif measures the same across the sleeve as across the back. The Back, Left and Right uploaders go away while it is on, because there is nowhere left for them to print.",
+    fixture: "the t-shirt, whose four panels are three different sizes",
+    id: "artwork.all-over.print",
+    kind: "control",
+    target: "artwork.allOver",
+    timelineCoverage: "keyframes",
+    userAction:
+      "Select the T-Shirt, upload a repeating pattern, and turn All-over print on.",
+  },
+  {
+    automated: true,
+    automatedTestName: "one design covers every zone at one size",
+    browser: true,
+    browserTestName:
+      "browser: the repeat count sizes the pattern on every panel at once",
+    componentType: "slider",
+    evidence: "rendered-pixels",
+    expectedObservable:
+      "The number is how many repeats fit across the front. Raising it makes the motif smaller everywhere at once, and the other panels keep the front's size rather than its count -- a sleeve holds fewer repeats because it is narrower, not smaller ones.",
+    fixture: "the t-shirt, whose four panels are three different sizes",
+    id: "artwork.repeats.size",
+    kind: "control",
+    target: "artwork.repeats",
+    timelineCoverage: "keyframes",
+    userAction:
+      "With All-over print on, drag Repeat and watch the pattern change size on the front and the sleeve together.",
+  },
+  {
+    automated: true,
     automatedTestName: "a transparent design is composited onto the print background",
     browser: true,
     browserTestName:

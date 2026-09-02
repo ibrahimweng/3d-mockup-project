@@ -325,13 +325,15 @@ export const appControlSectionInventory: readonly ToolcraftControlSectionInvento
       entity: "Screenshot",
       entityId: "artwork",
       groupingReason:
-        "The uploaded images, the colour they are printed on and the two pads that place them are the picture itself and where it sits; the four uploaders are one decision taken up to four times, because a product with four printable zones is still one design, and all six are standalone-layout controls, so the runtime keeps them in one titled section.",
+        "The uploaded images, the colour they are printed on and the two pads that place them are the picture itself and where it sits; the four uploaders are one decision taken up to four times, because a product with four printable zones is still one design. The all-over switch is here rather than in a section of its own because it gates three of those uploaders, and a gate belongs with what it gates; it brings its repeat with it. The section declares itself standalone, which is what keeps the switch and the slider from being cut out of it.",
       id: "artwork",
       targets: [
         "artwork.image",
         "artwork.imageBack",
         "artwork.imageLeft",
         "artwork.imageRight",
+        "artwork.allOver",
+        "artwork.repeats",
         "artwork.background",
         "artwork.offset",
         "artwork.stretch",

@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-import type { ArtworkFit } from "../product-domain";
+import type { ArtworkFit, ArtworkZoneId } from "../product-domain";
 import {
   applyScreenTransform,
   type ScreenSlack,
@@ -150,6 +150,106 @@ export function wrapArtwork(
 }
 
 /**
+ * Lay a design across a panel as printed cloth rather than as a placed image.
+ *
+ * The whole difference between this and fitting one is what the size is
+ * measured against. A fitted design is sized to the panel, so the same file is
+ * one size on a back and another on a sleeve. An all-over print is sized to the
+ * *cloth*: the design repeats every `tile` world units wherever it lands, so a
+ * motif is the same width on the sleeve as on the back, which is the only thing
+ * that makes the two look like one garment.
+ *
+ * `scale` is how much world one turn of this zone's coordinates covers, on
+ * each axis separately -- these unwraps are not square, and a bag's narrow side
+ * measured with one number for both comes out two thirds too large. So
+ * `scale.u / tile` is how many repeats fit across it, and the design's own
+ * proportions decide the other way: a tile is `tile` wide and as tall as the
+ * image is tall against its width, which is what tiles it without distorting.
+ *
+ * Nothing is cropped -- the pattern is endless -- so the zone reports no slack
+ * and the pan control has nothing to pan. Offset still moves the pattern
+ * across the cloth, which is what registering a repeat means.
+ */
+export function tileArtwork(
+  texture: THREE.Texture,
+  request: {
+    offset: { x: number; y: number };
+    scale: { u: number; v: number };
+    tile: number;
+  },
+  slack: ScreenSlack,
+): boolean {
+  const { offset, scale, tile } = request;
+  if (!(scale.u > 0) || !(scale.v > 0) || !(tile > 0)) return false;
+  const image = texture.image as { height?: number; width?: number } | undefined;
+  const aspect = image?.width && image?.height ? image.width / image.height : 1;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.center.set(0, 0);
+  texture.repeat.set(scale.u / tile, (scale.v / tile) * aspect);
+  texture.offset.set(offset.x - 0.5, offset.y - 0.5);
+  slack.x = 0;
+  slack.y = 0;
+  texture.needsUpdate = true;
+  return true;
+}
+
+/**
+ * One design worn by every zone at once.
+ *
+ * An all-over print is one upload on four panels, and each panel needs its own
+ * repeat -- a sleeve holds fewer tiles than a back -- while a repeat lives on
+ * the texture rather than on the material. So every panel gets a copy.
+ *
+ * Copies rather than decodes: a clone shares the original's picture, which
+ * three.js uploads once and counts references to, so four panels of the same
+ * design cost one image in memory and disposing a copy frees nothing while the
+ * original still holds it. They are rebuilt only when the design itself
+ * changes, which is what keeps dragging the repeat slider from re-cloning four
+ * textures a frame.
+ */
+export function createAllOverPrint(): {
+  dispose: () => void;
+  /**
+   * The texture each zone should wear, or null when this is not an all-over
+   * print and every zone keeps its own upload.
+   */
+  spread: (
+    zones: Iterable<ArtworkZoneId>,
+    source: THREE.Texture | null,
+    allOver: boolean,
+  ) => ReadonlyMap<ArtworkZoneId, THREE.Texture> | null;
+} {
+  let held: { copies: Map<ArtworkZoneId, THREE.Texture>; of: THREE.Texture } | null =
+    null;
+  const release = (): void => {
+    for (const copy of held?.copies.values() ?? []) copy.dispose();
+    held = null;
+  };
+  return {
+    dispose: release,
+    spread: (zones, source, allOver) => {
+      const wanted = allOver ? source : null;
+      if (held?.of === wanted) return held?.copies ?? null;
+      release();
+      if (!wanted) return null;
+      const copies = new Map<ArtworkZoneId, THREE.Texture>();
+      for (const id of zones) {
+        if (id === "front") {
+          copies.set(id, wanted);
+          continue;
+        }
+        const copy = wanted.clone();
+        copy.needsUpdate = true;
+        copies.set(id, copy);
+      }
+      held = { copies, of: wanted };
+      return copies;
+    },
+  };
+}
+
+/**
  * One printable zone, resolved against a loaded model.
  *
  * Built once when the scene is, because everything in it is a property of the
@@ -163,6 +263,8 @@ export type ArtworkZoneBinding = {
   fit: ArtworkFit | undefined;
   materials: readonly THREE.MeshStandardMaterial[];
   relief: PrintRelief;
+  /** World units per turn of this zone's unwrap, per axis, for tiling across it. */
+  scale: { u: number; v: number };
   /** How much of the design is cropped on each axis, for dragging it. */
   slack: ScreenSlack;
 };
@@ -181,10 +283,27 @@ export function bindZoneArtwork(request: {
   clearRelief: boolean;
   printed: boolean;
   texture: THREE.Texture | null;
+  /**
+   * How wide one repeat of an all-over design is, in world units.
+   *
+   * Handed down rather than worked out here because it is a property of the
+   * product and not of this zone: every panel has to be told the same number
+   * or they are not one print.
+   */
+  tile?: number;
   transform?: ScreenTransform;
 }): void {
-  const { binding, blankStock, clearRelief, printed, texture, transform } = request;
-  if (texture && !wrapArtwork(texture, binding.fit, binding.slack)) {
+  const { binding, blankStock, clearRelief, printed, texture, tile, transform } =
+    request;
+  const tiled =
+    texture !== null &&
+    transform?.allOver === true &&
+    tileArtwork(
+      texture,
+      { offset: transform.offset, scale: binding.scale, tile: tile ?? 0 },
+      binding.slack,
+    );
+  if (texture && !tiled && !wrapArtwork(texture, binding.fit, binding.slack)) {
     applyScreenTransform(texture, binding.aspect, transform, binding.slack);
   }
   bindArtwork({
