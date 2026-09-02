@@ -30,6 +30,7 @@ import { NodeIO } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 
 import { along, axisBasis, cutAlongSeams, tangentBasis } from "./prep-model-clip.mjs";
+import { layCloth } from "./prep-model-cloth.mjs";
 import { flattenZone } from "./prep-model-flatten.mjs";
 import { dressZone, makeTextureCache } from "./prep-model-surface.mjs";
 import { assignShells, inv4, mulN, mulP, smoothNormals } from "./prep-model-geometry.mjs";
@@ -67,8 +68,8 @@ export function sourceModel(name) {
 }
 
 export async function prepZones({
-  classify, hems, input, leftover, material, output, regions, seams,
-  smoothCreases, trimStyle, weaveDefault = true, zones,
+  classify, cloth: clothFrames, hems, input, leftover, material, output, regions,
+  seams, smoothCreases, trimStyle, weaveDefault = true, zones,
 }) {
   const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
   // A path to a bought file, or a document already in hand. The tote's source
@@ -209,11 +210,17 @@ export async function prepZones({
   // Non-enumerable so callers that walk the zone entries do not trip over it.
   Object.defineProperty(report, "shells", { value: shells });
 
+  // Before any zone is laid out on its own, because zones cut from one piece
+  // of cloth have to be laid out together or a pattern crossing the line
+  // between them jumps. See `prep-model-cloth.mjs`.
+  const cloth = layCloth(byZone, zones, clothFrames, diagonal);
+
   for (const [zoneName, list] of byZone) {
     const spec = zones[zoneName] ?? { ...(trimStyle ?? {}) };
     const n = list.length * 3;
     const P = new Float32Array(n*3), N = new Float32Array(n*3);
     const UV = new Float32Array(n*2), UV1 = new Float32Array(n*2), UVW = new Float32Array(n*2);
+    const UV2 = new Float32Array(n*2);
     const density = spec.weaveRepeatsPerUnit ?? 1;
     /**
      * The plane a supplied weave is laid out from.
@@ -281,7 +288,6 @@ export async function prepZones({
       for (let i = 0; i < 2; i += 1) { lo[i] = Math.min(lo[i], p[i]); hi[i] = Math.max(hi[i], p[i]); }
     }
     const span = [hi[0] - lo[0] || 1, hi[1] - lo[1] || 1];
-
     let t = 0;
     for (let n = 0; n < list.length; n += 1) {
       const f = list[n];
@@ -292,6 +298,8 @@ export async function prepZones({
       UV1.set(f.UV0[k], t*2);
       UVW[t*2] = f.world[k][AXIS[wU]] * density;
       UVW[t*2+1] = f.world[k][AXIS[wV]] * density;
+      const onCloth = cloth.get(f);
+      if (onCloth) { UV2[t*2] = onCloth[k][0]; UV2[t*2+1] = onCloth[k][1]; }
       if (spec.unwrap) {
         const p = corners[k];
         let u = (p[0] - lo[0]) / span[0];
@@ -307,6 +315,11 @@ export async function prepZones({
       .setAttribute("POSITION", doc.createAccessor().setType("VEC3").setArray(P))
       .setAttribute("NORMAL", doc.createAccessor().setType("VEC3").setArray(N));
     if (spec.unwrap) prim.setAttribute("TEXCOORD_0", doc.createAccessor().setType("VEC2").setArray(UV));
+    // Metres across the piece of cloth this zone was cut from, shared with
+    // every other zone cut from the same piece. See `prep-model-cloth.mjs`.
+    if (cloth.has(list[0])) {
+      prim.setAttribute("TEXCOORD_2", doc.createAccessor().setType("VEC2").setArray(UV2));
+    }
 
     // What this zone is made of comes from the material its own triangles
     // arrived on. With one source material that is the only one there is; with

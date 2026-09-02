@@ -591,10 +591,57 @@ All three are now ratcheted in `model-quality.baselines.ts` under `blankStock`,
 which is asserted against the catalog's own `blankStockMaterials` so a product
 cannot grow blank stock without a baseline for it.
 
-What is left is phase rather than shape: each fold is its own island in the
-layout, so the pattern is square on the underside of the hem but does not carry
-round the fold from the face above it. You have to tilt the garment up twenty
-degrees to see any of it.
+### The pattern that jumped at the hem
+
+Flattening fixed the shape and left the phase. A zone is a print area and a
+piece of cloth is a piece of cloth: the front panel, the band round the hem and
+the facings behind it are three zones cut from one piece of cotton. Each zone's
+coordinates are normalised to its own extent — right for a design, since the
+front panel's artwork fills the front panel — and that moves every zone to an
+origin of its own.
+
+A flattening is only settled up to a rigid motion, so two patches relaxed from
+their own guesses come to rest in two frames that have nothing to do with each
+other. Measured across the 59 vertices the front panel shares with the band
+below it: the two agreed with each other to **0.9mm** and sat **237mm** apart.
+One constant, unrecoverable from either patch alone, and an all-over pattern
+that stepped sideways at a line running level round the whole garment.
+
+The first attempt was to write that constant into the file. The arithmetic
+disproved it — predicted 280mm against a measured 237mm — because `lo` is in
+each patch's own frame and there is no shared frame to express it in.
+
+So the pieces are laid out together instead. `scripts/prep-model-cloth.mjs`
+hands the flattening every face of a piece at once; `weldCorners` already tells
+two corners apart by their guess as well as their position, so faces from
+different zones meeting on the same millimetre of cloth are one vertex to it and
+the whole piece relaxes as the one surface it is. The result rides on its own
+coordinate, `TEXCOORD_2`, in metres across the piece — which leaves every zone's
+own unwrap, and therefore every design's placement, exactly as it was.
+
+A zone opts in by naming its piece, as a string or as a way of telling face by
+face — the cuffs are one zone and two pieces, because the same band is sewn to
+the end of each sleeve. What comes out, at every join where two zones share a
+vertex:
+
+| Join | Shared vertices | Gap |
+| --- | --- | --- |
+| `Shirt_Body` / `Shirt_Front` | 59 | **0.00mm** |
+| `Shirt_Back` / `Shirt_Body` | 166 | **0.00mm** |
+| `Shirt_Back` / `Shirt_Front` | 90 | **0.00mm** |
+| `Shirt_Cuff` / `Shirt_Sleeve_Left` | 84 | **0.00mm** |
+| `Shirt_Body` / `Shirt_Sleeve_Left` | 18 | 501.58mm |
+
+Zero across every line that is not a seam, because those zones came out of one
+solve. The armhole is half a metre away in the layout, which is right: a sleeve
+is set into it with a seam and a pattern does not carry across one. The test in
+`model-quality.test.ts` tells the two apart by that gap rather than by a list,
+so a garment that grows a piece is held to the same rule without being named.
+
+The renderer reads the cloth coordinate when a zone carries one — one repeat
+length for the whole piece, and no phase left to disagree about — and falls back
+to each zone's own where it does not, which is every product that is not sewn
+from pieces.
 
 A design with a top and a bottom will be tiled like one. This is for a repeat,
 which is what all-over artwork is.

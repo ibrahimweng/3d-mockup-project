@@ -5,6 +5,7 @@ import { readArtworkZones } from "../product-applicability";
 import {
   applyScreenTransform,
   findScreenMaterials,
+  hasClothCoordinates,
   measureScreenAspect,
   measureZoneScale,
   type ScreenSlack,
@@ -177,20 +178,39 @@ export function wrapArtwork(
 export function tileArtwork(
   texture: THREE.Texture,
   request: {
+    /** Whether the zone carries the cloth coordinate. See `hasClothCoordinates`. */
+    cloth?: boolean;
     offset: { x: number; y: number };
     scale: { u: number; v: number };
     tile: number;
   },
   slack: ScreenSlack,
 ): boolean {
-  const { offset, scale, tile } = request;
+  const { cloth, offset, scale, tile } = request;
   if (!(scale.u > 0) || !(scale.v > 0) || !(tile > 0)) return false;
   const image = texture.image as { height?: number; width?: number } | undefined;
   const aspect = image?.width && image?.height ? image.width / image.height : 1;
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
   texture.center.set(0, 0);
-  texture.repeat.set(scale.u / tile, (scale.v / tile) * aspect);
+  /**
+   * Which coordinates the pattern is measured in.
+   *
+   * A zone's own are normalised to its own extent, which is what a design
+   * wants -- the front panel's artwork fills the front panel -- and moves every
+   * zone to an origin of its own. Two zones cut from one piece of cloth then
+   * disagree by a constant, and a pattern crossing the line between them jumps:
+   * on the shirt that line is the hem, which runs level all the way round, and
+   * the jump measured 237mm.
+   *
+   * The cloth coordinate is metres across the whole piece, shared by every zone
+   * cut from it, so one repeat length is all it takes and the phase looks after
+   * itself. It stops only where the cloth does -- a sleeve is set into the
+   * armhole with a seam, and a pattern is not expected to carry across one.
+   */
+  texture.channel = cloth ? 2 : 0;
+  if (cloth) texture.repeat.set(1 / tile, aspect / tile);
+  else texture.repeat.set(scale.u / tile, (scale.v / tile) * aspect);
   texture.offset.set(offset.x - 0.5, offset.y - 0.5);
   slack.x = 0;
   slack.y = 0;
@@ -223,6 +243,7 @@ export function resolveArtworkSurfaces(
 } {
   const of = (materials: readonly THREE.MeshStandardMaterial[], aspect: number) => ({
     aspect,
+    cloth: hasClothCoordinates(subject, materials),
     materials,
     relief: capturePrintRelief(materials, clearRelief),
     scale: measureZoneScale(subject, materials),
@@ -326,6 +347,8 @@ export function createAllOverPrint(): {
 export type ArtworkZoneBinding = {
   /** The panel's measured height / width, for fitting a design into it. */
   aspect: number;
+  /** Whether this zone carries the cloth coordinate a pattern is tiled in. */
+  cloth: boolean;
   fit: ArtworkFit | undefined;
   materials: readonly THREE.MeshStandardMaterial[];
   relief: PrintRelief;
@@ -366,7 +389,12 @@ export function bindZoneArtwork(request: {
     transform?.allOver === true &&
     tileArtwork(
       texture,
-      { offset: transform.offset, scale: binding.scale, tile: tile ?? 0 },
+      {
+        cloth: binding.cloth,
+        offset: transform.offset,
+        scale: binding.scale,
+        tile: tile ?? 0,
+      },
       binding.slack,
     );
   if (texture && !tiled && !wrapArtwork(texture, binding.fit, binding.slack)) {

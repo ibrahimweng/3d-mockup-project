@@ -34,12 +34,11 @@ const COTTON = { metalness: 0, roughness: 0.86 };
 await mkdir(repoPath("build"), { recursive: true });
 
 /**
- * The stitched source, with its topstitch removed first.
- *
- * It is 590,408 triangles of thread over thirty-five meshes -- 96 per cent of
- * the model and the whole reason the file was 22MB -- and at anything but an
- * extreme close-up each stitch lands smaller than a pixel and aliases into a
- * broken grey line with clumped ends, which reads as a smudge, not stitching.
+ * The stitched source, with its topstitch removed first: 590,408 triangles of
+ * thread over thirty-five meshes -- 96 per cent of the model and the whole
+ * reason the file was 22MB -- and at anything but an extreme close-up each
+ * stitch lands smaller than a pixel and aliases into a broken grey line with
+ * clumped ends, which reads as a smudge rather than as stitching.
  */
 const noStitch = build("tshirt-nostitch.glb");
 if (!existsSync(noStitch)) {
@@ -96,21 +95,19 @@ for (const [material, leftover, zones, classify] of passes) {
  * A design fills its panel: front and back from the shoulder to the hem and
  * side seam to side seam, each sleeve from the armhole to the cuff. The
  * boundaries are the garment's own -- the modeller cut this shirt into pieces
- * and each panel is its own primitive -- so nothing has to be guessed and no
- * edge comes out a sawtooth. What replaced is a 240 by 320mm platen on the
- * chest and a 60mm patch on each sleeve, which between them printed on an
- * eighth of the cloth.
+ * and each panel is its own primitive -- so nothing is guessed and no edge
+ * comes out a sawtooth. What it replaced was a 240 by 320mm platen on the
+ * chest and a 60mm patch on each sleeve: an eighth of the cloth.
  *
  * The platen was there for a reason, and this is the answer to it. A panel is
- * not flat: it wraps round the body, and where it curved past the direction it
- * was projected along -- the sides of the chest, the underside of a sleeve --
- * its triangles projected back to front and their slice of the design came out
- * mirrored, 156 on the front and about 670 on each sleeve. So the design
- * follows the cloth instead of a plane: the shirt is sliced into rings, each
- * walked round to give distance travelled, and a point sits where it falls
- * along its own ring. Rings across the body for the panels and across each
- * sleeve's own axis for the sleeves, because a sleeve is a tube lying at forty
- * degrees to every world axis and a horizontal slice of one is not a ring.
+ * not flat: where it curves past the direction it was projected along -- the
+ * sides of the chest, the underside of a sleeve -- its triangles project back
+ * to front and their slice of the design arrives mirrored, 156 on the front
+ * and about 670 on each sleeve. So the design follows the cloth instead: the
+ * shirt is sliced into rings, each walked round to give distance travelled,
+ * and a point sits where it falls along its own. Rings across the body for the
+ * panels and across each sleeve's own axis for the sleeves, because a sleeve
+ * is a tube at forty degrees to every world axis.
  */
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
 const stitched = await io.read(source);
@@ -164,13 +161,12 @@ for (const name of SLEEVES) {
 
 const MM = 1 / 1000;   // the source's own texture coordinates are in millimetres
 /**
- * The band at the hem that the print stops short of.
+ * The band at the hem the print stops short of.
  *
- * A tee's hem is turned under and topstitched, and it needs a zone of its own
- * for the fold to be added later: `hems` turns the three longest rims of the
- * body cloth under, and if the panels own those rims there is no body cloth
- * left holding one. Stated as a height and cut as one, so it is a straight
- * line rather than a sawtooth.
+ * A tee's hem is turned under and topstitched, and needs a zone of its own for
+ * the fold to be added later: `hems` turns the three longest rims of the body
+ * cloth under, and if the panels own those rims there is none left holding
+ * one. Stated as a height and cut as one, so it is a straight line.
  */
 const HEM_BAND = 32 * MM;
 /** Below anything the model can tell apart, and far above float noise. */
@@ -201,12 +197,11 @@ for (const name of SLEEVES) {
 /**
  * Hem, cuffs and neck, turned under.
  *
- * The three longest rims on the body cloth are the hem and the two cuffs, in
- * that order, and the longest on the collar rib is the neck. Unhemmed each is
- * one vertex thick, which is what gives a close-up shot away. 20mm is a normal
- * jersey hem and 10mm a collar's. The rims read at twice the cloth, because a
- * hem is the cloth turned back on itself: 2.4mm for a heavyweight jersey, 4mm
- * for a 1x1 rib, which is a good deal thicker than the body.
+ * The three longest rims on the body cloth are the hem and the two cuffs, and
+ * the longest on the collar rib is the neck. Unhemmed each is one vertex
+ * thick, which is what gives a close-up shot away. 20mm is a normal jersey hem
+ * and 10mm a collar's, and each reads at twice the cloth because a hem is the
+ * cloth turned back on itself: 2.4mm for a jersey, 4mm for a rib.
  */
 const HEMS = [
   { loops: 3, segments: 6, thickness: 2.4 * MM, width: 20 * MM, zone: "Shirt_Body" },
@@ -214,18 +209,28 @@ const HEMS = [
 ];
 
 /**
- * The woven label at the back of the neck.
- *
- * 720 triangles across 33mm, and the one material of the eight in the file that
- * no pass touched and no catalog entry named: it kept the source's own material
- * and texture, at roughness 0.5 where every other piece of cloth here is 0.86.
- * It goes into the body cloth, which is what the back of a collar is made of,
- * and takes the main colour with the rest of the shirt instead of staying
- * whatever the file happened to bake into it.
+ * The woven label at the back of the neck: 720 triangles across 33mm, and the
+ * one material of the eight that no pass touched and no catalog entry named,
+ * so it kept the source's own texture at roughness 0.5 where every other piece
+ * of cloth here is 0.86. It goes into the body cloth, which is what the back
+ * of a collar is made of, and takes the main colour with the rest of the shirt.
  */
 const LABEL = "Cotton_Heavy_Twill_116740.004";
 
 const printed = await prepZones({
+  /**
+   * The pieces this garment is sewn from, and how each is measured. The front
+   * panel, the band round the hem and the facings behind it are three zones
+   * and one piece of cotton, and a pattern crosses the lines between them
+   * without moving. Round the body from the middle of the back, so the count
+   * starts over where a shirt has a seam anyway; a sleeve is its own piece for
+   * the same reason. See `prep-model-cloth.mjs`.
+   */
+  cloth: {
+    body: roll.Shirt_Front.across(),
+    "sleeve-left": roll.Shirt_Sleeve_Left.across(),
+    "sleeve-right": roll.Shirt_Sleeve_Right.across(),
+  },
   /**
    * Which piece of the garment a triangle is.
    *
@@ -285,13 +290,13 @@ const printed = await prepZones({
   zones: {
     // Each panel measured round the cloth rather than projected onto a plane,
     // and each running left to right as somebody facing it sees it.
-    Shirt_Front: { ...COTTON, flatten: true, template: template("tshirt-front"), unwrap: roll.Shirt_Front.across(), weaveAxes: ["x", "y"] },
-    Shirt_Back: { ...COTTON, flatten: true, template: template("tshirt-back"), unwrap: roll.Shirt_Back.across(), weaveAxes: ["x", "y"] },
+    Shirt_Front: { ...COTTON, cloth: "body", flatten: true, template: template("tshirt-front"), unwrap: roll.Shirt_Front.across(), weaveAxes: ["x", "y"] },
+    Shirt_Back: { ...COTTON, cloth: "body", flatten: true, template: template("tshirt-back"), unwrap: roll.Shirt_Back.across(), weaveAxes: ["x", "y"] },
     // Round the sleeve and along it, with the join at the underarm, which is
     // where a sleeve is sewn. Projected onto a plane instead the ink bunches up
     // where the cloth turns edge-on, which is most of a cone.
-    Shirt_Sleeve_Left: { ...COTTON, flatten: true, template: template("tshirt-sleeve-left"), unwrap: roll.Shirt_Sleeve_Left.across(), weaveAxes: ["z", "y"] },
-    Shirt_Sleeve_Right: { ...COTTON, flatten: true, template: template("tshirt-sleeve-right"), unwrap: roll.Shirt_Sleeve_Right.across(), weaveAxes: ["z", "y"] },
+    Shirt_Sleeve_Left: { ...COTTON, cloth: "sleeve-left", flatten: true, template: template("tshirt-sleeve-left"), unwrap: roll.Shirt_Sleeve_Left.across(), weaveAxes: ["z", "y"] },
+    Shirt_Sleeve_Right: { ...COTTON, cloth: "sleeve-right", flatten: true, template: template("tshirt-sleeve-right"), unwrap: roll.Shirt_Sleeve_Right.across(), weaveAxes: ["z", "y"] },
     /**
      * The hem band, and the cuffs: cloth no design is uploaded to, which had no
      * coordinates either because nothing was ever going to be sampled on it.
@@ -300,47 +305,42 @@ const printed = await prepZones({
      * cut, so the hem is printed with everything else, and a blank band round
      * the bottom of a patterned shirt is the first thing anyone sees.
      *
-     * On the same rings as the panels, and flattened like them. It was not, on
-     * the grounds that a band round a body is a strip of a cylinder and a
-     * cylinder unrolls exactly -- true of a band, false of these, because none
-     * of these is only a band. Each is cloth turned back on itself, and a
-     * fold's underside covers twenty millimetres of cotton at no height at
-     * all, where height above the floor is what the ring counts. So a printed
-     * square arrived 38.75 times out of square on the body, 12.94 on the cuffs
-     * and 16.62 on the facings, against 1.03 on the panel stitched to them.
-     * Flattened: 2.37, 1.34 and 2.66.
-     *
-     * No cut in the geometry is needed for this the way a sleeve needs one:
-     * `weldCorners` tells corners apart by the guess as well as the position,
-     * and a count that goes all the way round starts over somewhere, so the
-     * lips at that line arrive apart and the patch handed over is a strip.
+     * On the same rings as the panels, and flattened like them. Each is cloth
+     * turned back on itself, and a fold's underside covers twenty millimetres
+     * of cotton at no height at all, where height above the floor is what the
+     * ring counts. So a printed square arrived 38.75 times out of square on
+     * the body, 12.94 on the cuffs and 16.62 on the facings, against 1.03 on
+     * the panel stitched to them. Flattened: 2.37, 1.34 and 2.66. No cut in
+     * the geometry is needed the way a sleeve needs one -- `weldCorners` tells
+     * corners apart by the guess as well as the position, and a count that
+     * goes all the way round starts over somewhere.
      */
-    Shirt_Front_Trim: { ...COTTON, flatten: true, unwrap: roll.Shirt_Front.across() },
+    Shirt_Front_Trim: { ...COTTON, cloth: "body", flatten: true, unwrap: roll.Shirt_Front.across() },
     Shirt_Cuff: {
-      ...COTTON, flatten: true, unwrap: (w, f) => roll[f.source.getName()].across()(w), weaveAxes: ["z", "y"],
+      ...COTTON, flatten: true, weaveAxes: ["z", "y"],
+      cloth: (f) => (f.source.getName().endsWith("Left") ? "sleeve-left" : "sleeve-right"),
+      unwrap: (w, f) => roll[f.source.getName()].across()(w),
     },
     /**
      * The collar rib and the facings turned under the hem.
      *
-     * A ribbed collar is a different knit from the body and it should read as
+     * A ribbed collar is a different knit from the body and should read as
      * one, but the file says that by making it black: base colour 0.0027 at
      * metallic 0.2423 and roughness 1. Carried across as authored, which an
      * earlier pass did, a plain white tee arrives with a black collar and a
-     * black band round its hem -- a ringer tee nobody asked for, and the first
-     * thing anyone notices about the garment.
+     * black band round its hem -- a ringer tee nobody asked for.
      *
-     * Nor is any of it a description of cotton. Every other piece of cloth on
-     * this shirt is metallic 0 at roughness 0.86; a quarter-metallic knit at
-     * full roughness is a default that survived from wherever the model was
-     * authored. So the rib takes the same cotton finish, a shade duller than
-     * the body because a 1x1 rib is a denser knit and catches less light. It is
-     * on the accent colour slot, so a contrast collar is one pick away for
-     * anyone who wants one.
+     * Nor is any of it a description of cotton: every other piece of cloth here
+     * is metallic 0 at roughness 0.86, and a quarter-metallic knit at full
+     * roughness is a default that survived from wherever the model was
+     * authored. So the rib takes the same cotton finish, a shade duller
+     * because a 1x1 rib is denser and catches less light, on the accent colour
+     * slot so a contrast collar is one pick away.
      */
     Rib_1X1_486gsm_116764: { ...COTTON, baseColor: [0.94, 0.94, 0.93, 1], roughness: 0.9 },
     // The cloth outside every print area: the hem below the panels, the label,
     // and the seam allowances turned into the folds.
-    Shirt_Body: { ...COTTON, flatten: true, unwrap: roll.Shirt_Front.across() },
+    Shirt_Body: { ...COTTON, cloth: "body", flatten: true, unwrap: roll.Shirt_Front.across() },
   },
 });
 for (const [zone, { span, tris }] of Object.entries(printed)) {
