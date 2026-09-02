@@ -498,15 +498,14 @@ the panel someone is looking at while they drag it. Everything else follows
 from the width that implies: three across a 528mm front is a 176mm tile, and
 every other panel takes the tile rather than the count.
 
-### The measurement it rests on, and the one that was wrong
+### The measurement it rests on, and the two that were wrong
 
 A zone's coordinates run 0 to 1 whatever the panel measures, so a tile size in
 those coordinates means a different size on each panel. `measureZoneScale`
 turns them back into distances: per triangle, the world edges against the
-coordinate edges give how far the cloth runs per unit of u and of v, averaged
-over the zone weighted by area. Area rather than bounding box, because a
-sleeve's box is the box of a tube and the flat it unwraps to is half as long
-again.
+coordinate edges give how far the cloth runs per unit of u and of v. Area
+rather than bounding box, because a sleeve's box is the box of a tube and the
+flat it unwraps to is half as long again.
 
 Two numbers, not one — and this was one number first. The square root of the
 area is a perfectly good scale for a square panel and wrong for every other
@@ -516,6 +515,18 @@ that its template is cut to the panel's own shape, not that the two axes agree.
 Measured as one number the bag's narrow side came out 1.7 times too large and
 printed its pattern correspondingly bigger than the front's. The renders looked
 plausible; the zone numbers did not.
+
+And it is the **middle** of those distances by area, not the average of them,
+which is the second thing that was wrong. A zone is not always described by one
+number: the shirt's plain cloth is measured up the garment, and where the hem
+turns under itself the cloth runs horizontally, so height stops separating one
+row from the next and those triangles answer with an enormous distance. They
+are 5.6% of that zone's area, and they took the average to 1.390 where the
+middle of it is 0.617 — so the 88% of that cloth which is unwrapped perfectly
+well printed at a motif of 176 by 78mm where every panel beside it printed 176
+by 176. Squashed to 44% of its height, from a statistic. On a zone with nothing
+wrong with it the mean and the median agree to three decimals, which is why the
+panels never showed it.
 
 ### The cloth between the panels
 
@@ -549,12 +560,19 @@ is neither.
 | `Shirt_Front_Trim`, the hem band | 1005mm | 34mm |
 | `Shirt_Cuff` | 340mm | 43mm |
 
-What is still not covered: `Shirt_Body`'s own cloth is mostly the hem turned
-under and the seam allowances inside the folds, and its ring measurement is
-degenerate there — a fold runs horizontally, so height stops separating one row
-of cloth from the next and the pattern on it stretches. It is inside a hem or a
-seam, so it is not seen; the outer band a person looks at is
-`Shirt_Front_Trim`, which measures cleanly.
+`Shirt_Body` is the rest: the hem turned under, the seam allowances in the
+folds, the woven neck label. It was described here as cloth nobody sees, and
+that was wrong — hiding it changes 41,000 pixels of a default render, and about
+5,000 of those are its own surface rather than what is behind it. It is the lip
+of the hem and the sliver of the inside you see under it.
+
+Its ring measurement is genuinely degenerate on a fold, where the cloth runs
+horizontally and height stops separating one row from the next. That is 12% of
+its exposed area, and those triangles still take a compressed slice of the
+design. The other 88% is unwrapped correctly and is now sized correctly too,
+which is what the median above bought. Fixing the last 12% means flattening the
+zone, and flattening wants a disc where a hem band is a ring — it would need a
+cut down the garment first, and it is not done here.
 
 A design with a top and a bottom will be tiled like one. This is for a repeat,
 which is what all-over artwork is.
