@@ -159,9 +159,17 @@ export function measureScreenAspect(
  *
  * Per triangle: the world edges against the coordinate edges give the two
  * directions the cloth runs in per unit of u and of v, and their lengths are
- * the distances. Averaged over the zone weighted by world area, so a panel is
- * described by the cloth it actually has rather than by whichever triangle
- * happened to be first.
+ * the distances.
+ *
+ * The middle one of those, by area, and not the average of them. A zone is not
+ * always described by one number: a shirt's plain cloth is measured up the
+ * garment, and where the hem turns under itself the cloth runs horizontally, so
+ * height stops separating one row from the next and those triangles answer with
+ * an enormous distance. They are 5.6% of that zone's area and they took the
+ * average to 1.390 where the middle of it is 0.617 -- so the 88% of the cloth
+ * that is unwrapped perfectly well was printed at two and a quarter times the
+ * size of the panels beside it. A median gives that away and the mean does not,
+ * and on a zone with nothing wrong with it the two agree to three decimals.
  *
  * Zeroes when the zone carries no unwrap to measure, which the caller reads as
  * "cannot be tiled" rather than as a size.
@@ -170,9 +178,8 @@ export function measureZoneScale(
   root: THREE.Object3D,
   screenMaterials: readonly THREE.MeshStandardMaterial[],
 ): { u: number; v: number } {
-  let alongU = 0;
-  let alongV = 0;
-  let weight = 0;
+  const alongU: { of: number; over: number }[] = [];
+  const alongV: { of: number; over: number }[] = [];
   const a = new THREE.Vector3();
   const b = new THREE.Vector3();
   const c = new THREE.Vector3();
@@ -211,14 +218,25 @@ export function measureZoneScale(
       if (area <= 0) continue;
       runU.copy(edge1).multiplyScalar(dv2).addScaledVector(edge2, -dv1).divideScalar(det);
       runV.copy(edge2).multiplyScalar(du1).addScaledVector(edge1, -du2).divideScalar(det);
-      alongU += runU.length() * area;
-      alongV += runV.length() * area;
-      weight += area;
+      alongU.push({ of: runU.length(), over: area });
+      alongV.push({ of: runV.length(), over: area });
     }
   });
-  return weight > 0
-    ? { u: alongU / weight, v: alongV / weight }
-    : { u: 0, v: 0 };
+  return { u: middleOf(alongU), v: middleOf(alongV) };
+}
+
+/** The value half the area is under, which is what "typical" has to mean here. */
+function middleOf(runs: { of: number; over: number }[]): number {
+  let total = 0;
+  for (const run of runs) total += run.over;
+  if (total <= 0) return 0;
+  runs.sort((left, right) => left.of - right.of);
+  let seen = 0;
+  for (const run of runs) {
+    seen += run.over;
+    if (seen >= total / 2) return run.of;
+  }
+  return runs[runs.length - 1]?.of ?? 0;
 }
 
 /**

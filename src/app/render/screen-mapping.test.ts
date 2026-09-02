@@ -291,6 +291,35 @@ describe("how much world one turn of a zone's unwrap covers", () => {
     expect(measured.v).toBeCloseTo(0.6, 6);
   });
 
+  test("is the middle of the cloth, so a fold cannot drag it", () => {
+    /**
+     * The case this exists for, as small as it goes.
+     *
+     * A panel of ordinary cloth with one strip of it turned under, which is
+     * what a hem is. The turn runs the cloth a long way for very little height,
+     * so those triangles answer with an enormous distance per unit of v -- and
+     * they are a sliver of the area. Averaged in, they decide the answer for
+     * the whole panel and everything on it prints at the wrong size.
+     */
+    const ordinary = new THREE.PlaneGeometry(0.5, 0.5, 1, 20);
+    const position = ordinary.getAttribute("position");
+    const uv = ordinary.getAttribute("uv");
+    // The bottom row of the panel keeps its place in the world and is given a
+    // sliver of the coordinate, which is the fold: cloth that goes somewhere
+    // while the measurement barely moves.
+    for (let i = 0; i < uv.count; i += 1) {
+      if (position.getY(i) > -0.2) continue;
+      uv.setY(i, uv.getY(i) * 0.02);
+    }
+    uv.needsUpdate = true;
+    const hem = new THREE.Mesh(ordinary, new THREE.MeshStandardMaterial());
+
+    const measured = measureZoneScale(hem, [skinOf(hem)]);
+    // The cloth is half a metre either way, and that is what it answers.
+    expect(measured.u).toBeCloseTo(0.5, 6);
+    expect(measured.v).toBeCloseTo(0.5, 2);
+  });
+
   test("answers zero for a panel with no unwrap to measure", () => {
     const bare = panel(1, 1);
     (bare as THREE.Mesh).geometry.deleteAttribute("uv");

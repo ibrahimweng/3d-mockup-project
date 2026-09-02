@@ -86,12 +86,14 @@ function ratchet(
  *
  * The same measurement the renderer sizes an all-over print with, taken here
  * off the file instead of off a loaded scene: the world edges of each triangle
- * against its coordinate edges, weighted by area.
+ * against its coordinate edges, and the middle one by area. The middle rather
+ * than the average for the reason the renderer has -- a hem turned under runs
+ * the cloth a long way for no height at all, and those triangles are a sliver
+ * of the area with an enormous answer.
  */
 function cloth3d(triangles: readonly Triangle[]): { u: number; v: number } {
-  let alongU = 0;
-  let alongV = 0;
-  let weight = 0;
+  const alongU: { of: number; over: number }[] = [];
+  const alongV: { of: number; over: number }[] = [];
   for (const { position, uv } of triangles) {
     if (!uv) continue;
     const e1 = [0, 1, 2].map((q) => position[1][q] - position[0][q]);
@@ -109,11 +111,21 @@ function cloth3d(triangles: readonly Triangle[]): { u: number; v: number } {
     if (Math.abs(det) < 1e-12 || area <= 0) continue;
     const runU = [0, 1, 2].map((q) => (e1[q] * dv2 - e2[q] * dv1) / det);
     const runV = [0, 1, 2].map((q) => (e2[q] * du1 - e1[q] * du2) / det);
-    alongU += Math.hypot(...runU) * area;
-    alongV += Math.hypot(...runV) * area;
-    weight += area;
+    alongU.push({ of: Math.hypot(...runU), over: area });
+    alongV.push({ of: Math.hypot(...runV), over: area });
   }
-  return weight > 0 ? { u: alongU / weight, v: alongV / weight } : { u: 0, v: 0 };
+  const middle = (runs: { of: number; over: number }[]) => {
+    const total = runs.reduce((sum, run) => sum + run.over, 0);
+    if (total <= 0) return 0;
+    runs.sort((left, right) => left.of - right.of);
+    let seen = 0;
+    for (const run of runs) {
+      seen += run.over;
+      if (seen >= total / 2) return run.of;
+    }
+    return 0;
+  };
+  return { u: middle(alongU), v: middle(alongV) };
 }
 
 describe("what the merchandise models are made of", () => {
