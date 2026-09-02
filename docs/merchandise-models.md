@@ -650,9 +650,21 @@ background down an edge. Measured on the steepest one-pixel step
 across the print — which is what resolution means once the header has stopped
 talking — 4K went from 133 to 197 and 8K from 140 to 205 out of 255.
 
-`e2e/app-browser-export-evidence.spec.ts` holds both: an edge in the file has
-to arrive as an edge, and the frame's last row and column may not be one flat
-colour.
+`e2e/app-browser-export-evidence.spec.ts` asks the file the half of this it
+can answer: the frame's last row and column may not be one flat colour.
+
+It deliberately does not measure sharpness, and the reason is worth recording
+because the obvious measurement says the opposite of the truth. The steepest
+one-pixel step over the print is not scale-free — a check edge on cloth has a
+real width, a texture through a mipmap with a weave under it, so at twice the
+resolution it spans twice the pixels and the step halves. A verified-correct
+8K scored 79 against the 4K beside it at 124, with every tile honoured;
+reducing the 8K to the 4K's size before comparing did not rescue it either,
+scoring the *broken* export higher than the fixed one. Telling a real 8K from
+an enlarged one needs the spectrum rather than a step, so the guarantee lives
+where it can be stated exactly instead: `export-grid.test.ts` holds
+`planExportGrid` to splitting until the context honours a piece, against a
+fake context that lies the way a browser does.
 
 ### The frame was composed against a ball
 

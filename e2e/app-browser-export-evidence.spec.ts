@@ -92,20 +92,28 @@ test("browser: 2K and 8K exports decode with their selected pixel dimensions", a
 });
 
 /**
- * What a file measures, as opposed to what its header claims.
+ * How much of the frame's rim the export never reached.
  *
- * Two numbers, both taken off the decoded pixels. `edge` is the steepest step
- * between two neighbouring pixels anywhere over the product, which is what
- * resolution means once the header has stopped talking: a picture enlarged
- * from fewer pixels than it claims cannot produce a step a picture drawn at
- * that size produces. `bare` is the share of the frame's last row and column
- * that is one flat colour, which is what an export that did not reach its own
- * edges leaves behind.
+ * The share of the last row and the last column that is one flat colour, which
+ * is what a picture that stopped short of its own canvas leaves behind.
+ *
+ * There is deliberately no sharpness measurement here, and it is worth saying
+ * why: the obvious one is not scale-free and says the opposite of the truth. A
+ * check edge on cloth has a real width -- a texture through a mipmap with a
+ * weave under it -- so at twice the resolution it spans twice the pixels and
+ * the step between neighbours halves. Measured on this configuration, a
+ * correct 8K scored 79 against the 4K beside it at 124, with the tiling
+ * verified working and every tile honoured; reducing the 8K to the 4K's size
+ * first did not rescue it either, scoring the broken export higher than the
+ * fixed one. Telling a real 8K from an enlarged one needs the spectrum, not a
+ * step, and the guarantee is better placed where it can be stated exactly:
+ * `export-grid.test.ts` holds `planExportGrid` to splitting until the context
+ * honours a piece, against a fake context that lies the way a browser does.
  */
 async function measureExport(
   page: import("@playwright/test").Page,
   download: Download,
-): Promise<{ bare: number; edge: number }> {
+): Promise<{ bare: number }> {
   const stream = await download.createReadStream();
   const chunks: Buffer[] = [];
   for await (const chunk of stream) chunks.push(chunk as Buffer);
@@ -122,20 +130,6 @@ async function measureExport(
     const { height, width } = canvas;
     const luma = (d: Uint8ClampedArray, i: number): number =>
       0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-
-    // Over the product, where a print gives hard edges to resolve.
-    const crop = context.getImageData(
-      Math.round(width * 0.35), Math.round(height * 0.4),
-      Math.round(width * 0.3), Math.round(height * 0.2),
-    );
-    let edge = 0;
-    for (let y = 0; y < crop.height; y += 3) {
-      for (let x = 1; x < crop.width; x += 1) {
-        const at = (y * crop.width + x) * 4;
-        edge = Math.max(edge, Math.abs(luma(crop.data, at) - luma(crop.data, at - 4)));
-      }
-    }
-
     // The last row and the last column, which is where a short drawing buffer
     // leaves the export background showing.
     const rim = [
@@ -152,7 +146,7 @@ async function measureExport(
         if (Math.abs(luma(strip.data, i * 4) - first) < 1) flat += 1;
       }
     }
-    return { bare: flat / counted, edge };
+    return { bare: flat / counted };
   }, encoded);
 }
 
@@ -170,7 +164,7 @@ test("browser: an 8K export carries 8K of detail, to all four edges", async ({ p
   await uploadDesign(await getToolcraftControlFieldByTarget(page, "artwork.image"));
   await page.waitForTimeout(4_000);
 
-  const measured: Record<string, { bare: number; edge: number }> = {};
+  const measured: Record<string, { bare: number }> = {};
   for (const size of ["4K", "8K"] as const) {
     const field = await getToolcraftControlFieldByTarget(page, "export.image.resolution");
     await pickOption(field, size);
@@ -179,38 +173,16 @@ test("browser: an 8K export carries 8K of detail, to all four edges", async ({ p
   console.log("MEASURED:", JSON.stringify(measured));
 
   /**
-   * A check edge has to arrive as an edge.
-   *
-   * The design is a checkerboard of saturated colour, so every boundary in it
-   * is a step of well over 170 of the 255 the luma scale has, and a picture
-   * that resolves its own pixels reproduces very nearly all of it. Anything
-   * that resamples the frame on its way into the file spreads that step over
-   * two pixels and halves it, and there is no other way to tell: the header
-   * still says 8192 and the picture still looks like a shirt.
-   *
-   * Measured on this configuration, before and after the export stopped
-   * resampling itself: 4K 133 -> 197, 8K 140 -> 205. If a driver moves these,
-   * move the threshold with evidence rather than lowering it to fit -- the
-   * value it is guarding is the gap between a resolved edge and a blurred one,
-   * which is most of the range.
-   */
-  for (const size of ["4K", "8K"] as const) {
-    expect(measured[size].edge, `${size} edge`).toBeGreaterThan(170);
-  }
-
-  /**
-   * And more pixels must not mean less picture.
+   * The export has to reach its own edges.
    *
    * A browser caps a canvas's backing store and says nothing about it: an 8K
    * frame is 53.7 million pixels against a cap of 33.6, so the store came back
    * 78.6 per cent of the size asked for while `canvas.width` went on reporting
-   * the full number. What that costs depends on how the platform presents the
-   * short buffer -- stretched, so the file is soft, or laid into the top left
-   * corner, so the file carries two bands of bare background down the right
-   * and along the bottom. The rim is measured for the second, because it is
-   * the same fault and a machine shows one or the other.
+   * the full number. Laid into the top left corner, that leaves two bands of
+   * bare export background down the right and along the bottom -- which is how
+   * this was reported, and it is the half of the fault a file can be asked
+   * about directly.
    */
-  expect(measured["8K"].edge).toBeGreaterThan(measured["4K"].edge * 0.8);
   for (const size of ["4K", "8K"] as const) {
     expect(measured[size].bare, `${size} rim`).toBeLessThan(0.5);
   }
