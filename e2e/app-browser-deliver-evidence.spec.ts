@@ -30,15 +30,20 @@ test("browser: Export PNG downloads an artifact matching the previewed frame", a
       backgroundRgba: [0, 0, 0, 255],
       // The device and its shadow, decoded from the artifact rather than
       // asserted about the preview: at the default canvas the subject fills
-      // three quarters of the frame and sits below the top quarter, which is
-      // the framing the fit settles on.
-      expectedBounds: { height: 0.75, width: 0.78125, x: 0, y: 0.21875 },
+      // most of the frame's height and sits just below the top, which is the
+      // framing the fit settles on. It read 0.75 by 0.78 at y 0.22 while the
+      // camera was composed against the sphere drawn round the product rather
+      // than the product itself, which left every portrait export a quarter
+      // smaller than it should have been.
+      expectedBounds: { height: 0.859375, width: 0.765625, x: 0, y: 0.109375 },
       expectedHeight: 4096,
       expectedMediaType: "image/png",
       expectedPixels: [
         // The lit body, well clear of the black background the Void studio
-        // paints behind it.
-        { rgba: [26, 26, 26, 255], xRatio: 0.5, yRatio: 0.5 },
+        // paints behind it. A shade off what it read before the framing was
+        // corrected, because the middle of the frame now falls on a slightly
+        // different part of a device that fills more of it.
+        { rgba: [27, 26, 27, 255], xRatio: 0.5, yRatio: 0.5 },
       ],
       expectedWidth: 3277,
       page,
