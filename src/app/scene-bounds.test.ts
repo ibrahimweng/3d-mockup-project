@@ -62,6 +62,60 @@ describe("infinite scene bounds", () => {
     }
   });
 
+  /**
+   * The frame is cut for the picture that is actually being taken.
+   *
+   * A crop measured off the catalog's resting proportions answers for a
+   * product standing square-on, and nothing in the app keeps it standing that
+   * way: spin, tilt and roll are three sliders at the top of the panel. The
+   * shirt is 0.69 wide and 0.29 deep, so a quarter turn presents well under
+   * half the width -- and the export kept the square-on frame around it, 57
+   * per cent bare backdrop in two bands down the sides.
+   */
+  it("cuts the frame for the pose the product is actually in", () => {
+    const square = getMockupSceneRect(
+      frameState({ "camera.orbit": headOn, "device.model": "tshirt" }),
+    );
+    const turned = getMockupSceneRect(
+      frameState({
+        "camera.orbit": headOn,
+        "device.model": "tshirt",
+        "device.spin": 90,
+      }),
+    );
+    // Side-on the shirt is its own depth across, which is well under half its
+    // width, so the frame it wants is a good deal narrower.
+    expect(turned.width / turned.height).toBeLessThan(
+      (square.width / square.height) * 0.75,
+    );
+
+    // A lean puts the shirt's corners where its faces were, which is a taller
+    // box than the one it rests in.
+    const leaning = getMockupSceneRect(
+      frameState({
+        "camera.orbit": headOn,
+        "device.model": "tshirt",
+        "device.tilt": 40,
+      }),
+    );
+    expect(leaning.width / leaning.height).toBeLessThan(square.width / square.height);
+
+    // Size is not a shape, and neither is where the product is standing: both
+    // move the picture without changing what shape of frame holds it, and a
+    // crop that shifted under them would fight the controls rather than
+    // follow them.
+    for (const [target, value] of [
+      ["device.scale", 140],
+      ["device.positionX", 30],
+      ["device.positionY", -20],
+    ] as const) {
+      const moved = getMockupSceneRect(
+        frameState({ "camera.orbit": headOn, "device.model": "tshirt", [target]: value }),
+      );
+      expect(moved, target).toEqual(square);
+    }
+  });
+
   it("refuses to cut a strip out of a device seen edge on", () => {
     const rect = getMockupSceneRect(
       frameState({ "camera.orbit": edgeOn, "device.model": "iphone-17-pro-max" }),
