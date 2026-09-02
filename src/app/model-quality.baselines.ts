@@ -121,7 +121,23 @@ export type ZoneBaseline = {
   stretch: number;
 };
 
+/**
+ * Cloth an all-over print lands on without any design being uploaded to it.
+ *
+ * Coverage and islands say nothing here: this is the hem band, the cuffs and
+ * the facings turned under them, so it is several separate pieces by
+ * construction and none of them fills a square. What a repeating pattern does
+ * care about is the two that are left -- a check has to stay a check on the
+ * hem, at the size it is everywhere else.
+ */
+export type ClothBaseline = {
+  squareness: number;
+  stretch: number;
+};
+
 export type ModelBaseline = {
+  /** Keyed by material, and the keys have to be the product's own blank stock. */
+  blankStock: Record<string, ClothBaseline>;
   /**
    * Materials at metallic 1 and roughness 1. Metal takes its colour from what
    * it reflects, and a fully rough surface reflects nothing coherent, so such a
@@ -152,6 +168,7 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
   // right angle where the rim meets the face -- that turn is well past the
   // threshold, and the hard-edge count is unchanged at 1,434 to prove it.
   "id-card": {
+    blankStock: {},
     blackMaterials: [],
     boundaryEdges: 0,
     coincidentFaces: 0,
@@ -178,6 +195,7 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
   // filled 0.23 of its square before, in a corner of whatever atlas the model
   // was authored in, and now fills it.
   "tablet-folder": {
+    blankStock: {},
     blackMaterials: [],
     boundaryEdges: 88,
     coincidentFaces: 0,
@@ -242,6 +260,7 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
   // its corners. None of the 922 draws a line over anything flat, which is what
   // `shadingSplitsOnFlat` says.
   "tote-bag": {
+    blankStock: {},
     blackMaterials: [],
     boundaryEdges: 0,
     coincidentFaces: 0,
@@ -317,6 +336,23 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
   // buys. Free edges are 600 against 592 because the cuff band moved; hard
   // edges, shells and splits are where they were.
   tshirt: {
+    /**
+     * The three the print reaches and no design is ever uploaded to.
+     *
+     * Every one of them was a fold measured on a coordinate that does not
+     * follow it: the hem is turned under, so its underside covers twenty
+     * millimetres of cloth in no height at all, and height above the floor is
+     * what the body's unwrap counts. Read that way a printed square arrived
+     * thirty-nine times out of square on the body, thirteen on the cuffs and
+     * seventeen on the facings, against 1.03 on the front panel beside them --
+     * which on an all-over check is a band of smeared ink round the bottom of
+     * an otherwise clean shirt. Flattening asks the cloth instead.
+     */
+    blankStock: {
+      Shirt_Body: { squareness: 2.37, stretch: 1.24 },
+      Shirt_Cuff: { squareness: 1.34, stretch: 1.05 },
+      Shirt_Front_Trim: { squareness: 2.66, stretch: 1.19 },
+    },
     blackMaterials: [],
     boundaryEdges: 600,
     coincidentFaces: 0,
@@ -359,6 +395,7 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
   // which is what happens to a real full-wrap print on a tapered bottle. It is
   // still inside the 1.25 a zone has to hold.
   "water-bottle": {
+    blankStock: {},
     blackMaterials: [],
     boundaryEdges: 112,
     coincidentFaces: 0,

@@ -5,6 +5,7 @@ import { readToolcraftOrientationPose } from "@/toolcraft/runtime/react";
 import { getExportArtworkFrame } from "./artwork-store";
 import { readZoneAssets } from "./artwork-slots";
 import { readDeviceDefinition, type ArtworkZoneId } from "./product-domain";
+import { cutExport, planExportGrid } from "./render/export-grid";
 import { RasterRenderer } from "./render/raster-renderer";
 import { createScreenPainter } from "./render/screen-texture";
 import {
@@ -25,8 +26,9 @@ import {
  * has already scaled the destination context by that ratio before calling
  * here. Rendering at the CSS size and letting `drawImage` stretch the result
  * is therefore an upscale: a 2x export would carry half the detail it claims.
- * The ratio is applied to the render instead, so every pixel the artifact
- * contains is one the renderer actually drew.
+ * So the render is sized in the artifact's own pixels, and blitted into it in
+ * them, so that every pixel the artifact contains is one the renderer actually
+ * drew and no pixel of it is resampled on the way in.
  */
 /**
  * One renderer, kept between frames.
@@ -58,8 +60,7 @@ let exportRenderer:
   | null = null;
 
 function acquireExportRenderer(
-  backingWidth: number,
-  backingHeight: number,
+  picture: Readonly<{ height: number; width: number }>,
 ): {
   canvas: HTMLCanvasElement;
   device: string | null;
@@ -76,15 +77,22 @@ function acquireExportRenderer(
   // multisampling to do anyway — an edge is already resolved by that many
   // pixels across the frame — so the samples are what gives way, not the
   // resolution the user asked for.
-  const antialias = backingWidth * backingHeight <= 4096 * 4096;
+  //
+  // Read off the whole picture rather than off a tile: what decides this is
+  // how closely the export will be looked at, and that is a property of the
+  // picture. Sizing it off a tile would switch multisampling back on for an
+  // 8K export purely because it is now drawn in quarters, which is the cost
+  // this avoids arriving by the back door.
+  const antialias = picture.width * picture.height <= 4096 * 4096;
   if (exportRenderer && exportRenderer.antialias === antialias) {
     return exportRenderer;
   }
 
   exportRenderer?.renderer.dispose();
+  // Sized by the first tile rather than here: how big a canvas this context
+  // will really give is the question `planExportGrid` is about to ask it, and
+  // allocating the whole frame first is the allocation that does not fit.
   const canvas = document.createElement("canvas");
-  canvas.width = backingWidth;
-  canvas.height = backingHeight;
   exportRenderer = {
     antialias,
     canvas,
@@ -101,21 +109,27 @@ function acquireExportRenderer(
 
 export const mockupExportRenderer: ToolcraftProductExportRenderer = {
   baseFileName: "mockup",
-  renderFrame: async ({ context, frame, pixelRatio, state, timeSeconds }) => {
+  renderFrame: async ({ context, state, timeSeconds }) => {
     const values = state.values as Record<string, unknown>;
     const settings = readRasterSettings(values, state.canvas.mode);
     const pose = readToolcraftOrientationPose(values["camera.orbit"]);
 
-    const width = Math.round(frame.width);
-    const height = Math.round(frame.height);
-    // A ratio below one would throw detail away for no reason; the export is
-    // not a place to economise.
-    const ratio = Math.max(1, Number.isFinite(pixelRatio) ? pixelRatio : 1);
-
-    const held = acquireExportRenderer(
-      Math.round(width * ratio),
-      Math.round(height * ratio),
-    );
+    /**
+     * The picture to draw, taken off the artifact rather than worked out again.
+     *
+     * The runtime has already scaled and translated this context so the frame
+     * covers the canvas exactly, which makes the canvas the one true statement
+     * of how many pixels the export is. Recomputing it from the frame and the
+     * ratio agreed to within a pixel most of the time and not always -- the
+     * artifact rounds its width up where this rounded to nearest, and a video
+     * rounds both edges to even -- and a pixel of disagreement is a line of
+     * bare background down an edge of the file.
+     */
+    const picture = {
+      height: Math.max(1, context.canvas.height),
+      width: Math.max(1, context.canvas.width),
+    };
+    const held = acquireExportRenderer(picture);
     const { canvas, renderer } = held;
     {
       /**
@@ -171,11 +185,39 @@ export const mockupExportRenderer: ToolcraftProductExportRenderer = {
       // of what the user was looking at.
       renderer.setArtwork(textures, readScreenTransform(values));
 
-      renderer.setSize(width, height, ratio);
       renderer.setPose(pose);
-      renderer.render();
 
-      context.drawImage(canvas, frame.x, frame.y, frame.width, frame.height);
+      /**
+       * Drawn in pieces, because a browser will not allocate the whole of it.
+       *
+       * A canvas backing store is capped at 33.6 million pixels, and going
+       * over is not an error: the store is quietly allocated smaller and the
+       * `width` and `height` attributes go on reading back the numbers they
+       * were assigned. An 8K portrait export asks for 53.7 million, so the
+       * file was 79 per cent of a picture in the top left corner with two
+       * bands of bare background down the right and along the bottom -- and
+       * the picture inside them carried 6.4K of detail under an 8K name.
+       *
+       * So the frame is cut into pieces each of which the context will really
+       * allocate, and every piece is drawn at its own full resolution. 8K is
+       * 8K again, and it is 8K on a machine that cannot hold an 8K frame.
+       */
+      const grid = planExportGrid(picture, (want) => {
+        renderer.setSize(want.width, want.height, 1);
+        return renderer.drawingBuffer;
+      });
+      // Raw device pixels for the blit. The runtime scaled and translated the
+      // context into CSS units for the frame as a whole, which is the right
+      // thing for one `drawImage` of the lot and the wrong thing for a grid:
+      // a tile edge at a fractional CSS coordinate is resampled, and every
+      // resampled edge is a seam down the middle of the export.
+      context.save();
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      for (const tile of cutExport(picture, grid)) {
+        renderer.renderTile(tile);
+        context.drawImage(canvas, tile.x, tile.y, tile.width, tile.height);
+      }
+      context.restore();
     }
   },
 };

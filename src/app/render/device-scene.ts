@@ -266,7 +266,7 @@ export async function buildDeviceScene(options: {
     },
     options,
   );
-  const { framing, target } = furniture;
+  const { framing, product, target } = furniture;
   const applySurface = (surface: SurfaceSettings): void => {
     const { changed, standY } = furniture.applySurface(surface, room.visible());
     room.setFloorY(standY);
@@ -616,6 +616,7 @@ export async function buildDeviceScene(options: {
     },
     subject,
     framing,
+    product,
     standTop: groundY,
     /**
      * Stand the device somewhere, turned some way, at some size.

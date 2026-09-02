@@ -18,6 +18,14 @@ export type Table = {
   ) => { changed: boolean; standY: number };
   framing: THREE.Box3;
   kind: () => string;
+  /**
+   * The product on its own, without whatever it is standing on.
+   *
+   * Kept apart from `framing` because the two are composed differently: the
+   * furniture is held in shot and nothing more, while the product is what the
+   * picture is of and is given air round it. One box cannot answer both.
+   */
+  product: THREE.Box3;
   top: THREE.MeshStandardMaterial;
   measureFraming: () => void;
   ready: () => Promise<unknown>;
@@ -224,9 +232,11 @@ export function createTable(
    * than the one it would occupy square-on.
    */
   const framing = new THREE.Box3();
+  const product = new THREE.Box3();
   const target = new THREE.Vector3();
   const measureFraming = (): void => {
     framing.setFromObject(context.subject);
+    product.copy(framing);
     const size = options.device.surface;
     if (surfaceKind !== "none" && size) {
       const turn = new THREE.Matrix4().makeRotationY(TABLE_YAW);
@@ -301,6 +311,7 @@ export function createTable(
     framing,
     kind: () => surfaceKind,
     measureFraming,
+    product,
     ready: () => surfaceReady,
     setStaged: (visible: boolean) => {
       const staged = surfaceKind !== "none" && visible;

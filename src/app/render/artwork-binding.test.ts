@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { describe, expect, test } from "vitest";
 
-import { tileArtwork } from "./artwork-binding";
+import { createAllOverPrint, tileArtwork } from "./artwork-binding";
 import type { ScreenSlack } from "./screen-mapping";
 
 /**
@@ -42,6 +42,51 @@ const bag = {
 };
 
 describe("printing a design across cloth rather than onto a panel", () => {
+  /**
+   * The claim the control makes, in one test because it is one claim.
+   *
+   * "One design, everywhere, at one size" is two halves that fail separately
+   * and look alike on a small render: a design that reaches every zone at four
+   * different sizes reads as four prints, and one size that reaches only the
+   * front reads as no all-over print at all.
+   */
+  test("one design covers every zone at one size", () => {
+    const slack: ScreenSlack = { x: 0, y: 0 };
+    const print = createAllOverPrint();
+    const source = design(1000, 1000);
+    const surfaces = ["front", "back", "left", "right", "cloth:Shirt_Body"];
+
+    // Off, every zone keeps whatever was uploaded to it.
+    expect(print.spread(surfaces, source, false)).toBeNull();
+
+    const spread = print.spread(surfaces, source, true);
+    expect([...(spread?.keys() ?? [])]).toEqual(surfaces);
+    // The front wears the design itself and every other zone a copy, because
+    // repeat and offset live on the texture: one texture on five zones is one
+    // repeat count on five zones, which is the bug this replaced.
+    expect(spread?.get("front")).toBe(source);
+    for (const id of surfaces.slice(1)) {
+      expect(spread?.get(id), id).not.toBe(source);
+      // Sharing the picture rather than the settings: a copy is a second
+      // upload to the card if it does not share the source it was cloned from.
+      expect(spread?.get(id)?.source, id).toBe(source.source);
+    }
+
+    // And the size, on panels that are three different widths. The front's
+    // repeat count is the control; every other panel takes the tile it implies.
+    const tile = bag.front.u / 3;
+    const sizes = new Set<number>();
+    for (const panel of [bag.front, bag.side, { u: 0.09, v: 0.43 }]) {
+      const texture = design(1000, 1000);
+      tileArtwork(texture, { offset: centred, scale: panel, tile }, slack);
+      sizes.add(Number((panel.u / texture.repeat.x).toFixed(9)));
+    }
+    expect(sizes.size, "one motif size across every panel").toBe(1);
+    expect([...sizes][0]).toBeCloseTo(tile, 9);
+
+    print.dispose();
+  });
+
   test("puts a motif the same size on panels that are not the same size", () => {
     // Three repeats across the front is the control; the tile that implies is
     // what every other panel is given.

@@ -4,6 +4,7 @@ import type { ToolcraftSceneRect, ToolcraftState } from "@/toolcraft/runtime";
 import { readToolcraftOrientationPose } from "@/toolcraft/runtime/react";
 
 import { readDeviceDefinition } from "./product-domain";
+import { getDevicePose } from "./render/device-pose";
 import {
   fitDistance,
   fitReach,
@@ -36,7 +37,10 @@ import { readSurfaceId } from "./surfaces";
  * Zoom and the framing pad deliberately stay out of it. Both are choices made
  * inside the picture — one crops it, the other slides the subject off centre —
  * and a frame that grew to chase a subject the user had just pushed out of it
- * would make the two controls impossible to use.
+ * would make the two controls impossible to use. Where the product itself is
+ * standing is not one of those: the renderer re-measures the set every time
+ * the turntable moves, so the frame has to be measured off the posed set too
+ * or the two stop describing the same picture.
  */
 
 /** The long edge of an infinite frame, matching the finite default's. */
@@ -57,14 +61,40 @@ const WIDEST = 3;
  * Scale cancels out of everything below — only the shape of the box decides
  * the shape of the frame — so the sphere is one unit and the device's measured
  * proportions are the box.
+ *
+ * Posed, because the renderer frames the device where it is standing and not
+ * where it was measured. `measureFraming` takes the subject's *world* box
+ * after the turntable has turned, leaned and scaled it; reading the catalog's
+ * resting proportions instead gave a frame that answered a question the
+ * picture was no longer being asked. Turned forty-five degrees, a T-shirt
+ * presents two thirds of the width it does square-on, and the frame stayed
+ * the square-on one: 57 per cent of the export came out bare backdrop, in two
+ * bands down the sides of a shirt that was supposed to be touching them.
  */
 function measureSet(
   settings: RasterSettings,
 ): Readonly<{ framing: THREE.Box3; standTop: number }> {
   const device = readDeviceDefinition(settings.device);
   const half = new THREE.Vector3(...device.frame);
-  const framing = new THREE.Box3(half.clone().negate(), half.clone());
   const standTop = -half.y;
+
+  // The same arithmetic the scene poses the turntable by, on the same box, in
+  // the same order: scale, then turn, then stand it back on the floor. A
+  // radius of one because `frame` is already the box over its own bounding
+  // radius, which is the unit every offset here is counted in.
+  const pose = getDevicePose({
+    half,
+    radius: 1,
+    transform: { ...settings.transform, spin: settings.spin },
+  });
+  const framing = new THREE.Box3(half.clone().negate(), half.clone())
+    .applyMatrix4(
+      new THREE.Matrix4().compose(
+        pose.position,
+        new THREE.Quaternion().setFromEuler(pose.rotation),
+        new THREE.Vector3().setScalar(pose.scale),
+      ),
+    );
 
   // The device is offered a table only if one was drawn for it, which is the
   // same question `applySurface` asks before it builds one.
@@ -116,10 +146,11 @@ function tightAspect(state: ToolcraftState): number {
         basis,
         box,
         halfFovRad,
-        // Zero, so the fit is the box and nothing else. The renderer drops the
-        // same rule for the same frame, which is what makes the picture fill
-        // the rectangle measured here rather than sit in the middle of it.
-        subjectRadius: 0,
+        // No composition, so the fit is the box and nothing else. The renderer
+        // drops the same rule for the same frame, which is what makes the
+        // picture fill the rectangle measured here rather than sit in the
+        // middle of it.
+        subject: null,
       }),
     });
     const wanted = THREE.MathUtils.clamp(

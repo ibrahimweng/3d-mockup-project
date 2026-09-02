@@ -6,6 +6,7 @@ import {
   type ArtworkZoneId,
 } from "../product-domain";
 import type { PartColors } from "./model-appearance";
+import type { ExportTile } from "./export-grid";
 import { fingerprint } from "./fingerprint";
 import {
   fitDistance,
@@ -138,6 +139,16 @@ export class RasterRenderer {
   // still adopts the correct aspect. Without this the camera keeps its
   // constructor default of 1 and renders a tall phone square.
   private viewport = { height: 0, width: 0 };
+  /**
+   * The whole picture this viewport is one tile of, in device pixels.
+   *
+   * Null for an ordinary render, where the viewport is the picture. An export
+   * larger than the context will allocate is drawn in pieces, and every piece
+   * has to be fitted and framed for the whole picture rather than for itself:
+   * a quarter of a frame composed as if it were the frame is a quarter of a
+   * different photograph.
+   */
+  private picture: ExportTile | null = null;
   private pixelRatio = 0;
   private pose: Pose | null = null;
   private lastEnvironment = "";
@@ -390,9 +401,10 @@ export class RasterRenderer {
      * The viewport is what the picture is actually going into, so it is what
      * the camera is told.
      */
+    const whole = this.picture?.picture ?? this.viewport;
     const aspect =
-      this.viewport.width > 0 && this.viewport.height > 0
-        ? this.viewport.width / this.viewport.height
+      whole.width > 0 && whole.height > 0
+        ? whole.width / whole.height
         : built.camera.aspect;
     built.camera.aspect = aspect;
 
@@ -412,7 +424,7 @@ export class RasterRenderer {
       // point of it is that the set reaches its edges. Standing back far enough
       // to leave the usual air would make the picture smaller than the frame it
       // was measured for, which on a tall subject is most of the picture.
-      subjectRadius: settings.fit === "scene" ? 0 : built.subjectRadius,
+      subject: settings.fit === "scene" ? null : built.product,
     });
 
     built.camera.position
@@ -452,16 +464,44 @@ export class RasterRenderer {
     const shift = 0.35;
     const across2 = -settings.framing.x * shift;
     const down = -settings.framing.y * shift;
-    if (Math.abs(across2) > 1e-4 || Math.abs(down) > 1e-4) {
-      // Full size and window size are the same, so only the offset counts —
-      // but the units cannot be anything, because `setViewOffset` takes the
-      // full size as the camera's aspect. Handing it a unit square projected a
+    /**
+     * The part of the whole picture this render draws, as fractions of it.
+     *
+     * One and the same mechanism serves the pad and the tiling, because they
+     * are the same thing asked twice: which window of the frustum is being
+     * drawn. The pad slides the window, a tile narrows it, and a tiled export
+     * with the pad off centre needs both at once — so they are added rather
+     * than chosen between.
+     */
+    const tile = this.picture;
+    const pane = tile
+      ? {
+          height: tile.height / tile.picture.height,
+          width: tile.width / tile.picture.width,
+          x: tile.x / tile.picture.width,
+          y: tile.y / tile.picture.height,
+        }
+      : { height: 1, width: 1, x: 0, y: 0 };
+    const offsetX = across2 + pane.x;
+    const offsetY = down + pane.y;
+    if (
+      Math.abs(offsetX) > 1e-4 ||
+      Math.abs(offsetY) > 1e-4 ||
+      pane.width < 1 ||
+      pane.height < 1
+    ) {
+      // The units cannot be anything, because `setViewOffset` takes the full
+      // size as the camera's aspect. Handing it a unit square projected a
       // square picture into whatever shape the canvas actually was, which
       // squashed the entire scene sideways on every frame that was not itself
       // square, in the preview and in the export. The full size is the frame's
-      // shape, and the sideways offset carries that shape with it so it stays
-      // the same fraction of the picture it always was.
-      built.camera.setViewOffset(aspect, 1, across2 * aspect, down, aspect, 1);
+      // shape, and every offset carries that shape with it so it stays the
+      // same fraction of the picture it always was.
+      built.camera.setViewOffset(
+        aspect, 1,
+        offsetX * aspect, offsetY,
+        pane.width * aspect, pane.height,
+      );
     } else if (built.camera.view?.enabled) {
       built.camera.clearViewOffset();
     }
@@ -564,6 +604,41 @@ export class RasterRenderer {
   render(): void {
     if (this.disposed || !this.built) return;
     this.renderer.render(this.built.scene, this.built.camera);
+  }
+
+  /**
+   * How many pixels the context actually gave, against how many were asked for.
+   *
+   * A browser caps a canvas's backing store silently: `canvas.width` never
+   * fails and never reports, and reads back the number it was given whatever
+   * was allocated behind it. Only the drawing buffer tells the truth, and it
+   * is worth 21.4 per cent of an 8K export -- asked for 6553 by 8192, over the
+   * 33.6 million pixels a canvas is allowed, Chrome hands back 5151 by 6440.
+   * See `export-grid.ts`.
+   */
+  get drawingBuffer(): Readonly<{ height: number; width: number }> {
+    const gl = this.renderer.getContext();
+    return { height: gl.drawingBufferHeight, width: gl.drawingBufferWidth };
+  }
+
+  /**
+   * Draw one piece of a picture, sized in device pixels.
+   *
+   * The canvas becomes the piece and the camera stays fitted to the whole, so
+   * the pieces butt together into exactly the picture a single render would
+   * have produced had the machine been able to allocate it.
+   */
+  renderTile(tile: ExportTile): void {
+    if (this.disposed) return;
+    this.picture = tile;
+    // A device pixel each, because a tile is already measured in them; the
+    // ratio is what turns CSS units into device ones and there are none here.
+    this.setSize(tile.width, tile.height, 1);
+    // `setSize` re-fits only when the size actually changed, and every tile of
+    // a grid after the first is the same size as the one before it. The window
+    // moved even when the canvas did not, so the pose is re-derived here.
+    if (this.pose) this.setPose(this.pose);
+    this.render();
   }
 
   /**
