@@ -15,6 +15,34 @@ const cross = (a, b) => [
 ];
 
 /**
+ * The axis of a limb, and its middle: which way a sleeve or a leg runs.
+ *
+ * From the middle of the fifth nearest the body to the middle of the fifth
+ * furthest from it, which on a sleeve is armhole to cuff. Taking the direction
+ * the piece is most spread along instead -- the obvious thing, and what a first
+ * version did -- gives an axis six degrees steeper, because a flared sleeve is
+ * spread across as much as along. Six degrees is enough to walk the axis out
+ * through the cloth: the nearest point of the surface fell to 2mm from it, and
+ * a ring measured about an axis lying on its own surface spins.
+ *
+ * `outward` points from the body towards the free end, and only its direction
+ * is read -- it is what decides which fifth is which.
+ */
+export function limbAxis(points, outward) {
+  const centre = [0, 1, 2].map((q) => points.reduce((sum, p) => sum + p[q], 0) / points.length);
+  const reach = points.map((p) => dot(p, outward)).sort((a, b) => a - b);
+  const middle = (of) => {
+    const some = points.filter(of);
+    return [0, 1, 2].map((q) => some.reduce((sum, p) => sum + p[q], 0) / some.length);
+  };
+  const near = middle((p) => dot(p, outward) <= reach[Math.floor(reach.length * 0.2)]);
+  const far = middle((p) => dot(p, outward) >= reach[Math.floor(reach.length * 0.8)]);
+  const along = [0, 1, 2].map((q) => far[q] - near[q]);
+  const length = Math.hypot(...along) || 1;
+  return { axis: along.map((c) => c / length), centre };
+}
+
+/**
  * The frame a model is measured in: rings lie across `axis`, and the count
  * round them starts at `from` and turns the way a clock does seen from along
  * the axis.

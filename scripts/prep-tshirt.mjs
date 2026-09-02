@@ -20,6 +20,7 @@ import { NodeIO } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 
 import { faceNormal, mulP } from "./prep-model-geometry.mjs";
+import { limbAxis } from "./prep-model-rings.mjs";
 import { unrollAround } from "./prep-model-wrap.mjs";
 import { prepZones, repoPath, sourceModel } from "./prep-model-zones.mjs";
 
@@ -69,14 +70,10 @@ const passes = [
 
   ["Cotton_Heavy_Twill_Copy_1_116819", "Shirt_Sleeve_Trim", {
     // The outer face of a sleeve looks along X, so the image is projected onto
-    // the plane across from it.
-    //
-    // Which of the two carries the flip is decided by where the camera stands
-    // to see that sleeve, not by which sleeve it is. Looking at the left sleeve
-    // means standing at -X facing +X, and world +Z is then to the right, so u
-    // rising with z already reads left to right. Standing at +X to see the
-    // right sleeve reverses that. The flip was on the left sleeve and both came
-    // out mirrored, which is what a swap looks like from outside.
+    // the plane across from it. Which of the two carries the flip is decided by
+    // where the camera stands to see that sleeve rather than by which sleeve it
+    // is: at -X facing +X, world +Z is to the right and u rising with z already
+    // reads left to right, and standing at +X reverses that.
     Shirt_Sleeve_Left: { ...COTTON, template: template("tshirt-sleeve-left"), unwrap: ["z", "y"] },
     Shirt_Sleeve_Right: { ...COTTON, flipU: true, template: template("tshirt-sleeve-right"), unwrap: ["z", "y"] },
   }, (f) => (f.ownerBox.centre[0] < 0 ? "Shirt_Sleeve_Left" : "Shirt_Sleeve_Right")],
@@ -142,34 +139,13 @@ const BODY = ["Shirt_Front", "Shirt_Back"];
 const SLEEVES = ["Shirt_Sleeve_Left", "Shirt_Sleeve_Right"];
 
 /**
- * A sleeve's own axis, and where its rings start.
- *
- * From the middle of the fifth nearest the body to the middle of the fifth
- * furthest from it, which is armhole to cuff. Taking the direction the sleeve
- * is most spread along instead -- the obvious thing, and what a first version
- * did -- gives an axis six degrees steeper, because a flared sleeve is spread
- * across as much as along. Six degrees is enough to walk the axis out through
- * the cloth: the nearest point of the surface fell to 2mm from it, and a ring
- * measured about an axis lying on its own surface spins.
+ * A sleeve's own axis, measured off its own cloth.
  *
  * The rings start underneath, so that is where a design going all the way round
  * has its join, which is where a sleeve is sewn.
  */
-function sleeveFrame(name) {
-  const points = cloth.get(name).flat();
-  const centre = [0, 1, 2].map((q) => points.reduce((sum, p) => sum + p[q], 0) / points.length);
-  const out = name.endsWith("Left") ? -1 : 1;
-  const reach = points.map((p) => p[0] * out).sort((a, b) => a - b);
-  const middle = (of) => {
-    const some = points.filter(of);
-    return [0, 1, 2].map((q) => some.reduce((sum, p) => sum + p[q], 0) / some.length);
-  };
-  const armhole = middle((p) => p[0] * out <= reach[Math.floor(reach.length * 0.2)]);
-  const cuff = middle((p) => p[0] * out >= reach[Math.floor(reach.length * 0.8)]);
-  const along = [0, 1, 2].map((q) => cuff[q] - armhole[q]);
-  const length = Math.hypot(...along) || 1;
-  return { axis: along.map((c) => c / length), centre };
-}
+const sleeveFrame = (name) =>
+  limbAxis(cloth.get(name).flat(), [name.endsWith("Left") ? -1 : 1, 0, 0]);
 
 /**
  * One unroll per zone, each starting its count where that zone's design should
@@ -275,7 +251,10 @@ const printed = await prepZones({
     if (sleeve) {
       const along = f.world.map(sleeve.at);
       const inside = Math.min(...along) > sleeve.head - HAIR && Math.max(...along) < sleeve.cuff + HAIR;
-      if (!inside) return "Shirt_Body";
+      // Its own zone rather than the body's, though it is the same cotton: a
+      // ring round a sleeve is a third of a ring round the body, and one zone
+      // holding both averages into a size that is neither.
+      if (!inside) return "Shirt_Cuff";
     } else if (!BODY.includes(piece)) {
       return piece;
     }
@@ -319,7 +298,22 @@ const printed = await prepZones({
     // where the cloth turns edge-on, which is most of a cone.
     Shirt_Sleeve_Left: { ...COTTON, flatten: true, template: template("tshirt-sleeve-left"), unwrap: roll.Shirt_Sleeve_Left.across(), weaveAxes: ["z", "y"] },
     Shirt_Sleeve_Right: { ...COTTON, flatten: true, template: template("tshirt-sleeve-right"), unwrap: roll.Shirt_Sleeve_Right.across(), weaveAxes: ["z", "y"] },
-    Shirt_Front_Trim: { ...COTTON },
+    /**
+     * The hem band, and the cuffs: cloth no design is uploaded to, which had no
+     * coordinates either because nothing was ever going to be sampled on it.
+     *
+     * An all-over print is sampled on it. That is cloth printed before it was
+     * cut, so the hem is printed with everything else, and a blank band round
+     * the bottom of a patterned shirt is the first thing anyone sees.
+     *
+     * On the same rings as the panels they sit against, and not flattened: a
+     * band round a body or a sleeve is a strip of a cylinder, and a cylinder
+     * unrolls exactly. There is nothing for a flattening to relax.
+     */
+    Shirt_Front_Trim: { ...COTTON, unwrap: roll.Shirt_Front.across() },
+    Shirt_Cuff: {
+      ...COTTON, unwrap: (w, f) => roll[f.source.getName()].across()(w), weaveAxes: ["z", "y"],
+    },
     /**
      * The collar rib and the facings turned under the hem.
      *
@@ -339,8 +333,9 @@ const printed = await prepZones({
      * anyone who wants one.
      */
     Rib_1X1_486gsm_116764: { ...COTTON, baseColor: [0.94, 0.94, 0.93, 1], roughness: 0.9 },
-    // The cloth outside every print area.
-    Shirt_Body: { ...COTTON },
+    // The cloth outside every print area: the hem below the panels, the label,
+    // and the seam allowances turned into the folds.
+    Shirt_Body: { ...COTTON, unwrap: roll.Shirt_Front.across() },
   },
 });
 for (const [zone, { span, tris }] of Object.entries(printed)) {

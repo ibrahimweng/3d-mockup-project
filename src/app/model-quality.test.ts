@@ -81,6 +81,41 @@ function ratchet(
   else expect(measured, held).toBeGreaterThanOrEqual(target);
 }
 
+/**
+ * How far the cloth runs per turn of a part's coordinates, on each axis.
+ *
+ * The same measurement the renderer sizes an all-over print with, taken here
+ * off the file instead of off a loaded scene: the world edges of each triangle
+ * against its coordinate edges, weighted by area.
+ */
+function cloth3d(triangles: readonly Triangle[]): { u: number; v: number } {
+  let alongU = 0;
+  let alongV = 0;
+  let weight = 0;
+  for (const { position, uv } of triangles) {
+    if (!uv) continue;
+    const e1 = [0, 1, 2].map((q) => position[1][q] - position[0][q]);
+    const e2 = [0, 1, 2].map((q) => position[2][q] - position[0][q]);
+    const area = Math.hypot(
+      e1[1] * e2[2] - e1[2] * e2[1],
+      e1[2] * e2[0] - e1[0] * e2[2],
+      e1[0] * e2[1] - e1[1] * e2[0],
+    ) / 2;
+    const du1 = uv[1][0] - uv[0][0];
+    const dv1 = uv[1][1] - uv[0][1];
+    const du2 = uv[2][0] - uv[0][0];
+    const dv2 = uv[2][1] - uv[0][1];
+    const det = du1 * dv2 - du2 * dv1;
+    if (Math.abs(det) < 1e-12 || area <= 0) continue;
+    const runU = [0, 1, 2].map((q) => (e1[q] * dv2 - e2[q] * dv1) / det);
+    const runV = [0, 1, 2].map((q) => (e2[q] * du1 - e1[q] * du2) / det);
+    alongU += Math.hypot(...runU) * area;
+    alongV += Math.hypot(...runV) * area;
+    weight += area;
+  }
+  return weight > 0 ? { u: alongU / weight, v: alongV / weight } : { u: 0, v: 0 };
+}
+
 describe("what the merchandise models are made of", () => {
   test("a hardware part wears nothing but its own material", () => {
     // The defect this exists for: the ID card's clasp is a separate mesh
@@ -137,6 +172,35 @@ describe("what the merchandise models are made of", () => {
         named.filter((name) => !claimed.has(name)).sort(),
         `${id}: materials in the file that no zone, colour part, blankStockMaterials or fixedMaterials entry names`,
       ).toEqual([]);
+    }
+  });
+
+  test("the cloth between the panels has coordinates to print on", () => {
+    // `blankStockMaterials` is the catalog saying this part is the same cotton
+    // the panels are, so it follows the print background rather than a colour
+    // of its own. An all-over print takes that one step further and prints on
+    // it, which it can only do if the part carries an unwrap -- and these
+    // parts carried none for a long time, because nothing was ever going to be
+    // sampled on them. A hem with no coordinates is a blank band round the
+    // bottom of a patterned shirt.
+    //
+    // The size is asserted as well as the existence, because the way this
+    // fails quietly is a measurement that collapses: coordinates that cover no
+    // area answer with a scale of nothing, and a part printed at a scale of
+    // nothing is one texel stretched over the whole of it.
+    for (const [id] of models) {
+      const cloth = DEVICE_CATALOG[id].blankStockMaterials ?? [];
+      if (cloth.length === 0) continue;
+      const triangles = trianglesOf(fileOf(id));
+      for (const material of cloth) {
+        const mine = triangles.filter((triangle) => triangle.material === material);
+        if (mine.length === 0) continue;
+        expect(mine.every((triangle) => triangle.uv !== null), `${id} ${material} unwrap`)
+          .toBe(true);
+        const across = cloth3d(mine);
+        expect(across.u, `${id} ${material} cloth across one turn`).toBeGreaterThan(0.001);
+        expect(across.v, `${id} ${material} cloth up one turn`).toBeGreaterThan(0.001);
+      }
     }
   });
 

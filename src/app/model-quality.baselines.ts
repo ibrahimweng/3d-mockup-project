@@ -321,7 +321,7 @@ export const MODEL_BASELINES: Partial<Record<DeviceId, ModelBaseline>> = {
     boundaryEdges: 600,
     coincidentFaces: 0,
     degenerateTriangles: 0,
-    hardInteriorEdges: 679,
+    hardInteriorEdges: 682,
     nonManifoldEdges: 0,
     shadingSplitsOnFlat: 0,
     shells: 4,

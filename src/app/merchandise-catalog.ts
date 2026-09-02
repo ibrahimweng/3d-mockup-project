@@ -25,12 +25,12 @@ export const MERCHANDISE_CATALOG = {
     // opinion: colouring the shirt in Parts turned the hem, the cuffs and the
     // cuffs that colour and left every printed panel on the background,
     // which is a contrast-yoke ringer tee arrived at by accident.
-    blankStockMaterials: ["Shirt_Body", "Shirt_Front_Trim"],
+    blankStockMaterials: ["Shirt_Body", "Shirt_Cuff", "Shirt_Front_Trim"],
     colorParts: {
       accent: { materials: ["Rib_1X1_486gsm_116764"] },
     },
     excludedNodes: [],
-    frame: [0.693905, 0.657851, 0.292794],
+    frame: [0.693377, 0.658522, 0.292537],
     label: "T-Shirt",
     modelFile: "tshirt.glb",
     artworkSurface: "print",
