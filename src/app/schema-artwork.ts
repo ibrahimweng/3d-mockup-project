@@ -2,6 +2,7 @@ import {
   ALL_OVER_DEVICES,
   ARTWORK_TEMPLATE_DEVICES,
   ARTWORK_ZONE_DEVICES,
+  FOUR_ZONE_DEVICES,
   PRINT_DEVICES,
 } from "./product-applicability";
 import { DEFAULT_ARTWORK_BACKGROUND } from "./product-domain";
@@ -24,9 +25,60 @@ import { onTab } from "./panel-tabs";
  */
 export const ARTWORK_SECTION = {
   controls: {
+    /**
+     * Which panel the box below is for.
+     *
+     * It exists because the runtime cannot label an upload box. A `fileDrop`
+     * is handed to `FileDrop` with no label prop and wrapped in a bare
+     * `contents` div, so four of them side by side are four identical squares
+     * reading "Click to upload an image" -- and on a shirt the difference
+     * between the second and the fourth is a back panel and a right sleeve.
+     * A section title each would name them, and the inventory rules refuse it
+     * twice over: an entity of ten controls or fewer stays in one section, and
+     * a split section must own at least two.
+     *
+     * So the name moves to a control that does render one, and the boxes it
+     * names are shown one at a time. What that costs is seeing all four
+     * thumbnails at once; what it buys is knowing which panel you are dropping
+     * on, which four unlabelled squares never told anyone.
+     *
+     * Offered only where all four options are real panels. A card has a front
+     * and a back, and a four-way picker on it would offer two that do not
+     * exist; with all-over print on there is one design and no panel to
+     * choose. Both cases keep the invariant the uploaders below rely on: when
+     * this is not on screen, the zone is front.
+     */
+    zone: {
+      applicability: {
+        all: [
+          { oneOf: FOUR_ZONE_DEVICES, target: "device.model" },
+          { notEquals: true, target: "artwork.allOver" },
+        ],
+        mode: "conditional",
+      },
+      defaultValue: "front",
+      label: "Panel",
+      options: [
+        { label: "Front", value: "front" },
+        { label: "Back", value: "back" },
+        { label: "Left", value: "left" },
+        { label: "Right", value: "right" },
+      ],
+      performanceReason:
+        "Choosing a panel shows a different uploader; no texture is decoded and no frame is redrawn.",
+      performanceRole: "responsiveness",
+      semanticGroup: "design",
+      target: "artwork.zone",
+      type: "segmented",
+    },
     image: {
       accept: "image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm",
-      applicability: { mode: "always" },
+      // Safe on every product, including the ones with no picker, because the
+      // zone is held at front wherever the picker is not offered.
+      applicability: {
+        all: [{ equals: "front", target: "artwork.zone" }],
+        mode: "conditional",
+      },
       assetKind: "image",
       defaultValue: null,
       description:
@@ -44,6 +96,7 @@ export const ARTWORK_SECTION = {
       accept: "image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm",
       applicability: {
         all: [
+          { equals: "back", target: "artwork.zone" },
           { oneOf: ARTWORK_ZONE_DEVICES.back, target: "device.model" },
           // Nothing to put here while one design is covering the whole
           // product: this slot would be an upload with no surface left to
@@ -68,6 +121,7 @@ export const ARTWORK_SECTION = {
       accept: "image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm",
       applicability: {
         all: [
+          { equals: "left", target: "artwork.zone" },
           { oneOf: ARTWORK_ZONE_DEVICES.left, target: "device.model" },
           // Nothing to put here while one design is covering the whole
           // product: this slot would be an upload with no surface left to
@@ -92,6 +146,7 @@ export const ARTWORK_SECTION = {
       accept: "image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm",
       applicability: {
         all: [
+          { equals: "right", target: "artwork.zone" },
           { oneOf: ARTWORK_ZONE_DEVICES.right, target: "device.model" },
           // Nothing to put here while one design is covering the whole
           // product: this slot would be an upload with no surface left to

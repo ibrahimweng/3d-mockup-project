@@ -335,9 +335,10 @@ export const appControlSectionInventory: readonly ToolcraftControlSectionInvento
       entity: "Artwork",
       entityId: "artwork",
       groupingReason:
-        "The uploaded images, the colour they are printed on and the two pads that place them are the picture itself and where it sits; the four uploaders are one decision taken up to four times, because a product with four printable zones is still one design. The all-over switch is here rather than in a section of its own because it gates three of those uploaders, and a gate belongs with what it gates; it brings its repeat with it. The section declares itself standalone, which is what keeps the switch and the slider from being cut out of it.",
+        "The uploaded images, the panel picker that says which of them is on screen, the colour they are printed on and the two pads that place them are the picture itself and where it sits; the four uploaders are one decision taken up to four times, because a product with four printable zones is still one design. The all-over switch is here rather than in a section of its own because it gates three of those uploaders, and a gate belongs with what it gates; it brings its repeat with it. The section declares itself standalone, which is what keeps the switch and the slider from being cut out of it.",
       id: "artwork",
       targets: [
+        "artwork.zone",
         "artwork.image",
         "artwork.imageBack",
         "artwork.imageLeft",

@@ -145,3 +145,21 @@ export const ALL_OVER_DEVICES: readonly DeviceId[] = (
     DEVICE_CATALOG[id].artworkSurface === "print" &&
     readArtworkZones(DEVICE_CATALOG[id]).size > 1,
 );
+
+/**
+ * Which products offer all four upload slots.
+ *
+ * The panel picker exists because the runtime cannot put a label on an upload
+ * box, so four of them side by side are four identical squares. A picker is
+ * only honest where every option it offers is a real panel, which is why this
+ * asks for all four rather than for more than one: a card has a front and a
+ * back, and a four-way picker on it would offer two panels it does not have.
+ * Derived from the catalog for the same reason every list here is — a product
+ * that gains a pair of sleeves gains the picker with them.
+ */
+export const FOUR_ZONE_DEVICES: readonly DeviceId[] = (
+  Object.keys(DEVICE_CATALOG) as DeviceId[]
+).filter(
+  (id) =>
+    readArtworkZones(DEVICE_CATALOG[id]).size === ARTWORK_ZONE_IDS.length,
+);
