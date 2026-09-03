@@ -5,16 +5,22 @@ import {
   offersArtworkZonePicker,
   readArtworkZone,
 } from "./artwork-zone";
-import { FOUR_ZONE_DEVICES } from "./product-applicability";
+import { getToolcraftValueControls } from "@/toolcraft/runtime/state/control-value-normalization";
+
+import { appSchema } from "./app-schema";
+import {
+  FOUR_ZONE_DEVICES,
+  TWO_ZONE_DEVICES,
+} from "./product-applicability";
 
 describe("offersArtworkZonePicker", () => {
-  it("offers it only where all four options are real panels", () => {
+  it("offers one wherever a product has more than one panel", () => {
     for (const device of FOUR_ZONE_DEVICES) {
       expect(offersArtworkZonePicker({ allOver: false, device }), device).toBe(true);
     }
-    // A card prints on two panels and a phone on one; a four-way picker on
-    // either would offer panels the product does not have.
-    for (const device of ["id-card", "iphone-17-pro-max", "water-bottle"]) {
+    // A product with one panel has nothing to choose between, and the front
+    // uploader is the only box it ever shows.
+    for (const device of ["iphone-17-pro-max", "water-bottle", "macbook"]) {
       expect(offersArtworkZonePicker({ allOver: false, device }), device).toBe(false);
     }
   });
@@ -63,5 +69,29 @@ describe("correctArtworkZone", () => {
     expect(readArtworkZone(null)).toBe("front");
     expect(readArtworkZone(7)).toBe("front");
     expect(readArtworkZone("right")).toBe("right");
+  });
+});
+
+describe("the zone value's owner", () => {
+  it("the four-panel picker owns the zone value", () => {
+    // The runtime compiles one control per target, last declaration winning,
+    // and rejects any value outside that control's options. So the winner has
+    // to be the picker whose options are a superset: if the two-panel one won,
+    // choosing a sleeve on a shirt would be silently refused by a codec that
+    // had only ever heard of a front and a back.
+    const owner = getToolcraftValueControls(appSchema).get("artwork.zone");
+
+    expect(owner?.options?.map((option: { value: string }) => option.value)).toEqual([
+      "front",
+      "back",
+      "left",
+      "right",
+    ]);
+  });
+
+  it("offers a picker on a two-panel product as well as a four-panel one", () => {
+    for (const device of TWO_ZONE_DEVICES) {
+      expect(offersArtworkZonePicker({ allOver: false, device }), device).toBe(true);
+    }
   });
 });

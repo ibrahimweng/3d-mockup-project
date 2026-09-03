@@ -157,6 +157,18 @@ export const ALL_OVER_DEVICES: readonly DeviceId[] = (
  * Derived from the catalog for the same reason every list here is — a product
  * that gains a pair of sleeves gains the picker with them.
  */
+/**
+ * Which products offer exactly two upload slots.
+ *
+ * A card prints on a front and a back, and needs a picker of its own for the
+ * same reason the shirt does and with different words on it: a four-way picker
+ * here would offer two panels the product does not have. Counted rather than
+ * named, so a product that gains a third panel stops getting the two-way one.
+ */
+export const TWO_ZONE_DEVICES: readonly DeviceId[] = (
+  Object.keys(DEVICE_CATALOG) as DeviceId[]
+).filter((id) => readArtworkZones(DEVICE_CATALOG[id]).size === 2);
+
 export const FOUR_ZONE_DEVICES: readonly DeviceId[] = (
   Object.keys(DEVICE_CATALOG) as DeviceId[]
 ).filter(

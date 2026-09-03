@@ -299,8 +299,10 @@ The Artwork section carries an uploader per zone, and shows one at a time. A
 cannot label an upload box: a `fileDrop` is handed to `FileDrop` with no label
 prop and wrapped in a bare `contents` div, so four of them side by side were
 four identical squares reading "Click to upload an image". The picker is offered
-on the products with all four panels and nowhere else — a card has a front and a
-back, and a four-way picker on it would offer two panels it does not have. A card shows two, a tote and a shirt show four, a bottle and
+wherever a product has more than one panel, with exactly the panels that product
+has: four on a shirt or a tote, two on a card. A control's options are static,
+so that is two picker controls writing one value rather than one picker that
+changes shape. A card shows two, a tote and a shirt show four, a bottle and
 every device show one, because which slots exist is read off the catalog rather
 than listed in the panel — declaring a zone is the single act that offers its
 upload.
