@@ -332,7 +332,7 @@ export const appControlSectionInventory: readonly ToolcraftControlSectionInvento
       title: "Video Export",
     },
     {
-      entity: "Screenshot",
+      entity: "Artwork",
       entityId: "artwork",
       groupingReason:
         "The uploaded images, the colour they are printed on and the two pads that place them are the picture itself and where it sits; the four uploaders are one decision taken up to four times, because a product with four printable zones is still one design. The all-over switch is here rather than in a section of its own because it gates three of those uploaders, and a gate belongs with what it gates; it brings its repeat with it. The section declares itself standalone, which is what keeps the switch and the slider from being cut out of it.",
@@ -348,25 +348,25 @@ export const appControlSectionInventory: readonly ToolcraftControlSectionInvento
         "artwork.offset",
         "artwork.stretch",
       ],
-      title: "Screenshot",
+      title: "Artwork",
     },
     {
       entity: "Templates",
       entityId: "artwork-templates",
       groupingReason:
-        "One command, kept out of the Screenshot section because an actions control is grouped-layout where the uploaders and pads beside it are standalone, and out of the delivery footer because the templates are what a design is drawn against rather than the product coming out.",
+        "One command, kept out of the Artwork section because an actions control is grouped-layout where the uploaders and pads beside it are standalone, and out of the delivery footer because the templates are what a design is drawn against rather than the product coming out.",
       id: "artwork-templates",
       targets: ["artwork.templates"],
       title: "Templates",
     },
     {
-      entity: "Screen fit",
+      entity: "Fit & scale",
       entityId: "screen-fit",
       groupingReason:
         "Mode and scale together decide how much of the display the picture covers and how much is cropped; they are a separate decision from which picture it is and where it sits, and both are grouped-layout controls.",
       id: "screen-fit",
       targets: ["artwork.fit", "artwork.scale"],
-      title: "Screen fit",
+      title: "Fit & scale",
     },
     {
       entity: "Studio",

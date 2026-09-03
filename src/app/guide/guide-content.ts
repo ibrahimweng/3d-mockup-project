@@ -13,6 +13,18 @@ export type GuideStep = {
   readonly action: string;
   /** Why, or what happens. One short sentence, or nothing. */
   readonly detail?: string;
+  /**
+   * The names in this step that the panel is supposed to be showing.
+   *
+   * Written down because prose cannot be checked and a name can. Each one has
+   * to be a real tab, section title or control label in the schema, and each
+   * one has to actually appear in the step's own words — so a renamed control
+   * fails here rather than sending someone hunting for a heading that no
+   * longer exists. It went wrong exactly that way once: the panel's studio
+   * preset stopped being called Environment and this file went on saying it
+   * was.
+   */
+  readonly names?: readonly string[];
 };
 
 export type GuideTopic = {
@@ -30,11 +42,13 @@ export const guideTopics: readonly GuideTopic[] = [
     steps: [
       {
         action: "Pick a device",
-        detail: "Top of the panel on the right. Phone, laptop, watch, and two desktops.",
+        detail: "The Device section, on the Product tab. Phone, laptop, watch, two desktops.",
+        names: ["Product", "Device"],
       },
       {
         action: "Drop in your screenshot",
-        detail: "Under Screenshot. It lands on the device's display straight away.",
+        detail: "Under Artwork, on the Design tab. It lands on the display straight away.",
+        names: ["Artwork", "Design"],
       },
       {
         action: "Press Export PNG",
@@ -71,20 +85,24 @@ export const guideTopics: readonly GuideTopic[] = [
     id: "looks",
     steps: [
       {
-        action: "Try the Environment presets first",
-        detail: "In Studio. Each one sets the whole lighting rig at once — start there, then adjust.",
+        action: "Try the Preset list first",
+        detail: "In Studio, on the Scene tab. One sets the whole lighting rig at once.",
+        names: ["Preset", "Studio", "Scene"],
       },
       {
         action: "Change the colour under Finish",
-        detail: "Natural leaves the device exactly as its maker built it.",
+        detail: "On the Product tab. Natural leaves the device exactly as its maker built it.",
+        names: ["Finish", "Product"],
       },
       {
         action: "Stand it on something",
-        detail: "Surface gives you stone, oak, steel or glass instead of empty space.",
+        detail: "Surface, on the Scene tab: stone, oak, steel or glass instead of empty space.",
+        names: ["Surface", "Scene"],
       },
       {
         action: "Soften or sharpen the shadow",
-        detail: "Shadow softness. Low is hard and graphic; high is an overcast day.",
+        detail: "Shadow softness, under Lights. Low is hard and graphic; high is an overcast day.",
+        names: ["Shadow softness", "Lights"],
       },
     ],
     title: "Making it look good",
@@ -118,15 +136,18 @@ export const guideTopics: readonly GuideTopic[] = [
     steps: [
       {
         action: "Export PNG",
-        detail: "A still picture. Choose 2K, 4K or 8K under Image Export.",
+        detail: "A still picture. Choose 2K, 4K or 8K under Image Export, on the Output tab.",
+        names: ["Image Export", "Output"],
       },
       {
         action: "Export Video",
         detail: "Your animation as a file. Set the format and size under Video Export.",
+        names: ["Video Export"],
       },
       {
         action: "Want no background?",
-        detail: "Turn Background off at the top of the panel, then export as PNG.",
+        detail: "Turn Background off in Setup, above the tabs, then export as PNG.",
+        names: ["Background", "Setup"],
       },
     ],
     title: "Saving your work",
@@ -148,6 +169,10 @@ export const guideTopics: readonly GuideTopic[] = [
 /** The three things a first-time visitor is shown, in order. */
 export const firstRunSteps: readonly GuideStep[] = [
   { action: "Pick your device", detail: "Then drop a screenshot onto its display." },
-  { action: "Choose a look", detail: "The Environment presets light the whole scene in one click." },
+  {
+    action: "Choose a look",
+    detail: "The Preset list in Studio lights the whole scene in one click.",
+    names: ["Preset", "Studio"],
+  },
   { action: "Export it", detail: "A PNG, or a turning video." },
 ];
