@@ -4,7 +4,7 @@ import {
   getToolcraftControlFieldByTarget,
   openPanelTabOwning,
 } from "./browser-control-target-helpers";
-import { pickOption, pickSegment } from "./mockup-controls";
+import { pickOption, pickSegment, readSegments } from "./mockup-controls";
 import { expect, test } from "./toolcraft-product-test";
 
 /**
@@ -99,5 +99,51 @@ test("browser: a product with one panel shows one box and no picker", async ({
   await expect(uploaders(page), "and still has its uploader").toHaveCount(1);
   await expect(
     page.locator('[data-toolcraft-control-target="artwork.image"]'),
+  ).toHaveCount(1);
+});
+
+test("browser: a two-panel product gets a two-panel picker", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator('[data-slot="toolcraft-runtime-app"]')).toBeVisible();
+  await page.waitForTimeout(8_000);
+
+  await pickOption(
+    await getToolcraftControlFieldByTarget(page, "device.model"),
+    "ID Card",
+  );
+  await page.waitForTimeout(12_000);
+  await openPanelTabOwning(page, "artwork.image");
+
+  // Two panels, two options. A four-way picker here would offer a left and a
+  // right sleeve to a piece of card.
+  const picker = await getToolcraftControlFieldByTarget(page, "artwork.zone");
+  expect(await readSegments(picker)).toEqual(["Front", "Back"]);
+
+  for (const [label, target] of [
+    ["Front", "artwork.image"],
+    ["Back", "artwork.imageBack"],
+  ] as const) {
+    await choosePanel(page, label);
+    await expect(uploaders(page), `${label} should be the only box`).toHaveCount(1);
+    await expect(
+      page.locator(`[data-toolcraft-control-target="${target}"]`),
+    ).toHaveCount(1);
+  }
+
+  // And the four-panel product still gets four, which is the half of this that
+  // a shared value target could quietly break.
+  await pickOption(
+    await getToolcraftControlFieldByTarget(page, "device.model"),
+    "T-Shirt",
+  );
+  await page.waitForTimeout(14_000);
+  await openPanelTabOwning(page, "artwork.image");
+  expect(
+    await readSegments(await getToolcraftControlFieldByTarget(page, "artwork.zone")),
+  ).toEqual(["Front", "Back", "Left", "Right"]);
+  await choosePanel(page, "Right");
+  await expect(
+    page.locator('[data-toolcraft-control-target="artwork.imageRight"]'),
+    "a sleeve must still be choosable after a two-panel product",
   ).toHaveCount(1);
 });

@@ -291,8 +291,8 @@ export const subjectAcceptance: readonly ToolcraftComponentAcceptance[] = [
     componentType: "segmented",
     evidence: "command-side-effect",
     expectedObservable:
-      "On a product with four printable panels, choosing Front, Back, Left or Right shows that panel's uploader and hides the other three, so the box on screen is always the one the picker names. The picker is absent on a product with one panel and while all-over print is on, and in both cases the front uploader is the one showing.",
-    fixture: "the shirt, which prints on four panels, and a phone, which has one",
+      "On a product with four printable panels, choosing Front, Back, Left or Right shows that panel's uploader and hides the others, so the box on screen is always the one the picker names. A product with two panels offers Front and Back and nothing it does not have. The picker is absent on a product with one panel and while all-over print is on, and in both cases the front uploader is the one showing.",
+    fixture: "the shirt with four panels, the card with two, and a phone with one",
     id: "artwork.zone.panel",
     kind: "control",
     optionCoverage: "each-visible-item",

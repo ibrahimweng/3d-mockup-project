@@ -3,7 +3,10 @@ import * as React from "react";
 import { useToolcraft, useToolcraftDispatch } from "@/toolcraft/runtime/react";
 
 import { ARTWORK_ZONE_IDS, type ArtworkZoneId } from "./product-parts";
-import { FOUR_ZONE_DEVICES } from "./product-applicability";
+import {
+  FOUR_ZONE_DEVICES,
+  TWO_ZONE_DEVICES,
+} from "./product-applicability";
 
 /**
  * The invariant the uploaders rest on: no picker means the front panel.
@@ -28,8 +31,13 @@ export function readArtworkZone(value: unknown): ArtworkZoneId {
 }
 
 /**
- * Whether the picker is on screen, worked out from the same two facts its
+ * Whether a picker is on screen, worked out from the same two facts their
  * applicability is written from.
+ *
+ * Two of them, because a control's options are static and a card has two panels
+ * where a shirt has four. Which one is showing does not matter here — only that
+ * something is, because that is what decides whether the zone can be changed
+ * back by hand.
  */
 export function offersArtworkZonePicker({
   allOver,
@@ -40,7 +48,9 @@ export function offersArtworkZonePicker({
 }): boolean {
   return (
     allOver !== true &&
-    FOUR_ZONE_DEVICES.some((offered) => offered === device)
+    [...TWO_ZONE_DEVICES, ...FOUR_ZONE_DEVICES].some(
+      (offered) => offered === device,
+    )
   );
 }
 

@@ -4,6 +4,7 @@ import {
   ARTWORK_ZONE_DEVICES,
   FOUR_ZONE_DEVICES,
   PRINT_DEVICES,
+  TWO_ZONE_DEVICES,
 } from "./product-applicability";
 import { DEFAULT_ARTWORK_BACKGROUND } from "./product-domain";
 import { onTab } from "./panel-tabs";
@@ -25,6 +26,43 @@ import { onTab } from "./panel-tabs";
  */
 export const ARTWORK_SECTION = {
   controls: {
+    /**
+     * The same picker for a product with two panels, and why it is a second
+     * control rather than two options fewer on the first.
+     *
+     * A control's options are static, so one picker cannot offer four panels
+     * on a shirt and two on a card. Both write `artwork.zone`, which the
+     * uploaders below read, so the rest of the section needs to know nothing
+     * about which one is on screen.
+     *
+     * Declared before the four-panel picker on purpose. The runtime compiles
+     * one control per target and the last declaration wins, so the winner must
+     * be the one whose options are a superset — otherwise choosing a sleeve on
+     * a shirt would be rejected by a codec that had only ever heard of a front
+     * and a back. `the four-panel picker owns the zone value` pins that, and
+     * fails by name if these two are ever swapped.
+     */
+    zonePair: {
+      applicability: {
+        all: [
+          { oneOf: TWO_ZONE_DEVICES, target: "device.model" },
+          { notEquals: true, target: "artwork.allOver" },
+        ],
+        mode: "conditional",
+      },
+      defaultValue: "front",
+      label: "Panel",
+      options: [
+        { label: "Front", value: "front" },
+        { label: "Back", value: "back" },
+      ],
+      performanceReason:
+        "Choosing a panel shows a different uploader; no texture is decoded and no frame is redrawn.",
+      performanceRole: "responsiveness",
+      semanticGroup: "design",
+      target: "artwork.zone",
+      type: "segmented",
+    },
     /**
      * Which panel the box below is for.
      *
