@@ -1,5 +1,8 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
+import { appSchema } from "../src/app/app-schema";
+import { PANEL_TAB_OPTIONS, PANEL_TAB_TARGET } from "../src/app/panel-tabs";
+
 const TOOLCRAFT_APP_ROOT_SELECTOR = '[data-slot="toolcraft-runtime-app"]';
 /** More passes than any panel has sections, so a stuck header cannot spin. */
 const TOOLCRAFT_MAX_COLLAPSED_SECTION_EXPANSIONS = 40;
@@ -101,10 +104,86 @@ function normalizeTarget(target: string): string {
   return normalizedTarget;
 }
 
+/**
+ * Which panel tab a schema target lives under, or nothing if it is always on.
+ *
+ * Read off the schema rather than listed here, for the same reason the product
+ * proofs read their colour slots off the catalog: a list kept by hand is how a
+ * helper ends up opening the wrong tab for a control that moved.
+ */
+function getPanelTabOwning(target: string): string | undefined {
+  const section = appSchema.panels.controls?.sections.find((candidate) =>
+    Object.values(candidate.controls).some(
+      (control) => control.target === target,
+    ),
+  );
+
+  return section?.visibleWhen?.target === PANEL_TAB_TARGET
+    ? (section.visibleWhen.equals as string)
+    : undefined;
+}
+
+/**
+ * Open the tab that owns a control before looking for it.
+ *
+ * The same situation as a collapsed section, and the same answer: a section on
+ * another tab is not hidden, it is absent, so a target-scoped lookup reports
+ * zero owners. A proof drives a control by its schema target and does not care
+ * which tab a person left open, so put the panel on the one that owns it.
+ *
+ * The tab bar renders its options as a select when four cells will not keep
+ * their padding on one row, and the tabs it falls back from stay in the DOM
+ * invisible, so this drives whichever presentation is live.
+ */
+export async function openPanelTabOwning(
+  page: Page,
+  target: string,
+): Promise<void> {
+  const tab = getPanelTabOwning(target);
+  const label = PANEL_TAB_OPTIONS.find(
+    (option) => option.value === tab,
+  )?.label;
+
+  if (!label) return;
+
+  const control = page
+    .locator(TOOLCRAFT_APP_ROOT_SELECTOR)
+    .locator(`[data-toolcraft-control-target="${PANEL_TAB_TARGET}"]`)
+    .locator('[data-slot="tabs-control"]')
+    .first();
+
+  // A fixture app built from another schema has no tab bar, and nothing on its
+  // panel is behind one.
+  if ((await control.count()) === 0) return;
+
+  if ((await control.getAttribute("data-presentation")) === "select") {
+    const combobox = control.locator("[role=combobox]").first();
+    if ((await combobox.innerText()).trim() === label) return;
+    await combobox.click();
+    await page
+      .locator("[role=listbox]:visible [role=option]", {
+        hasText: new RegExp(`^${label}$`),
+      })
+      .first()
+      .click();
+    await expect(combobox).toContainText(label);
+    return;
+  }
+
+  const trigger = control.getByRole("tab", { exact: true, name: label });
+  if ((await trigger.getAttribute("aria-selected")) === "true") return;
+  await trigger.click();
+  await expect(
+    trigger,
+    `Choosing the ${label} tab must leave it the selected one.`,
+  ).toHaveAttribute("aria-selected", "true", { timeout: 5_000 });
+}
+
 export async function countToolcraftControlOwnersByTarget(
   page: Page,
   target: string,
 ): Promise<number> {
+  await openPanelTabOwning(page, target);
   await expandCollapsedControlSections(page);
   const { matches } = await findToolcraftControlOwnerMatches(
     page,
@@ -118,6 +197,7 @@ export async function getToolcraftControlFieldByTarget(
   target: string,
 ): Promise<Locator> {
   const normalizedTarget = normalizeTarget(target);
+  await openPanelTabOwning(page, normalizedTarget);
   await expandCollapsedControlSections(page);
   const { boundaries, matches } = await findToolcraftControlOwnerMatches(
     page,

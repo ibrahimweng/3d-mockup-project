@@ -99,8 +99,8 @@ const transformProofs: readonly TransformProof[] = [
   {
     baseRequirementId: "device.scale.resize",
     keyframeValue: 250,
-    label: "Scale",
-    reason: "Scale should resize the device in frame.",
+    label: "Size",
+    reason: "Size should resize the device in frame.",
     resetValue: 100,
     target: "device.scale",
     value: 200,

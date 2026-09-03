@@ -2,6 +2,7 @@ import {
   DEFAULT_LIGHT_PATTERN,
   LIGHT_PATTERN_OPTIONS,
 } from "./product-domain";
+import { onTab } from "./panel-tabs";
 
 /**
  * The light on the set: how many lamps, how hard, and where the key stands.
@@ -107,6 +108,7 @@ export const LIGHTS_SECTION = {
           },
           id: "lights",
           title: "Lights",
+          visibleWhen: onTab("scene"),
         } as const;
 
 export const KEY_LIGHT_SECTION = {
@@ -126,4 +128,5 @@ export const KEY_LIGHT_SECTION = {
           },
           id: "key-light-direction",
           title: "Key light direction",
+          visibleWhen: onTab("scene"),
         } as const;

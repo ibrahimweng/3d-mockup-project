@@ -1,5 +1,6 @@
 import { DEFAULT_PART_COLORS } from "./product-domain";
 import { COLOR_PART_DEVICES } from "./product-applicability";
+import { onTab } from "./panel-tabs";
 
 /**
  * The colour slots a merchandise product offers.
@@ -75,4 +76,5 @@ export const PRODUCT_PARTS_SECTION = {
           },
           id: "product-parts",
           title: "Parts",
+          visibleWhen: onTab("product"),
         } as const;

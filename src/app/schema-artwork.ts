@@ -5,6 +5,7 @@ import {
   PRINT_DEVICES,
 } from "./product-applicability";
 import { DEFAULT_ARTWORK_BACKGROUND } from "./product-domain";
+import { onTab } from "./panel-tabs";
 
 /**
  * The design, and the four places it can land.
@@ -206,6 +207,7 @@ export const ARTWORK_SECTION = {
    */
   layout: "standalone",
   title: "Screenshot",
+  visibleWhen: onTab("design"),
 } as const;
 
 /**
@@ -244,4 +246,5 @@ export const ARTWORK_TEMPLATES_SECTION = {
   },
   id: "artwork-templates",
   title: "Templates",
+  visibleWhen: onTab("design"),
 } as const;

@@ -106,6 +106,9 @@ describe("appSchema", () => {
     // A section whose controls mix standalone and grouped layouts is split by
     // the runtime into unlabelled fragments, so the authored ids must survive.
     expect(productSections.map((section) => section.id)).toEqual([
+      // The tab bar sits directly under Setup and above everything it
+      // switches between, which is every section below it.
+      "view-tabs",
       "device",
       // Between choosing the product and uploading the design, because that is
       // the order the decisions happen in: pick the thing, colour the thing,
@@ -119,10 +122,12 @@ describe("appSchema", () => {
       "artwork-templates",
       "screen-fit",
       "studio",
-      "lights",
-      "key-light-direction",
+      // The shot before the light rig: the studio preset above has already set
+      // a rig, and what a person reaches for after choosing one is the frame.
       "camera",
       "framing",
+      "lights",
+      "key-light-direction",
       "surface",
       "backdrop",
       "image-export",

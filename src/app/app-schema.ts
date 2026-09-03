@@ -16,6 +16,12 @@ import {
   VIDEO_EXPORT_SECTION,
 } from "./schema-export";
 import { KEY_LIGHT_SECTION, LIGHTS_SECTION } from "./schema-lighting";
+import {
+  DEFAULT_PANEL_TAB,
+  PANEL_TAB_OPTIONS,
+  PANEL_TAB_TARGET,
+  onTab,
+} from "./panel-tabs";
 import { PRODUCT_PARTS_SECTION } from "./schema-product-parts";
 import { DEFAULT_SCENE_PRESET, SCENE_PRESET_OPTIONS } from "./scene-presets";
 import { DEFAULT_SURFACE, SURFACE_OPTIONS } from "./surfaces";
@@ -40,6 +46,28 @@ export const appSchema = defineToolcraft({
   panels: {
     controls: {
       sections: [
+        {
+          controls: {
+            tab: {
+              applicability: { mode: "always" },
+              defaultValue: DEFAULT_PANEL_TAB,
+              // No label and no section title: a tab bar names itself, and a
+              // header above it would be a heading for the whole panel.
+              label: false,
+              options: PANEL_TAB_OPTIONS,
+              performanceReason:
+                "Switching tab shows and hides controls; the scene, its materials and the environment are untouched and no frame is redrawn.",
+              performanceRole: "responsiveness",
+              target: PANEL_TAB_TARGET,
+              type: "tabs",
+            },
+          },
+          id: "view-tabs",
+          // Titled, though a tab bar names itself, because the runtime gives
+          // every single-control section an implicit title derived from the
+          // control id -- and "TAB" over four tabs reads like a mistake.
+          title: "View",
+        },
         {
           controls: {
             model: {
@@ -183,7 +211,7 @@ export const appSchema = defineToolcraft({
               defaultValue: 100,
               description:
                 "Resize the device without moving the camera. It grows from its feet rather than its middle, so it stays standing on the surface as it changes size.",
-              label: "Scale",
+              label: "Size",
               max: 400,
               min: 25,
               performanceReason:
@@ -199,6 +227,7 @@ export const appSchema = defineToolcraft({
           },
           id: "device",
           title: "Device",
+          visibleWhen: onTab("product"),
         },
         PRODUCT_PARTS_SECTION,
         ARTWORK_SECTION,
@@ -240,6 +269,7 @@ export const appSchema = defineToolcraft({
           },
           id: "screen-fit",
           title: "Screen fit",
+          visibleWhen: onTab("design"),
         },
         {
           controls: {
@@ -248,7 +278,7 @@ export const appSchema = defineToolcraft({
               defaultValue: DEFAULT_SCENE_PRESET,
               description:
                 "A backdrop, a floor, a light rig and a framing, set together. Everything it writes stays editable below — this is a starting point, not a mode.",
-              label: "Environment",
+              label: "Preset",
               options: SCENE_PRESET_OPTIONS,
               performanceReason:
                 "Choosing one writes a dozen control values in a single history entry; the scene absorbs them without rebuilding the model.",
@@ -261,7 +291,7 @@ export const appSchema = defineToolcraft({
               defaultValue: "studio-soft",
               description:
                 "The captured room the device reflects. A polished floor mirrors this before it mirrors anything else, so a bright capture lifts the whole scene.",
-              label: "Capture",
+              label: "Room",
               options: ENVIRONMENT_OPTIONS,
               performanceReason:
                 "Switching environment reloads and re-convolves one image-based lighting texture; frames themselves are unaffected.",
@@ -274,7 +304,7 @@ export const appSchema = defineToolcraft({
               defaultValue: 80,
               description:
                 "How strongly the captured studio itself lights the device. Lower it to let the placed lights below do more of the work.",
-              label: "Environment",
+              label: "Room light",
               max: 300,
               min: 0,
               performanceReason:
@@ -289,9 +319,8 @@ export const appSchema = defineToolcraft({
           },
           id: "studio",
           title: "Studio",
+          visibleWhen: onTab("scene"),
         },
-        LIGHTS_SECTION,
-        KEY_LIGHT_SECTION,
         {
           controls: {
             focalLength: {
@@ -342,6 +371,7 @@ export const appSchema = defineToolcraft({
           },
           id: "camera",
           title: "Camera",
+          visibleWhen: onTab("scene"),
         },
         {
           controls: {
@@ -360,7 +390,10 @@ export const appSchema = defineToolcraft({
           },
           id: "framing",
           title: "Framing",
+          visibleWhen: onTab("scene"),
         },
+        LIGHTS_SECTION,
+        KEY_LIGHT_SECTION,
         {
           controls: {
             kind: {
@@ -391,6 +424,7 @@ export const appSchema = defineToolcraft({
           },
           id: "surface",
           title: "Surface",
+          visibleWhen: onTab("scene"),
         },
         {
           controls: {
@@ -461,7 +495,7 @@ export const appSchema = defineToolcraft({
               defaultValue: 6,
               description:
                 "How much of the captured room the floor picks up. The device wants a bright capture to read as metal, but the floor is large and seen edge-on, where every surface returns most of what falls on it — so the same capture that flatters the device washes the floor to grey. Lower this to keep a dark floor dark without dimming the device.",
-              label: "Room light",
+              label: "Floor light",
               max: 100,
               min: 0,
               performanceReason: "One material uniform.",
@@ -514,6 +548,7 @@ export const appSchema = defineToolcraft({
           },
           id: "backdrop",
           title: "Backdrop",
+          visibleWhen: onTab("scene"),
         },
         {
           controls: {
