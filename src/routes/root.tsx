@@ -1,5 +1,6 @@
 import { Outlet, createRootRoute, createRoute } from "@tanstack/react-router";
 
+import { AdminEmails } from "./admin";
 import { AppHome } from "./index";
 
 function RootLayout(): React.JSX.Element {
@@ -16,4 +17,10 @@ const indexRoute = createRoute({
   path: "/",
 });
 
-export const routeTree = rootRoute.addChildren([indexRoute]);
+const adminRoute = createRoute({
+  component: AdminEmails,
+  getParentRoute: () => rootRoute,
+  path: "/admin",
+});
+
+export const routeTree = rootRoute.addChildren([indexRoute, adminRoute]);

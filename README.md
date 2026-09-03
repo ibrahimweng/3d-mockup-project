@@ -22,10 +22,90 @@ npm run dev
 
 ## Deploy
 
-It is a static site — `npm run build` produces `dist/`, which any free static
-host serves (Vercel, Netlify, GitHub Pages, Cloudflare Pages). There are no
-serverless functions and no environment variables. `vercel.json` pins the Vite
-framework preset, the `npm run build` command and the `dist` output directory.
+`npm run build` produces `dist/`, and everything the studio itself does happens
+in the browser. `vercel.json` pins the Vite framework preset, the build command,
+the `dist` output directory, and a rewrite that sends every path except `/api/`
+to `index.html` so the client router can answer for `/admin`.
+
+There are two serverless functions in `api/`, and the studio works without them:
+they exist only for the email list below. Nothing else needs a server, and no
+environment variable is required to render, animate or export anything.
+
+## Collecting emails
+
+After someone's **first** export — never before it, and never twice — a card
+offers to keep them posted. It gates nothing: the export has already happened
+and "Not now" is a real answer, which is what makes it honest to store an
+address at all. Nobody is paying for the tool with it.
+
+### Why there is a server at all
+
+The rest of this is a static site, and a static site cannot keep a secret:
+everything it ships is readable in devtools, so a database credential in the
+bundle is a credential anyone can use. The two Edge functions in `api/` are the
+only things that hold it. The browser posts an address to `/api/subscribe` and
+never touches the store.
+
+All the logic lives in `src/signup/` rather than in `api/`, because `api/` is
+outside the repository's `sourceRoots` — nothing there is linted, line-budgeted
+or reached by `npm test`. The two files under `api/` are one line each.
+
+### Setting it up
+
+Free, and about five minutes. The store is Upstash Redis over its REST API,
+which needs no driver — one `fetch` with a bearer token, which is also why it
+runs on the Edge runtime.
+
+1. Create a free Redis database at [upstash.com](https://upstash.com).
+2. Copy its **REST URL** and **REST token**.
+3. In Vercel → Project → Settings → Environment Variables, add:
+
+| Variable | What it is |
+| --- | --- |
+| `UPSTASH_REDIS_REST_URL` | The REST URL from Upstash |
+| `UPSTASH_REDIS_REST_TOKEN` | The REST token from Upstash |
+| `ADMIN_PASSWORD` | A password you choose. **Must be at least 16 characters** — the endpoint refuses to serve at all below that, because a weak password on a public endpoint reads as protection while providing very little |
+
+4. Redeploy.
+
+Until those are set, `/api/subscribe` answers `503` and the card says so out
+loud. That is deliberate: a form that accepts every address and stores none
+looks exactly like one that works, and would lose every signup in silence.
+
+### Reading the list
+
+`/admin` asks for `ADMIN_PASSWORD`, posts it to `/api/emails`, and shows the
+addresses with a **Download CSV** button. The password is compared inside the
+function against the environment — never in the browser, where a check is
+something anyone can skip by not running it — and the comparison is over
+SHA-256 digests so neither the content nor the length of the secret leaks
+through how long it takes. Nothing is remembered between visits: no token, no
+cookie, no local copy of the password.
+
+The CSV arrives as a real form submission answered with a `Content-Disposition`
+header, so the server hands over the file and no script in the page touches the
+bytes. That is not a style preference — product source is forbidden from owning
+artifact delivery, and a blob plus an invisible link is exactly that pattern.
+
+### What is deliberately not built
+
+- **It is not a login.** Nothing verifies the address; anyone can type anything.
+  Verifying it means emailing a one-time link, which needs a mail sender.
+- **"Once" is a courtesy, not a lock.** It is a `localStorage` flag, so a
+  private window or cleared site data asks again. Since the card gates nothing,
+  the worst a bypass wins is a second sight of it.
+- **No ads.** They would need a slot in a full-viewport 3D canvas, they are
+  heavy next to WebGL, and running them makes the site commercial, which
+  Vercel's free Hobby plan does not cover.
+
+### Before you collect real addresses
+
+Storing email addresses from people in the EU or UK puts you under GDPR: you
+need a stated purpose, a lawful basis, and a way to delete on request. The card
+says what the list is for and promises removal on request — keep that promise,
+and add a privacy note somewhere linkable before this goes in front of real
+traffic. Deleting one address today means `HDEL mockup-studio:emails <address>`
+from the Upstash console.
 
 ## Devices
 
