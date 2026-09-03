@@ -6,6 +6,7 @@ import type {
 } from "./acceptance/types";
 import { appSchema } from "./app-schema";
 import { outputAcceptance } from "./app-acceptance-output";
+import { panelAcceptance } from "./app-acceptance-panel";
 import { subjectAcceptance } from "./app-acceptance-subject";
 
 export const appTransferMode: ToolcraftTransferMode = {
@@ -281,6 +282,15 @@ export const appProductReadiness: ToolcraftProductReadiness = {
 export const appControlSectionInventory: readonly ToolcraftControlSectionInventoryEntry[] =
   [
     {
+      entity: "View",
+      entityId: "view-tabs",
+      groupingReason:
+        "One control, and the only one in the panel that sets nothing about the picture: it says which of the four jobs \u2014 choosing the product, printing on it, lighting it, writing the file \u2014 the rest of the panel is currently for. It is a section of its own because everything else in the panel is one of the things it switches between, so there is nothing it could share a section with.",
+      id: "view-tabs",
+      targets: ["view.tab"],
+      title: "View",
+    },
+    {
       entity: "Device",
       entityId: "device",
       groupingReason:
@@ -463,6 +473,7 @@ export const appControlSectionInventory: readonly ToolcraftControlSectionInvento
  * concatenated here rather than merged anywhere else.
  */
 export const appAcceptance: readonly ToolcraftComponentAcceptance[] = [
+  ...panelAcceptance,
   ...subjectAcceptance,
   ...outputAcceptance,
 ];

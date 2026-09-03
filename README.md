@@ -402,23 +402,32 @@ split per mesh at load, which gives each part a name without touching the file.
 
 ## Controls
 
-| Section | What it does |
-| --- | --- |
-| Device | Which product the design is shown on, and its finish |
-| Parts | Up to three colours for a merchandise product's own surfaces. Each picker appears only for a product that has that part |
-| Screenshot | The design on the display, its position and stretch, and the runtime's rotate and flip actions |
-| Screen fit | Fit, fill or stretch, and a scale |
-| Studio | Which captured environment lights the device, and how strongly |
-| Lights | A placed three-point rig on top of the environment: key intensity and colour, fill, rim |
-| Key light direction | Where the key sits, which rakes the light and swings the shadow |
-| Camera | Focal length as a full-frame equivalent; drag the device itself to rotate |
-| Framing | Where the subject sits in the picture, so you can leave room beside it for a headline. The projection shifts rather than the camera swinging, so nothing leans |
-| Surface | What the device stands on: none, stone, oak, steel or glass. Offered only for the devices a table suits |
-| Backdrop | Sweep height and curve, the backdrop and room lights, and the sweep's reflection and roughness |
-| Background | Whether the background is drawn at all, and its colour |
-| Image Export | PNG or JPG, at a 2K, 4K or 8K long edge |
-| Video Export | MP4 or WebM, at the canvas size or 4K |
-| Deliver | The Export PNG and Export Video buttons |
+The panel is four tabs, because showing every control at once put 43 fields and
+15 section headers into a 272px column — 3,783px of scroll in a 608px window on
+a shirt, whichever of the four jobs you were actually doing. A tab shows one job
+and hides the other three; nothing was taken away. **Setup** stays above the
+tabs, because the runtime owns that section and always puts it first, and the
+**Export PNG** and **Export Video** buttons stay at the foot of every tab.
+
+| Tab | Section | What it does |
+| --- | --- | --- |
+| — | Setup | The artboard: settings transfer, whether a background is drawn and its colour, infinity canvas, aspect ratio and size, and the preview's resolution scale |
+| — | View | The tab bar itself. It renders the same four options as a select if the panel is ever too narrow for four cells |
+| Product | Device | Which product the design is shown on, its finish, how it is turned, where it stands and its size |
+| Product | Parts | Up to three colours for a merchandise product's own surfaces. Each picker appears only for a product that has that part |
+| Design | Screenshot | The design on the display, its position and stretch, and the runtime's rotate and flip actions |
+| Design | Templates | The placeholder sheet each zone ships with, to draw a design over |
+| Design | Screen fit | Fit, fill or stretch, and a scale |
+| Scene | Studio | The preset that sets a whole set at once, which captured room the product reflects, and how strongly that room lights it |
+| Scene | Camera | Focal length as a full-frame equivalent, and zoom; drag the device itself to rotate |
+| Scene | Framing | Where the subject sits in the picture, so you can leave room beside it for a headline. The projection shifts rather than the camera swinging, so nothing leans |
+| Scene | Lights | A placed three-point rig on top of the environment: key intensity and colour, fill, rim, shadow softness and a pattern |
+| Scene | Key light direction | Where the key sits, which rakes the light and swings the shadow |
+| Scene | Surface | What the device stands on: none, stone, oak, steel or glass. Offered only for the devices a table suits |
+| Scene | Backdrop | Sweep height and curve, the backdrop and floor lights, and the sweep's reflection and roughness |
+| Output | Image Export | PNG or JPG, at a 2K, 4K or 8K long edge |
+| Output | Video Export | MP4 or WebM, at the canvas size or 4K |
+| — | Deliver | The Export PNG and Export Video buttons |
 
 One pointer, three surfaces. Dragging **on the screen** moves the design across
 it. Dragging **the body** rotates the device. Dragging **empty canvas** pans the

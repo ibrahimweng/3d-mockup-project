@@ -352,7 +352,7 @@ export const subjectAcceptance: readonly ToolcraftComponentAcceptance[] = [
     kind: "control",
     optionCoverage: "each-visible-item",
     target: "studio.preset",
-    userAction: "Choose each Environment option and inspect the render.",
+    userAction: "Choose each Preset option and inspect the render.",
   },
   {
     automated: true,
@@ -523,6 +523,6 @@ export const subjectAcceptance: readonly ToolcraftComponentAcceptance[] = [
     optionCoverage: "each-visible-item",
     referenceCoverage: "renderer-state",
     target: "studio.environment",
-    userAction: "Choose each Environment option and inspect the render.",
+    userAction: "Choose each Room option and inspect the render.",
   },
 ];

@@ -1,3 +1,5 @@
+import { onTab } from "./panel-tabs";
+
 /**
  * How the picture leaves: a still, a clip, and the buttons that write them.
  *
@@ -48,6 +50,7 @@ export const IMAGE_EXPORT_SECTION = {
             },
           ],
           title: "Image Export",
+          visibleWhen: onTab("output"),
         } as const;
 
 export const VIDEO_EXPORT_SECTION = {
@@ -98,6 +101,7 @@ export const VIDEO_EXPORT_SECTION = {
             },
           ],
           title: "Video Export",
+          visibleWhen: onTab("output"),
         } as const;
 
 export const DELIVER_SECTION = {

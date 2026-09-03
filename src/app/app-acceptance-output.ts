@@ -48,13 +48,13 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
     componentType: "slider",
     evidence: "rendered-pixels",
     expectedObservable:
-      "Lowering Environment darkens the light the captured studio contributes, leaving the placed lights as the visible source; raising it brightens the whole device.",
+      "Lowering Room light darkens the light the captured studio contributes, leaving the placed lights as the visible source; raising it brightens the whole device.",
     fixture: "the default device under the default studio",
     id: "studio.intensity.level",
     kind: "control",
     target: "studio.intensity",
     timelineCoverage: "keyframes",
-    userAction: "Drag the Environment slider from 0% to 300%.",
+    userAction: "Drag the Room light slider from 0% to 300%.",
   },
   {
     automated: true,
