@@ -15,6 +15,7 @@ import { readZoneAssets } from "./artwork-slots";
 import { resolveCanvasCursor } from "./canvas-cursor";
 import { DRAG_SAMPLING, PLAYBACK_SAMPLING, useAdaptiveQuality } from "./adaptive-quality";
 import { useScenePreset } from "./apply-scene-preset";
+import { useArtworkZoneCorrection } from "./artwork-zone";
 import { useSurfaceFraming } from "./apply-surface-framing";
 import { useDesignDrag } from "./design-drag";
 import { useViewOrbit } from "./view-orbit";
@@ -63,6 +64,7 @@ export function MockupPreview(): React.ReactElement {
   const quality = useAdaptiveQuality();
   // Writes the chosen studio into the ordinary controls, once per change.
   useScenePreset();
+  useArtworkZoneCorrection();
   // And lifts the camera when a table appears under one too low to see it.
   useSurfaceFraming();
 

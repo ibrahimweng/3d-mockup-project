@@ -284,6 +284,25 @@ export const subjectAcceptance: readonly ToolcraftComponentAcceptance[] = [
   {
     automated: true,
     automatedTestName:
+      "the panel picker shows exactly one uploader and never leaves none",
+    browser: true,
+    browserTestName:
+      "browser: the panel picker names which upload box is on screen",
+    componentType: "segmented",
+    evidence: "command-side-effect",
+    expectedObservable:
+      "On a product with four printable panels, choosing Front, Back, Left or Right shows that panel's uploader and hides the other three, so the box on screen is always the one the picker names. The picker is absent on a product with one panel and while all-over print is on, and in both cases the front uploader is the one showing.",
+    fixture: "the shirt, which prints on four panels, and a phone, which has one",
+    id: "artwork.zone.panel",
+    kind: "control",
+    optionCoverage: "each-visible-item",
+    target: "artwork.zone",
+    userAction:
+      "Choose each panel in turn on the shirt, then switch to a phone and back.",
+  },
+  {
+    automated: true,
+    automatedTestName:
       "position, scale and stretch remap the display texture only",
     browser: true,
     browserTestName:

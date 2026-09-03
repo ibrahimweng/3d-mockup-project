@@ -294,9 +294,13 @@ value that gets overwritten.
 
 ### Uploading to a zone
 
-The Artwork section carries an uploader per zone: the unlabelled drop zone at
-the top is the front, and Back, Left and Right appear underneath on the products
-that have them. A card shows two, a tote and a shirt show four, a bottle and
+The Artwork section carries an uploader per zone, and shows one at a time. A
+**Panel** picker above the box says which zone it is for, because the runtime
+cannot label an upload box: a `fileDrop` is handed to `FileDrop` with no label
+prop and wrapped in a bare `contents` div, so four of them side by side were
+four identical squares reading "Click to upload an image". The picker is offered
+on the products with all four panels and nowhere else — a card has a front and a
+back, and a four-way picker on it would offer two panels it does not have. A card shows two, a tote and a shirt show four, a bottle and
 every device show one, because which slots exist is read off the catalog rather
 than listed in the panel — declaring a zone is the single act that offers its
 upload.
@@ -495,7 +499,7 @@ tabs, because the runtime owns that section and always puts it first, and the
 | — | View | The tab bar itself. It renders the same four options as a select if the panel is ever too narrow for four cells |
 | Product | Device | Which product the design is shown on, its finish, how it is turned, where it stands and its size |
 | Product | Parts | Up to three colours for a merchandise product's own surfaces. Each picker appears only for a product that has that part |
-| Design | Artwork | The design on the display, its position and stretch, and the runtime's rotate and flip actions |
+| Design | Artwork | A panel picker, the design on the display, its position and stretch, and the runtime's rotate and flip actions |
 | Design | Templates | The placeholder sheet each zone ships with, to draw a design over |
 | Design | Fit & scale | Fit, fill or stretch, and a scale |
 | Scene | Studio | The preset that sets a whole set at once, which captured room the product reflects, and how strongly that room lights it |
