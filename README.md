@@ -214,7 +214,7 @@ value that gets overwritten.
 
 ### Uploading to a zone
 
-The Screenshot section carries an uploader per zone: the unlabelled drop zone at
+The Artwork section carries an uploader per zone: the unlabelled drop zone at
 the top is the front, and Back, Left and Right appear underneath on the products
 that have them. A card shows two, a tote and a shirt show four, a bottle and
 every device show one, because which slots exist is read off the catalog rather
@@ -294,7 +294,7 @@ upload arrived on the card two and a half times too wide. Measured on an export,
 a design cut to the card's ratio came back 48.9 tiles across where 20 were
 authored; it is now 20.7.
 
-The controls they share are Screen fit and Print background: Fit, Fill,
+The controls they share are Fit & scale and Print background: Fit, Fill,
 Stretch, scale, position, stretch and the colour under the design apply to
 every zone at once. A design fitted to the front
 is fitted to the back with it. That is a real limit rather than an oversight —
@@ -415,9 +415,9 @@ tabs, because the runtime owns that section and always puts it first, and the
 | — | View | The tab bar itself. It renders the same four options as a select if the panel is ever too narrow for four cells |
 | Product | Device | Which product the design is shown on, its finish, how it is turned, where it stands and its size |
 | Product | Parts | Up to three colours for a merchandise product's own surfaces. Each picker appears only for a product that has that part |
-| Design | Screenshot | The design on the display, its position and stretch, and the runtime's rotate and flip actions |
+| Design | Artwork | The design on the display, its position and stretch, and the runtime's rotate and flip actions |
 | Design | Templates | The placeholder sheet each zone ships with, to draw a design over |
-| Design | Screen fit | Fit, fill or stretch, and a scale |
+| Design | Fit & scale | Fit, fill or stretch, and a scale |
 | Scene | Studio | The preset that sets a whole set at once, which captured room the product reflects, and how strongly that room lights it |
 | Scene | Camera | Focal length as a full-frame equivalent, and zoom; drag the device itself to rotate |
 | Scene | Framing | Where the subject sits in the picture, so you can leave room beside it for a headline. The projection shifts rather than the camera swinging, so nothing leans |

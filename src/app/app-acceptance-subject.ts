@@ -118,7 +118,7 @@ export const subjectAcceptance: readonly ToolcraftComponentAcceptance[] = [
     referenceCoverage: "media-lifecycle",
     target: "artwork.image",
     userAction:
-      "Drop a PNG into the Screenshot uploader, click the rotate and flip actions, clear the upload, re-upload, and reset controls.",
+      "Drop a PNG into the Artwork uploader, click the rotate and flip actions, clear the upload, re-upload, and reset controls.",
   },
   {
     automated: true,
@@ -292,7 +292,7 @@ export const subjectAcceptance: readonly ToolcraftComponentAcceptance[] = [
     controlPartCoverage: ["vector.x", "vector.y"],
     evidence: "product-output",
     expectedObservable:
-      "Dragging Screen position pans the cropped image inside the display, Screen scale zooms it about its centre, and Screen stretch changes each axis independently, all without reloading the model.",
+      "Dragging Position pans the cropped image inside the display, Scale zooms it about its centre, and Stretch changes each axis independently, all without reloading the model.",
     fixture: "an uploaded PNG cropped by the current fit mode",
     id: "artwork.placement.transform",
     interactionId: "screen-placement-values",
@@ -301,7 +301,7 @@ export const subjectAcceptance: readonly ToolcraftComponentAcceptance[] = [
     target: "artwork.offset",
     timelineCoverage: "keyframes",
     userAction:
-      "Drag the Screen position pad, move the Screen scale slider, and drag the Screen stretch pad.",
+      "Drag the Position pad in Artwork, move the Scale slider in Fit & scale, and drag the Stretch pad.",
   },
   {
     automated: true,
@@ -311,13 +311,13 @@ export const subjectAcceptance: readonly ToolcraftComponentAcceptance[] = [
     componentType: "slider",
     evidence: "product-output",
     expectedObservable:
-      "Raising Screen scale enlarges the screenshot on the display about its centre and crops more of it.",
+      "Raising Scale enlarges the artwork on the display about its centre and crops more of it.",
     fixture: "an uploaded PNG on the device display",
     id: "artwork.scale.zoom",
     kind: "control",
     target: "artwork.scale",
     timelineCoverage: "keyframes",
-    userAction: "Drag the Screen scale slider and watch the display.",
+    userAction: "Drag the Scale slider and watch the display.",
   },
   {
     automated: true,
@@ -329,13 +329,13 @@ export const subjectAcceptance: readonly ToolcraftComponentAcceptance[] = [
     controlPartCoverage: ["vector.x", "vector.y"],
     evidence: "product-output",
     expectedObservable:
-      "Moving one Screen stretch axis squashes or extends the screenshot along that axis while the other stays unchanged.",
+      "Moving one Stretch axis squashes or extends the artwork along that axis while the other stays unchanged.",
     fixture: "an uploaded PNG on the device display",
     id: "artwork.stretch.axes",
     kind: "control",
     target: "artwork.stretch",
     timelineCoverage: "keyframes",
-    userAction: "Drag the Screen stretch pad along each axis.",
+    userAction: "Drag the Stretch pad along each axis.",
   },
   {
     automated: true,

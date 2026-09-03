@@ -206,7 +206,7 @@ export const ARTWORK_SECTION = {
    * arrangement that reads. So the section says what it is instead.
    */
   layout: "standalone",
-  title: "Screenshot",
+  title: "Artwork",
   visibleWhen: onTab("design"),
 } as const;
 

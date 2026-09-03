@@ -268,7 +268,7 @@ export const appSchema = defineToolcraft({
             },
           },
           id: "screen-fit",
-          title: "Screen fit",
+          title: "Fit & scale",
           visibleWhen: onTab("design"),
         },
         {

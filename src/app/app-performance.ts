@@ -53,7 +53,7 @@ const scenarios: readonly ToolcraftPerformanceScenario[] = [
     coversTargets: [...path("media-import").targets],
     expectedObservable:
       "The uploaded screenshot appears on the device's display without the model or environment being rebuilt.",
-    fixture: "a PNG screenshot fixture dropped onto the Screenshot uploader",
+    fixture: "a PNG screenshot fixture dropped onto the Artwork uploader",
     automated: true,
     automatedTestName: "screenshot import rebinds only the display texture",
     browser: true,
