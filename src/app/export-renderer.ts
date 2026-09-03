@@ -13,6 +13,7 @@ import {
   readRasterSettings,
   readScreenTransform,
 } from "./render/settings";
+import { noteExportedFrame } from "./signup/signup-signal";
 
 /**
  * Product export frame.
@@ -110,6 +111,10 @@ function acquireExportRenderer(
 export const mockupExportRenderer: ToolcraftProductExportRenderer = {
   baseFileName: "mockup",
   renderFrame: async ({ context, state, timeSeconds }) => {
+    // The only place the product learns an export is happening: the runtime
+    // owns both export buttons and hands the product no lifecycle. One still
+    // is one frame and settles at once; a video settles on its last.
+    noteExportedFrame();
     const values = state.values as Record<string, unknown>;
     const settings = readRasterSettings(values, state.canvas.mode);
     const pose = readToolcraftOrientationPose(values["camera.orbit"]);
