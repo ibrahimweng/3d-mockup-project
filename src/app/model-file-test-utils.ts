@@ -174,6 +174,12 @@ function transformDirection(m: number[], p: Vec3): Vec3 {
 
 /** One triangle of a model, placed in the world its scene puts it in. */
 export type Triangle = {
+  /**
+   * TEXCOORD_2 at the three corners: metres across the piece of cloth the zone
+   * was cut from, shared with every zone cut from the same piece. Null on a
+   * product that is not sewn from pieces.
+   */
+  cloth: [Vec2, Vec2, Vec2] | null;
   material: string;
   /** The mesh it came from, which a `material@mesh` split slot names. */
   mesh: string;
@@ -197,6 +203,9 @@ export function readModelTriangles(file: string): Triangle[] {
       const uvs = primitive.attributes.TEXCOORD_0 !== undefined
         ? readAccessor(gltf, bin, primitive.attributes.TEXCOORD_0)
         : null;
+      const cloth = primitive.attributes.TEXCOORD_2 !== undefined
+        ? readAccessor(gltf, bin, primitive.attributes.TEXCOORD_2)
+        : null;
       const indices = primitive.indices !== undefined
         ? readAccessor(gltf, bin, primitive.indices).map((row) => row[0])
         : positions.map((_, i) => i);
@@ -205,6 +214,7 @@ export function readModelTriangles(file: string): Triangle[] {
       for (let t = 0; t + 2 < indices.length; t += 3) {
         const corner = [indices[t], indices[t + 1], indices[t + 2]];
         triangles.push({
+          cloth: cloth ? (corner.map((v) => cloth[v] as Vec2) as [Vec2, Vec2, Vec2]) : null,
           material,
           mesh: gltf.meshes?.[mesh]?.name ?? `#${mesh}`,
           normal: normals

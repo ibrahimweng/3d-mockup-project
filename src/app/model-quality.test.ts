@@ -240,6 +240,67 @@ describe("what the merchandise models are made of", () => {
     }
   });
 
+  test("a pattern crosses every line that is not a seam", () => {
+    /**
+     * The cloth coordinate, and the one thing it exists to promise.
+     *
+     * A zone is a print area and a piece of cloth is a piece of cloth: a
+     * shirt's front panel, the band round its hem and the facings behind it
+     * are three zones cut from one piece of cotton. Each zone's own
+     * coordinates are normalised to its own extent, which is what a design
+     * wants and is exactly what an all-over pattern cannot use -- it moves
+     * every zone to an origin of its own, so the pattern jumps at the line
+     * between them. The shirt's hem line runs level all the way round and the
+     * jump measured 237mm.
+     *
+     * So the pieces are flattened together and the answer is carried on a
+     * coordinate of its own. Where two zones share a vertex and share a piece,
+     * they have to agree about it exactly -- not nearly, exactly, because they
+     * came out of one solve.
+     */
+    for (const [id] of models) {
+      const triangles = trianglesOf(fileOf(id));
+      if (!triangles.some((triangle) => triangle.cloth)) continue;
+
+      const key = (point: readonly number[]): string =>
+        point.map((value) => Math.round(value * 1e5)).join();
+      const seen = new Map<string, Map<string, readonly number[]>>();
+      for (const triangle of triangles) {
+        if (!triangle.cloth) continue;
+        for (let corner = 0; corner < 3; corner += 1) {
+          const at = key(triangle.position[corner]);
+          const zones = seen.get(at) ?? new Map<string, readonly number[]>();
+          if (!zones.has(triangle.material)) {
+            zones.set(triangle.material, triangle.cloth[corner]);
+          }
+          seen.set(at, zones);
+        }
+      }
+
+      // Pieces are told apart by their coordinates rather than listed: two
+      // zones of one piece came out of one solve and agree to the bit, and a
+      // sleeve set into an armhole is half a metre away in the layout. So a
+      // shared vertex either agrees exactly or is a seam.
+      let joins = 0;
+      for (const [, zones] of seen) {
+        const names = [...zones.keys()].sort();
+        for (let a = 0; a < names.length; a += 1) {
+          for (let b = a + 1; b < names.length; b += 1) {
+            const [p, q] = [zones.get(names[a])!, zones.get(names[b])!];
+            const gap = Math.hypot(p[0] - q[0], p[1] - q[1]);
+            // A millimetre is far more than a shared solve can drift and far
+            // less than a seam, so nothing lands in between to argue about.
+            if (gap > 0.001) continue;
+            joins += 1;
+            expect(gap, `${id}: ${names[a]} and ${names[b]} disagree about their cloth`)
+              .toBe(0);
+          }
+        }
+      }
+      expect(joins, `${id}: no two zones share a piece of cloth`).toBeGreaterThan(0);
+    }
+  });
+
   test("a print zone lands the whole template, in one piece, undistorted", () => {
     // Four ways the same design goes wrong on the way to the surface, so all
     // four are measured on every zone. Coverage below 1 means the edges of the

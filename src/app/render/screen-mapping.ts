@@ -43,6 +43,33 @@ export type ScreenSlack = { x: number; y: number };
  * largest texture does not work: on these phones two correctly-sized unlit
  * panels sit behind the real display and are never seen.
  */
+/**
+ * Does every mesh wearing this material carry the cloth coordinate?
+ *
+ * The third coordinate set is metres across the piece of cloth a zone was cut
+ * from, shared with every other zone cut from the same piece, so a repeating
+ * pattern read through it carries across the lines between them. Not every
+ * product has one -- it is a garment's answer, and a bottle is not sewn from
+ * pieces -- so this is asked rather than assumed, and the tiling falls back to
+ * each zone's own coordinates where the answer is no.
+ */
+export function hasClothCoordinates(
+  root: THREE.Object3D,
+  materials: readonly THREE.MeshStandardMaterial[],
+): boolean {
+  const wanted = new Set(materials);
+  let seen = false;
+  let all = true;
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    const material = object.material;
+    if (Array.isArray(material) || !wanted.has(material as never)) return;
+    seen = true;
+    if (!object.geometry.getAttribute("uv2")) all = false;
+  });
+  return seen && all;
+}
+
 export function findScreenMaterials(
   root: THREE.Object3D,
   materialName: string,
@@ -252,6 +279,11 @@ export function applyScreenTransform(
   transform: ScreenTransform | undefined,
   slack: ScreenSlack,
 ): void {
+  // Back to the zone's own coordinates. The all-over print moves a texture to
+  // the cloth coordinate and the same texture object is handed back here when
+  // it is turned off, so leaving the channel where it was printed the design
+  // through a coordinate that has nothing to do with the panel it is fitted to.
+  texture.channel = 0;
   // Sampling outside 0..1 must clamp, not tile: a zoomed-in screenshot would
   // otherwise repeat itself around the edges of the display.
   texture.wrapS = THREE.ClampToEdgeWrapping;

@@ -136,6 +136,43 @@ describe("printing a design across cloth rather than onto a panel", () => {
     expect(tall.repeat.y).toBeCloseTo(1, 6);
   });
 
+  test("measures a pattern in cloth, not in panels, where the cloth says so", () => {
+    const slack: ScreenSlack = { x: 0, y: 0 };
+    const tile = 0.125;
+
+    /**
+     * Two zones cut from one piece, at two different sizes.
+     *
+     * Read through their own coordinates they take different repeat counts,
+     * which is right for the size and says nothing at all about the phase:
+     * each is normalised to its own extent, so each starts its pattern at its
+     * own corner and the two disagree by a constant at the line between them.
+     * The shirt's hem measured 237mm of that.
+     *
+     * Read through the cloth they share, one repeat length serves both and
+     * there is no phase left to disagree about.
+     */
+    const panel = design(1000, 1000);
+    tileArtwork(panel, { cloth: true, offset: centred, scale: bag.front, tile }, slack);
+    const band = design(1000, 1000);
+    tileArtwork(band, { cloth: true, offset: centred, scale: bag.side, tile }, slack);
+
+    expect(panel.channel).toBe(2);
+    expect(band.channel).toBe(2);
+    // The same repeat on both, because the coordinate is already metres: the
+    // size comes from the cloth rather than from how wide the zone happened
+    // to be cut.
+    expect(band.repeat.x).toBeCloseTo(panel.repeat.x, 9);
+    expect(band.repeat.y).toBeCloseTo(panel.repeat.y, 9);
+    expect(panel.repeat.x).toBeCloseTo(1 / tile, 9);
+
+    // And a zone with no cloth coordinate keeps its own, at its own repeat.
+    const alone = design(1000, 1000);
+    tileArtwork(alone, { offset: centred, scale: bag.side, tile }, slack);
+    expect(alone.channel).toBe(0);
+    expect(alone.repeat.x).toBeCloseTo(bag.side.u / tile, 9);
+  });
+
   test("repeats rather than clamps, or the panel is one smeared edge", () => {
     const slack: ScreenSlack = { x: 0, y: 0 };
     const texture = design(1000, 1000);
