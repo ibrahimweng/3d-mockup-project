@@ -3,15 +3,16 @@ import { describe, expect, test } from "vitest";
 import type { ToolcraftCommand } from "@/toolcraft/runtime";
 
 import { appSchema } from "../app-schema";
+import { PANEL_TAB_TARGET } from "../panel-tabs";
 import type { QuickActionEntry, QuickActionRunContext } from "./quick-action-entry";
 import { quickActionDefaultIds } from "./quick-action-dialog";
 import { quickActionIndex } from "./quick-action-index";
 import { searchQuickActions } from "./quick-action-search";
 
 type QuickActionRunRecord = {
-  readonly actions: { label: string; sectionId: string }[];
+  readonly actions: { label: string; sectionId: string; tab?: string }[];
   readonly commands: ToolcraftCommand[];
-  readonly reveals: { sectionId: string; target: string }[];
+  readonly reveals: { sectionId: string; tab?: string; target: string }[];
 };
 
 function runEntry(entry: QuickActionEntry, durationSeconds = 6): QuickActionRunRecord {
@@ -74,7 +75,9 @@ describe("what the index covers", () => {
 
 describe("what the rows do", () => {
   test("choosing a value sets it, and puts the control under the cursor", () => {
-    const gold = quickActionIndex.find((entry) => entry.id === "value:device:finish:gold");
+    const gold = quickActionIndex.find(
+      (entry) => entry.id === "value:product-parts:finish:gold",
+    );
     expect(gold).toBeDefined();
     const record = runEntry(gold!);
     expect(record.commands).toEqual([
@@ -85,14 +88,18 @@ describe("what the rows do", () => {
         value: "gold",
       },
     ]);
-    expect(record.reveals).toEqual([{ sectionId: "device", target: "device.finish" }]);
+    expect(record.reveals).toEqual([
+      { sectionId: "product-parts", tab: "product", target: "device.finish" },
+    ]);
   });
 
   test("a control row only reveals; it does not change the scene", () => {
     const spin = quickActionIndex.find((entry) => entry.id === "control:device:spin");
     const record = runEntry(spin!);
     expect(record.commands).toEqual([]);
-    expect(record.reveals).toEqual([{ sectionId: "device", target: "device.spin" }]);
+    expect(record.reveals).toEqual([
+      { sectionId: "device", tab: "product", target: "device.spin" },
+    ]);
   });
 
   test("resetting one control leaves the others alone", () => {
@@ -100,6 +107,39 @@ describe("what the rows do", () => {
     const record = runEntry(reset!);
     expect(record.commands).toEqual([
       { label: "Reset Spin", targets: ["device.spin"], type: "controls.resetTargets" },
+    ]);
+  });
+
+  /**
+   * A tab is not a filter over a panel that holds everything: the sections it
+   * does not own are unmounted. A row that only opened its section would find
+   * nothing in the document whenever the panel was on another tab, which is
+   * three times in four.
+   */
+  test("a row says which tab has to be showing before its section exists", () => {
+    const byTab = new Map<string | undefined, string[]>();
+    for (const entry of quickActionIndex) {
+      for (const reveal of runEntry(entry).reveals) {
+        const section = sections.find((candidate) => candidate.id === reveal.sectionId);
+        const expected =
+          section?.visibleWhen?.target === PANEL_TAB_TARGET
+            ? (section.visibleWhen.equals as string)
+            : undefined;
+        expect(reveal.tab, `${entry.id} must name the tab its section is on.`).toBe(
+          expected,
+        );
+        byTab.set(reveal.tab, [...(byTab.get(reveal.tab) ?? []), entry.id]);
+      }
+    }
+
+    // Every tab, and the sections that sit under all of them, or this passes
+    // by only ever having looked at the tab the app opens on.
+    expect([...byTab.keys()].sort()).toEqual([
+      "design",
+      "output",
+      "product",
+      "scene",
+      undefined,
     ]);
   });
 

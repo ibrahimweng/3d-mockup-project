@@ -27,10 +27,8 @@ import { DEFAULT_SCENE_PRESET, SCENE_PRESET_OPTIONS } from "./scene-presets";
 import { DEFAULT_SURFACE, SURFACE_OPTIONS } from "./surfaces";
 import {
   DEFAULT_DEVICE,
-  DEFAULT_FINISH,
   DEVICE_OPTIONS,
   ENVIRONMENT_OPTIONS,
-  FINISH_OPTIONS,
   FIT_OPTIONS,
 } from "./product-domain";
 
@@ -82,20 +80,6 @@ export const appSchema = defineToolcraft({
               performanceRole: "responsiveness",
               semanticGroup: "identity",
               target: "device.model",
-              type: "select",
-            },
-            finish: {
-              applicability: { mode: "always" },
-              defaultValue: DEFAULT_FINISH,
-              description:
-                "Repaints the device's own body materials. Natural is the model exactly as its author built it; the rest keep the same brushed or polished surface and change only its colour.",
-              label: "Finish",
-              options: FINISH_OPTIONS,
-              performanceReason:
-                "A finish rewrites base colours on the loaded model; it does not re-decode geometry or re-convolve the environment.",
-              performanceRole: "responsiveness",
-              semanticGroup: "identity",
-              target: "device.finish",
               type: "select",
             },
             spin: {
@@ -380,7 +364,16 @@ export const appSchema = defineToolcraft({
               defaultValue: { x: 0, y: 0 },
               description:
                 "Where the subject sits in the picture. Centre is centred; move it off centre to leave room beside the device for a headline. The projection is shifted rather than the camera swung, the way a shift lens works, so nothing leans as it moves.",
-              label: false,
+              /**
+               * Named, even though the section title already says Framing.
+               *
+               * A pad with no label renders its control id, so this one read
+               * "framing" in lowercase under a FRAMING heading. The label has
+               * to differ from the section title to be allowed at all, and
+               * naming what the pad moves is more use than repeating the
+               * heading: the thing being placed in the frame is the subject.
+               */
+              label: "Subject",
               performanceReason:
                 "A framing offset shifts the camera's projection matrix and redraws one frame.",
               performanceRole: "responsiveness",

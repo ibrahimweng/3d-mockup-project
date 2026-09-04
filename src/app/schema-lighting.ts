@@ -118,7 +118,11 @@ export const KEY_LIGHT_SECTION = {
               defaultValue: { x: 0.44, y: -0.52 },
               description:
                 "Where the key sits relative to the camera. Centre is straight on; move it off centre to rake the light across the device and lengthen the shadow.",
-              label: false,
+              /**
+               * Named for the same reason the framing pad is: an unlabelled
+               * pad renders its control id, and this one read "keyDirection".
+               */
+              label: "Direction",
               performanceReason:
                 "Moving the key repositions one light and redraws a frame.",
               performanceRole: "responsiveness",

@@ -186,6 +186,36 @@ export function getToolcraftDuplicateSectionTitleLabelError({
   return `${sectionLabel} / ${controlId} visible label "${label}" duplicates section title "${sectionTitle}". Set label: false when the section supplies the complete visible context, or use a more specific label for a distinct setting.`;
 }
 
+/**
+ * A pad has no way to be anonymous, so it must be named.
+ *
+ * Vector draws its name unconditionally — there is no `showLabel` on the way
+ * in, and the runtime resolves a missing label to the control's own id rather
+ * than to nothing. So `label: false` on a pad does not hide the label, it puts
+ * the variable name on the screen: the framing pad read "framing" in lowercase
+ * under a FRAMING heading, and the key light's read "keyDirection". The same
+ * string is the pad's accessible name, so a screen reader announced it too.
+ *
+ * The label has to say something the section title does not, which the
+ * duplicate-title rule already enforces — name what the pad moves rather than
+ * repeating the heading above it.
+ */
+export function getToolcraftUnlabeledPadError({
+  control,
+  controlId,
+  sectionLabel,
+}: {
+  control: ToolcraftControlSchema;
+  controlId: string;
+  sectionLabel: string;
+}): string | undefined {
+  if (control.type !== "vector" || hasVisibleControlLabel(control)) {
+    return undefined;
+  }
+
+  return `${sectionLabel} / ${controlId} is a Vector with no label, and a Vector always draws the name it is given. Unlabeled, that name is the control id "${controlId}", which is what reaches the screen and the screen reader. Give it a label naming what it moves.`;
+}
+
 export function getToolcraftGenericControlLabelError({
   control,
   controlId,

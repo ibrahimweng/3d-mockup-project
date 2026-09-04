@@ -124,6 +124,32 @@ function getPanelTabOwning(target: string): string | undefined {
 }
 
 /**
+ * The visible name a control renders under, read off the schema.
+ *
+ * A pad's accessible name is built from that name, so a proof that wants to
+ * find one has to know it. Read rather than listed, because a hand-written
+ * copy is exactly how the pads came to be addressed as "framing" and
+ * "keyDirection": those were their control ids, which is what an unlabelled
+ * control falls back to, and a proof carrying the same two strings could not
+ * notice they were the wrong thing to be showing a person.
+ */
+export function getToolcraftControlLabelByTarget(target: string): string {
+  for (const section of appSchema.panels.controls?.sections ?? []) {
+    for (const control of Object.values(section.controls)) {
+      if (control.target !== target) continue;
+      if (typeof control.label !== "string") {
+        throw new Error(
+          `Schema target "${target}" renders no visible label, so nothing can address it by name.`,
+        );
+      }
+      return control.label;
+    }
+  }
+
+  throw new Error(`No control in the schema writes target "${target}".`);
+}
+
+/**
  * Open the tab that owns a control before looking for it.
  *
  * The same situation as a collapsed section, and the same answer: a section on

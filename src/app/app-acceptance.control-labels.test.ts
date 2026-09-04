@@ -424,22 +424,39 @@ describe("starter acceptance control label contract", () => {
               },
               title: "Accent Shades",
             },
+            // Two colours with real roles, in a section that also holds
+            // something that is not a colour. The companion is what keeps the
+            // roles visible: a section of nothing but colours is drawn as a
+            // bank and its per-swatch labels are dropped, so Fill and Stroke
+            // would be two anonymous squares no matter what the schema said.
             {
               controls: {
                 fill: {
                   defaultValue: { hex: "#FFFFFF" },
                   label: "Fill",
+                  semanticGroup: "object-surface",
                   target: "object.fill",
                   type: "color",
                 },
                 stroke: {
                   defaultValue: { hex: "#111111" },
                   label: "Stroke",
+                  semanticGroup: "object-outline",
                   target: "object.stroke",
                   type: "color",
                 },
+                strokeWidth: {
+                  defaultValue: 2,
+                  label: "Stroke width",
+                  max: 24,
+                  min: 0,
+                  semanticGroup: "object-outline",
+                  target: "object.strokeWidth",
+                  type: "slider",
+                  unit: "px",
+                },
               },
-              title: "Object Colors",
+              title: "Object Style",
             },
           ],
           title: "Controls",
@@ -456,9 +473,56 @@ describe("starter acceptance control label contract", () => {
           makeControlAcceptance("palette.spread", "slider"),
           makeControlAcceptance("object.fill", "color"),
           makeControlAcceptance("object.stroke", "color"),
+          makeControlAcceptance("object.strokeWidth", "slider"),
         ],
       }),
     ).toEqual([]);
   });
 
+  /**
+   * A pad cannot be anonymous: Vector draws whatever name it is handed, and an
+   * absent label resolves to the control id. This is the fault that put
+   * "framing" and "keyDirection" on the panel in lowercase.
+   */
+  it("rejects a Vector with no label, whose id would reach the screen instead", () => {
+    const padSchemaWithLabel = (label: string | false) =>
+      defineContractSchemaFixture({
+        canvas: { enabled: true },
+        panels: {
+          controls: {
+            sections: [
+              {
+                controls: {
+                  offset: {
+                    defaultValue: { x: 0, y: 0 },
+                    label,
+                    target: "layout.offset",
+                    type: "vector",
+                  },
+                },
+                title: "Subject Placement",
+              },
+            ],
+            title: "Controls",
+          },
+        },
+      });
+    const validate = (label: string | false): string[] =>
+      validateContractAcceptance({
+        schema: padSchemaWithLabel(label),
+        acceptance: [
+          {
+            ...makeControlAcceptance("layout.offset", "vector"),
+            controlPartCoverage: ["vector.x", "vector.y"],
+          },
+        ],
+      });
+
+    expect(validate(false)).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("is a Vector with no label"),
+      ]),
+    );
+    expect(validate("Subject")).toEqual([]);
+  });
 });
