@@ -27,6 +27,17 @@ export type TourStep = GuideStep & {
   readonly target?: string;
   /** What the spotlight sits over. `canvas` is the preview, not a panel row. */
   readonly spotlight: "canvas" | "control" | "none";
+  /**
+   * What to watch instead of the target's value, where the target has none.
+   *
+   * A file drop does not store anything under its schema target: measured, an
+   * upload leaves `values` untouched — `artwork.image` is not a key in it at
+   * all, before or after — and appears in `state.mediaAssets` some four to nine
+   * seconds later, once the image has been decoded. So the step that asks for a
+   * design watches the media count instead, and the tour waited forever without
+   * this.
+   */
+  readonly watch?: "media";
 };
 
 export const tourSteps: readonly TourStep[] = [
@@ -41,6 +52,7 @@ export const tourSteps: readonly TourStep[] = [
     detail: "Drag an image into the box, or click it to browse.",
     spotlight: "control",
     target: "artwork.image",
+    watch: "media",
   },
   {
     action: "Drag the product to turn it",
@@ -55,26 +67,39 @@ export const tourSteps: readonly TourStep[] = [
   },
 ];
 
+/** As much of the studio as a step needs to know it has been done. */
+export type TourObservation = {
+  readonly mediaCount: number;
+  readonly values: Record<string, unknown>;
+};
+
 /**
  * Whether the step in hand has been done.
  *
- * Compared as JSON because a target's value is a number for a slider, a string
- * for a picker, an object for a pad and a file drop, and this has no business
- * knowing which. What it is asking is only "is this different from how they
- * found it", which is the same question for all of them.
+ * A value is compared as JSON because a target holds a number for a slider, a
+ * string for a picker and a pair for a pad, and this has no business knowing
+ * which. What it asks is only "is this different from how they found it", which
+ * is the same question for all of them.
+ *
+ * The media count is the exception, and it counts up rather than comparing:
+ * arriving with one design and replacing it would leave the count where it was.
+ * That is the right reading for a first run, which starts with an empty studio,
+ * and the wrong one for a tour re-run against a studio someone has already
+ * filled — which cannot happen, because the tour runs once.
  */
 export function isTourStepDone({
   current,
   started,
   step,
 }: {
-  current: Record<string, unknown>;
-  started: Record<string, unknown>;
+  current: TourObservation;
+  started: TourObservation;
   step: TourStep;
 }): boolean {
+  if (step.watch === "media") return current.mediaCount > started.mediaCount;
   if (step.target === undefined) return false;
   return (
-    JSON.stringify(current[step.target] ?? null) !==
-    JSON.stringify(started[step.target] ?? null)
+    JSON.stringify(current.values[step.target] ?? null) !==
+    JSON.stringify(started.values[step.target] ?? null)
   );
 }

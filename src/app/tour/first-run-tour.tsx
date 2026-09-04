@@ -10,7 +10,7 @@ import { isAutomatedSession } from "../signup/signup-storage";
 import { TourCard, tourNextAfterSeconds } from "./tour-card";
 import { hasSeenTour, rememberTourSeen } from "./tour-progress";
 import { TourSpotlight, useSpotlightRect } from "./tour-spotlight";
-import { isTourStepDone, tourSteps } from "./tour-steps";
+import { isTourStepDone, tourSteps, type TourObservation } from "./tour-steps";
 
 /**
  * Which tab a step's control is on, and which section holds it.
@@ -61,11 +61,15 @@ export function FirstRunTour(): React.JSX.Element | null {
   const dispatch = useToolcraftDispatch();
   const { state } = useToolcraft();
   const values = state.values as Record<string, unknown>;
+  const observation: TourObservation = {
+    mediaCount: state.mediaAssets.length,
+    values,
+  };
   const gateOpen = useExportGateOpen();
 
   const [index, setIndex] = React.useState<number | null>(null);
   const [showNext, setShowNext] = React.useState(false);
-  const startedValues = React.useRef<Record<string, unknown>>({});
+  const startedAt = React.useRef<TourObservation>({ mediaCount: 0, values: {} });
 
   /*
    * The values as they are right now, for the effects that want to read them
@@ -73,13 +77,13 @@ export function FirstRunTour(): React.JSX.Element | null {
    *
    * Starting a step takes a snapshot of the studio and switches to the tab the
    * step's control is on. Both are things to do when the step changes and not
-   * when a value does — an effect that listed `values` would re-snapshot on
-   * every slider drag, which is precisely the change it is supposed to be
-   * measuring against, and the step could never complete.
+   * when the studio does — an effect that listed the observation would
+   * re-snapshot on every slider drag, which is precisely the change it is
+   * supposed to be measuring against, and the step could never complete.
    */
-  const latestValues = React.useRef(values);
+  const latest = React.useRef(observation);
   React.useEffect(() => {
-    latestValues.current = values;
+    latest.current = observation;
   });
 
   React.useEffect(() => {
@@ -113,14 +117,17 @@ export function FirstRunTour(): React.JSX.Element | null {
   React.useEffect(() => {
     if (step === null) return;
     setShowNext(false);
-    const started = latestValues.current;
-    startedValues.current = { ...started };
+    const started = latest.current;
+    startedAt.current = { mediaCount: started.mediaCount, values: { ...started.values } };
 
     if (step.target === undefined) return;
     const location = findControlLocation(step.target);
     if (location === null) return;
 
-    if (location.tab !== undefined && started[PANEL_TAB_TARGET] !== location.tab) {
+    if (
+      location.tab !== undefined &&
+      started.values[PANEL_TAB_TARGET] !== location.tab
+    ) {
       const label =
         PANEL_TAB_OPTIONS.find((option) => option.value === location.tab)?.label ??
         location.tab;
@@ -150,7 +157,7 @@ export function FirstRunTour(): React.JSX.Element | null {
 
   const done =
     step !== null &&
-    isTourStepDone({ current: values, started: startedValues.current, step });
+    isTourStepDone({ current: observation, started: startedAt.current, step });
 
   React.useEffect(() => {
     if (!done) return;

@@ -58,47 +58,82 @@ describe("the tour points at controls that exist", () => {
 
 describe("knowing when a step is done", () => {
   const step = tourSteps[0];
+  const nothingYet = { mediaCount: 0, values: {} };
 
   test("a value that has not moved is not done", () => {
-    const values = { "device.model": "iphone-17-pro-max" };
-    expect(isTourStepDone({ current: values, started: values, step })).toBe(false);
+    const seen = { mediaCount: 0, values: { "device.model": "iphone-17-pro-max" } };
+    expect(isTourStepDone({ current: seen, started: seen, step })).toBe(false);
   });
 
   test("a value that has moved is done", () => {
     expect(
       isTourStepDone({
-        current: { "device.model": "tshirt" },
-        started: { "device.model": "iphone-17-pro-max" },
+        current: { mediaCount: 0, values: { "device.model": "tshirt" } },
+        started: { mediaCount: 0, values: { "device.model": "iphone-17-pro-max" } },
         step,
       }),
     ).toBe(true);
   });
 
   /**
-   * A file drop stores an object and a pad stores a pair, so "did it change"
-   * cannot be an identity check: React hands back a fresh object for the same
-   * value on most renders, and every one of those would count as the person
-   * having done something.
+   * A pad stores a pair and a preset writes a dozen values at once, so "did it
+   * change" cannot be an identity check: React hands back a fresh object for
+   * the same value on most renders, and every one of those would count as the
+   * person having done something.
    */
   test("an equal object is not a change, however it was built", () => {
-    const image = { name: "logo.png", url: "blob:abc" };
+    const offset = { x: 0.2, y: -0.4 };
     expect(
       isTourStepDone({
-        current: { "artwork.image": { ...image } },
-        started: { "artwork.image": image },
-        step: { ...step, target: "artwork.image" },
+        current: { mediaCount: 0, values: { "camera.framing": { ...offset } } },
+        started: { mediaCount: 0, values: { "camera.framing": offset } },
+        step: { ...step, target: "camera.framing" },
       }),
     ).toBe(false);
   });
 
-  test("a value arriving where there was none is a change", () => {
-    expect(
-      isTourStepDone({
-        current: { "artwork.image": { url: "blob:abc" } },
-        started: {},
-        step: { ...step, target: "artwork.image" },
-      }),
-    ).toBe(true);
+  /**
+   * The upload step, which is the one that cannot watch a value at all.
+   * Measured in the browser: an upload leaves `values` untouched — the file
+   * drop's target is not a key in it before or after — and shows up in
+   * `state.mediaAssets` four to nine seconds later, once the image is decoded.
+   */
+  describe("the step that asks for a design", () => {
+    const upload = tourSteps.find((candidate) => candidate.watch === "media");
+
+    test("there is one, and it is the design step", () => {
+      expect(upload?.target).toBe("artwork.image");
+    });
+
+    test("an empty studio is not done", () => {
+      expect(
+        isTourStepDone({ current: nothingYet, started: nothingYet, step: upload! }),
+      ).toBe(false);
+    });
+
+    test("a design arriving is done", () => {
+      expect(
+        isTourStepDone({
+          current: { mediaCount: 1, values: {} },
+          started: nothingYet,
+          step: upload!,
+        }),
+      ).toBe(true);
+    });
+
+    /**
+     * And it counts up rather than comparing, so a value moving elsewhere in
+     * the studio while the image is still decoding does not skip the step.
+     */
+    test("something else changing does not stand in for a design", () => {
+      expect(
+        isTourStepDone({
+          current: { mediaCount: 0, values: { "device.spin": 40 } },
+          started: nothingYet,
+          step: upload!,
+        }),
+      ).toBe(false);
+    });
   });
 
   test("the closing step is never done by anything happening in the studio", () => {
@@ -106,8 +141,8 @@ describe("knowing when a step is done", () => {
     expect(ask).toBeDefined();
     expect(
       isTourStepDone({
-        current: { "device.model": "tshirt", "artwork.image": { url: "x" } },
-        started: {},
+        current: { mediaCount: 3, values: { "device.model": "tshirt" } },
+        started: nothingYet,
         step: ask!,
       }),
     ).toBe(false);
