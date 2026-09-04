@@ -9,12 +9,11 @@ import {
   type ExportLabel,
 } from "./export-gate";
 import { setExportGateOpen } from "./gate-visibility";
-import { hasGivenEmail, rememberEmailGiven } from "./signup-storage";
+import { hasGivenEmail } from "./signup-storage";
+import { useEmailSignup } from "./use-email-signup";
 
 /** How long someone reads before refusing is offered as a choice. */
 const skipDelaySeconds = 8;
-
-type Status = "asking" | "failed" | "saved" | "sending";
 
 /**
  * The one thing standing between a press of Export and the file.
@@ -37,19 +36,19 @@ type Status = "asking" | "failed" | "saved" | "sending";
 export function SignupCard(): React.JSX.Element | null {
   const [held, setHeld] = React.useState<ExportLabel | null>(null);
   const [email, setEmail] = React.useState("");
-  const [status, setStatus] = React.useState<Status>("asking");
-  const [message, setMessage] = React.useState("");
   const [secondsLeft, setSecondsLeft] = React.useState(skipDelaySeconds);
+  // Shared with the tour's closing step, which asks the same thing in a
+  // different frame. One request, one place that decides a save was accepted.
+  const { message, reset, status, submit } = useEmailSignup("export-gate");
 
   React.useEffect(
     () =>
       installExportGate((label) => {
-        setStatus("asking");
-        setMessage("");
+        reset();
         setSecondsLeft(skipDelaySeconds);
         setHeld(label);
       }),
-    [],
+    [reset],
   );
 
   // The countdown only runs while the question is open. It is paused by a
@@ -74,40 +73,15 @@ export function SignupCard(): React.JSX.Element | null {
     if (label) releaseExport(label);
   }, [held]);
 
-  const submit = React.useCallback(
+  const send = React.useCallback(
     async (event: React.FormEvent) => {
       event.preventDefault();
-      setStatus("sending");
-      setMessage("");
-
-      try {
-        const response = await fetch("/api/subscribe", {
-          body: JSON.stringify({ email, source: "export-gate", website: "" }),
-          headers: { "Content-Type": "application/json" },
-          method: "POST",
-        });
-        const body = (await response.json()) as { error?: string };
-
-        if (!response.ok) {
-          // Shown, then let through. A signup that could not be stored is not a
-          // reason to withhold someone's picture.
-          setStatus("failed");
-          setMessage(body.error ?? "That did not save.");
-          window.setTimeout(release, 2_200);
-          return;
-        }
-
-        // Only a signup the server accepted closes this for good.
-        rememberEmailGiven();
-        setStatus("saved");
-        window.setTimeout(release, 1_400);
-      } catch {
-        setStatus("failed");
-        setMessage("Could not reach the server.");
-        window.setTimeout(release, 2_200);
-      }
+      const saved = await submit(email);
+      // Either way the export goes. A signup that could not be stored is not a
+      // reason to withhold someone's picture, and the error is shown first.
+      window.setTimeout(release, saved ? 1_400 : 2_200);
     },
-    [email, release],
+    [email, release, submit],
   );
 
   if (held === null || hasGivenEmail()) return null;
@@ -170,7 +144,7 @@ export function SignupCard(): React.JSX.Element | null {
         </div>
 
         {status === "saved" ? null : (
-          <form className="flex flex-col gap-3" onSubmit={submit}>
+          <form className="flex flex-col gap-3" onSubmit={send}>
             <Input
               aria-label="Email address"
               autoComplete="email"

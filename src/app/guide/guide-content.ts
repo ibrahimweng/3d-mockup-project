@@ -165,14 +165,3 @@ export const guideTopics: readonly GuideTopic[] = [
     title: "Shortcuts",
   },
 ];
-
-/** The three things a first-time visitor is shown, in order. */
-export const firstRunSteps: readonly GuideStep[] = [
-  { action: "Pick your device", detail: "Then drop a screenshot onto its display." },
-  {
-    action: "Choose a look",
-    detail: "The Preset list in Studio lights the whole scene in one click.",
-    names: ["Preset", "Studio"],
-  },
-  { action: "Export it", detail: "A PNG, or a turning video." },
-];
