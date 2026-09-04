@@ -90,6 +90,21 @@ export function GuideDialog({
               <GuideSection key={topic.id} topic={topic} />
             ))}
           </div>
+          {/*
+            Findable by someone who has not pressed Export, which is the only
+            other place it is linked from.
+          */}
+          <p className="pt-6 text-xs text-[color:color-mix(in_oklab,var(--foreground)_55%,transparent)]">
+            Your designs never leave your browser.{" "}
+            <a
+              className="underline underline-offset-2 hover:text-[color:var(--foreground)]"
+              href="/privacy"
+              rel="noreferrer"
+              target="_blank"
+            >
+              Privacy
+            </a>
+          </p>
         </DialogBody>
       </DialogContent>
     </Dialog>

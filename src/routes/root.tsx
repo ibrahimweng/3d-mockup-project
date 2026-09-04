@@ -2,6 +2,7 @@ import { Outlet, createRootRoute, createRoute } from "@tanstack/react-router";
 
 import { AdminEmails } from "./admin";
 import { AppHome } from "./index";
+import { PrivacyNote } from "./privacy";
 
 function RootLayout(): React.JSX.Element {
   return <Outlet />;
@@ -23,4 +24,14 @@ const adminRoute = createRoute({
   path: "/admin",
 });
 
-export const routeTree = rootRoute.addChildren([indexRoute, adminRoute]);
+const privacyRoute = createRoute({
+  component: PrivacyNote,
+  getParentRoute: () => rootRoute,
+  path: "/privacy",
+});
+
+export const routeTree = rootRoute.addChildren([
+  indexRoute,
+  adminRoute,
+  privacyRoute,
+]);

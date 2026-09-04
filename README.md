@@ -122,14 +122,23 @@ artifact delivery, and a blob plus an invisible link is exactly that pattern.
   heavy next to WebGL, and running them makes the site commercial, which
   Vercel's free Hobby plan does not cover.
 
-### Before you collect real addresses
+### The privacy note
 
-Storing email addresses from people in the EU or UK puts you under GDPR: you
-need a stated purpose, a lawful basis, and a way to delete on request. The card
-says what the list is for and promises removal on request — keep that promise,
-and add a privacy note somewhere linkable before this goes in front of real
-traffic. Deleting one address today means `HDEL mockup-studio:emails <address>`
-from the Upstash console.
+`/privacy` says what is collected and what is not, and it is linked from the
+export modal, where the promise is made, and from the help screen, for anyone
+who never presses Export.
+
+Its strongest claim is that designs never leave the browser, and that one is
+held to the source rather than to good intentions:
+`src/routes/privacy-claims.test.ts` walks `src/app` and `src/routes` for network
+primitives and fails on any call the note has not accounted for. There are
+three today — a `blob:` read for an uploaded GIF, the signup POST, and the admin
+list — and a fourth breaks the build, naming the file, which is the moment to
+ask whether the note is still true.
+
+Deleting one address is `HDEL mockup-studio:emails <address>` from the Upstash
+console. The contact address and the operator name are two constants at the top
+of `src/routes/privacy.tsx`.
 
 ## Devices
 
