@@ -8,6 +8,7 @@ import {
   releaseExport,
   type ExportLabel,
 } from "./export-gate";
+import { setExportGateOpen } from "./gate-visibility";
 import { hasGivenEmail, rememberEmailGiven } from "./signup-storage";
 
 /** How long someone reads before refusing is offered as a choice. */
@@ -59,6 +60,13 @@ export function SignupCard(): React.JSX.Element | null {
     const timer = window.setTimeout(() => setSecondsLeft((left) => left - 1), 1_000);
     return () => window.clearTimeout(timer);
   }, [held, secondsLeft, status]);
+
+  // Published so the welcome card can step aside: the backdrop only dims it,
+  // and a greyed-out card in the corner reads as broken rather than behind.
+  React.useEffect(() => {
+    setExportGateOpen(held !== null);
+    return () => setExportGateOpen(false);
+  }, [held]);
 
   const release = React.useCallback(() => {
     const label = held;
