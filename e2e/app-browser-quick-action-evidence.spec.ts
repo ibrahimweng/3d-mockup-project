@@ -97,12 +97,14 @@ test(browserTestNameFor("quick-actions.describe"), async ({ page }) => {
       // "gold" is a finish; "make it" is how a person asks for one. Neither the
       // control's label nor its description contains the word.
       const topRow = await describeOutcome(page, "make it gold");
-      expect(topRow).toBe("value:device:finish:gold");
+      expect(topRow).toBe("value:product-parts:finish:gold");
       // Clicked, not Enter. An earlier version of this proof pressed Enter and
       // passed while every mouse click in the palette did nothing at all —
       // the keyboard path and the pointer path fail independently, so the
       // proof has to walk the one a person actually uses.
-      await page.locator('[data-quick-action-id="value:device:finish:gold"]').click();
+      await page
+        .locator('[data-quick-action-id="value:product-parts:finish:gold"]')
+        .click();
       await expect(palette(page)).toBeHidden({ timeout: 10_000 });
     },
     {

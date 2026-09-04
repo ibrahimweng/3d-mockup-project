@@ -9,11 +9,20 @@ import {
 export type QuickActionKind = "animation" | "command" | "control" | "value";
 
 /**
- * Which section the row lives in. A collapsed section has no control to focus
- * and no button to press, so both callbacks are handed the section and open it
- * before they look for anything.
+ * Where in the panel the row's control lives.
+ *
+ * A collapsed section has no control to focus and no button to press, and a
+ * section on another tab is not merely hidden — it is unmounted, so there is
+ * nothing in the document to find at all. Both callbacks are handed the tab
+ * and the section and put the panel there before they look for anything.
+ *
+ * `tab` is absent for the sections that appear under every tab: Setup, the tab
+ * bar itself, and the export footer.
  */
-export type QuickActionPanelTarget = { readonly sectionId: string };
+export type QuickActionPanelTarget = {
+  readonly sectionId: string;
+  readonly tab?: string;
+};
 
 /**
  * What an entry is handed when it runs.

@@ -12,7 +12,12 @@ import {
   CommandList,
 } from "@/toolcraft/ui/components/composites";
 
-import type { QuickActionEntry, QuickActionRunContext } from "./quick-action-entry";
+import { PANEL_TAB_OPTIONS, PANEL_TAB_TARGET } from "../panel-tabs";
+import type {
+  QuickActionEntry,
+  QuickActionPanelTarget,
+  QuickActionRunContext,
+} from "./quick-action-entry";
 import { quickActionIndex } from "./quick-action-index";
 import { subscribeToQuickActionOpen } from "./quick-action-open";
 import {
@@ -33,7 +38,7 @@ const quickActionResultLimit = 12;
  */
 export const quickActionDefaultIds: readonly string[] = [
   "control:device:model",
-  "control:device:finish",
+  "control:product-parts:finish",
   "animation:turntable",
   "action:runtime.export:footer:export-png",
   "action:runtime.export:footer:export-video",
@@ -41,6 +46,31 @@ export const quickActionDefaultIds: readonly string[] = [
   "control:surface:kind",
   "app:reset",
 ];
+
+/** The tab's own name, for the history entry the switch writes. */
+function readPanelTabLabel(tab: string): string {
+  return PANEL_TAB_OPTIONS.find((option) => option.value === tab)?.label ?? tab;
+}
+
+/**
+ * Retries across a few frames rather than assuming one is enough.
+ *
+ * Switching tab unmounts one set of sections and mounts another, and the
+ * callback here has to find a node in the set that is arriving. One frame is
+ * usually enough and was not always: `attempt` reports whether it found what
+ * it wanted, and this gives it a bounded number of frames to say yes.
+ */
+const quickActionPanelSettleFrames = 10;
+
+function afterPanelSettles(attempt: () => boolean): void {
+  let framesLeft = quickActionPanelSettleFrames;
+  const tick = (): void => {
+    if (attempt() || framesLeft <= 0) return;
+    framesLeft -= 1;
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
 
 const selectTimelineDuration = (state: ToolcraftState): number =>
   state.timeline.durationSeconds;
@@ -161,21 +191,40 @@ export function QuickActionDialog(): React.JSX.Element {
       hasRunRef.current = true;
       setIsOpen(false);
 
-      const openSection = (sectionId: string): void => {
+      /**
+       * Put the panel where the row's control actually is.
+       *
+       * The tab first, then the section. A tab is not a filter over a panel
+       * that holds everything — the sections it does not own are unmounted —
+       * so a row for a control on another tab had nothing to scroll to and
+       * nothing to focus, and the palette silently did nothing. That is the
+       * one thing the palette exists to prevent, and it is how the panel's own
+       * below-the-fold controls are reachable at all.
+       */
+      const openPanelAt = ({ sectionId, tab }: QuickActionPanelTarget): void => {
+        if (tab !== undefined) {
+          dispatch({
+            label: `View: ${readPanelTabLabel(tab)}`,
+            target: PANEL_TAB_TARGET,
+            type: "controls.setValue",
+            value: tab,
+          });
+        }
         dispatch({ collapsed: false, sectionId, type: "panels.setSectionCollapsed" });
       };
       const context: QuickActionRunContext = {
-        activatePanelAction: ({ label, sectionId }) => {
-          openSection(sectionId);
-          // The section may have been collapsed a moment ago, so the button is
-          // only in the document after React has flushed the state above.
-          requestAnimationFrame(() => activateQuickActionPanelButton(label));
+        activatePanelAction: ({ label, ...panelTarget }) => {
+          openPanelAt(panelTarget);
+          // The section may have been collapsed or on another tab a moment
+          // ago, so the button is only in the document once React has flushed
+          // the state above and mounted it.
+          afterPanelSettles(() => activateQuickActionPanelButton(label));
         },
         dispatch,
         durationSeconds,
-        revealControl: ({ sectionId, target }) => {
-          openSection(sectionId);
-          requestAnimationFrame(() => revealQuickActionControl(target));
+        revealControl: ({ target, ...panelTarget }) => {
+          openPanelAt(panelTarget);
+          afterPanelSettles(() => revealQuickActionControl(target));
         },
       };
       entry.run(context);

@@ -4,6 +4,7 @@ import type {
 } from "@/toolcraft/runtime";
 
 import { appSchema } from "../app-schema";
+import { PANEL_TAB_TARGET } from "../panel-tabs";
 import {
   createQuickActionEntry,
   type QuickActionEntry,
@@ -34,6 +35,22 @@ function readQuickActionSectionLabel(
 }
 
 /**
+ * The tab a section needs showing before it exists in the document.
+ *
+ * Read off `visibleWhen` rather than listed, the same way the browser helpers
+ * do it: a section that moves to another tab moves here with it. Nothing comes
+ * back for a section with no tab condition, which is the three that appear
+ * under every tab.
+ */
+function readQuickActionSectionTab(
+  section: ResolvedToolcraftControlSectionSchema,
+): string | undefined {
+  return section.visibleWhen?.target === PANEL_TAB_TARGET
+    ? (section.visibleWhen.equals as string)
+    : undefined;
+}
+
+/**
  * A target is searchable text in its own right. `device.spin` carries "device"
  * and "spin"; `studio.keyColor` carries "key" and "color". Those words are
  * often exactly what someone types, and they are not always in the label.
@@ -50,6 +67,10 @@ function buildQuickActionControlEntries(
   control: ResolvedToolcraftControlSchema,
 ): readonly QuickActionEntry[] {
   const sectionLabel = readQuickActionSectionLabel(section);
+  const panelTarget = {
+    sectionId: section.id,
+    tab: readQuickActionSectionTab(section),
+  };
   const controlLabel = readQuickActionControlLabel(key, control);
   const targetWords = readQuickActionTargetWords(control.target);
   const entries: QuickActionEntry[] = [];
@@ -68,7 +89,7 @@ function buildQuickActionControlEntries(
       kind: "control",
       prose: control.description ?? "",
       run: ({ revealControl }) =>
-        revealControl({ sectionId: section.id, target: control.target }),
+        revealControl({ ...panelTarget, target: control.target }),
       subtitle: sectionLabel,
       title: controlLabel,
     }),
@@ -92,7 +113,7 @@ function buildQuickActionControlEntries(
             type: "controls.setValue",
             value: option.value,
           });
-          revealControl({ sectionId: section.id, target: control.target });
+          revealControl({ ...panelTarget, target: control.target });
         },
         subtitle: `${sectionLabel} · ${controlLabel}`,
         title: option.label,
@@ -116,7 +137,7 @@ function buildQuickActionControlEntries(
               type: "controls.setValue",
               value,
             });
-            revealControl({ sectionId: section.id, target: control.target });
+            revealControl({ ...panelTarget, target: control.target });
           },
           subtitle: `${sectionLabel} · ${controlLabel}`,
           title: `${controlLabel} ${label.toLowerCase()}`,
@@ -138,7 +159,7 @@ function buildQuickActionControlEntries(
         kind: "command",
         prose: control.description ?? "",
         run: ({ activatePanelAction }) =>
-          activatePanelAction({ label, sectionId: section.id }),
+          activatePanelAction({ ...panelTarget, label }),
         subtitle: sectionLabel,
         title: label,
       }),
@@ -161,7 +182,7 @@ function buildQuickActionControlEntries(
           targets: [control.target],
           type: "controls.resetTargets",
         });
-        revealControl({ sectionId: section.id, target: control.target });
+        revealControl({ ...panelTarget, target: control.target });
       },
       subtitle: `${sectionLabel} · restore the default`,
       title: `Reset ${controlLabel}`,

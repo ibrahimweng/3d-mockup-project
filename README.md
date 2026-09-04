@@ -532,8 +532,8 @@ tabs, because the runtime owns that section and always puts it first, and the
 | --- | --- | --- |
 | — | Setup | The artboard: settings transfer, whether a background is drawn and its colour, infinity canvas, aspect ratio and size, and the preview's resolution scale |
 | — | View | The tab bar itself. It renders the same four options as a select if the panel is ever too narrow for four cells |
-| Product | Device | Which product the design is shown on, its finish, how it is turned, where it stands and its size |
-| Product | Parts | Up to three colours for a merchandise product's own surfaces. Each picker appears only for a product that has that part |
+| Product | Device | Which product the design is shown on, how it is turned, where it stands and its size |
+| Product | Appearance | What the product itself looks like: a device's finish, and up to three colours for a merchandise product's own surfaces. Each colour picker appears only for a product that has that part |
 | Design | Artwork | A panel picker, the design on the display, its position and stretch, and the runtime's rotate and flip actions |
 | Design | Templates | The placeholder sheet each zone ships with, to draw a design over |
 | Design | Fit & scale | Fit, fill or stretch, and a scale |

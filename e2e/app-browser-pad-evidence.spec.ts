@@ -1,5 +1,8 @@
 import { expectToolcraftReferenceParity } from "./browser-acceptance-outcome-helpers";
-import { getToolcraftControlFieldByTarget } from "./browser-control-target-helpers";
+import {
+  getToolcraftControlFieldByTarget,
+  getToolcraftControlLabelByTarget,
+} from "./browser-control-target-helpers";
 import {
   createToolcraftBrowserProofSession,
   readToolcraftBrowserObservation,
@@ -33,13 +36,11 @@ test.setTimeout(180_000);
 const pads = [
   {
     name: "browser: moving the key direction pad rakes the light and swings the shadow",
-    padLabel: "keyDirection",
     requirementId: "light.key.direction",
     target: "light.keyDirection",
   },
   {
     name: "browser: the framing pad moves the subject off centre with verticals still upright",
-    padLabel: "framing",
     requirementId: "camera.framing.shift",
     shiftsWithoutReshaping: true,
     target: "camera.framing",
@@ -47,7 +48,6 @@ const pads = [
   {
     name: "browser: screen stretch distorts the image along one axis",
     needsDesign: true,
-    padLabel: "Stretch",
     requirementId: "artwork.stretch.axes",
     target: "artwork.stretch",
   },
@@ -55,6 +55,9 @@ const pads = [
 
 for (const pad of pads) {
   test(pad.name, async ({ page }) => {
+    // The name the pad is drawn under, which is also the name it is announced
+    // under: a vector's accessible name is "<label> X/Y pad".
+    const padLabel = getToolcraftControlLabelByTarget(pad.target);
     await page.goto("/");
     const session = await createToolcraftBrowserProofSession(page);
     if ("needsDesign" in pad && pad.needsDesign) {
@@ -81,7 +84,10 @@ for (const pad of pads) {
         session.controlAction(pad.target, async (field) => {
           await setPad(field, x, y);
         }),
-        { ...before, [pad.padLabel]: await padHandleFor(page, pad.padLabel, x, y) },
+        {
+          ...before,
+          [padLabel]: await padHandleFor(page, padLabel, x, y),
+        },
         { part, requirementId: pad.requirementId },
       );
     }

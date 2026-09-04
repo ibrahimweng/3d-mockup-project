@@ -294,11 +294,10 @@ export const appControlSectionInventory: readonly ToolcraftControlSectionInvento
       entity: "Device",
       entityId: "device",
       groupingReason:
-        "Which product is being mocked up, what colour it is, and how it is posed are one decision about the same object: the finish is meaningless without the model it repaints, and every angle, offset and size turns that same body. Nine controls is past the usual section size, so each says which part of the one entity it is \u2014 what it is, which way it is turned, where it stands.",
+        "Which product is being mocked up and how it is posed are one decision about the same object: every angle, offset and size turns the same body. Eight controls is past the usual section size, so each says which part of the one entity it is \u2014 what it is, which way it is turned, where it stands. What it looks like moved next door, because a colourway is the same decision as the colours beside it rather than the same decision as an angle.",
       id: "device",
       targets: [
         "device.model",
-        "device.finish",
         "device.spin",
         "device.tilt",
         "device.roll",
@@ -310,17 +309,18 @@ export const appControlSectionInventory: readonly ToolcraftControlSectionInvento
       title: "Device",
     },
     {
-      entity: "Parts",
+      entity: "Appearance",
       entityId: "product-parts",
       groupingReason:
-        "The three colours are one decision about one object: what the product's own surfaces are, as distinct from the design printed on top of them. They are separate from Device because a device carries named colourways its manufacturer sells while merchandise is blank stock a person colours themselves, and each control appears only for a product that declares that part.",
+        "What the product's own surfaces look like, as distinct from the design printed on top of them. A finish is a colourway the manufacturer sells and the three colours are blank stock a person picks themselves \u2014 a difference in where the colour comes from, not in what is being decided \u2014 so they are one section rather than two: apart, choosing what a shirt looks like meant a colourway in one place and its collar rib in another. Each colour appears only for a product that declares that part.",
       id: "product-parts",
       targets: [
+        "device.finish",
         "product.color.main",
         "product.color.trim",
         "product.color.accent",
       ],
-      title: "Parts",
+      title: "Appearance",
     },
     {
       entity: "Video Export",
