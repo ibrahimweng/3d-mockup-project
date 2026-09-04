@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 
 import { Button } from "@/toolcraft/ui/components/primitives";
 
+import { useExportGateOpen } from "../signup/gate-visibility";
 import { firstRunSteps } from "./guide-content";
 
 const firstRunStorageKey = "mockup-studio:seen-welcome:v1";
@@ -73,6 +74,7 @@ export function FirstRunWelcome({
   onOpenGuide: () => void;
 }): React.JSX.Element | null {
   const [isOpen, setIsOpen] = React.useState(false);
+  const gateOpen = useExportGateOpen();
 
   React.useEffect(() => {
     // Read after mount rather than during render: the same component runs in a
@@ -85,7 +87,9 @@ export function FirstRunWelcome({
     setIsOpen(false);
   }, []);
 
-  if (!isOpen) return null;
+  // Nothing while the export gate is up. Its backdrop dims this rather than
+  // covering it, and a card nobody can read or press is worse than no card.
+  if (!isOpen || gateOpen) return null;
 
   /*
    * Portalled to the body, and this is not optional.

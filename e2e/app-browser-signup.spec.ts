@@ -117,3 +117,30 @@ test("browser: a refused signup still lets the export through", async ({ page })
     timeout: 20_000,
   });
 });
+
+test("browser: the welcome card steps aside while the gate is up", async ({
+  page,
+}) => {
+  await openAsAPerson(page);
+  await stubSubscribe(page, 200, { status: "added" });
+  await openStudio(page);
+
+  // A first visit, which is the only time these two can collide at all.
+  const welcome = page.locator('[data-slot="mockup-first-run"]');
+  await expect(welcome).toBeVisible();
+
+  await page.getByRole("button", { name: "Export PNG" }).click();
+  await expect(gate(page)).toBeVisible({ timeout: 30_000 });
+  await expect(
+    welcome,
+    "the backdrop only dims it, so it has to take itself away",
+  ).toHaveCount(0);
+
+  await page.waitForTimeout(9_500);
+  await skip(page).click();
+  await expect(gate(page)).toHaveCount(0);
+
+  // And comes back, because it was hidden rather than dismissed: nobody read
+  // it, so nobody has finished with it.
+  await expect(welcome).toBeVisible();
+});
