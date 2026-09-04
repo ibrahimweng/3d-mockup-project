@@ -59,10 +59,12 @@ export function PrivacyNote(): React.JSX.Element {
 
       <Section title="The one thing we collect">
         <p>
-          If you choose to give an email address at the export prompt, we store
-          three things: the address, the date we first saw it, and the fact that
-          it came from that prompt. Nothing else — no name, no location, no
-          record of what you designed.
+          The studio asks for an email address twice at most: once at the end
+          of the tour on your first visit, and again when you export a picture,
+          until you give one. If you choose to give it, we store three things:
+          the address, the date we first saw it, and which of those two places
+          you gave it. Nothing else — no name, no location, no record of what
+          you designed.
         </p>
         <p>
           We use it for one purpose: to tell you when new products, finishes and
@@ -70,8 +72,9 @@ export function PrivacyNote(): React.JSX.Element {
           anyone.
         </p>
         <p>
-          Giving it is optional. You can skip the prompt and export anyway, and
-          everything on this site works the same either way.
+          Giving it is optional in both places. You can skip the tour, skip the
+          export prompt, export anyway, and everything on this site works the
+          same either way.
         </p>
       </Section>
 
@@ -82,9 +85,10 @@ export function PrivacyNote(): React.JSX.Element {
         </p>
         <p>
           Your browser stores a few small notes locally so the studio behaves
-          sensibly — whether you have seen the welcome, whether you have already
-          given an address. Those stay on your device and are never sent
-          anywhere.
+          sensibly — whether you have been shown the tour, whether you have
+          already given an address. Those stay on your device and are never sent
+          anywhere. Clearing your browser's site data erases them, and the
+          studio will treat you as a first-time visitor again.
         </p>
       </Section>
 

@@ -31,10 +31,36 @@ There are two serverless functions in `api/`, and the studio works without them:
 they exist only for the email list below. Nothing else needs a server, and no
 environment variable is required to render, animate or export anything.
 
+## The first visit
+
+A first-time visitor is walked through four steps on the studio's own controls,
+not a carousel of pictures: pick a product, drop a design on it, drag it to turn
+it, and then the ask. Each step spotlights the real control and waits for the
+real action — the value it watches has to change — so what someone has at the
+end is a product shot they made and the knowledge of how they made it. A **Next**
+button appears after ten seconds so nobody is trapped on a step they cannot work
+out, and **Skip tour** is on every one of them.
+
+The spotlight is four rectangles around a hole rather than one overlay with a
+transparent middle, because the hole has to be a real hole: the step is "use this
+control", so the control has to be usable, and anything covering it — even
+something fully transparent — is between the pointer and the thing.
+
+The last step asks for an email, with a skip offered immediately rather than
+after a countdown. The export gate below makes people wait eight seconds before
+it offers a way out, and that is right there because something is being withheld.
+Here nothing is: they have just been given a tour, and a timed lock would be the
+studio charging for a favour it already did.
+
+It runs once. The flag is site data, so clearing the browser's storage brings it
+back — deliberately, because nothing else here identifies a visitor and a
+first-run experience should not need to.
+
 ## Collecting emails
 
-Pressing **Export PNG**, **Export Video** or Ctrl/Cmd-E opens a modal asking for
-an email, and holds the export behind it. Skipping is offered after **eight
+The tour's last step is the first ask. The export gate is the second, and the
+backstop for everyone who skipped: pressing **Export PNG**, **Export Video** or
+Ctrl/Cmd-E opens a modal asking for an email, and holds the export behind it. Skipping is offered after **eight
 seconds**, which is the point of the delay: the time turns a reflex into a
 choice, so someone who genuinely does not want to leave an address reads why
 first and then gets their file.
@@ -115,18 +141,20 @@ artifact delivery, and a blob plus an invisible link is exactly that pattern.
 
 - **It is not a login.** Nothing verifies the address; anyone can type anything.
   Verifying it means emailing a one-time link, which needs a mail sender.
-- **"Once" is a courtesy, not a lock.** It is a `localStorage` flag, so a
-  private window or cleared site data asks again. Since the card gates nothing,
-  the worst a bypass wins is a second sight of it.
+- **"Once" is a courtesy, not a lock.** Both the tour and the "already gave an
+  address" flag are `localStorage`, so a private window or cleared site data
+  asks again. Since neither gates anything, the worst a bypass wins is a second
+  sight of it.
 - **No ads.** They would need a slot in a full-viewport 3D canvas, they are
   heavy next to WebGL, and running them makes the site commercial, which
   Vercel's free Hobby plan does not cover.
 
 ### The privacy note
 
-`/privacy` says what is collected and what is not, and it is linked from the
-export modal, where the promise is made, and from the help screen, for anyone
-who never presses Export.
+`/privacy` says what is collected and what is not, and it is linked from both
+places the address is asked for — the tour's last step and the export modal,
+where the promise is made — and from the help screen, for anyone who never
+presses Export.
 
 Its strongest claim is that designs never leave the browser, and that one is
 held to the source rather than to good intentions:

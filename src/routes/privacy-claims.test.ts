@@ -28,7 +28,10 @@ const allowed = [
     reason: "reads a local object URL for an uploaded GIF",
   },
   {
-    file: "src/app/signup/signup-card.tsx",
+    // Both places that ask — the tour's closing step and the export gate —
+    // send through this one hook, which is why there is one entry here and not
+    // two. If that ever splits back into two callers, this test says so.
+    file: "src/app/signup/use-email-signup.ts",
     reason: "posts an offered email address to our own endpoint",
   },
   {

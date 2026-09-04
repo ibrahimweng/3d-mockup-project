@@ -2,7 +2,8 @@ import { describe, expect, test } from "vitest";
 
 import { appSchema } from "../app-schema";
 import { PANEL_TAB_OPTIONS } from "../panel-tabs";
-import { firstRunSteps, guideTopics } from "./guide-content";
+import { guideTopics } from "./guide-content";
+import { tourSteps } from "../tour/tour-steps";
 
 /**
  * The help screen is for someone who has never used a 3D tool. That is a
@@ -45,7 +46,9 @@ const allSteps = [
   ...guideTopics.flatMap((topic) =>
     topic.steps.map((step) => ({ step, where: topic.id })),
   ),
-  ...firstRunSteps.map((step) => ({ step, where: "first-run" })),
+  // The tour is held to the same rules as the help screen: it is read by the
+  // same person, and it points at the panel by name in the same way.
+  ...tourSteps.map((step) => ({ step, where: "first-run-tour" })),
 ];
 
 describe("the help screen points at things that exist", () => {
@@ -129,9 +132,12 @@ describe("the help screen speaks plainly", () => {
   test("it opens with the shortest path to a finished picture", () => {
     const first = guideTopics[0];
     expect(first.id).toBe("start");
-    // Three steps, because that is the claim the welcome makes.
     expect(first.steps).toHaveLength(3);
-    expect(firstRunSteps).toHaveLength(3);
+    // Four, and the last one is the ask. A tour that grew a fifth teaching step
+    // would be one more thing between someone and the studio they came for.
+    expect(tourSteps).toHaveLength(4);
+    expect(tourSteps.at(-1)?.target).toBeUndefined();
+    expect(tourSteps.slice(0, -1).every((step) => step.target !== undefined)).toBe(true);
   });
 
   test("every topic earns its place", () => {
