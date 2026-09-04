@@ -1,7 +1,6 @@
 import type { Page } from "@playwright/test";
 
 import { expect, test } from "./toolcraft-product-test";
-import { getToolcraftControlFieldByTarget } from "./browser-control-target-helpers";
 import { pickOption, uploadDesign } from "./mockup-controls";
 import { tourSteps } from "../src/app/tour/tour-steps";
 
@@ -23,6 +22,19 @@ test.setTimeout(600_000);
 
 const card = (page: Page) => page.locator('[data-slot="mockup-tour"]');
 const emailForm = (page: Page) => page.locator('[data-slot="mockup-tour-email"]');
+
+/**
+ * The step's control, reached the way the person in front of it reaches it.
+ *
+ * Deliberately not `getToolcraftControlFieldByTarget`, which opens every
+ * collapsed section before it looks. That helper is right for every other
+ * proof and wrong here: the tour dims the panel outside the one control it is
+ * pointing at, so a press on some other section's header does not land — which
+ * is the whole point of a spotlight, and which this proof discovered by hanging
+ * on one for ten minutes. The tour opens the section its own step needs.
+ */
+const spotlit = (page: Page, target: string) =>
+  page.locator(`[data-toolcraft-control-target="${target}"]`);
 
 async function openAsAPerson(page: Page): Promise<void> {
   await page.addInitScript(() => {
@@ -61,7 +73,7 @@ test("browser: a first-time visitor is walked to the ask, one real action at a t
   // Step one: pick a product. The spotlight has to leave the control usable —
   // this is the whole design of it, and a dim overlay laid over the top would
   // pass every visual check and fail exactly here.
-  await pickOption(await getToolcraftControlFieldByTarget(page, "device.model"), "Tote Bag");
+  await pickOption(spotlit(page, "device.model"), "Tote Bag");
   await expect
     .poll(() => stepNumber(page), { timeout: 30_000 })
     .toBe("2");
@@ -70,11 +82,11 @@ test("browser: a first-time visitor is walked to the ask, one real action at a t
   // A tab does not hide its sections, it unmounts them, so a tour that did not
   // switch would be pointing at nothing at all.
   await expect(
-    page.locator('[data-toolcraft-control-target="artwork.image"]'),
+    spotlit(page, "artwork.image"),
     "The tour must open the tab holding the step's control.",
   ).toBeVisible({ timeout: 15_000 });
 
-  await uploadDesign(await getToolcraftControlFieldByTarget(page, "artwork.image"));
+  await uploadDesign(spotlit(page, "artwork.image"));
   await expect.poll(() => stepNumber(page), { timeout: 60_000 }).toBe("3");
 
   // Step three is a drag on the product itself, which is the gesture nobody
@@ -123,12 +135,57 @@ test("browser: skipping the tour leaves the studio alone, and the gate still ask
   // card would dim the whole app with no way to dismiss it.
   await expect(page.locator('[data-slot="mockup-tour-spotlight"]')).toHaveCount(0);
 
+  // And the panel is fully usable again — the same header that could not be
+  // pressed a moment ago now can. This is the other half of the claim above:
+  // the spotlight really does hold the rest of the studio back while it is up,
+  // and really does let go of it afterwards.
+  const setupHeader = page
+    .locator('[data-slot="control-section-header"] [data-control-section-collapse-button]')
+    .first();
+  await setupHeader.click({ timeout: 10_000 });
+
   // Skipping is not a way to never be asked. The gate is the backstop, and it
   // is the reason skipping can be offered at all.
   await page.getByRole("button", { name: "Export PNG" }).click();
   await expect(page.locator('[data-slot="mockup-signup"]')).toBeVisible({
     timeout: 30_000,
   });
+});
+
+/**
+ * What the spotlight is for, stated rather than discovered.
+ *
+ * The dim is four rectangles around the step's control, so the control is
+ * pressable and nothing else is. That is intentional — it is what keeps someone
+ * on the step — but it is also the reason this file cannot use the shared
+ * control helper, and it cost ten minutes of a hanging click to work out. So it
+ * is asserted here: while the tour is up, a control it is not pointing at does
+ * not take a press.
+ */
+test("browser: the spotlight holds back everything it is not pointing at", async ({
+  page,
+}) => {
+  await openAsAPerson(page);
+  await openStudio(page);
+  await expect(card(page)).toBeVisible({ timeout: 30_000 });
+
+  // The Setup section's header, which is nowhere near step one's control.
+  const setupHeader = page
+    .locator('[data-slot="control-section-header"] [data-control-section-collapse-button]')
+    .first();
+  await expect(setupHeader).toBeVisible();
+  await expect(
+    setupHeader.click({ timeout: 4_000 }),
+    "A control outside the spotlight must not take a press while the tour is up.",
+  ).rejects.toThrow();
+
+  // The step's own control does, which is the half that makes the tour work at
+  // all: a spotlight that blocked its own control would be a dead tour.
+  await expect(
+    spotlit(page, "device.model").locator("[role=combobox]").first(),
+  ).toBeEnabled();
+  await pickOption(spotlit(page, "device.model"), "Tote Bag");
+  await expect.poll(() => stepNumber(page), { timeout: 30_000 }).toBe("2");
 });
 
 /**
