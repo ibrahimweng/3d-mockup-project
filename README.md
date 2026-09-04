@@ -33,10 +33,33 @@ environment variable is required to render, animate or export anything.
 
 ## Collecting emails
 
-After someone's **first** export — never before it, and never twice — a card
-offers to keep them posted. It gates nothing: the export has already happened
-and "Not now" is a real answer, which is what makes it honest to store an
-address at all. Nobody is paying for the tool with it.
+Pressing **Export PNG**, **Export Video** or Ctrl/Cmd-E opens a modal asking for
+an email, and holds the export behind it. Skipping is offered after **eight
+seconds**, which is the point of the delay: the time turns a reflex into a
+choice, so someone who genuinely does not want to leave an address reads why
+first and then gets their file.
+
+It asks on every export until an address is given. A signup the server accepts
+closes it for good; skipping does not, because a skip is not an answer.
+
+It never actually withholds a file. Skip releases the export, and so does a
+failure: if the endpoint is unconfigured or down, the error is shown and the
+export runs anyway. Nobody is ever unable to use this because a database is.
+
+### Reaching the export button at all
+
+The runtime owns both export buttons — they are typed export roles it runs
+itself, and `onPanelAction` is only handed the actions the product owns, so
+there is no press to refuse. The gate catches the click in the **capture phase
+on `document`**, which is an ancestor of the root React attaches its listeners
+to: stopping it there means React never dispatches and the runtime never learns
+the button was pressed. Releasing presses the same button back, the way the
+quick-action palette does, so there is one export path rather than two.
+
+Every part of it fails open. A press is swallowed only when the gate is certain
+it recognised an export button and certain it is armed; anything unexpected
+lets the click through. An ungated export is a much smaller failure than a
+person who cannot export.
 
 ### Why there is a server at all
 
@@ -74,8 +97,9 @@ looks exactly like one that works, and would lose every signup in silence.
 
 ### Reading the list
 
-`/admin` asks for `ADMIN_PASSWORD`, posts it to `/api/emails`, and shows the
-addresses with a **Download CSV** button. The password is compared inside the
+Addresses are pulled, not pushed — nothing arrives in an inbox. Go to
+**`/admin`** on the deployed site: it asks for `ADMIN_PASSWORD`, posts it to
+`/api/emails`, and shows the addresses with a **Download CSV** button. The password is compared inside the
 function against the environment — never in the browser, where a check is
 something anyone can skip by not running it — and the comparison is over
 SHA-256 digests so neither the content nor the length of the secret leaks
