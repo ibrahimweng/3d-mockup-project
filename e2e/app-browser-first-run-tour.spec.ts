@@ -174,16 +174,45 @@ test("browser: the spotlight holds back everything it is not pointing at", async
     .locator('[data-slot="control-section-header"] [data-control-section-collapse-button]')
     .first();
   await expect(setupHeader).toBeVisible();
-  await expect(
-    setupHeader.click({ timeout: 4_000 }),
+  let pressLanded = true;
+  try {
+    await setupHeader.click({ timeout: 4_000 });
+  } catch {
+    pressLanded = false;
+  }
+  expect(
+    pressLanded,
     "A control outside the spotlight must not take a press while the tour is up.",
-  ).rejects.toThrow();
+  ).toBe(false);
 
-  // The step's own control does, which is the half that makes the tour work at
-  // all: a spotlight that blocked its own control would be a dead tour.
-  await expect(
-    spotlit(page, "device.model").locator("[role=combobox]").first(),
-  ).toBeEnabled();
+  /*
+   * And the step's own control must take one, which is the half that makes the
+   * tour work at all.
+   *
+   * Asserted as a hit test rather than by clicking, because a click that lands
+   * is the same observation twice over and a click that does not just times
+   * out with no explanation. This says which element is actually on top: the
+   * panel marks each control with a `display: contents` wrapper, whose box is
+   * `0 × 0 at (0, 0)`, and a hole cut from that box left the dim covering the
+   * whole panel. Every step's own control was unpressable and the only way on
+   * was Skip. `toBeEnabled` and `toBeVisible` both passed throughout.
+   */
+  const onTop = await page.evaluate((target) => {
+    const boundary = document.querySelector(`[data-toolcraft-control-target="${target}"]`);
+    const control = boundary?.querySelector("[role=combobox]");
+    const box = control?.getBoundingClientRect();
+    if (!control || !box) return "no control";
+    const hit = document.elementFromPoint(
+      box.left + box.width / 2,
+      box.top + box.height / 2,
+    );
+    return hit === null || !control.contains(hit) ? "covered" : "reachable";
+  }, "device.model");
+  expect(
+    onTop,
+    "The control the tour is pointing at must be the thing under the pointer.",
+  ).toBe("reachable");
+
   await pickOption(spotlit(page, "device.model"), "Tote Bag");
   await expect.poll(() => stepNumber(page), { timeout: 30_000 }).toBe("2");
 });

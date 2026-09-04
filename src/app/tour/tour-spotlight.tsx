@@ -68,6 +68,45 @@ export function TourSpotlight({
 }
 
 /**
+ * The box an element occupies, looking through the ones that occupy none.
+ *
+ * The panel marks each control with `data-toolcraft-control-target` on a
+ * wrapper styled `display: contents` — it exists to carry the attribute and
+ * deliberately generates no box of its own, so `getBoundingClientRect` on it is
+ * zeros. Measured, not guessed: the model picker's wrapper reported
+ * `0 × 0 at (0, 0)` while the picker itself sat at `1203, 226, 274 × 28`.
+ *
+ * A zero-size box put the hole in the top-left corner of the window, which
+ * meant the dim covered the whole panel including the control the step was
+ * pointing at. `elementFromPoint` on the picker returned the dim. So the tour
+ * silently blocked every step's own control, and there was no way past it but
+ * Skip.
+ *
+ * Hence: when an element has no box, take the union of the boxes of whatever
+ * is inside it. That is the box a person sees, which is the one to cut out.
+ */
+function measureVisibleBox(element: Element): DOMRect | null {
+  const own = element.getBoundingClientRect();
+  if (own.width > 0 && own.height > 0) return own;
+
+  let union: DOMRect | null = null;
+  for (const child of element.children) {
+    const box = measureVisibleBox(child);
+    if (box === null) continue;
+    union =
+      union === null
+        ? box
+        : new DOMRect(
+            Math.min(union.left, box.left),
+            Math.min(union.top, box.top),
+            Math.max(union.right, box.right) - Math.min(union.left, box.left),
+            Math.max(union.bottom, box.bottom) - Math.min(union.top, box.top),
+          );
+  }
+  return union;
+}
+
+/**
  * Follow a live element's box.
  *
  * Polled rather than observed, because there are four ways this box moves and
@@ -92,7 +131,8 @@ export function useSpotlightRect(
 
     let frame = 0;
     const read = (): void => {
-      const box = find()?.getBoundingClientRect() ?? null;
+      const element = find();
+      const box = element === null ? null : measureVisibleBox(element);
       setRect((previous) => {
         if (box === null) return null;
         const next = {
