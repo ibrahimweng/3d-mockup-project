@@ -120,7 +120,10 @@ export function FirstRunTour(): React.JSX.Element | null {
     const started = latest.current;
     startedAt.current = { mediaCount: started.mediaCount, values: { ...started.values } };
 
-    if (step.target === undefined) return;
+    // A canvas step's target is written by dragging the picture, not by a row
+    // in the panel. Sending the panel to the tab that happens to hold that
+    // target would move it for no reason and away from what was just done.
+    if (step.target === undefined || step.spotlight === "canvas") return;
     const location = findControlLocation(step.target);
     if (location === null) return;
 

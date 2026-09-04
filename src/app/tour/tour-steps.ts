@@ -38,6 +38,20 @@ export type TourStep = GuideStep & {
    * this.
    */
   readonly watch?: "media";
+  /**
+   * Other targets that also count as having done the step.
+   *
+   * The canvas step is the one that needs this. It teaches that the picture
+   * answers the pointer, and this canvas has three gestures on it: dragging the
+   * body turns the product, dragging its printed face moves the design, and the
+   * middle button moves the board. Measured on a tote, a drag through the
+   * middle of the picture lands on the print rather than the body and does not
+   * turn anything — and the middle is exactly where someone told to "drag the
+   * product" will grab it. Refusing to advance because they discovered the
+   * other gesture would strand a person who has learned precisely what the step
+   * is for.
+   */
+  readonly alsoWatch?: readonly string[];
 };
 
 export const tourSteps: readonly TourStep[] = [
@@ -56,7 +70,8 @@ export const tourSteps: readonly TourStep[] = [
   },
   {
     action: "Drag the product to turn it",
-    detail: "Drag its screen instead to move the design across it.",
+    detail: "Drag the printed face instead to move the design across it.",
+    alsoWatch: ["artwork.offset"],
     spotlight: "canvas",
     target: "camera.orbit",
   },
@@ -98,8 +113,10 @@ export function isTourStepDone({
 }): boolean {
   if (step.watch === "media") return current.mediaCount > started.mediaCount;
   if (step.target === undefined) return false;
-  return (
-    JSON.stringify(current.values[step.target] ?? null) !==
-    JSON.stringify(started.values[step.target] ?? null)
+
+  return [step.target, ...(step.alsoWatch ?? [])].some(
+    (target) =>
+      JSON.stringify(current.values[target] ?? null) !==
+      JSON.stringify(started.values[target] ?? null),
   );
 }

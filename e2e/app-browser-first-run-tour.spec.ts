@@ -113,15 +113,23 @@ test("browser: a first-time visitor is walked to the ask, one real action at a t
   await uploadDesign(spotlit(page, "artwork.image"));
   await expect.poll(() => stepNumber(page), { timeout: 60_000 }).toBe("3");
 
-  // Step three is a drag on the product itself, which is the gesture nobody
-  // finds on their own and the reason the tour exists.
-  const box = await page.locator("canvas").first().boundingBox();
-  if (!box) throw new Error("The studio drew no canvas to drag.");
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  /*
+   * Step three is a drag on the product itself, which is the gesture nobody
+   * finds on their own and the reason the tour exists.
+   *
+   * Off centre, and measured rather than picked: on a tote the middle of the
+   * picture is the printed face, where a drag moves the design instead of
+   * turning the product. A quarter in from the corner is body on every product
+   * in the catalog. The board is taller than the window, so the drag is placed
+   * as a fraction of the product output's own box.
+   */
+  const box = await page.locator("[data-toolcraft-product-output]").first().boundingBox();
+  if (!box) throw new Error("The studio drew no product output to drag.");
+  const fromX = box.x + box.width * 0.25;
+  const fromY = box.y + box.height * 0.35;
+  await page.mouse.move(fromX, fromY);
   await page.mouse.down();
-  await page.mouse.move(box.x + box.width / 2 + 90, box.y + box.height / 2 + 20, {
-    steps: 12,
-  });
+  await page.mouse.move(fromX + 110, fromY + 30, { steps: 14 });
   await page.mouse.up();
   await expect.poll(() => stepNumber(page), { timeout: 60_000 }).toBe("4");
 

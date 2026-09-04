@@ -136,6 +136,51 @@ describe("knowing when a step is done", () => {
     });
   });
 
+  /**
+   * The canvas step, which teaches that the picture answers the pointer. This
+   * canvas has more than one gesture on it and the step counts any of them,
+   * because a person who found a different one from the one the copy named has
+   * still learned the thing.
+   */
+  describe("the step that asks for a drag", () => {
+    const drag = tourSteps.find((candidate) => candidate.spotlight === "canvas");
+
+    test("turning the product counts", () => {
+      expect(
+        isTourStepDone({
+          current: { mediaCount: 0, values: { "camera.orbit": { position: [1, 0, 0] } } },
+          started: { mediaCount: 0, values: { "camera.orbit": { position: [0, 0, 1] } } },
+          step: drag!,
+        }),
+      ).toBe(true);
+    });
+
+    /**
+     * Measured on a tote: a drag through the middle of the picture lands on
+     * the printed face and moves the design rather than turning the product —
+     * and the middle is where someone told to drag the product will grab it.
+     */
+    test("moving the design counts too", () => {
+      expect(
+        isTourStepDone({
+          current: { mediaCount: 0, values: { "artwork.offset": { x: 0.2, y: 0 } } },
+          started: { mediaCount: 0, values: { "artwork.offset": { x: 0, y: 0 } } },
+          step: drag!,
+        }),
+      ).toBe(true);
+    });
+
+    test("a panel control moving does not", () => {
+      expect(
+        isTourStepDone({
+          current: { mediaCount: 0, values: { "device.spin": 40 } },
+          started: { mediaCount: 0, values: { "device.spin": 0 } },
+          step: drag!,
+        }),
+      ).toBe(false);
+    });
+  });
+
   test("the closing step is never done by anything happening in the studio", () => {
     const ask = tourSteps.at(-1);
     expect(ask).toBeDefined();
