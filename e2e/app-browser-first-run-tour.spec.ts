@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 
 import { expect, test } from "./toolcraft-product-test";
-import { pickOption, uploadDesign } from "./mockup-controls";
+import { uploadDesign } from "./mockup-controls";
 import { tourSteps } from "../src/app/tour/tour-steps";
 
 /**
@@ -35,6 +35,30 @@ const emailForm = (page: Page) => page.locator('[data-slot="mockup-tour-email"]'
  */
 const spotlit = (page: Page, target: string) =>
   page.locator(`[data-toolcraft-control-target="${target}"]`);
+
+/**
+ * Choose from the spotlit select, and do not look back at it.
+ *
+ * Deliberately not `pickOption`, whose last line waits for the trigger to show
+ * what was chosen. That is the right check everywhere else and cannot hold
+ * here: measured, the tour is on the next step and the panel is on the next tab
+ * within 200ms of the choice, so the select this would read is already
+ * unmounted. What the choice did is asserted by the step advancing, which is
+ * the thing actually worth knowing.
+ */
+async function pickFromSpotlight(
+  page: Page,
+  target: string,
+  label: string,
+): Promise<void> {
+  await spotlit(page, target).locator("[role=combobox]").first().click();
+  await page
+    .locator("[role=listbox]:visible [role=option]", {
+      hasText: new RegExp(`^${label}$`),
+    })
+    .first()
+    .click();
+}
 
 async function openAsAPerson(page: Page): Promise<void> {
   await page.addInitScript(() => {
@@ -73,7 +97,7 @@ test("browser: a first-time visitor is walked to the ask, one real action at a t
   // Step one: pick a product. The spotlight has to leave the control usable —
   // this is the whole design of it, and a dim overlay laid over the top would
   // pass every visual check and fail exactly here.
-  await pickOption(spotlit(page, "device.model"), "Tote Bag");
+  await pickFromSpotlight(page, "device.model", "Tote Bag");
   await expect
     .poll(() => stepNumber(page), { timeout: 30_000 })
     .toBe("2");
@@ -213,7 +237,7 @@ test("browser: the spotlight holds back everything it is not pointing at", async
     "The control the tour is pointing at must be the thing under the pointer.",
   ).toBe("reachable");
 
-  await pickOption(spotlit(page, "device.model"), "Tote Bag");
+  await pickFromSpotlight(page, "device.model", "Tote Bag");
   await expect.poll(() => stepNumber(page), { timeout: 30_000 }).toBe("2");
 });
 
