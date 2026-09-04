@@ -150,6 +150,23 @@ export function SignupCard(): React.JSX.Element | null {
               ? "You're on the list, and we won't ask again."
               : "Leave your email and we'll tell you when new products, finishes and templates land. Nothing else, never shared, and one click to leave."}
           </p>
+          {status === "saved" ? null : (
+            /*
+             * Linked where the promise is made rather than only in a footer,
+             * because "never shared" is a claim and someone deciding whether
+             * to believe it should be one click from the page that spells it
+             * out. Opens in a tab of its own so a half-typed address and a
+             * held export both survive the reading.
+             */
+            <a
+              className="text-xs underline underline-offset-2 text-[color:color-mix(in_oklab,var(--popover-foreground)_55%,transparent)] hover:text-[color:var(--popover-foreground)]"
+              href="/privacy"
+              rel="noreferrer"
+              target="_blank"
+            >
+              What we do with it
+            </a>
+          )}
         </div>
 
         {status === "saved" ? null : (
