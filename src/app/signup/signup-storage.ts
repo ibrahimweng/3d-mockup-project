@@ -1,42 +1,57 @@
 /**
- * Whether this browser has already been asked.
+ * Whether this browser has already given an address.
  *
- * Wrapped for the same reason the welcome card's storage is: reading storage
- * throws rather than returning null in a private window with site data blocked
- * and in an embedded webview with storage partitioned off. The two failures are
- * not equal, though, so they resolve in opposite directions — a studio that
- * cannot remember should never nag, and asking twice is worse than never
- * asking, so a failure to read means "already asked".
+ * One flag, and it only ever gets set by a signup the server accepted. Skipping
+ * does not set it: the studio asks again on the next export, which is the whole
+ * shape of this — the question is asked until it is answered, and then never
+ * again.
  *
- * This is a courtesy, not a lock. Clearing site data or opening a private
- * window asks again, and nothing here pretends otherwise: the card gates
- * nothing, so the worst a bypass wins is a second sight of it.
+ * Wrapped because reading storage throws rather than returning null in a
+ * private window with site data blocked and in an embedded webview with storage
+ * partitioned off. A browser that cannot remember is one where "never again"
+ * cannot be honoured across visits, so the session keeps its own copy: someone
+ * who signs up is not asked twice in the same sitting, even where nothing can
+ * be written down. Next visit asks again, which is the honest consequence of a
+ * browser that forgets.
  */
 
-const askedStorageKey = "mockup-studio:asked-for-email:v1";
+const givenStorageKey = "mockup-studio:email-given:v1";
 
-export function hasBeenAskedForEmail(): boolean {
+let givenThisSession = false;
+
+export function hasGivenEmail(): boolean {
+  if (givenThisSession) return true;
+
   try {
-    return window.localStorage.getItem(askedStorageKey) === "true";
+    return window.localStorage.getItem(givenStorageKey) === "true";
   } catch {
-    return true;
+    return false;
   }
 }
 
-export function rememberAskedForEmail(): void {
+export function rememberEmailGiven(): void {
+  givenThisSession = true;
+
   try {
-    window.localStorage.setItem(askedStorageKey, "true");
+    window.localStorage.setItem(givenStorageKey, "true");
   } catch {
-    // Nothing to do. The card may show once more, which is survivable.
+    // Nothing to do. The session flag above still spares them a second ask
+    // today, and tomorrow is a browser that cannot remember anything.
   }
+}
+
+/** For tests, which must not leak one case's storage into the next. */
+export function forgetEmailGivenForTests(): void {
+  givenThisSession = false;
 }
 
 /**
  * Whether a machine is driving this session.
  *
- * Every browser proof opens a fresh profile, so every proof is a first export,
- * so every proof would meet this card sitting over whatever it was about to
- * assert. An automated session is not someone to ask for an email address.
+ * Every browser proof opens a fresh profile, so every proof would meet the gate
+ * standing between it and the export it came to assert. An automated session is
+ * not someone to ask for an email address, and a proof that has to dismiss a
+ * modal before every export is a proof measuring the modal.
  */
 export function isAutomatedSession(): boolean {
   try {
