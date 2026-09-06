@@ -88,6 +88,29 @@ the same place.
 `src/app/studio-boundary.tsx` sits outside the app for anything else, since the
 throw that mattered happened as the canvas mounted.
 
+## Using it without a mouse
+
+The canvas is the studio, and it was a blank element to anything that could not
+see it. No name, no role, nothing to land on with Tab, and no way to turn the
+product, which is the main thing the studio is for. The tour's third step is
+"drag the product to turn it", and a keyboard user could not finish it.
+
+It is now a focus stop with a name that says which product it is holding and
+what the arrows do. Arrow keys turn the product once it has focus, and Shift
+makes each press three times bigger. They write the same value a drag writes,
+through the same `turn` in `src/app/view-orbit.ts`, so the two are one gesture
+rather than two that resemble each other. Off the canvas the arrows keep their
+old job of moving the product across the frame, and `keyboard-shortcuts.ts`
+says that in as many words rather than relying on which listener runs first.
+
+The export card said `role="dialog"` and `aria-modal="true"` and did neither of
+the things that claim promises. Nothing held Tab inside it, so a screen reader
+hid the page while the keyboard walked out into it, and Escape did nothing at
+all. `src/app/modal-focus.ts` now holds focus inside, hands it back where it
+came from, and answers Escape by releasing the export rather than cancelling
+it. That last part is the point: this card stands between somebody and a file
+they asked for, so the key that means "leave me alone" has to hand it over.
+
 ## Small screens
 
 The studio asks for a window at least 720 pixels wide, and says so rather than

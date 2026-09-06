@@ -8,6 +8,7 @@ import {
   releaseExport,
   type ExportLabel,
 } from "./export-gate";
+import { useModalFocus } from "../modal-focus";
 import { setExportGateOpen } from "./gate-visibility";
 import { rememberEmailAskSkipped } from "./signup-storage";
 import { useEmailSignup } from "./use-email-signup";
@@ -42,6 +43,7 @@ export function SignupCard(): React.JSX.Element | null {
   // Set when the export could not be started again after the gate let go of
   // it. Rare, and silent until now, which is the worst way for it to be rare.
   const [couldNotStart, setCouldNotStart] = React.useState(false);
+  const cardRef = React.useRef<HTMLElement | null>(null);
   // Shared with the tour's closing step, which asks the same thing in a
   // different frame. One request, one place that decides a save was accepted.
   const { message, reset, status, submit } = useEmailSignup("export-gate");
@@ -93,6 +95,26 @@ export function SignupCard(): React.JSX.Element | null {
     setHeld(null);
   }, []);
 
+  /*
+   * Escape lets the export through rather than cancelling it.
+   *
+   * This card is between someone and a file they asked for, so the way out has
+   * to hand it over. Closing on Escape and keeping the export back would make
+   * the key that means "leave me alone" the one that quietly loses their work.
+   * It is the same thing the Skip button does, which is the point: there is one
+   * way out and two ways to reach it.
+   */
+  const escape = React.useCallback(() => {
+    if (couldNotStart) {
+      dismiss();
+      return;
+    }
+    if (status === "sending") return;
+    release();
+  }, [couldNotStart, dismiss, release, status]);
+
+  useModalFocus({ onEscape: escape, open: held !== null, ref: cardRef });
+
   const send = React.useCallback(
     async (event: React.FormEvent) => {
       event.preventDefault();
@@ -137,6 +159,8 @@ export function SignupCard(): React.JSX.Element | null {
       <aside
         aria-labelledby="mockup-signup-title"
         aria-modal="true"
+        ref={cardRef}
+        tabIndex={-1}
         className="floating-popup-surface flex w-[min(26rem,100%)] flex-col gap-4 rounded-2xl border p-6 text-[color:var(--popover-foreground)] shadow-2xl"
         data-slot="mockup-signup"
         role="dialog"

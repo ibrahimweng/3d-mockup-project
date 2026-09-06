@@ -60,7 +60,7 @@ const claimsOrbit = claimsViewOrbit;
  * done in spherical terms: yaw around world up, pitch clamped short of the
  * pole so the view never flips over the top.
  */
-function turn(
+export function turn(
   pose: ToolcraftOrientationPose,
   deltaX: number,
   deltaY: number,
@@ -185,4 +185,69 @@ export function useViewOrbit(): ViewOrbitHandlers {
     onPointerMove,
     onPointerUp: finish,
   };
+}
+
+/** One arrow press, in the pixels a drag would have had to cover. */
+const PIXELS_PER_PRESS = 15;
+const PIXELS_PER_PRESS_WITH_SHIFT = 45;
+
+const ARROW_TURNS: Readonly<Record<string, { x: number; y: number }>> = {
+  ArrowDown: { x: 0, y: -1 },
+  ArrowLeft: { x: -1, y: 0 },
+  ArrowRight: { x: 1, y: 0 },
+  ArrowUp: { x: 0, y: 1 },
+};
+
+/**
+ * Turn the product from the keyboard, once the canvas has focus.
+ *
+ * Dragging was the only way to do this, which made the main thing the studio is
+ * for unreachable without a mouse. The tour's third step is "drag the product
+ * to turn it", and a keyboard user could not complete it. They can now, because
+ * this writes the same value the drag writes, through the same shared `turn`.
+ *
+ * On the canvas rather than on the window, so the arrows keep their existing
+ * meaning everywhere else. The panel's own arrows move the product across the
+ * frame, and one pair of keys cannot do both jobs at once. Focus is what says
+ * which job is being asked for, which is also why the canvas is now something a
+ * person can focus in the first place.
+ *
+ * Every press is its own history entry rather than one merged group, because a
+ * press is a discrete decision and undo should take back one of them. A drag is
+ * merged because a drag is one continuous movement.
+ */
+export function useCanvasKeyboardOrbit(): (
+  event: React.KeyboardEvent<HTMLCanvasElement>,
+) => boolean {
+  const dispatch = useToolcraftDispatch();
+  const { state } = useToolcraft();
+  const poseRef = React.useRef<ToolcraftOrientationPose>(
+    readToolcraftOrientationPose(state.values[TARGET]),
+  );
+  poseRef.current = readToolcraftOrientationPose(state.values[TARGET]);
+
+  return React.useCallback(
+    (event: React.KeyboardEvent<HTMLCanvasElement>): boolean => {
+      // Every modifier but Shift belongs to some other shortcut, here or in the
+      // browser, and Alt with an arrow is the browser's own Back and Forward.
+      if (event.altKey || event.ctrlKey || event.metaKey) return false;
+      const direction = ARROW_TURNS[event.key];
+      if (!direction) return false;
+
+      const step = event.shiftKey ? PIXELS_PER_PRESS_WITH_SHIFT : PIXELS_PER_PRESS;
+      // The page would scroll otherwise, which on a full-window canvas moves
+      // the whole studio a little and looks like a fault.
+      event.preventDefault();
+      event.stopPropagation();
+
+      dispatch({
+        label: HISTORY_LABEL,
+        target: TARGET,
+        type: "controls.setValue",
+        value: turn(poseRef.current, direction.x * step, direction.y * step),
+      });
+      return true;
+    },
+    [dispatch],
+  );
 }

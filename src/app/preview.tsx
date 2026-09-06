@@ -18,9 +18,13 @@ import { useScenePreset } from "./apply-scene-preset";
 import { useArtworkZoneCorrection } from "./artwork-zone";
 import { useSurfaceFraming } from "./apply-surface-framing";
 import { useDesignDrag } from "./design-drag";
-import { useViewOrbit } from "./view-orbit";
+import { useCanvasKeyboardOrbit, useViewOrbit } from "./view-orbit";
 import { useViewPan } from "./view-pan";
-import { readDeviceDefinition, type ArtworkZoneId } from "./product-domain";
+import {
+  readDeviceDefinition,
+  readDeviceId,
+  type ArtworkZoneId,
+} from "./product-domain";
 import {
   setSceneStatus,
   useSceneRetryCount,
@@ -107,6 +111,7 @@ export function MockupPreview(): React.ReactElement {
 
   // Infinity mode hands the renderer a frame cut from the set rather than an
   // artboard, and the camera composes for the two differently.
+  const onCanvasKeyDown = useCanvasKeyboardOrbit();
   const canvasMode = frame.kind === "infinite" ? "infinite" : "finite";
   const settings = React.useMemo(
     () => readRasterSettings(values, canvasMode),
@@ -706,8 +711,20 @@ export function MockupPreview(): React.ReactElement {
     return () => cancelAnimationFrame(handle);
   }, [publishObservation, quality]);
 
+  const productName = readDeviceDefinition(
+    readDeviceId(values["device.model"]),
+  ).label;
+
   return (
     <canvas
+      /*
+       * The name of the one thing this whole app is.
+       *
+       * A canvas is a blank element to anything that cannot see it, so without
+       * this the studio's entire output was not there at all: no name, no role,
+       * nothing to land on with Tab, and nothing said about what it holds.
+       */
+      aria-label={`${productName}, lit and turned in a studio. Arrow keys turn it.`}
       className={styles.surface}
       // The design is dragged on this surface, so this surface is the handle.
       // There is no chrome to drag instead: the affordance is the design
@@ -715,9 +732,27 @@ export function MockupPreview(): React.ReactElement {
       data-testid="toolcraft-product-output"
       data-toolcraft-canvas-handle
       data-toolcraft-product-output
+      onKeyDown={(event) => {
+        if (onCanvasKeyDown(event)) return;
+      }}
       ref={canvasRef}
+      /*
+       * A focus stop, because the arrows only turn the product once this has
+       * focus. Reaching it with Tab is the whole way in for anyone not using a
+       * pointer, and the browser's own focus ring is left alone so it is
+       * visible when they get here.
+       */
+      tabIndex={0}
       {...orbitHandlers}
       {...pointerHandlers}
-    />
+    >
+      {/*
+        * Read instead of the picture by anything that cannot render it. The
+        * element's own children are what a browser shows when it cannot draw a
+        * canvas, and what a screen reader reads.
+        */}
+      A 3D preview of the {productName}. Use the arrow keys to turn it, and the
+      controls beside it to change the product, its design and its lighting.
+    </canvas>
   );
 }
