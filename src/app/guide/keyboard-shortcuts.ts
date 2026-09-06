@@ -40,6 +40,18 @@ export function useMockupKeyboardShortcuts(values: Record<string, unknown>): voi
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (isTypingTarget(event.target)) return;
+      /*
+       * The canvas owns the arrows while it has focus, and it turns the
+       * product with them. These move it across the frame instead, and one
+       * pair of keys cannot do both jobs at once.
+       *
+       * Said here rather than left to the canvas stopping the event on its way
+       * past. That would work today and is exactly the arrangement that let
+       * the export gate answer Ctrl-E over the top of this handler: a rule
+       * that only holds because of which listener runs first is a rule nobody
+       * can read.
+       */
+      if (event.target instanceof HTMLCanvasElement) return;
       const accel = event.metaKey || event.ctrlKey;
 
       if (accel && event.key.toLowerCase() === "e") {

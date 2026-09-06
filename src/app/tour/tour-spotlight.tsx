@@ -42,9 +42,19 @@ export function TourSpotlight({
   return (
     <div aria-hidden="true" data-slot="mockup-tour-spotlight">
       <div className={dim} style={{ height: top, left: 0, right: 0, top: 0 }} />
+      {/*
+        * `dvh`, not `vh`.
+        *
+        * On a phone `100vh` is the window with the browser's own toolbar
+        * hidden, which is taller than what is actually on screen. This panel is
+        * pinned to the bottom and sized by subtraction, so the extra height
+        * pushed its top edge up and over the very control the step was pointing
+        * at. That is the fault the four rectangles exist to avoid, arrived at
+        * from the other direction. `dvh` is the height that is really there.
+        */}
       <div
         className={dim}
-        style={{ bottom: 0, height: `calc(100vh - ${bottom}px)`, left: 0, right: 0 }}
+        style={{ bottom: 0, height: `calc(100dvh - ${bottom}px)`, left: 0, right: 0 }}
       />
       <div
         className={dim}
