@@ -4,23 +4,14 @@ import type { ToolcraftCommand } from "@/toolcraft/runtime";
 import { useToolcraftDispatch } from "@/toolcraft/runtime/react";
 
 import { activateQuickActionPanelButton } from "../quick-actions/quick-action-reveal";
+import { isTypingTarget } from "../typing-target";
 
-/**
- * Whether a keystroke belongs to whatever the person is typing into.
- *
- * Space is play/pause and the arrows nudge the device — both of which would be
+/*
+ * Space is play/pause and the arrows nudge the device, both of which would be
  * infuriating while typing a canvas width or a hex colour. Every shortcut here
- * stands down when the focus is in a field.
+ * stands down when the focus is in a field, and `isTypingTarget` is the one
+ * copy of that rule, shared with the export gate that listens in front of it.
  */
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  if (target.isContentEditable) return true;
-  const tag = target.tagName;
-  // A range input is a slider, not a field: the arrows are its own and it
-  // handles them itself, so this only has to stay out of text entry.
-  if (tag === "INPUT") return (target as HTMLInputElement).type !== "range";
-  return tag === "TEXTAREA" || tag === "SELECT";
-}
 
 /** How far one arrow press moves the device, as a percentage of its own size. */
 const nudgeStep = 1;

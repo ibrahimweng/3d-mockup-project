@@ -1,0 +1,101 @@
+name: CI
+
+# Every check this repository defines, on every push and every pull request.
+# The project has an unusually thorough verification system and nothing was
+# running it, so three of its gates had been failing on main for six merged
+# pull requests before anyone noticed.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Types, docs and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # Kept as separate steps rather than one chained command so a failure
+      # names which gate broke without anyone reading the log.
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Documentation
+        run: npm run docs:check
+
+      # This also runs docs:check and the script tests, which is how the
+      # project defines it. The important part is the acceptance evidence
+      # reporter, which fails when a requirement names a test that is not there.
+      - name: Tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  boundary:
+    name: Product boundary
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # `npm run ai:check` reports three known violations, explained in
+      # .github/product-boundary-baseline.txt. Comparing against that list
+      # keeps the check running and still fails on anything new, which is what
+      # a suppressed check cannot do.
+      - name: Compare against the recorded boundary baseline
+        run: |
+          set -o pipefail
+          npm run ai:check > boundary.txt 2>&1 || true
+
+          # One line per violation, as "<file> <imported name>", so a shifted
+          # line number does not read as a new problem.
+          grep -oE '^- src/[^:]+:[0-9]+:[0-9]+: .* internals [A-Za-z0-9_]+ from ' boundary.txt \
+            | sed -E 's/^- ([^:]+):.* internals ([A-Za-z0-9_]+) from $/\1 \2/' \
+            | sort > found.txt
+
+          grep -vE '^\s*(#|$)' .github/product-boundary-baseline.txt | sort > expected.txt
+
+          echo "Reported:"; cat found.txt
+          echo
+
+          if ! diff -u expected.txt found.txt; then
+            echo
+            echo "The product boundary violations changed."
+            echo "A line marked + is new and needs fixing, not recording."
+            echo "A line marked - is fixed, so remove it from"
+            echo ".github/product-boundary-baseline.txt."
+            exit 1
+          fi
+
+          # Anything the check reports that is not an import violation is not
+          # covered by the baseline, so it has to fail the build on its own.
+          if grep -qE '^- ' boundary.txt && [ ! -s found.txt ]; then
+            echo "ai:check reported something the baseline does not describe:"
+            cat boundary.txt
+            exit 1
+          fi
+
+          echo "Boundary violations match the recorded baseline."

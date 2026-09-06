@@ -31,6 +31,88 @@ There are two serverless functions in `api/`, and the studio works without them:
 they exist only for the email list below. Nothing else needs a server, and no
 environment variable is required to render, animate or export anything.
 
+## Checks
+
+Every check this repository defines runs on every push and pull request, from
+`.github/workflows/ci.yml`:
+
+| Command | What it holds |
+| --- | --- |
+| `npm run typecheck` | Types, strictly |
+| `npm run docs:check` | The docs match what the code does |
+| `npm test` | 794 unit tests, plus the acceptance evidence reporter |
+| `npm run build` | The bundle actually builds |
+| `npm run ai:check` | The product boundary, against a recorded baseline |
+
+The boundary check is the one that needs explaining. It reports three
+violations, all in `src/app/render/device-assets.ts`, which imports three.js
+loaders directly. The rule says product code must not parse models, so that a
+product does not rebuild the runtime's upload pipeline, and that is right for a
+model somebody drops in. This app does something the rule did not anticipate: it
+ships nine models of its own and loads them from `public/models` by URL, and the
+runtime's pipeline has no entry point for a catalog the app already owns.
+
+So the three are recorded in `.github/product-boundary-baseline.txt` and the CI
+job compares against that list. Anything new fails the build, which a suppressed
+check could not do. The file says what would have to change to get to zero.
+
+Before this, nothing ran any of it. `npm test` had been failing on `main` since
+3 September, through six merged pull requests, on an acceptance requirement that
+named a test nobody had written. That test now exists, and it found a real fault
+while it was being written: leave a shirt on its left sleeve, switch to the ID
+card, and the Design tab had no upload box on it at all. The card's picker
+offers a front and a back, the value it inherited was a sleeve, and no uploader
+is gated on a sleeve a card does not have.
+
+## When something goes wrong
+
+Three things can fail in front of somebody, and all three now say so.
+
+**A product that is still loading.** They are between 0.7 and 19 megabytes and
+the environment map is another 1.6, so choosing a MacBook is several seconds in
+which the previous product is still lit while every control reads the new one. A
+note over the canvas names what is loading.
+
+**A product that did not load.** This used to reach `console.error` and nowhere
+else, so the old product stayed on screen for good with nothing to press. There
+is now a message and a **Try again** button. Keeping the last scene is still
+right; being the only thing that happens was not.
+
+**A browser with no WebGL.** `new THREE.WebGLRenderer` throws, and with no error
+boundary anywhere the throw unwound React and left a white page with no words on
+it. It now says what is missing and that nothing has been uploaded, because the
+first thing anyone wonders about a broken page is where their file went. Losing
+the drawing context later, which a driver reset does without an error, lands in
+the same place.
+
+`src/app/studio-boundary.tsx` sits outside the app for anything else, since the
+throw that mattered happened as the canvas mounted.
+
+## Small screens
+
+The studio asks for a window at least 720 pixels wide, and says so rather than
+trying below it. That is a decision and not a gap. The layout is a full-window
+3D canvas beside a control column, both owned by the Toolcraft runtime, so a
+narrow layout is a change to the runtime rather than to this app. The note is
+one screen with **Open it anyway** on it, because this measures the window and
+not the device: a split screen and a tablet held upright both land there, and
+neither is a phone.
+
+## The picture a shared link shows
+
+`public/social-preview.jpg` is a real export from this studio. The default phone
+with a design on its display, turned, lit by the opening preset, rendered by the
+app itself and laid beside the product name at 1200 by 630.
+`npm run preview:social` builds it again from `dist`, driving the app the way a
+person would.
+
+What used to be there pointed at `toolcraft.sh`, so every link anyone shared
+showed an advertisement for the framework rather than for this. The paths in
+`index.html` are relative because this repository does not know its own domain.
+Slack and most crawlers resolve those. Facebook and LinkedIn want them absolute,
+so when there is a domain, put it in front of the three paths and add a
+canonical link.
+
 ## The first visit
 
 A first-time visitor is walked through four steps on the studio's own controls,
@@ -46,11 +128,11 @@ transparent middle, because the hole has to be a real hole: the step is "use thi
 control", so the control has to be usable, and anything covering it — even
 something fully transparent — is between the pointer and the thing.
 
-The last step asks for an email, with a skip offered immediately rather than
-after a countdown. The export gate below makes people wait eight seconds before
-it offers a way out, and that is right there because something is being withheld.
-Here nothing is: they have just been given a tour, and a timed lock would be the
-studio charging for a favour it already did.
+The last step asks for an email, with a skip offered immediately. So does the
+export gate below. It used to hold its skip back for eight seconds, on the
+reasoning that the delay turns a reflex into a choice. What a forced wait
+actually does is take the file someone came for and hand it back slowly, and the
+people it lands on hardest are the ones who would have signed up anyway.
 
 It runs once. The flag is site data, so clearing the browser's storage brings it
 back — deliberately, because nothing else here identifies a visitor and a
@@ -60,13 +142,15 @@ first-run experience should not need to.
 
 The tour's last step is the first ask. The export gate is the second, and the
 backstop for everyone who skipped: pressing **Export PNG**, **Export Video** or
-Ctrl/Cmd-E opens a modal asking for an email, and holds the export behind it. Skipping is offered after **eight
-seconds**, which is the point of the delay: the time turns a reflex into a
-choice, so someone who genuinely does not want to leave an address reads why
-first and then gets their file.
+Ctrl/Cmd-E opens a modal asking for an email, and holds the export behind it.
+Skipping is offered straight away.
 
-It asks on every export until an address is given. A signup the server accepts
-closes it for good; skipping does not, because a skip is not an answer.
+It asks once a sitting rather than once an export. Somebody saving ten
+variations of one shot is one person doing one job, and putting the same
+question in front of them ten times is not asking, it is standing in the way. A
+signup the server accepts closes it for good. A skip closes it until the page is
+loaded again, because a skip is not an answer, and asking again tomorrow is
+different from asking again in ninety seconds.
 
 It never actually withholds a file. Skip releases the export, and so does a
 failure: if the endpoint is unconfigured or down, the error is shown and the
@@ -167,6 +251,23 @@ ask whether the note is still true.
 Deleting one address is `HDEL mockup-studio:emails <address>` from the Upstash
 console. The contact address and the operator name are two constants at the top
 of `src/routes/privacy.tsx`.
+
+## What the licence covers
+
+The MIT licence in `LICENSE.md` covers the code. It does not settle the models.
+
+`public/textures/CREDITS.md` records that all 21 texture maps are written by
+three scripts in this repository, so those are the repository's own and MIT
+along with everything else. `public/hdri/CREDITS.md` records that the four
+environment maps are CC0 from Poly Haven.
+
+`public/models/CREDITS.md` is the one with gaps in it, and they are marked.
+Nothing here records where any of the nine models came from, and five of them
+are rebuilt by the prep scripts from sources `.gitignore` calls "licensed
+assets, not redistributable". The built files are committed and served from
+`/models/`, where anybody can download them. Whether that is allowed depends on
+licences this repository does not have a copy of. That file says what has to be
+filled in and what each answer would mean.
 
 ## Devices
 

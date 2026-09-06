@@ -40,9 +40,33 @@ export function rememberEmailGiven(): void {
   }
 }
 
+/**
+ * Whether the ask has already been turned down in this sitting.
+ *
+ * A skip is not an answer, so the studio asks again on the next visit. It does
+ * not ask again on the next export. Someone exporting ten variations of one
+ * shot for a client is one person doing one job, and putting the same question
+ * in front of them ten times reads as the studio not listening rather than as
+ * the studio asking.
+ *
+ * Held in memory rather than in storage, which is what makes it "this sitting"
+ * and not "for good". Reloading the page asks again, and so does coming back
+ * tomorrow, so nothing is given up except the repetition.
+ */
+let skippedThisSession = false;
+
+export function hasSkippedEmailAsk(): boolean {
+  return skippedThisSession;
+}
+
+export function rememberEmailAskSkipped(): void {
+  skippedThisSession = true;
+}
+
 /** For tests, which must not leak one case's storage into the next. */
 export function forgetEmailGivenForTests(): void {
   givenThisSession = false;
+  skippedThisSession = false;
 }
 
 /**

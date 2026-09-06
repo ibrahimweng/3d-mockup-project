@@ -21,6 +21,10 @@ import { useDesignDrag } from "./design-drag";
 import { useViewOrbit } from "./view-orbit";
 import { useViewPan } from "./view-pan";
 import { readDeviceDefinition, type ArtworkZoneId } from "./product-domain";
+import {
+  setSceneStatus,
+  useSceneRetryCount,
+} from "./render/scene-status";
 import { fingerprint } from "./render/fingerprint";
 import { RasterRenderer } from "./render/raster-renderer";
 import { createScreenPainter, createScreenTexture } from "./render/screen-texture";
@@ -224,18 +228,63 @@ export function MockupPreview(): React.ReactElement {
   React.useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
-    const renderer = new RasterRenderer(canvas, {
-      antialias: (window.devicePixelRatio || 1) < 2,
-    });
+
+    let renderer: RasterRenderer;
+    try {
+      renderer = new RasterRenderer(canvas, {
+        antialias: (window.devicePixelRatio || 1) < 2,
+      });
+    } catch (error: unknown) {
+      /*
+       * No WebGL, and this is the only place that can tell.
+       *
+       * three.js throws out of the constructor when it cannot get a context,
+       * and this effect had nothing around it, so the throw unwound React and
+       * left a white page with no words on it. Everything the studio does is
+       * this renderer, so there is no reduced version to fall back to. What
+       * there is instead is a sentence saying what is wrong, which is the
+       * difference between a broken app and an app that cannot run here.
+       */
+      console.error("WebGL is not available", error);
+      setSceneStatus({ kind: "unavailable" });
+      return undefined;
+    }
+
     // A studio swapped in place changes the lighting without rebuilding the
     // scene, so the frame has to be invalidated when it finishes convolving.
     renderer.onEnvironmentReady = () => {
       dirtyRef.current = true;
     };
+    renderer.onSceneLoad = (device) => {
+      setSceneStatus({ device, kind: "loading" });
+    };
+    renderer.onSceneLoaded = () => setSceneStatus({ kind: "ready" });
+    renderer.onSceneFailed = (device) => {
+      setSceneStatus({ device, kind: "failed" });
+    };
+
+    /*
+     * A context lost is a scene gone, and it happens without an error.
+     *
+     * A driver reset, a machine waking from sleep, or too many contexts open
+     * across tabs all take the context away. Everything drawn afterwards goes
+     * nowhere, so without this the canvas simply stops, looking exactly like a
+     * studio that has finished loading and has nothing to show.
+     */
+    const onContextLost = (event: Event) => {
+      event.preventDefault();
+      setSceneStatus({ kind: "unavailable" });
+    };
+    canvas.addEventListener("webglcontextlost", onContextLost);
+
     rendererRef.current = renderer;
     return () => {
+      canvas.removeEventListener("webglcontextlost", onContextLost);
       rendererRef.current = null;
       renderer.onEnvironmentReady = null;
+      renderer.onSceneLoad = null;
+      renderer.onSceneLoaded = null;
+      renderer.onSceneFailed = null;
       renderer.dispose();
     };
   }, []);
@@ -243,6 +292,7 @@ export function MockupPreview(): React.ReactElement {
   // Model and environment load asynchronously, so the scene announces itself
   // when ready rather than the first frame racing an empty scene. Switching
   // device runs through the same path.
+  const retryCount = useSceneRetryCount();
   React.useEffect(() => {
     const renderer = rendererRef.current;
     if (!renderer) return;
@@ -262,7 +312,10 @@ export function MockupPreview(): React.ReactElement {
     // is one dependency list away from leaving a repainted model on screen
     // wearing its old colours until the user orbits.
     dirtyRef.current = true;
-  }, [settings]);
+    // `retryCount` is not read here. It is listed so that pressing Retry after
+    // a failed load runs this again, which is a real attempt rather than a
+    // cache hit: the renderer clears its own scene key when a build fails.
+  }, [retryCount, settings]);
 
   const artworkUrl = urls.get(zoneAssets.get("front")?.id ?? "") ?? null;
   /**

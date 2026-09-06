@@ -8,6 +8,7 @@ import { MockupPreview } from "./preview";
 import { GuideRuntime } from "./guide/guide-runtime";
 import { guideSignal } from "./guide/open-signal";
 import { QuickActionDialog } from "./quick-actions/quick-action-dialog";
+import { SceneReport } from "./render/scene-report";
 import { SignupCard } from "./signup/signup-card";
 import { openQuickActions } from "./quick-actions/quick-action-open";
 import { readDeviceDefinition, readDeviceId } from "./product-domain";
@@ -21,6 +22,7 @@ export const appComposition: ToolcraftAppComposition = {
   canvasContent: (
     <>
       <MockupPreview />
+      <SceneReport />
       <QuickActionDialog />
       <GuideRuntime />
       <SignupCard />

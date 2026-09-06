@@ -157,6 +157,17 @@ export class RasterRenderer {
   private pendingReady: (() => void) | null = null;
   /** Called when a swapped-in studio has finished convolving. */
   onEnvironmentReady: (() => void) | null = null;
+  /**
+   * Called as a product starts loading, when it lands, and when it does not.
+   *
+   * Optional, and separate from `onReady`, which is the caller's own callback
+   * for a scene it asked for. These say what is happening rather than what to
+   * do about it, so the surface that reports to the person can listen without
+   * the renderer knowing anything about it.
+   */
+  onSceneLoad: ((device: string) => void) | null = null;
+  onSceneLoaded: (() => void) | null = null;
+  onSceneFailed: ((device: string) => void) | null = null;
 
   readonly renderer: THREE.WebGLRenderer;
 
@@ -242,6 +253,9 @@ export class RasterRenderer {
     }
 
     this.lastKey = key;
+    // Said out loud, because from here until the promise settles the picture on
+    // screen is the previous product while every control reads the new one.
+    this.onSceneLoad?.(settings.device);
     this.loading = buildDeviceScene({
       backgroundColor: settings.backgroundColor,
       device: readDeviceDefinition(settings.device),
@@ -282,6 +296,7 @@ export class RasterRenderer {
         this.applyLiveSettings(this.settings ?? settings);
         this.invalidateShadow();
         this.applyViewport();
+        this.onSceneLoaded?.();
         onReady();
       })
       .catch((error: unknown) => {
@@ -293,6 +308,9 @@ export class RasterRenderer {
         // change retries, but it does not happen quietly.
         console.error("Device scene build failed", error);
         this.lastKey = "";
+        // And to the person, who has been looking at the previous product
+        // wondering why their click did nothing.
+        this.onSceneFailed?.(settings.device);
       })
       .finally(() => {
         this.loading = null;
