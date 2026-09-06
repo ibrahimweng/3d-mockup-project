@@ -30,13 +30,13 @@ describe("readExportLabel", () => {
 describe("shouldHoldExport", () => {
   it("holds a press from someone who has not given an address", () => {
     expect(
-      shouldHoldExport({ automated: false, given: false, releasing: false }),
+      shouldHoldExport({ automated: false, given: false, releasing: false, skipped: false }),
     ).toBe(true);
   });
 
   it("never holds again once an address is given", () => {
     expect(
-      shouldHoldExport({ automated: false, given: true, releasing: false }),
+      shouldHoldExport({ automated: false, given: true, releasing: false, skipped: false }),
     ).toBe(false);
   });
 
@@ -44,7 +44,7 @@ describe("shouldHoldExport", () => {
     // The gate presses the button to let the export through. Catching that
     // would be holding the door against ourselves, forever.
     expect(
-      shouldHoldExport({ automated: false, given: false, releasing: true }),
+      shouldHoldExport({ automated: false, given: false, releasing: true, skipped: false }),
     ).toBe(false);
   });
 
@@ -53,7 +53,21 @@ describe("shouldHoldExport", () => {
     // has not signed up, and a modal would stand in front of every export
     // assertion in the suite.
     expect(
-      shouldHoldExport({ automated: true, given: false, releasing: false }),
+      shouldHoldExport({ automated: true, given: false, releasing: false, skipped: false }),
+    ).toBe(false);
+  });
+
+  it("does not ask a second time in a sitting someone already said no in", () => {
+    // The ask is worth making once. Repeating it on every export turns a
+    // question into an obstacle, and the person exporting ten variations of
+    // one shot is the person it lands on hardest.
+    expect(
+      shouldHoldExport({
+        automated: false,
+        given: false,
+        releasing: false,
+        skipped: true,
+      }),
     ).toBe(false);
   });
 });

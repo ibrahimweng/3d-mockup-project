@@ -1,0 +1,7 @@
+# The studio itself is worth finding. The admin page is not, and neither are
+# the two endpoints behind it.
+User-agent: *
+Allow: /$
+Allow: /privacy
+Disallow: /admin
+Disallow: /api/

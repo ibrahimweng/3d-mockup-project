@@ -14,14 +14,43 @@
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d0d10'/%3E%3Crect x='11' y='7' width='10' height='18' rx='2.4' fill='none' stroke='%23e8e8ea' stroke-width='1.7'/%3E%3C/svg%3E"
     />
-    <meta property="og:image" content="https://toolcraft.sh/social-previews/og-toolcraft-v2.jpg" />
+    <!--
+      A picture of this studio, not of the framework it was built with.
+
+      What used to be here pointed at toolcraft.sh, so every link anyone shared
+      showed an advertisement for the app framework rather than the app. The
+      image below is a real export from this studio: the default phone with a
+      design on its display, rendered by the app and cropped to the 1200 by 630
+      that every link preview wants. `npm run preview:social` builds it again.
+
+      The paths are relative because this repository does not know the domain it
+      is deployed to. Slack and most crawlers resolve those against the page.
+      Facebook and LinkedIn want them absolute, so when there is a domain, put
+      it in front of the three paths below, and add a canonical link pointing at
+      it. There is no canonical link here because a relative one says nothing a
+      browser does not already assume, and the build reads a `link` href as a
+      file to bundle, so `href="/"` stops it dead.
+    -->
+    <meta name="description" content="Free browser-based product mockups. Drop in a screenshot or a design, light it, turn it, and export an image or a short video. Nothing is uploaded and there is no account." />
+    <meta name="theme-color" content="#0d0d10" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Mockup Studio" />
+    <meta property="og:title" content="Mockup Studio — photoreal product mockups in your browser" />
+    <meta property="og:description" content="Drop in a screenshot or a design. Light it, turn it, export it. Free, no account, and nothing leaves your browser." />
+    <meta property="og:url" content="/" />
+    <meta property="og:image" content="/social-preview.jpg" />
     <meta property="og:image:type" content="image/jpeg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Toolcraft — build powerful design tools with AI" />
+    <meta property="og:image:alt" content="An iPhone on a dark studio backdrop with a colourful design on its display, beside the words Photoreal product mockups, in your browser." />
+
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="https://toolcraft.sh/social-previews/og-toolcraft-v2.jpg" />
-    <meta name="twitter:image:alt" content="Toolcraft — build powerful design tools with AI" />
+    <meta name="twitter:title" content="Mockup Studio — photoreal product mockups in your browser" />
+    <meta name="twitter:description" content="Drop in a screenshot or a design. Light it, turn it, export it. Free, no account, and nothing leaves your browser." />
+    <meta name="twitter:image" content="/social-preview.jpg" />
+    <meta name="twitter:image:alt" content="An iPhone on a dark studio backdrop with a colourful design on its display, beside the words Photoreal product mockups, in your browser." />
     <title>Mockup Studio</title>
   </head>
   <body>

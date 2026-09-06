@@ -10,6 +10,7 @@
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "preview": "node scripts/run-vite-on-free-port.mjs preview",
     "preview:restart": "node scripts/run-vite-on-free-port.mjs preview --toolcraft-restart",
+    "preview:social": "node scripts/build-social-preview.mjs",
     "reference:study": "node scripts/create-toolcraft-motion-reference-study.mjs",
     "docs:check": "node scripts/check-toolcraft-docs.mjs",
     "test": "node scripts/check-toolcraft-docs.mjs && node --test scripts/*.test.mjs && vitest run src --passWithNoTests --reporter=default --reporter=./scripts/toolcraft-vitest-runtime-evidence-reporter.mjs",

@@ -1,4 +1,8 @@
-import { hasGivenEmail, isAutomatedSession } from "./signup-storage";
+import {
+  hasGivenEmail,
+  hasSkippedEmailAsk,
+  isAutomatedSession,
+} from "./signup-storage";
 
 /**
  * Standing between the export button and the export.
@@ -36,14 +40,20 @@ export function shouldHoldExport({
   automated,
   given,
   releasing,
+  skipped,
 }: {
   automated: boolean;
   given: boolean;
   releasing: boolean;
+  skipped: boolean;
 }): boolean {
   // `releasing` is this module pressing the button itself, on the far side of
   // the gate. Holding that would be holding the door against ourselves.
-  return !releasing && !automated && !given;
+  //
+  // `skipped` is someone who has already said no once in this sitting. The
+  // question is worth asking again on their next visit and is not worth asking
+  // again on their next export.
+  return !releasing && !automated && !given && !skipped;
 }
 
 /** True while the gate is letting an export through, so it does not re-catch it. */
@@ -91,6 +101,7 @@ export function installExportGate(onHold: (label: ExportLabel) => void): () => v
       automated: isAutomatedSession(),
       given: hasGivenEmail(),
       releasing,
+      skipped: hasSkippedEmailAsk(),
     });
 
   const onClick = (event: MouseEvent): void => {
