@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { readExportLabel, shouldHoldExport } from "./export-gate";
+import { isExportShortcut, readExportLabel, shouldHoldExport } from "./export-gate";
 
 describe("readExportLabel", () => {
   it("recognises the two buttons that export", () => {
@@ -69,5 +69,48 @@ describe("shouldHoldExport", () => {
         skipped: true,
       }),
     ).toBe(false);
+  });
+});
+
+describe("isExportShortcut", () => {
+  /** Ctrl-E and Cmd-E, with nothing else held and nobody typing. */
+  const press = (over: Partial<Parameters<typeof isExportShortcut>[0]> = {}) =>
+    isExportShortcut({
+      altKey: false,
+      ctrlKey: true,
+      key: "e",
+      metaKey: false,
+      shiftKey: false,
+      typing: false,
+      ...over,
+    });
+
+  it("answers to both accelerators, in either case", () => {
+    expect(press()).toBe(true);
+    expect(press({ ctrlKey: false, metaKey: true })).toBe(true);
+    // A capital E is the same key with Caps Lock on, not a different shortcut.
+    expect(press({ key: "E" })).toBe(true);
+  });
+
+  it("stands down while somebody is typing", () => {
+    // The whole point. On a Mac, Ctrl-E moves the cursor to the end of the line
+    // in every text field there is, so reaching for the end of a half-typed
+    // address used to open the export dialog on top of it.
+    expect(press({ typing: true })).toBe(false);
+    expect(press({ ctrlKey: false, metaKey: true, typing: true })).toBe(false);
+  });
+
+  it("takes no key that is not ours", () => {
+    for (const over of [
+      { key: "f" },
+      { key: "" },
+      { ctrlKey: false },
+      // Every other modifier belongs to some other shortcut, here or in the
+      // browser.
+      { altKey: true },
+      { shiftKey: true },
+    ]) {
+      expect(press(over), JSON.stringify(over)).toBe(false);
+    }
   });
 });
