@@ -67,6 +67,24 @@ The quoted evidence must be an exact nontrivial raw substring of `Request` with 
 - Verification: One bare `npm run verify:delivery` will derive and run the protected proof.
 - Risks: Vercel's Hobby plan does not cover commercial use, and selling this slot is commercial use, so the operator has to move to a paid plan before taking a payment. Nothing here takes payments, so a lapsed sponsor stops showing but nobody is invoiced. The card claims the top-left corner of the canvas, which is a small area a drag can no longer start in. Existing Playwright specs have not been run against the new card, since CI does not run them.
 
+### Iteration 3 — The sponsor card is wider, and stays in the corner
+
+- Request: Make the card slightly longer than it is now. The operator also asked whether it should go above the right-side panel or inside it, while saying the current corner still looks right.
+- Task type: One product surface resized, and a placement decision recorded.
+- User-visible result: The card is 288 pixels wide instead of 224. Nothing else about it changes. It is still in the top-left corner, still 92 pixels tall with a logo and a line in it, and still 76 with the for-sale text.
+- Source/reference checked: The running app at 1280 by 800. The controls panel measures 300 wide with its top edge 10 pixels from the top of the window, and the toolbar sits at the bottom of the canvas at 478,706.
+- Reference inputs: None. There is no motion reference, so `referenceInputs` stays the empty no-reference fast path.
+- Docs/contracts read: `AGENTS.md` and `CLAUDE.md`.
+- Contract rules applied: `canvas-no-app-ui` and `canvas-surface-preserved`. The card is still portalled to the document body from `canvasContent`, so nothing is drawn on the product scene surface.
+- View interaction intent: `orbit`, unchanged. A wider overlay reads no camera value and writes none.
+- Interaction ownership: Unchanged. The card still owns one operation, which is a press on itself, and it now takes the pointer events inside 288 by 92 pixels rather than 224 by 92. Width is what a sponsor is buying, because a logo is a wide shape and height is the dimension it cannot use.
+- Decision: Widen the card and leave it where it is. The top-left corner is the only one nothing else claims, and a card there does not move when somebody drags a panel.
+- Alternatives rejected: Above the right-side panel, because the panel's top edge is 10 pixels from the top of the window, so a card over it would cover the panel's own title. Inside the panel, for three reasons: the panel is a runtime surface this product may not hand-compose, a card added to it would scroll away with the controls and disappear when somebody changed tab, and an advertisement sitting among the tool's own controls reads as one of the tool's own features.
+- State/output mapping: Unchanged. `GET /api/sponsor` still decides what the card shows, and `useExportGateOpen` and `useTourShowing` still decide whether it shows at all.
+- Performance intent: ordinary-product-work
+- Verification: One bare `npm run verify:delivery` will derive and run the protected proof.
+- Risks: The card claims 64 more pixels of the canvas, which is a slightly larger area a drag can no longer start in. Below about 900 pixels of window width the card and the panel start to close on each other, and the studio already refuses to open under 720.
+
 ## Decisions
 
 ### Renderer

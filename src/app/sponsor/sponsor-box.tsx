@@ -34,6 +34,15 @@ import { reportSponsorClick, useSponsorSlot } from "./use-sponsor-slot";
  * window sits over the timeline band, because the band is below the canvas
  * rather than over it. Measured at 1280 by 800, where it covered the transport.
  *
+ * Above the panel and inside the panel were both considered and both refused.
+ * There is no room above it: measured at 1280 by 800, the panel is 300 wide and
+ * its own top edge is 10 pixels from the top of the window, so a card over it
+ * would cover the panel's title. Inside it is worse in a way that is not about
+ * space. The panel is a runtime surface this product may not hand-compose, a
+ * card added to it would scroll away with the controls and vanish when somebody
+ * changed tab, and an advertisement sitting in the tool's own controls reads as
+ * one of the tool's own features.
+ *
  * Three rules hold it in its place:
  *
  * It never appears in an export. The exported picture is drawn from the scene
@@ -50,8 +59,17 @@ import { reportSponsorClick, useSponsorSlot } from "./use-sponsor-slot";
  * engine. An advertisement that has to be worked out is a trick.
  */
 
+/**
+ * 288 wide, which is the width the operator asked for after seeing 224.
+ *
+ * The width is what a sponsor is buying, because a logo is a wide shape and
+ * height is the dimension it cannot use. Sixty-four more pixels across is
+ * another quarter of a logo at the same height, on a card that is still under a
+ * quarter of a 1280 window and still narrower than the 300-wide panel opposite
+ * it.
+ */
 const cardClassName =
-  "floating-popup-surface pointer-events-auto fixed top-4 left-4 z-40 flex w-56 flex-col gap-1 rounded-xl border p-2.5 text-[color:var(--popover-foreground)] no-underline shadow-2xl transition-opacity hover:opacity-95";
+  "floating-popup-surface pointer-events-auto fixed top-4 left-4 z-40 flex w-72 flex-col gap-1 rounded-xl border p-2.5 text-[color:var(--popover-foreground)] no-underline shadow-2xl transition-opacity hover:opacity-95";
 
 const labelClassName =
   "font-mono text-[10px] uppercase tracking-wide text-[color:color-mix(in_oklab,var(--popover-foreground)_50%,transparent)]";

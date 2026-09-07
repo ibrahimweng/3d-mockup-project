@@ -279,10 +279,10 @@ read.
 
 ## The sponsored card
 
-A card sits in the top left corner of the studio. It holds one sponsor's
-logo, one line of text, and a link to them. One sponsor has the corner at a
-time, for a period they pay for, and the card comes down on its own when that
-period ends.
+A card sits in the top left corner of the studio, 288 pixels wide and about 90
+tall. It holds one sponsor's logo, one line of text, and a link to them. One
+sponsor has the corner at a time, for a period they pay for, and the card comes
+down on its own when that period ends.
 
 This section used to say that this app would not have ads. Three reasons were
 given. An ad slot needs somewhere to live on a canvas that fills the window. Ad
@@ -312,6 +312,13 @@ Top left, over the canvas. That is the one corner of this window nothing else
 claims. The controls panel is down the right side, the toolbar floats over the
 bottom of the canvas, and the timeline takes a band under all of it, so a card
 in the bottom left corner covers the transport controls.
+
+Above the panel and inside the panel were both looked at and both refused. There
+is no room above it, because the panel's top edge is 10 pixels from the top of
+the window. Inside it is worse for three reasons. The panel is a runtime surface
+this app may not build by hand. A card added to it would scroll away with the
+controls and disappear when somebody changed tab. An advertisement sitting among
+the tool's own controls reads as one of the tool's own features.
 
 The card stays hidden while the first-run tour is running, and again while the
 export modal is open. Somebody being taught how to use the studio should not be
