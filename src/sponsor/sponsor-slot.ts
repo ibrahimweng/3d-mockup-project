@@ -35,12 +35,26 @@ export type SponsorSlot = {
   readonly endsOn: string;
   /** When the operator entered it. */
   readonly bookedAt: string;
+  /**
+   * What the operator wrote down about the money, or nothing yet.
+   *
+   * Free text, and private to the admin page. A transaction hash, "Bybit 7
+   * Sept", whatever is enough to find the payment again. It is empty until the
+   * money arrives, which is the whole reason it exists: the slot is sold by
+   * putting the card up first and asking for payment after the sponsor has
+   * seen it live, so the operator needs to see at a glance which live booking
+   * has not been paid for yet.
+   */
+  readonly payment: string;
 };
 
 export type SponsorStatus = "scheduled" | "live" | "ended";
 
+const maxPaymentLength = 120;
+
 export type SponsorSlotRejection =
   | "dates-backwards"
+  | "payment-too-long"
   | "headline-too-long"
   | "link-not-https"
   | "link-too-long"
@@ -168,6 +182,8 @@ export function describeSlotRejection(reason: SponsorSlotRejection): string {
       return "The link has to be an https:// address.";
     case "link-too-long":
       return "That link is too long.";
+    case "payment-too-long":
+      return "Keep the payment note short. A reference, not a story.";
     case "period-too-long":
       return "That books more than a year. Check the dates.";
     case "sponsor-empty":
@@ -185,6 +201,7 @@ export type SponsorSlotDraft = {
   readonly endsOn: unknown;
   readonly headline: unknown;
   readonly href: unknown;
+  readonly payment: unknown;
   readonly sponsor: unknown;
   readonly startsOn: unknown;
 };
@@ -223,6 +240,11 @@ export function normalizeSlotDraft(
     return { ok: false, reason: "headline-too-long" };
   }
 
+  const payment = readText(draft.payment);
+  if (payment.length > maxPaymentLength) {
+    return { ok: false, reason: "payment-too-long" };
+  }
+
   const href = readText(draft.href);
   if (href.length > maxHrefLength) return { ok: false, reason: "link-too-long" };
   let parsed: URL;
@@ -254,6 +276,7 @@ export function normalizeSlotDraft(
       headline,
       href: parsed.toString(),
       id: slotId(sponsor, startsOn),
+      payment,
       sponsor,
       startsOn,
     },

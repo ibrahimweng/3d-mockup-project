@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!--
+      A real page, served as HTML, rather than a route inside the studio.
+
+      Three reasons, and only the first is about the framework.
+
+      The router lives in `src/routes/root.tsx`, which this repository's
+      contract marks framework-owned and forbids editing, so there is nowhere to
+      add a route. That could have been argued with. The other two could not.
+
+      A person about to send money to a stranger should not have to download two
+      megabytes of WebGL to read the terms. This page is a few kilobytes and
+      renders before the studio's bundle would have finished parsing.
+
+      And a search engine reads what is in the HTML. The studio's own page ships
+      an empty `<div id="root">` and builds everything afterwards, so there is
+      no prose on it to read. This page is the first on this site with words in
+      it that a crawler sees without running anything.
+
+      THREE THINGS TO FILL IN, each marked FILL IN below: the operator's name,
+      the Solana receiving address, and the site's own domain. The page is
+      correct with all three missing, which is why it can ship before they are
+      known. Nothing here states a fact that is not true yet.
+    -->
+
+    <title>Sponsor Mockup Studio — one card, one sponsor, $30 a month</title>
+    <meta
+      name="description"
+      content="One sponsored card in the corner of a free browser-based 3D mockup studio. $30 a month, one sponsor at a time. Your ad goes up first and you pay after you have seen it running."
+    />
+    <meta name="theme-color" content="#0d0d10" />
+
+    <!-- FILL IN: put the domain in front of these two paths once there is one. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Mockup Studio" />
+    <meta property="og:title" content="Sponsor Mockup Studio — $30 a month" />
+    <meta
+      property="og:description"
+      content="One card, one sponsor at a time. Your ad goes up first and you pay after you have seen it running."
+    />
+    <meta property="og:image" content="/social-preview.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="/social-preview.jpg" />
+
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d0d10'/%3E%3Crect x='11' y='7' width='10' height='18' rx='2.4' fill='none' stroke='%23e8e8ea' stroke-width='1.7'/%3E%3C/svg%3E"
+    />
+
+    <style>
+      :root {
+        --bg: #0d0d10;
+        --panel: #16161b;
+        --line: #26262e;
+        --text: #e8e8ea;
+        --muted: #9b9ba6;
+        --accent: #7aa2f7;
+        --warn: #f0a05a;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font: 16px/1.65 ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+          Roboto, Helvetica, Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      main { margin: 0 auto; max-width: 44rem; padding: 3rem 1.25rem 5rem; }
+      h1 { font-size: 1.75rem; line-height: 1.25; margin: 0 0 0.5rem; }
+      h2 {
+        font-size: 1.05rem;
+        margin: 2.75rem 0 0.75rem;
+        padding-top: 1.75rem;
+        border-top: 1px solid var(--line);
+      }
+      h2:first-of-type { border-top: 0; padding-top: 0; }
+      p, li { color: #d2d2d8; }
+      p { margin: 0 0 1rem; }
+      ul, ol { margin: 0 0 1rem; padding-left: 1.25rem; }
+      li { margin-bottom: 0.5rem; }
+      a { color: var(--accent); }
+      a:hover { color: #a8c2ff; }
+      .lede { color: var(--muted); font-size: 1.05rem; margin-bottom: 2rem; }
+      .price {
+        display: inline-block;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 0.25rem 0.85rem;
+        font-size: 0.9rem;
+        color: var(--text);
+        margin-bottom: 1.5rem;
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 0.75rem;
+        padding: 1rem 1.25rem;
+        margin: 0 0 1rem;
+      }
+      .panel p:last-child, .panel ul:last-child { margin-bottom: 0; }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.9rem;
+        overflow-wrap: anywhere;
+      }
+      .label {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.7rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+        display: block;
+        margin-bottom: 0.25rem;
+      }
+      .note { color: var(--muted); font-size: 0.9rem; }
+      footer {
+        margin-top: 3.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      #availability { color: var(--warn); }
+    </style>
+  </head>
+
+  <body>
+    <main>
+      <p class="label">Mockup Studio</p>
+      <h1>Sponsor the corner of the studio</h1>
+      <p class="lede">
+        One card, one sponsor at a time, on a free tool that designers and
+        developers use to make product shots.
+      </p>
+      <p class="price">$30 a month</p>
+
+      <h2>What you get</h2>
+      <p>
+        A card in the top left corner of the studio, over the 3D canvas, on
+        every visit for the whole of your period. It holds your logo, one line
+        of text, and a link to you. It is 288 pixels wide.
+      </p>
+      <p>
+        You are the only sponsor for your dates. The slot is not shared, not
+        rotated, and not auctioned. The software refuses a second booking over
+        days that are already sold, so this is enforced rather than promised.
+      </p>
+      <div class="panel">
+        <span class="label">Availability</span>
+        <p id="availability">Checking…</p>
+      </div>
+
+      <h2>How it works</h2>
+      <p>
+        You do not send money for something you have not already seen running.
+        That is the whole shape of it.
+      </p>
+      <ol>
+        <li>Write to me with your logo, your link, and your one line.</li>
+        <li>I put it up. Usually the same day.</li>
+        <li>
+          You look at it on the live site. Open the studio and it is there in
+          the corner.
+        </li>
+        <li>
+          You have three days to decide. If you are happy, you pay, and it runs
+          for a full month from the day it went up. The three days are not taken
+          off your month.
+        </li>
+        <li>
+          If you are not happy, say so or say nothing at all. It comes down on
+          the fourth day and you owe me nothing.
+        </li>
+      </ol>
+
+      <h2>How to pay</h2>
+      <p>USDC, once you have seen your card running.</p>
+      <div class="panel">
+        <span class="label">USDC to Bybit</span>
+        <p class="mono" id="contact-bybit">ibrahimweng0@gmail.com</p>
+        <p class="note">
+          Bybit can send to an email address, which is instant and costs
+          neither of us a network fee. It only works if you are on Bybit too.
+        </p>
+      </div>
+      <!--
+        FILL IN: the Solana receiving address.
+
+        Until there is one, this block stays out of the page rather than
+        standing there empty, because a payment page with a blank address on it
+        is worse than one that offers a single route. Uncomment and paste the
+        address in, and delete this comment.
+
+      <div class="panel">
+        <span class="label">USDC on Solana</span>
+        <p class="mono">PASTE THE ADDRESS HERE</p>
+        <p class="note">
+          Send USDC on the Solana network only. Anything sent on another
+          network, or in another token, cannot be recovered.
+        </p>
+      </div>
+      -->
+      <p class="note">
+        Tell me the transaction reference when you send it. I write it against
+        your booking, so there is a record on both sides.
+      </p>
+
+      <h2>What I promise</h2>
+      <ul>
+        <li>
+          If your card does not run for the days you paid for, you get those
+          days back or your money back. You choose which.
+        </li>
+        <li>
+          Your dates are yours. I will not sell them to anybody else, and the
+          software will not let me by accident.
+        </li>
+        <li>
+          I will tell you how many times your card was pressed, whenever you
+          ask.
+        </li>
+        <li>
+          Nothing about the people who see your card is collected, so nothing
+          about them can be passed to you or to anyone else.
+        </li>
+      </ul>
+
+      <h2>What I do not promise</h2>
+      <p>
+        This part is here because a page that only makes promises is not worth
+        reading.
+      </p>
+      <ul>
+        <li>
+          I will not quote you traffic numbers. This site is new and I cannot
+          prove them, and a number I cannot prove is worth nothing to you.
+        </li>
+        <li>
+          There is no impression count. I count presses on your card and
+          nothing else, on purpose, because counting views means writing a
+          record on every page load.
+        </li>
+        <li>
+          No refund once a month has actually run, because it ran.
+        </li>
+      </ul>
+
+      <h2>What you can check for yourself</h2>
+      <ul>
+        <li>
+          Open the studio. Whoever is in the slot today is there in the corner,
+          in public, marked Sponsored.
+        </li>
+        <li>The availability above is read live from the booking calendar.</li>
+        <li>
+          Every line of this is public, including how your logo is stored and
+          served:
+          <a href="https://github.com/ibrahimweng/3d-mockup-project"
+            >github.com/ibrahimweng/3d-mockup-project</a
+          >.
+        </li>
+      </ul>
+
+      <h2>What to send me</h2>
+      <ul>
+        <li>
+          A logo, as a PNG, a JPEG or a WebP, under 200 KB. Wide shapes work
+          best. It is shown 32 pixels tall.
+        </li>
+        <li>A link, starting with https://</li>
+        <li>One line of text, up to 60 characters. Optional.</li>
+        <li>The dates you want, or just say when you would like to start.</li>
+      </ul>
+      <p class="note">
+        No animated files, and no SVG. An SVG can carry code, and a file that
+        can carry code is not something to serve from a domain other people
+        trust.
+      </p>
+
+      <h2>Your visitors</h2>
+      <p>
+        Your logo is stored on this site and served from this site. Nothing is
+        loaded from your server, so no browser tells you who was here, and no ad
+        network is involved at any point. That is deliberate and it is the
+        reason this card can exist on a page that promises to collect nothing.
+        The full note is at <a href="/privacy">/privacy</a>.
+      </p>
+
+      <h2>Who runs this</h2>
+      <!--
+        FILL IN: the operator's name, in front of the GitHub link below. The
+        page reads correctly without it, so it ships either way.
+      -->
+      <p>
+        <a href="https://github.com/ibrahimweng">github.com/ibrahimweng</a>, who
+        has been building this in the open. The commit history is public and
+        dated, which is the only thing I can offer a stranger that cannot be
+        made up on the spot.
+      </p>
+      <p class="mono" id="contact-email">ibrahimweng0@gmail.com</p>
+
+      <footer>
+        <a href="/">Open the studio</a> · <a href="/privacy">Privacy</a>
+      </footer>
+    </main>
+
+    <script>
+      /*
+       * The booking calendar, read from this site's own endpoint.
+       *
+       * It answers with dates and nothing else: no names, no logos, no counts.
+       * A buyer needs to know that the slot is real and whether it is free, and
+       * a list of taken days answers both without saying anything about anybody
+       * who has bought it.
+       *
+       * Every failure leaves the sentence below in place. An endpoint that is
+       * down or unconfigured is not a reason to tell somebody the slot is free
+       * when nothing here knows whether it is.
+       */
+      (function () {
+        var target = document.getElementById("availability");
+        var unknown = "Write to me and I will tell you what is free.";
+
+        function day(value) {
+          var parsed = new Date(value + "T00:00:00Z");
+          return isNaN(parsed) ? value : parsed.toLocaleDateString("en-GB", {
+            day: "numeric",
+            month: "long",
+            timeZone: "UTC",
+            year: "numeric",
+          });
+        }
+
+        fetch("/api/sponsor?calendar")
+          .then(function (response) {
+            if (!response.ok) throw new Error("unavailable");
+            return response.json();
+          })
+          .then(function (body) {
+            var taken = Array.isArray(body && body.taken) ? body.taken : [];
+            if (taken.length === 0) {
+              target.textContent = "The slot is free from today.";
+              return;
+            }
+            var today = new Date().toISOString().slice(0, 10);
+            var now = taken.filter(function (slot) {
+              return slot.startsOn <= today && today <= slot.endsOn;
+            })[0];
+            var lines = taken
+              .map(function (slot) {
+                return day(slot.startsOn) + " to " + day(slot.endsOn);
+              })
+              .join(", ");
+            target.textContent = now
+              ? "Taken until " + day(now.endsOn) + ". Booked: " + lines + "."
+              : "Free today. Booked: " + lines + ".";
+          })
+          .catch(function () {
+            target.textContent = unknown;
+          });
+      })();
+    </script>
+  </body>
+</html>

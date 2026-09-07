@@ -1,7 +1,10 @@
-# The studio itself is worth finding. The admin page is not, and neither are
-# the two endpoints behind it.
+# The studio itself is worth finding, and so is the page that sells the sponsor
+# slot: it is the only page on this site with prose in the HTML rather than
+# behind a two megabyte bundle. The admin page is not worth finding, and
+# neither are the endpoints behind it.
 User-agent: *
 Allow: /$
+Allow: /sponsor
 Allow: /privacy
 Disallow: /admin
 Disallow: /api/

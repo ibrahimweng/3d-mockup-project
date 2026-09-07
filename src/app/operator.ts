@@ -1,10 +1,11 @@
 /**
  * Who runs this, and where to write to them.
  *
- * Two places show this address now: the privacy note, where it is how somebody
- * asks for their address to be taken off the list, and the empty sponsor slot,
- * where it is how somebody asks to buy the corner. One constant, so changing it
- * is one line rather than a search.
+ * The privacy note reads it from here, where it is how somebody asks for their
+ * address to be taken off the list. The sponsorship page at `/sponsor` shows it
+ * too, and that page is static HTML in `public/`, so it cannot import this.
+ * `sponsor-page.test.ts` holds the two to each other instead, which is the only
+ * thing that can across a language boundary.
  */
 
 export const OPERATOR_NAME = "Mockup Studio";
