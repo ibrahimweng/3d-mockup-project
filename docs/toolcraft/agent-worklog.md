@@ -103,6 +103,24 @@ The quoted evidence must be an exact nontrivial raw substring of `Request` with 
 - Verification: One bare `npm run verify:delivery` will derive and run the protected proof.
 - Risks: Three values on the page are left to be filled in and the page is written so that each one is absent rather than wrong: the operator's name, a Solana receiving address, and the site's own domain in the link preview tags. The studio's own `index.html` still carries relative link preview paths, so Facebook and LinkedIn show no image for `/`, and fixing that means editing a framework-owned file, which is the operator's call rather than this repository's. Nothing enforces payment, by design.
 
+### Iteration 5 — A page title that names what the tool is, and a test that keeps it
+
+- Request: Fix the page title, and edit `index.html` to do it. The operator gave explicit permission to edit that file, having been told it is framework-owned.
+- Task type: One line of `index.html`, plus a test that holds this app's own writing in a file a regeneration would overwrite.
+- User-visible result: A search result for this site now reads "Free 3D product mockup generator | Mockup Studio" instead of "Mockup Studio". The browser tab says the same. Nothing on the page itself changes.
+- Source/reference checked: `src/toolcraft/.toolcraft-manifest.json`, which holds a SHA-256 for `index.html`, and `scripts/check-toolcraft-integrity.mjs`, which compares it. Run before editing: the file was already reported as modified, along with 19 others including `src/routes/root.tsx` and `tsconfig.json`, so this edit adds no new divergence from the manifest. That check is not part of `npm test` and does not run in CI.
+- Reference inputs: None. There is no motion reference, so `referenceInputs` stays the empty no-reference fast path.
+- Docs/contracts read: `AGENTS.md` and `CLAUDE.md`.
+- Contract rules applied: None reached this change. `index.html` is outside `sourceRoots`, so no product rule covers it, and nothing rendered by the app moved.
+- View interaction intent: `orbit`, unchanged. A title is not a surface.
+- Interaction ownership: Unchanged. Nothing here is an operation anybody performs.
+- Decision: Put the search terms first and the name second, because nobody is searching for the name yet, and hold the whole line under sixty characters, which is roughly where a search result heading is cut off. Add `src/app/studio-page.test.ts` to hold the title, the description, and the link preview image, since a regeneration from the template would take all three away silently and nothing else in the repository reads that file.
+- Alternatives rejected: Leaving the title alone, since it is the single line a search engine prints as the heading and it contained none of the words anybody types. Putting the name first, because a name nobody recognises earns nothing at the front. Editing the file without the operator asking, which is why the previous iteration recorded this as a decision for them rather than taking it.
+- State/output mapping: None. `index.html` is served as written and no app state reads it.
+- Performance intent: ordinary-product-work
+- Verification: One bare `npm run verify:delivery` will derive and run the protected proof.
+- Risks: The link preview is still broken on Facebook and LinkedIn, because `og:url`, `og:image` and `twitter:image` are relative paths and there is no domain yet to make them absolute. The assertion that they are absolute belongs in the same test and waits for the same thing. `npm run test:generated` reports this file as modified, as it already did before this change.
+
 ## Decisions
 
 ### Renderer
