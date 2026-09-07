@@ -15,6 +15,7 @@ import type {
 } from "../../../schema/types";
 import type { ToolcraftState } from "../../../state/types";
 import { readToolcraftCanvasRuntimeTarget } from "../../../state/canvas-frame";
+import { evaluateToolcraftTimelineValue } from "../../../state/keyframe-evaluation";
 
 function getControlDefaultValueByTarget(
   sections: readonly ResolvedToolcraftControlSectionSchema[],
@@ -58,6 +59,32 @@ export function getToolcraftTargetValue(
           state.schema.panels.controls?.sections ?? [],
           target,
         ));
+}
+
+/**
+ * The number a panel shows for a target, which is the number the canvas draws.
+ *
+ * For a control with no keyframes these are the same thing. For a keyframed
+ * one they are not: the canvas reads the keyframes at the playhead, and a
+ * panel reading `state.values` reads wherever the slider was last left. Those
+ * two part company the moment a second keyframe exists, and the panel showing
+ * the stale one is how you end up scrubbing into the middle of a turn, seeing
+ * the device at 180 degrees, and reading 0 in the box beside it.
+ *
+ * Reading the keyframes here is also what makes an edit start from the frame
+ * in front of you. The value a panel holds is the value an edit begins at, so
+ * a slider dragged at the playhead now moves off what is on screen rather
+ * than off a number nothing is showing.
+ */
+export function getToolcraftPanelTargetValue(
+  state: ToolcraftState,
+  target: string,
+): unknown {
+  return state.timeline.keyframeGroups.some(
+    (group) => group.controlId === target,
+  )
+    ? evaluateToolcraftTimelineValue(state, target)
+    : getToolcraftTargetValue(state, target);
 }
 
 export function getToolcraftConditionTargets(

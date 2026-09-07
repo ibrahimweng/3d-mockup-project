@@ -41,7 +41,7 @@ Every check this repository defines runs on every push and pull request, from
 | --- | --- |
 | `npm run typecheck` | Types, strictly |
 | `npm run docs:check` | The docs match what the code does |
-| `npm test` | 874 unit tests, plus the acceptance evidence reporter |
+| `npm test` | 881 unit tests, plus the acceptance evidence reporter |
 | `npm run build` | The bundle actually builds |
 | `npm run ai:check` | The product boundary, against a recorded baseline |
 
@@ -897,6 +897,22 @@ purpose. The editor's usual ease-in-out is right for a move that starts and
 stops, and wrong for one that repeats, because the device would slow to a stop
 at the top of the revolution and jerk as the loop came round again.
 
+Keyframing by hand works the way it does in an editor like After Effects, and
+the playhead is what decides. Press the diamond beside a control to key it where
+the playhead stands. From then on the number beside that control reads the
+animation at the playhead rather than the last value you dragged it to, so it
+moves as you scrub and always agrees with the picture. Changing it keys the
+frame you are on: land on a keyframe and you edit that one, land anywhere else
+and you get a new one. So the ordinary way to build a move is to key the start,
+drag the playhead, and change the value.
+
+Diamonds can be dragged along their row to retime a move, and the row stays in
+time order as they pass each other. Dropping one on another replaces it, because
+two keyframes cannot share a frame. Clicking a diamond selects it, which is how
+you delete it or change its easing, and selecting is deliberately not the same
+as deciding where your next edit goes. Turning the diamond off again clears the
+track and leaves the control on the frame that was showing.
+
 A design that moves runs on this clock whenever the clock runs, so a GIF on a
 shirt and the turntable under it are the same six seconds and both come out of a
 video export in step. With nothing keyframed the clock does not run and the
@@ -1035,15 +1051,22 @@ material names -- `screenMaterial: "Bag_Front"`, `colorParts`, `excludedNodes` -
 and its studio is 625 lines of cove, mirror floor, three lights and a turntable.
 Moving to it is a rewrite of the render path rather than a boundary fix.
 
-The integrity check also reports 57 framework-owned files that no longer match
+The integrity check also reports 67 framework-owned files that no longer match
 the signed manifest. They break down like this:
 
-- 37 files under `src/toolcraft/`
+- 40 files under `src/toolcraft/`
 - 10 files under `e2e/`
+- 9 files under `src/app` and `src/routes`
 - 4 files under `scripts/`
-- 3 files under `src/app` and `src/routes`
 - 2 files under `docs/toolcraft`
 - `index.html`
+- `tsconfig.json`
+
+Three of the 40 are new, and they are the keyframe editing described under
+[Animation](#animation). The other counts here were already understated before
+that change: the breakdown said 3 files under `src/app` and `src/routes` where
+the checker reports 9, and did not mention `tsconfig.json` at all. Running
+`node scripts/check-toolcraft-integrity.mjs` prints the current list.
 
 Every one of those changes was deliberate. You can find the reasoning for each
 one in [`agent-worklog.md`](docs/toolcraft/agent-worklog.md).
@@ -1052,7 +1075,7 @@ one in [`agent-worklog.md`](docs/toolcraft/agent-worklog.md).
 repository can make it pass. It stops at the same integrity check, so none of
 the later stages run. Those stages are the build, the unit tests and the browser
 tests. The manifest is signed, so only the holder of the framework's private key
-can reissue it. The 37 changed files under `src/toolcraft/` are written out as a
+can reissue it. The 40 changed files under `src/toolcraft/` are written out as a
 patch at
 [`timeline-and-runtime.patch`](docs/toolcraft/upstream/timeline-and-runtime.patch),
 so whoever reissues the manifest can review those changes instead of working out

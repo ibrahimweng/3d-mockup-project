@@ -197,14 +197,14 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
     componentType: "canvas",
     evidence: "product-output",
     expectedObservable:
-      "Keyframing Spin gives it a row on the expanded timeline with a diamond at each keyed time. Editing the value with a keyframe selected updates that keyframe rather than adding another. The rendered frame at any time is the value the keyframes evaluate to there, not the value the control was last left at.",
+      "Keyframing Spin gives it a row on the expanded timeline with a diamond at each keyed time. Scrubbing draws that time and the Spin box beside the slider reads that time's value rather than whatever the slider was last left at. Changing the value keys the frame the playhead is standing on: on a frame that already carries a keyframe it edits that one, anywhere else it adds one. Dragging a diamond keeps the row in time order, and dropping it on another diamond replaces it. The rendered frame at any time is the value the keyframes evaluate to there.",
     fixture: "the default device with Spin keyframed a full turn",
     id: "timeline.keyframes",
     kind: "runtime",
     target: "panels.timeline",
     timelineCoverage: "keyframes",
     userAction:
-      "Key Spin at the start and end, scrub between them, and edit the value with one selected.",
+      "Key Spin at the start, scrub to the end, turn the dial, then drag a diamond along the row.",
   },
   {
     automated: true,

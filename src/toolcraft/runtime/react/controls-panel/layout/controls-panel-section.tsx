@@ -85,7 +85,6 @@ type ControlsPanelSectionHeaderActionProps = {
 type SectionKeyframeSelection = {
   group: ToolcraftTimelineKeyframeGroup | undefined;
   keyframeControlsEnabled: boolean;
-  selectedKeyframeId: string | null;
   value: unknown;
 };
 
@@ -96,7 +95,6 @@ function sectionKeyframeSelectionsEqual(
   return (
     Object.is(previous.group, next.group) &&
     previous.keyframeControlsEnabled === next.keyframeControlsEnabled &&
-    previous.selectedKeyframeId === next.selectedKeyframeId &&
     Object.is(previous.value, next.value)
   );
 }
@@ -108,10 +106,12 @@ function getHeaderKeyframeDependencies(
     return [];
   }
 
+  // No keyframe selection. The header's diamond reads whether the control has
+  // a track at all, not which point on it is selected, and selection stopped
+  // deciding where a value edit lands.
   return [
     ...getControlsPanelTargetDependencies([target]),
     { kind: "keyframeGroup", target },
-    { kind: "keyframeSelection", target },
     { kind: "timeline.expanded" },
   ];
 }
@@ -184,12 +184,6 @@ export const ControlsPanelSectionHeaderAction = React.memo(
             group,
             keyframeControlsEnabled:
               headerKeyframeTarget !== null && state.timeline.expanded,
-            selectedKeyframeId:
-              group?.keyframes.some(
-                (keyframe) => keyframe.id === state.timeline.selectedKeyframeId,
-              ) === true
-                ? state.timeline.selectedKeyframeId
-                : null,
             value: headerKeyframeTarget
               ? getToolcraftTargetValue(state, headerKeyframeTarget)
               : undefined,
@@ -211,8 +205,6 @@ export const ControlsPanelSectionHeaderAction = React.memo(
       keyframedControlIds: new Set(
         selection.group ? [selection.group.controlId] : [],
       ),
-      keyframeGroups: selection.group ? [selection.group] : [],
-      selectedKeyframeId: selection.selectedKeyframeId,
     });
     const keyframeAction = headerKeyframeEntry
       ? keyframeActions.getSectionHeaderKeyframeAction(headerKeyframeEntry)
