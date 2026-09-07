@@ -12,10 +12,7 @@ import {
 
 import { getToolcraftControlKeyframeCapability } from "../../../schema/keyframe-capability";
 import type { ToolcraftControlSchema } from "../../../schema/types";
-import type {
-  ToolcraftCommand,
-  ToolcraftTimelineKeyframeGroup,
-} from "../../../state/types";
+import type { ToolcraftCommand } from "../../../state/types";
 import {
   getControlName,
   type ControlEntry,
@@ -104,8 +101,6 @@ export function createControlsPanelKeyframeActions({
   getControlValue,
   keyframeControlsEnabled,
   keyframedControlIds,
-  keyframeGroups,
-  selectedKeyframeId,
 }: {
   dispatchCommand: (command: ToolcraftCommand) => void;
   formatValueLabel: (control: ToolcraftControlSchema, value: unknown) => string;
@@ -116,8 +111,6 @@ export function createControlsPanelKeyframeActions({
   getControlValue: (control: ToolcraftControlSchema) => unknown;
   keyframeControlsEnabled: boolean;
   keyframedControlIds: ReadonlySet<string>;
-  keyframeGroups: readonly ToolcraftTimelineKeyframeGroup[];
-  selectedKeyframeId: string | null;
 }): {
   getKeyframeLabelAction: (
     control: ToolcraftControlSchema,
@@ -144,18 +137,26 @@ export function createControlsPanelKeyframeActions({
     value: unknown;
   }) => React.ReactNode;
 } {
-  function getSelectedControlKeyframeTime(controlId: string): number | undefined {
-    if (!selectedKeyframeId) {
-      return undefined;
-    }
-
-    const selectedKeyframe = keyframeGroups
-      .find((group) => group.controlId === controlId)
-      ?.keyframes.find((keyframe) => keyframe.id === selectedKeyframeId);
-
-    return selectedKeyframe?.timeSeconds;
-  }
-
+  /**
+   * Editing a keyframed control writes at the playhead. Always.
+   *
+   * This used to write at whichever keyframe happened to be selected, and
+   * fall back to the playhead only when nothing was. Adding a keyframe
+   * selects it, so something almost always was — which made the ordinary way
+   * anyone builds an animation quietly impossible. Key the angle at the
+   * start, drag the playhead to the end, turn the dial: the value went into
+   * the keyframe back at the start, the one keyframe on the track changed
+   * value, no second keyframe was ever created, and nothing moved. The
+   * playhead, the one thing in the room saying which frame you are looking
+   * at, had no say in where your edit went.
+   *
+   * Sending no time leaves the reducer to use `currentTimeSeconds`, which is
+   * how a keyframe editor is expected to behave: change a value and you key
+   * the frame you are on, landing on the keyframe already there if there is
+   * one, adding one if there is not. Selection keeps the jobs it is good for
+   * — dragging a keyframe, deleting it, shaping its easing — and stops
+   * silently redirecting values to a frame nobody is looking at.
+   */
   function maybeUpsertControlKeyframe(
     control: ToolcraftControlSchema,
     name: string,
@@ -172,7 +173,6 @@ export function createControlsPanelKeyframeActions({
     dispatchCommand({
       controlId: control.target,
       controlLabel: name,
-      timeSeconds: getSelectedControlKeyframeTime(control.target),
       type: "timeline.upsertControlKeyframe",
       value,
       valueLabel: formatValueLabel(control, value),

@@ -19,7 +19,7 @@ import { useToolcraftStore } from "../../app-shell/toolcraft-store-context";
 import type { ToolcraftControlRendererMap } from "../control-renderers";
 import {
   getToolcraftControlConditionTargets,
-  getToolcraftTargetValue,
+  getToolcraftPanelTargetValue,
   isToolcraftControlDisabled,
   isToolcraftControlVisible,
 } from "../conditions/control-conditions";
@@ -77,7 +77,6 @@ type ControlGroupSelection = {
   keyframeControlsEnabled: boolean;
   keyframeGroups: readonly ToolcraftTimelineKeyframeGroup[];
   mediaAssets: readonly ToolcraftMediaAsset[] | null;
-  selectedKeyframeId: string | null;
   valuesByTarget: Readonly<Record<string, unknown>>;
   visible: boolean;
 };
@@ -107,7 +106,6 @@ function controlGroupSelectionsEqual(
       Object.is(group, next.keyframeGroups[index]),
     ) &&
     Object.is(previous.mediaAssets, next.mediaAssets) &&
-    previous.selectedKeyframeId === next.selectedKeyframeId &&
     recordValuesEqual(previous.valuesByTarget, next.valuesByTarget) &&
     previous.visible === next.visible
   );
@@ -146,25 +144,6 @@ function controlGroupPropsEqual(
   );
 }
 
-function getSelectedKeyframeId(
-  state: ToolcraftState,
-  targets: ReadonlySet<string>,
-): string | null {
-  const selectedKeyframeId = state.timeline.selectedKeyframeId;
-
-  if (!selectedKeyframeId) {
-    return null;
-  }
-
-  return state.timeline.keyframeGroups.some(
-    (group) =>
-      targets.has(group.controlId) &&
-      group.keyframes.some((keyframe) => keyframe.id === selectedKeyframeId),
-  )
-    ? selectedKeyframeId
-    : null;
-}
-
 function getControlGroupDependencies({
   entries,
   keyframeTargets,
@@ -200,12 +179,18 @@ function getControlGroupDependencies({
       ? [{ kind: "mediaAssets" } as const]
       : []),
     ...(keyframeTargets.length > 0
-      ? [{ kind: "timeline.expanded" } as const]
+      ? // The playhead, because a keyframed control's number is read at it and
+        // changes as it moves. The selector this wakes rebuilds a small object
+        // and the group only re-renders when a value it holds actually
+        // changed, so a control with no keyframes on it costs a comparison per
+        // scrubbed frame and nothing else.
+        [{ kind: "timeline.expanded" } as const, { kind: "playback" } as const]
       : []),
-    ...keyframeTargets.flatMap((target) => [
-      { kind: "keyframeGroup", target } as const,
-      { kind: "keyframeSelection", target } as const,
-    ]),
+    // Keyframe *groups*, but not which keyframe is selected: selection drives
+    // the timeline row's own affordances and no longer decides anything the
+    // controls panel draws or writes, so waking every keyframed group on it
+    // was a re-render for nothing.
+    ...keyframeTargets.map((target) => ({ kind: "keyframeGroup", target }) as const),
   ];
 }
 
@@ -309,11 +294,10 @@ export const ControlsPanelControlGroup = React.memo(
               rendererDependencies.includes("mediaAssets")
                 ? state.mediaAssets
                 : null,
-            selectedKeyframeId: getSelectedKeyframeId(state, keyframeTargetSet),
             valuesByTarget: Object.fromEntries(
               entries.map(([, control]) => [
                 control.target,
-                getToolcraftTargetValue(state, control.target) ??
+                getToolcraftPanelTargetValue(state, control.target) ??
                   control.defaultValue,
               ]),
             ),
@@ -348,8 +332,6 @@ export const ControlsPanelControlGroup = React.memo(
       keyframedControlIds: new Set(
         selection.keyframeGroups.map((group) => group.controlId),
       ),
-      keyframeGroups: selection.keyframeGroups,
-      selectedKeyframeId: selection.selectedKeyframeId,
     });
 
     if (entries.length > 1) {
