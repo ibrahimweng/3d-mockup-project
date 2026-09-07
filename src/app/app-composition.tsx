@@ -10,6 +10,7 @@ import { guideSignal } from "./guide/open-signal";
 import { QuickActionDialog } from "./quick-actions/quick-action-dialog";
 import { SceneReport } from "./render/scene-report";
 import { SignupCard } from "./signup/signup-card";
+import { SponsorBox } from "./sponsor/sponsor-box";
 import { openQuickActions } from "./quick-actions/quick-action-open";
 import { readDeviceDefinition, readDeviceId } from "./product-domain";
 import { rendererPipeline } from "./render/pipeline";
@@ -26,6 +27,7 @@ export const appComposition: ToolcraftAppComposition = {
       <QuickActionDialog />
       <GuideRuntime />
       <SignupCard />
+      <SponsorBox />
     </>
   ),
   exportRenderer: mockupExportRenderer,

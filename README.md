@@ -27,9 +27,10 @@ in the browser. `vercel.json` pins the Vite framework preset, the build command,
 the `dist` output directory, and a rewrite that sends every path except `/api/`
 to `index.html` so the client router can answer for `/admin`.
 
-There are two serverless functions in `api/`, and the studio works without them:
-they exist only for the email list below. Nothing else needs a server, and no
-environment variable is required to render, animate or export anything.
+There are four serverless functions in `api/`, and the studio works without
+them. Two are for the email list below, and two are for the sponsored card.
+Nothing else needs a server, and no environment variable is required to render,
+animate or export anything.
 
 ## Checks
 
@@ -40,7 +41,7 @@ Every check this repository defines runs on every push and pull request, from
 | --- | --- |
 | `npm run typecheck` | Types, strictly |
 | `npm run docs:check` | The docs match what the code does |
-| `npm test` | 794 unit tests, plus the acceptance evidence reporter |
+| `npm test` | 859 unit tests, plus the acceptance evidence reporter |
 | `npm run build` | The bundle actually builds |
 | `npm run ai:check` | The product boundary, against a recorded baseline |
 
@@ -252,9 +253,8 @@ artifact delivery, and a blob plus an invisible link is exactly that pattern.
   address" flag are `localStorage`, so a private window or cleared site data
   asks again. Since neither gates anything, the worst a bypass wins is a second
   sight of it.
-- **No ads.** They would need a slot in a full-viewport 3D canvas, they are
-  heavy next to WebGL, and running them makes the site commercial, which
-  Vercel's free Hobby plan does not cover.
+- **No account, and no billing.** The sponsor slot below is sold by hand and
+  entered by hand. Nothing here takes a payment.
 
 ### The privacy note
 
@@ -266,14 +266,126 @@ presses Export.
 Its strongest claim is that designs never leave the browser, and that one is
 held to the source rather than to good intentions:
 `src/routes/privacy-claims.test.ts` walks `src/app` and `src/routes` for network
-primitives and fails on any call the note has not accounted for. There are
-three today — a `blob:` read for an uploaded GIF, the signup POST, and the admin
-list — and a fourth breaks the build, naming the file, which is the moment to
-ask whether the note is still true.
+primitives and fails on any call the note has not accounted for. Five files are
+accounted for today. They are a `blob:` read for an uploaded GIF, the signup
+POST, the admin list, the sponsor card's own read and press count, and the
+sponsor booking page. A sixth breaks the build and names the file, which is the
+moment to ask whether the note is still true.
 
 Deleting one address is `HDEL mockup-studio:emails <address>` from the Upstash
-console. The contact address and the operator name are two constants at the top
-of `src/routes/privacy.tsx`.
+console. The contact address and the operator name are two constants in
+`src/app/operator.ts`, which both the privacy note and the empty sponsor card
+read.
+
+## The sponsored card
+
+A card sits in the top left corner of the studio. It holds one sponsor's
+logo, one line of text, and a link to them. One sponsor has the corner at a
+time, for a period they pay for, and the card comes down on its own when that
+period ends.
+
+This section used to say that this app would not have ads. Three reasons were
+given. An ad slot needs somewhere to live on a canvas that fills the window. Ad
+code is heavy to run beside WebGL. Running ads makes the site commercial, which
+Vercel's free Hobby plan does not cover. The first two reasons were about ad
+networks, and this is not one. The third reason still stands, and it is at the
+bottom of this section.
+
+### What it is
+
+There is no ad network here and no third party of any kind. Nothing is
+auctioned. No script is loaded from anywhere else. The sponsor's logo is stored
+by us and served from this site's own domain. The whole card is an image inside
+a link, so it costs one request when the page loads and nothing after that.
+
+Serving the logo ourselves is also what keeps the privacy note true. A card
+pointing at a sponsor's own server would give that sponsor the address and the
+browser of everybody who opens the studio, whether or not they ever looked at
+the card. Nobody can log a request that is never made.
+
+The word Sponsored is printed on the card above the logo. The link carries
+`rel="sponsored"`, which says the same thing to a search engine.
+
+### Where it sits, and when it does not
+
+Top left, over the canvas. That is the one corner of this window nothing else
+claims. The controls panel is down the right side, the toolbar floats over the
+bottom of the canvas, and the timeline takes a band under all of it, so a card
+in the bottom left corner covers the transport controls.
+
+The card stays hidden while the first-run tour is running, and again while the
+export modal is open. Somebody being taught how to use the studio should not be
+sold anything, and the export modal is holding back a file that somebody asked
+for.
+
+The card is never in an exported picture. An export is drawn from the 3D scene
+by the export renderer rather than captured from the screen, so nothing on the
+page can reach it.
+
+### Selling it
+
+Go to `/admin` and enter the same password the email list uses. That page now
+has two sections, and the second one is the sponsor slot.
+
+A booking is a name, a link, an optional line of text, two dates, and a logo.
+Both dates are included in the booking, and they are whole days in UTC. The list
+shows what is running now and how many days it has left, what is booked next,
+and what has finished. You can also see how many times each card was pressed.
+
+Four rules are enforced inside the endpoint rather than in the browser, because
+a check the browser runs is a check anyone can skip.
+
+- One sponsor at a time. A booking whose days overlap a booking already on file
+  is refused, and the reply says which one it clashes with.
+- Saving the same sponsor with the same first day replaces that booking. That is
+  how you correct a logo or a link.
+- The link has to start with `https://`. Both `javascript:` and `data:` are
+  valid URLs, and neither one is a sponsor's website.
+- The logo has to be a PNG, a JPEG, or a WebP under 200 KB. SVG is refused
+  because it can carry script, and a script served from this domain would run
+  with this domain's permissions. GIF is refused because an animated corner
+  competes with the render next to it.
+
+You put the logo in by dragging it onto the box, or by clicking the box and
+pressing paste. There is no file picker button. The repository's own product
+boundary check refuses `<input type="file">` in product source, so that a
+Toolcraft app declares a `fileDrop` control instead of building its own
+uploader. There is no schema on an admin page to declare one in, so the way past
+the rule is to not need a file input at all.
+
+Nothing is kept in the browser. The password is held in the page while the tab
+is open and is gone when it closes, the same as it already was.
+
+### What a sponsor is told
+
+They are told one number, which is how many times their card was pressed. That
+counter has no visitor in it, so it cannot be broken down by anything, and there
+is nothing else to tell them.
+
+There is no impression count, on purpose. Counting impressions means a write to
+the database on every page load, and the free Upstash tier has a daily command
+limit that this would spend. Whatever measures traffic for the site as a whole
+is the place to answer how many people saw it.
+
+### Setting it up
+
+Nothing new is needed. The slot uses the same three environment variables the
+email list already needs, and the same database.
+
+If they are not set, the studio shows the for-sale card and the admin page says
+that sponsorship is not configured. That split is deliberate. `/api/subscribe`
+answers `503` when it is unconfigured, because a signup form that accepts every
+address and stores none loses something nobody can get back. An empty sponsor
+slot is a state the studio has to draw correctly anyway, since it is what every
+day nobody has bought looks like, so the public endpoint fails into it quietly.
+The operator finds out on the admin page instead.
+
+### Read this before taking any money
+
+Vercel's Hobby plan is for non-commercial use, and selling this slot is
+commercial use. Move to a paid plan before you take a payment for it. This is
+the third reason this app had no ads, and it is the one thing here that the code
+cannot settle.
 
 ## What the licence covers
 

@@ -8,10 +8,10 @@ import { describe, expect, it } from "vitest";
  * that true rather than reassuring.
  *
  * The note is a promise written in prose, and prose does not fail a build. So
- * the claim is restated here as a rule about the source: the app may talk to
- * exactly two places, both of them ours, and neither takes a file. Add a third
- * and this fails, naming the file — which is the moment to ask whether the
- * privacy note is still true before shipping the change that made it false.
+ * the claim is restated here as a rule about the source: the app may talk to a
+ * short list of places, all of them ours, and none of them takes a file. Add
+ * one more and this fails, naming the file — which is the moment to ask whether
+ * the privacy note is still true before shipping the change that made it false.
  */
 
 const networkCall = /\b(?:fetch\(|XMLHttpRequest|sendBeacon|new WebSocket|EventSource\()/u;
@@ -37,6 +37,21 @@ const allowed = [
   {
     file: "src/routes/admin.tsx",
     reason: "asks our own endpoint for the list, behind a password",
+  },
+  {
+    // Two calls, both to our own endpoint and both about the site rather than
+    // about the person asking. The GET says who has bought the corner today.
+    // The POST adds one to a total per booking, and carries nothing else: no
+    // address, no identifier, no time, nothing that could be joined to
+    // anything. The sponsor's logo is served from us as well, which is the
+    // point — a card pointing at a sponsor's own server would hand that
+    // sponsor the IP address of everyone who opens the studio.
+    file: "src/app/sponsor/use-sponsor-slot.ts",
+    reason: "asks our own endpoint who is in the sponsor slot, and counts a press",
+  },
+  {
+    file: "src/routes/admin-sponsors.tsx",
+    reason: "books and removes sponsor slots through our own endpoint, behind a password",
   },
 ] as const;
 
