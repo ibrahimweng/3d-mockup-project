@@ -1,18 +1,21 @@
+import {
+  countRecentCalls,
+  readHashPairs,
+  readRedisConfig,
+  redisCommand,
+  type RedisConfig,
+} from "../store/redis-rest";
+
 /**
- * Where the addresses live, and why it is a fetch rather than a driver.
- *
- * The store is Upstash Redis over its REST API, reached with plain `fetch`.
- * That is a deliberate choice over a Postgres driver: it adds no dependency to
- * a project that has to keep a supply chain small, it runs on the Edge runtime
- * where a TCP driver cannot, and it is one HTTP call that can be faked in a
- * test without a database.
+ * Where the addresses live.
  *
  * A hash keyed by address rather than a list, because a hash field is the
  * dedupe: the same person pressing export on two devices writes the same field
  * twice and stays one subscriber, with the first sighting kept.
  *
- * The credential never reaches a browser. This module only ever runs inside a
- * serverless function, which reads it from the environment.
+ * The connection itself is in `src/store/redis-rest.ts`, which is also what the
+ * sponsor bookings use. One place holds the credential and knows the shape of a
+ * REST reply; this module knows its own key and nothing else.
  */
 
 const emailHashKey = "mockup-studio:emails";
@@ -25,11 +28,7 @@ export type SubscriberRecord = {
   readonly source: string;
 };
 
-export type EmailStoreConfig = {
-  readonly fetch: typeof globalThis.fetch;
-  readonly token: string;
-  readonly url: string;
-};
+export type EmailStoreConfig = RedisConfig;
 
 export type EmailStore = {
   readonly add: (record: SubscriberRecord) => Promise<"added" | "already-known">;
@@ -58,35 +57,7 @@ export function readEmailStoreConfig(
   env: Readonly<Record<string, string | undefined>>,
   fetchImpl: typeof globalThis.fetch = globalThis.fetch,
 ): EmailStoreConfig | null {
-  const url = env.UPSTASH_REDIS_REST_URL?.trim();
-  const token = env.UPSTASH_REDIS_REST_TOKEN?.trim();
-
-  return url && token ? { fetch: fetchImpl, token, url } : null;
-}
-
-async function command(
-  config: EmailStoreConfig,
-  args: readonly (string | number)[],
-): Promise<unknown> {
-  const response = await config.fetch(config.url, {
-    body: JSON.stringify(args),
-    headers: {
-      Authorization: `Bearer ${config.token}`,
-      "Content-Type": "application/json",
-    },
-    method: "POST",
-  });
-
-  if (!response.ok) {
-    // The body can carry the credential back in an error message, so only the
-    // status travels onward.
-    throw new Error(`Email store refused the request (${response.status}).`);
-  }
-
-  const payload: unknown = await response.json();
-  return payload && typeof payload === "object" && "result" in payload
-    ? (payload as { result: unknown }).result
-    : null;
+  return readRedisConfig(env, fetchImpl);
 }
 
 function parseRecord(email: string, raw: unknown): SubscriberRecord | null {
@@ -114,7 +85,7 @@ export function createEmailStore(config: EmailStoreConfig): EmailStore {
      * and 0 when it already existed, which is the whole answer.
      */
     add: async (record) => {
-      const created = await command(config, [
+      const created = await redisCommand(config, [
         "HSETNX",
         emailHashKey,
         record.email,
@@ -122,21 +93,16 @@ export function createEmailStore(config: EmailStoreConfig): EmailStore {
       ]);
       return created === 1 ? "added" : "already-known";
     },
-    countRecentCalls: async (caller, windowSeconds) => {
-      const key = `mockup-studio:rate:${caller}`;
-      const count = await command(config, ["INCR", key]);
-      if (count === 1) await command(config, ["EXPIRE", key, windowSeconds]);
-      return typeof count === "number" ? count : 0;
-    },
+    countRecentCalls: async (caller, windowSeconds) =>
+      countRecentCalls(config, `mockup-studio:rate:${caller}`, windowSeconds),
     list: async () => {
-      const flat = await command(config, ["HGETALL", emailHashKey]);
-      if (!Array.isArray(flat)) return [];
+      const pairs = readHashPairs(
+        await redisCommand(config, ["HGETALL", emailHashKey]),
+      );
 
       const records: SubscriberRecord[] = [];
-      for (let index = 0; index + 1 < flat.length; index += 2) {
-        const email = flat[index];
-        if (typeof email !== "string") continue;
-        const record = parseRecord(email, flat[index + 1]);
+      for (const [email, raw] of pairs) {
+        const record = parseRecord(email, raw);
         if (record) records.push(record);
       }
       // Newest last is how a list of signups reads; an empty date sorts first

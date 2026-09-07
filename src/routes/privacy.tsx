@@ -1,21 +1,29 @@
 import * as React from "react";
 
+import { OPERATOR_EMAIL, OPERATOR_NAME } from "../app/operator";
+
 /**
  * What this studio does with what it is given.
  *
  * Written from what the code actually does rather than from a template. Every
- * claim here is checkable: there are exactly two calls in the app that reach a
- * server, `/api/subscribe` and `/api/emails`, and no route anywhere accepts a
- * file — which is what makes the first section true rather than reassuring.
+ * claim here is checkable: the calls the app makes are counted by
+ * `privacy-claims.test.ts`, they all go to this site's own endpoints, and no
+ * route anywhere accepts a file — which is what makes the first section true
+ * rather than reassuring.
+ *
+ * The sponsor card in the corner is the section that has to be got right. It is
+ * the one place another company's name appears, and the whole reason it can be
+ * described as collecting nothing is that no request ever leaves this domain
+ * for it: the logo is served from here, no script comes from anywhere, and the
+ * only thing recorded is a running total of presses with no visitor in it.
  *
  * Kept as a page in the app instead of a hosted document so it moves with the
  * code. If the app ever starts sending something somewhere, the note that says
  * it does not is in the same repository as the change.
  */
 
-/** Where a removal request goes. One place, so it is one line to change. */
-const CONTACT = "ibrahimweng0@gmail.com";
-const OPERATOR = "Mockup Studio";
+const CONTACT = OPERATOR_EMAIL;
+const OPERATOR = OPERATOR_NAME;
 
 function Section({
   children,
@@ -78,10 +86,36 @@ export function PrivacyNote(): React.JSX.Element {
         </p>
       </Section>
 
+      <Section title="The sponsored card in the corner">
+        <p>
+          One sponsor buys that corner for a period, usually a month or two, and
+          their logo is the only thing in it for those days. It is sold and
+          filled in by hand. There is no ad network, no auction, and no script
+          from anywhere else running on this page.
+        </p>
+        <p>
+          The logo is stored by us and served from this site, so your browser
+          never contacts the sponsor unless you press the card. Nothing about
+          you is sent to them, and they are not told that you were here.
+        </p>
+        <p>
+          When you do press it, we add one to a running total of presses for
+          that sponsor, so we can tell them how the month went. That total is
+          all we keep: no address, no identifier, no time, nothing that could be
+          traced back to you or joined to anything else.
+        </p>
+        <p>
+          The card is part of the page and never part of your picture. Exports
+          are drawn from the 3D scene, so nothing on screen around it can end up
+          in the file you save.
+        </p>
+      </Section>
+
       <Section title="No tracking, no analytics, no cookies">
         <p>
-          There are no analytics, no advertising, and no third-party trackers.
-          Nothing follows you between visits.
+          There are no analytics and no third-party trackers. Nothing follows
+          you between visits. The one advertisement is the sponsored card
+          described above, which is a picture and a link and nothing else.
         </p>
         <p>
           Your browser stores a few small notes locally so the studio behaves
@@ -96,7 +130,9 @@ export function PrivacyNote(): React.JSX.Element {
         <p>
           In a database hosted by Upstash, reachable only with a credential held
           on the server. It is never included in anything your browser
-          downloads, so nobody visiting this site can read the list.
+          downloads, so nobody visiting this site can read the list. The sponsor
+          bookings and their press totals sit in the same database, and hold
+          nothing about anybody who visits.
         </p>
         <p>The site itself is hosted by Vercel.</p>
       </Section>

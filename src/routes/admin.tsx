@@ -3,8 +3,13 @@ import * as React from "react";
 import { Button, Input } from "@/toolcraft/ui/components/primitives";
 import type { SubscriberRecord } from "@/signup/email-store";
 
+import { SponsorBookings } from "./admin-sponsors";
+
 /**
- * The list of addresses, behind a password this page never checks.
+ * The two things only the operator sees: the addresses, and the sponsor slot.
+ *
+ * One password unlocks both. It is typed once, held here while the tab is open
+ * so each section can send it with its own requests, and never written down.
  *
  * What is typed here is posted to `/api/emails` and compared there, inside a
  * serverless function, against a value that only exists in the deployment's
@@ -21,12 +26,22 @@ export function AdminEmails(): React.JSX.Element {
   const [records, setRecords] = React.useState<readonly SubscriberRecord[] | null>(null);
   const [error, setError] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
+  /*
+   * The password as it was when it was submitted, rather than as it is being
+   * typed.
+   *
+   * The sponsor section below sends it with every request of its own, and
+   * handing it the live field would have it reload on each keystroke. This
+   * changes once, when the button is pressed.
+   */
+  const [unlocked, setUnlocked] = React.useState("");
 
   const load = React.useCallback(
     async (event: React.FormEvent) => {
       event.preventDefault();
       setIsLoading(true);
       setError("");
+      setUnlocked(password);
 
       try {
         const response = await fetch("/api/emails", {
@@ -58,9 +73,9 @@ export function AdminEmails(): React.JSX.Element {
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-8 text-[color:var(--foreground)]">
       <header className="flex flex-col gap-1">
-        <h1 className="text-lg font-medium">Collected emails</h1>
+        <h1 className="text-lg font-medium">Studio admin</h1>
         <p className="text-sm text-[color:color-mix(in_oklab,var(--foreground)_60%,transparent)]">
-          Everyone who left an address after exporting.
+          The email list, and who has the sponsor slot.
         </p>
       </header>
 
@@ -87,6 +102,7 @@ export function AdminEmails(): React.JSX.Element {
 
       {records ? (
         <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-medium">Collected emails</h2>
           <div className="flex items-center justify-between">
             <p className="text-sm">
               {records.length} {records.length === 1 ? "address" : "addresses"}
@@ -130,6 +146,8 @@ export function AdminEmails(): React.JSX.Element {
           )}
         </section>
       ) : null}
+
+      {unlocked === "" ? null : <SponsorBookings password={unlocked} />}
     </main>
   );
 }

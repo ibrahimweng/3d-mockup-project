@@ -11,6 +11,7 @@ import { TourCard, tourNextAfterSeconds } from "./tour-card";
 import { hasSeenTour, rememberTourSeen } from "./tour-progress";
 import { TourSpotlight, useSpotlightRect } from "./tour-spotlight";
 import { isTourStepDone, tourSteps, type TourObservation } from "./tour-steps";
+import { setTourShowing } from "./tour-visibility";
 
 /**
  * Which tab a step's control is on, and which section holds it.
@@ -176,10 +177,20 @@ export function FirstRunTour(): React.JSX.Element | null {
   );
   const rect = useSpotlightRect(find, step !== null && step.spotlight !== "none");
 
+  const showing = step !== null && index !== null && !gateOpen;
+
+  // Published so the sponsor card can step aside. Somebody being walked through
+  // the studio for the first time is being taught how to use it, which is the
+  // worst moment in the session to put an advertisement in front of them.
+  React.useEffect(() => {
+    setTourShowing(showing);
+    return () => setTourShowing(false);
+  }, [showing]);
+
   // Nothing while the export gate is up. Two things asking for the same address
   // over one dimmed studio is one too many, and the gate is the one holding
   // something back.
-  if (step === null || index === null || gateOpen) return null;
+  if (!showing || step === null || index === null) return null;
 
   /*
    * Portalled to the body, and this is not optional.
