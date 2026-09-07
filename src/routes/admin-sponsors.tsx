@@ -35,11 +35,31 @@ const emptyDraft = {
   headline: "",
   href: "",
   image: "",
+  payment: "",
   sponsor: "",
   startsOn: addDays(0),
 };
 
 type Draft = typeof emptyDraft;
+
+/**
+ * The one thing that can go wrong with selling this way.
+ *
+ * The slot is sold by putting the card up first and asking for payment once the
+ * sponsor has seen it running, which is the only way to sell it that does not
+ * ask a stranger to send money first and hope. The cost of that choice is that
+ * a booking can be live and unpaid, and the only thing standing between that
+ * and being quietly taken advantage of is the operator noticing. So it is said
+ * plainly, on the row, and only while there is still something to do about it.
+ */
+function UnpaidMark({ slot }: { slot: AdminSponsorSlot }): React.JSX.Element | null {
+  if (slot.payment !== "" || slot.status === "ended") return null;
+  return (
+    <span className="rounded-full border border-[color:var(--destructive)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--destructive)]">
+      Not paid
+    </span>
+  );
+}
 
 function StatusBadge({ slot }: { slot: AdminSponsorSlot }): React.JSX.Element {
   const text =
@@ -191,7 +211,10 @@ export function SponsorBookings({
             <li className="flex flex-col gap-2 p-3" key={slot.id}>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-sm font-medium">{slot.sponsor}</span>
-                <StatusBadge slot={slot} />
+                <span className="flex items-center gap-2">
+                  <UnpaidMark slot={slot} />
+                  <StatusBadge slot={slot} />
+                </span>
               </div>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-[color:color-mix(in_oklab,var(--foreground)_60%,transparent)]">
                 <span>
@@ -199,6 +222,7 @@ export function SponsorBookings({
                 </span>
                 <span>{numberFormat.format(slot.clicks)} presses</span>
                 <span className="truncate">{slot.href}</span>
+                {slot.payment === "" ? null : <span>Paid: {slot.payment}</span>}
               </div>
               <div className="flex items-center gap-2">
                 {confirming === slot.id ? (
@@ -268,6 +292,20 @@ export function SponsorBookings({
               required
               type="url"
               value={draft.href}
+            />
+          )}
+        </Field>
+
+        <Field
+          hint="Leave this empty until the money arrives, then put the reference here. A booking with nothing in it is marked Not paid in the list above."
+          label="Payment"
+        >
+          {(id) => (
+            <Input
+              id={id}
+              onChange={(event) => set("payment", event.target.value)}
+              placeholder="Bybit 7 Sept, or a transaction hash"
+              value={draft.payment}
             />
           )}
         </Field>

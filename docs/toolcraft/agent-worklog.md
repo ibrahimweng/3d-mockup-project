@@ -85,6 +85,24 @@ The quoted evidence must be an exact nontrivial raw substring of `Request` with 
 - Verification: One bare `npm run verify:delivery` will derive and run the protected proof.
 - Risks: The card claims 64 more pixels of the canvas, which is a slightly larger area a drag can no longer start in. Below about 900 pixels of window width the card and the panel start to close on each other, and the studio already refuses to open under 720.
 
+### Iteration 4 — A page that sells the slot, and payment after the card is up rather than before
+
+- Request: Charge 30 dollars a month, take USDC to a Bybit account by email and to a Solana address, and find the safest way to run this so the sponsor does not feel cheated and has some sense of guarantee.
+- Task type: One static page outside the app, one public read added to an endpoint, one field on a booking, and a link changed on the card.
+- User-visible result: The empty card links to `/sponsor` instead of opening a mail message. That page states the price, what a sponsor gets, how to pay, what is promised, what is deliberately not promised, and it reads the booking calendar live so anybody can see which days are sold. The card now says "One sponsor at a time, $30 a month. See how it works." A booking carries a payment note, and the admin list marks a booking that has not finished and has no payment against it as Not paid.
+- Source/reference checked: The running app for the page and the admin list. `scripts/toolcraft-source-ownership.mjs`, which lists `index.html` and `src/routes/root.tsx` as framework-owned, which is what ruled out both an app route and editing the studio's own meta tags.
+- Reference inputs: None. There is no motion reference, so `referenceInputs` stays the empty no-reference fast path.
+- Docs/contracts read: `AGENTS.md`, `CLAUDE.md`, and this repository's `README.md`.
+- Contract rules applied: `canvas-no-app-ui` and `canvas-surface-preserved`. The card is unchanged in where it renders. The new page is outside `src`, so no product rule reaches it.
+- View interaction intent: `orbit`, unchanged. Nothing here touches the scene.
+- Interaction ownership: Unchanged in the studio. The card still owns one operation, a press on itself, and that press is now a navigation to `/sponsor` rather than a mail link. The admin page owns entering a payment note, which is a property edit on a booking and belongs with the booking it describes.
+- Decision: Put the card up first and ask for payment after the sponsor has seen it running. A crypto payment cannot be reversed and there is no escrow, so paying first asks a stranger to carry all of the risk. Reversing the order moves the risk to the side that can carry it, because an unsold slot was showing a for-sale card anyway. The cost is that a booking can be live and unpaid, which is why the admin list marks it.
+- Alternatives rejected: A route in the app for the sponsorship page, because the router file is framework-owned, and because a page a stranger opens to read terms should not need two megabytes of WebGL, and because the studio's own HTML has no prose in it for a search engine to read while a static page does. An escrow or a payment processor, because the operator asked to keep this free to run and Stripe is a service and a fee. Naming sponsors in the public calendar, because a booking that has not started is not public information about anybody. Quoting traffic numbers on the page, because none can be proved yet and a number that cannot be proved is worth nothing to a buyer.
+- State/output mapping: `GET /api/sponsor?calendar` reads every booking whose last day has not passed and answers with start and end dates only. `public/sponsor.html` renders that into one sentence and falls back to a sentence that claims nothing when the request fails. `SPONSOR_PRICE` and `SPONSOR_PAGE_PATH` in `src/app/sponsor/sponsor-terms.ts` feed the card, and `sponsor-page.test.ts` holds the static page to the same values, to `OPERATOR_EMAIL`, and to the rewrite in `vercel.json`. A booking's `payment` field feeds the Not paid mark.
+- Performance intent: ordinary-product-work
+- Verification: One bare `npm run verify:delivery` will derive and run the protected proof.
+- Risks: Three values on the page are left to be filled in and the page is written so that each one is absent rather than wrong: the operator's name, a Solana receiving address, and the site's own domain in the link preview tags. The studio's own `index.html` still carries relative link preview paths, so Facebook and LinkedIn show no image for `/`, and fixing that means editing a framework-owned file, which is the operator's call rather than this repository's. Nothing enforces payment, by design.
+
 ## Decisions
 
 ### Renderer

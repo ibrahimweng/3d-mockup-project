@@ -65,6 +65,7 @@ function parseSlot(id: string, raw: string): SponsorSlot | null {
         typeof record.imageDigest === "string" ? record.imageDigest : "",
       imageMediaType:
         typeof record.imageMediaType === "string" ? record.imageMediaType : "",
+      payment: typeof record.payment === "string" ? record.payment : "",
       sponsor: typeof record.sponsor === "string" ? record.sponsor : id,
       startsOn: record.startsOn,
     };
@@ -153,6 +154,7 @@ export function createSponsorStore(config: RedisConfig): SponsorStore {
           href: slot.href,
           imageDigest: slot.imageDigest,
           imageMediaType: slot.imageMediaType,
+          payment: slot.payment,
           sponsor: slot.sponsor,
           startsOn: slot.startsOn,
         }),

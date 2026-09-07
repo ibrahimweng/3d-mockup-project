@@ -29,6 +29,7 @@ function record(overrides: Record<string, unknown> = {}): string {
     href: "https://example.com/tools",
     imageDigest: "abcd1234",
     imageMediaType: "image/png",
+    payment: "",
     sponsor: "Acme Tools",
     startsOn: "2026-09-01",
     ...overrides,
@@ -130,6 +131,60 @@ describe("GET /api/sponsor", () => {
     expect(response.headers.get("Content-Type")).toBe("image/png");
     expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
     expect([...new Uint8Array(await response.arrayBuffer())]).toEqual(png);
+  });
+
+  it("answers the calendar with dates and nothing else", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-15T09:00:00Z"));
+    const { fetchImpl } = fakeRedis({
+      HGETALL: [
+        "acme-tools-20260901",
+        record(),
+        "next-20261101",
+        record({ endsOn: "2026-11-30", sponsor: "Northwind", startsOn: "2026-11-01" }),
+      ],
+    });
+
+    const response = await handleSponsorSlot(
+      get("https://studio.example/api/sponsor?calendar"),
+      configured,
+      fetchImpl,
+    );
+    const body = (await response.json()) as { taken: unknown[] };
+
+    // A buyer needs to know what is sold. Nobody needs to know who bought it,
+    // least of all about a booking that has not started yet.
+    expect(body.taken).toEqual([
+      { endsOn: "2026-09-30", startsOn: "2026-09-01" },
+      { endsOn: "2026-11-30", startsOn: "2026-11-01" },
+    ]);
+    expect(JSON.stringify(body)).not.toContain("Northwind");
+    vi.useRealTimers();
+  });
+
+  it("leaves finished bookings out of the calendar", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-12-01T09:00:00Z"));
+    const { fetchImpl } = fakeRedis({ HGETALL: ["acme-tools-20260901", record()] });
+
+    const response = await handleSponsorSlot(
+      get("https://studio.example/api/sponsor?calendar"),
+      configured,
+      fetchImpl,
+    );
+    await expect(response.json()).resolves.toEqual({ taken: [] });
+    vi.useRealTimers();
+  });
+
+  it("answers the calendar with nothing taken when unconfigured", async () => {
+    const { fetchImpl } = fakeRedis();
+    const response = await handleSponsorSlot(
+      get("https://studio.example/api/sponsor?calendar"),
+      {},
+      fetchImpl,
+    );
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ taken: [] });
   });
 
   it("answers 404 for a logo that is not there", async () => {
@@ -298,6 +353,18 @@ describe("POST /api/sponsors", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ slots: [] });
     expect(seen.some((call) => call[0] === "DEL")).toBe(true);
+  });
+
+  it("keeps the payment note the operator wrote against the booking", async () => {
+    const { fetchImpl, seen } = fakeRedis({ HGETALL: null });
+    await handleSponsorAdmin(
+      admin({ action: "save", ...booking, payment: "  Bybit 7 Sept  " }),
+      configured,
+      fetchImpl,
+    );
+
+    const written = seen.find((call) => call[0] === "HSET");
+    expect(String(written?.[3])).toContain('"payment":"Bybit 7 Sept"');
   });
 
   it("refuses an action it does not have", async () => {

@@ -20,6 +20,7 @@ function slot(overrides: Partial<SponsorSlot> = {}): SponsorSlot {
     id: "acme-20260901",
     imageDigest: "abcd1234",
     imageMediaType: "image/png",
+    payment: "",
     sponsor: "Acme",
     startsOn: "2026-09-01",
     ...overrides,
@@ -102,6 +103,7 @@ describe("checking what the operator typed", () => {
     endsOn: "2026-09-30",
     headline: "Hardware for makers",
     href: "https://example.com/tools",
+    payment: "",
     sponsor: "Acme Tools",
     startsOn: "2026-09-01",
   };
@@ -157,6 +159,19 @@ describe("checking what the operator typed", () => {
     if (!result.ok) return;
     expect(result.slot.sponsor).toBe("Acme Tools");
     expect(result.slot.headline).toBe("spaced");
+  });
+
+  it("takes a payment note, trims it, and refuses an essay", () => {
+    const noted = normalizeSlotDraft(
+      { ...good, payment: "  0x9f3a…  " },
+      new Date(),
+    );
+    expect(noted.ok).toBe(true);
+    if (noted.ok) expect(noted.slot.payment).toBe("0x9f3a…");
+
+    expect(
+      normalizeSlotDraft({ ...good, payment: "x".repeat(200) }, new Date()).ok,
+    ).toBe(false);
   });
 
   it("makes an id out of a name that has nothing to slug", () => {

@@ -5,6 +5,10 @@
   "framework": "vite",
   "rewrites": [
     {
+      "destination": "/sponsor.html",
+      "source": "/sponsor"
+    },
+    {
       "destination": "/index.html",
       "source": "/((?!api/).*)"
     }

@@ -1,8 +1,8 @@
 import * as React from "react";
 import { createPortal } from "react-dom";
 
-import { OPERATOR_EMAIL, OPERATOR_NAME } from "../operator";
 import { useExportGateOpen } from "../signup/gate-visibility";
+import { SPONSOR_PAGE_PATH, SPONSOR_PRICE } from "./sponsor-terms";
 import { useTourShowing } from "../tour/tour-visibility";
 import { reportSponsorClick, useSponsorSlot } from "./use-sponsor-slot";
 
@@ -80,25 +80,31 @@ const lineClassName =
 /**
  * What the corner says on a day nobody has bought it.
  *
- * An empty slot that shows nothing sells nothing. This one is the
- * advertisement for itself, and it is the only route anybody has to buying the
- * space, since there is no billing page and no form: they write, and the
- * operator books it in by hand.
+ * An empty slot that shows nothing sells nothing, so on those days the card is
+ * the advertisement for itself.
+ *
+ * It goes to `/sponsor` rather than opening a mail message, which is the fix
+ * for two faults in the same link. A `mailto:` does nothing at all on a machine
+ * with no mail program set up, so the interested person simply disappears. And
+ * the ones it does work for have to compose a message knowing nothing: not the
+ * price, not the size of the logo, not what happens if it goes wrong. The page
+ * answers all of that before anybody has to ask, and the mail address is on it.
  */
 function ForSaleCard(): React.JSX.Element {
-  const subject = encodeURIComponent(`Sponsoring ${OPERATOR_NAME}`);
   return (
     <a
       className={cardClassName}
       data-slot="mockup-sponsor-card"
       data-sponsor-state="for-sale"
-      href={`mailto:${OPERATOR_EMAIL}?subject=${subject}`}
+      href={SPONSOR_PAGE_PATH}
     >
       <span className={labelClassName}>This spot is for sale</span>
       <span className="text-[color:var(--foreground)] text-xs font-medium">
         Put your brand here
       </span>
-      <span className={lineClassName}>One sponsor at a time, by the month.</span>
+      <span className={lineClassName}>
+        One sponsor at a time, {SPONSOR_PRICE}. See how it works.
+      </span>
     </a>
   );
 }

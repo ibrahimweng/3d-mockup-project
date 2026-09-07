@@ -17,6 +17,7 @@ import {
   normalizeSlotDraft,
   slotStatus,
   slotsOverlap,
+  toUtcDay,
   type SponsorSlot,
 } from "./sponsor-slot";
 
@@ -181,6 +182,30 @@ export async function handleSponsorSlot(
   }
 
   const cache = `public, s-maxage=${slotCacheSeconds}, stale-while-revalidate=600`;
+
+  /*
+   * The calendar, for the page that sells the slot.
+   *
+   * Dates and nothing else. A buyer about to send money to a stranger needs to
+   * know that the thing exists, that it is not already sold out from under
+   * them, and when it is next free, and every one of those is answered by a
+   * list of taken days. Names are left out because a booking that has not
+   * started yet is not public information about anybody: the sponsor whose card
+   * is up is visible to the whole world already, and the one starting in
+   * November has not agreed to be announced.
+   *
+   * Finished bookings are left out too. They are a fact about the past that a
+   * buyer cannot act on.
+   */
+  if (new URL(request.url).searchParams.has("calendar")) {
+    if (!store) return json({ taken: [] }, 200, cache);
+    const today = toUtcDay(new Date());
+    const taken = (await store.listSlots())
+      .filter((slot) => slot.endsOn >= today)
+      .map((slot) => ({ endsOn: slot.endsOn, startsOn: slot.startsOn }));
+    return json({ taken }, 200, cache);
+  }
+
   if (!store) return json({ sponsor: null }, 200, cache);
 
   const live = findLiveSlot(await store.listSlots(), new Date());
@@ -217,6 +242,7 @@ async function saveSlot(
       endsOn: body.endsOn,
       headline: body.headline,
       href: body.href,
+      payment: body.payment,
       sponsor: body.sponsor,
       startsOn: body.startsOn,
     },

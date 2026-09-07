@@ -12,6 +12,10 @@ import { describe, expect, it } from "vitest";
  * short list of places, all of them ours, and none of them takes a file. Add
  * one more and this fails, naming the file — which is the moment to ask whether
  * the privacy note is still true before shipping the change that made it false.
+ *
+ * The static pages in `public/` are walked too. Nothing type-checks them and
+ * nothing else here would ever look at them, so a page shipped from that folder
+ * is the one place a call could be added where no check was watching.
  */
 
 const networkCall = /\b(?:fetch\(|XMLHttpRequest|sendBeacon|new WebSocket|EventSource\()/u;
@@ -53,6 +57,13 @@ const allowed = [
     file: "src/routes/admin-sponsors.tsx",
     reason: "books and removes sponsor slots through our own endpoint, behind a password",
   },
+  {
+    // Asks our own endpoint which days are already sold, so somebody deciding
+    // whether to buy the slot can see for themselves rather than take a word
+    // for it. The answer is dates only: no names, no counts, nobody's anything.
+    file: "public/sponsor.html",
+    reason: "reads the booking calendar from our own endpoint",
+  },
 ] as const;
 
 function sourceFiles(directory: string): string[] {
@@ -63,11 +74,19 @@ function sourceFiles(directory: string): string[] {
   });
 }
 
+/** The static pages, which no compiler ever opens. */
+function publicPages(): string[] {
+  return readdirSync("public")
+    .filter((entry) => entry.endsWith(".html"))
+    .map((entry) => join("public", entry));
+}
+
 describe("the privacy note's claim about what leaves the browser", () => {
   it("finds no network call the note has not accounted for", () => {
     const known = new Set<string>(allowed.map((entry) => entry.file));
     const found = sourceFiles("src/app")
       .concat(sourceFiles("src/routes"))
+      .concat(publicPages())
       .filter((path) => networkCall.test(readFileSync(path, "utf8")))
       .filter((path) => !known.has(path));
 

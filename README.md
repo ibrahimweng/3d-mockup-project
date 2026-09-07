@@ -41,7 +41,7 @@ Every check this repository defines runs on every push and pull request, from
 | --- | --- |
 | `npm run typecheck` | Types, strictly |
 | `npm run docs:check` | The docs match what the code does |
-| `npm test` | 859 unit tests, plus the acceptance evidence reporter |
+| `npm test` | 870 unit tests, plus the acceptance evidence reporter |
 | `npm run build` | The bundle actually builds |
 | `npm run ai:check` | The product boundary, against a recorded baseline |
 
@@ -282,7 +282,8 @@ read.
 A card sits in the top left corner of the studio, 288 pixels wide and about 90
 tall. It holds one sponsor's logo, one line of text, and a link to them. One
 sponsor has the corner at a time, for a period they pay for, and the card comes
-down on its own when that period ends.
+down on its own when that period ends. It costs 30 dollars a month, and
+`/sponsor` is the page that says so.
 
 This section used to say that this app would not have ads. Three reasons were
 given. An ad slot needs somewhere to live on a canvas that fills the window. Ad
@@ -329,15 +330,63 @@ The card is never in an exported picture. An export is drawn from the 3D scene
 by the export renderer rather than captured from the screen, so nothing on the
 page can reach it.
 
+### The page that sells it
+
+`/sponsor` is a static page in `public/`, not a route in the app, and all three
+reasons for that are worth writing down.
+
+The router lives in `src/routes/root.tsx`, which this repository's contract
+marks framework-owned and forbids editing, so there is nowhere to add a route.
+That one could have been argued with. The other two could not.
+
+Somebody about to send money to a stranger should not have to download two
+megabytes of WebGL to read the terms. The page is a few kilobytes and is
+readable before the studio's bundle would have finished parsing.
+
+And a search engine reads what is in the HTML. The studio's own page ships an
+empty `<div id="root">` and builds everything afterwards, so there is no prose
+on it to read at all. `/sponsor` is the first page on this site with words in it
+that a crawler sees without running anything, which is why `robots.txt` lets it
+through and why the reach work starts there.
+
+`vercel.json` rewrites `/sponsor` to `/sponsor.html` ahead of the catch-all that
+sends everything else to the app. The page holds its own copy of the price and
+the contact address, because static HTML cannot import a TypeScript constant.
+`src/app/sponsor/sponsor-page.test.ts` holds the copies to each other, and to
+the rewrite, so none of the three can drift on its own.
+
+### The order things happen in, and why that order
+
+The card goes up first. The sponsor looks at it running on the live site, and
+pays afterwards.
+
+That is the whole guarantee, and there is no smaller one that works. A crypto
+payment cannot be reversed and there is no escrow, so a sponsor who pays first
+is being asked to take every part of the risk on a stranger. Reversing the order
+moves the risk onto the side that can afford it: an unsold slot costs nothing to
+give away for three days, because it was showing a for-sale card anyway.
+
+The cost of that choice is that a booking can be live and unpaid, so the admin
+page marks one in red until a payment reference is written against it. Nothing
+enforces payment, and nothing should. A sponsor who never pays gets three days
+of a corner that was empty.
+
 ### Selling it
 
 Go to `/admin` and enter the same password the email list uses. That page now
 has two sections, and the second one is the sponsor slot.
 
-A booking is a name, a link, an optional line of text, two dates, and a logo.
-Both dates are included in the booking, and they are whole days in UTC. The list
-shows what is running now and how many days it has left, what is booked next,
-and what has finished. You can also see how many times each card was pressed.
+A booking is a name, a link, an optional line of text, two dates, a logo, and a
+payment note. Both dates are included in the booking, and they are whole days in
+UTC. The list shows what is running now and how many days it has left, what is
+booked next, and what has finished. You can also see how many times each card
+was pressed.
+
+The payment note is free text and stays empty until the money arrives. Put a
+transaction reference in it, or the date and the wallet, or anything that finds
+the payment again. A booking that has not finished and has nothing in that field
+is marked **Not paid** in the list, which is the only thing standing between the
+order above and being quietly taken advantage of.
 
 Four rules are enforced inside the endpoint rather than in the browser, because
 a check the browser runs is a check anyone can skip.
@@ -373,6 +422,13 @@ There is no impression count, on purpose. Counting impressions means a write to
 the database on every page load, and the free Upstash tier has a daily command
 limit that this would spend. Whatever measures traffic for the site as a whole
 is the place to answer how many people saw it.
+
+They can also read the calendar for themselves. `GET /api/sponsor?calendar`
+answers with the date ranges that are already sold and nothing else: no names,
+no logos, no counts. A buyer needs to know the slot is real and whether it is
+free, and a list of taken days answers both without saying anything about
+anybody who has bought it. Finished bookings are left out, since they are a fact
+about the past that a buyer cannot act on. The page reads it live.
 
 ### Setting it up
 
