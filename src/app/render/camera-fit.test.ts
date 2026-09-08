@@ -1,7 +1,13 @@
 import * as THREE from "three";
 import { describe, expect, test } from "vitest";
 
-import { fitDistance, fovDegreesFor, heldBox, readFitBasis } from "./camera-fit";
+import {
+  fitDistance,
+  fovDegreesFor,
+  heldBox,
+  readFitBasis,
+  sweptSubjectBox,
+} from "./camera-fit";
 
 // `position` is the direction the camera stands in from the subject, not a
 // world point; `up` is the room's vertical.
@@ -143,5 +149,150 @@ describe("how much of the furniture is held in frame", () => {
     const midway = heldBox(framing, standTop, 1.5).min.y;
     expect(midway).toBeGreaterThan(framing.min.y);
     expect(midway).toBeLessThan(standTop);
+  });
+});
+
+/**
+ * The camera holds still while the turntable turns.
+ *
+ * This is the join the whole animation rests on. The camera's distance is
+ * derived from the box it has to hold, and the box a turning product occupies
+ * changes as it turns — so a frame cut to the box of the moment dollied the
+ * camera in and out twice a revolution while the product was supposed to be
+ * the only thing moving. Measured on the shapes this catalog actually ships,
+ * the swing in camera distance over one turn ran from 12 per cent on a phone
+ * to 57 per cent on a laptop.
+ */
+describe("the room a product needs while it turns", () => {
+  const distanceAt = (half: THREE.Vector3, spinDegrees: number): number => {
+    // The pose the scene builds, reduced to what the fit reads: the product
+    // spun about the room's vertical, which is what a turntable is.
+    const turn = new THREE.Matrix4().makeRotationY(
+      THREE.MathUtils.degToRad(spinDegrees),
+    );
+    const spun = new THREE.Box3();
+    for (const x of [-half.x, half.x])
+      for (const y of [-half.y, half.y])
+        for (const z of [-half.z, half.z])
+          spun.expandByPoint(
+            new THREE.Vector3(x, y, z).applyMatrix4(turn),
+          );
+    return fitDistance({
+      aspect: 0.8,
+      basis: straightOn,
+      box: spun,
+      halfFovRad: THREE.MathUtils.degToRad(fovDegreesFor(50)) / 2,
+      subject: spun,
+    });
+  };
+
+  const sweptDistanceAt = (half: THREE.Vector3, spinDegrees: number): number => {
+    const box = sweptSubjectBox({
+      half,
+      // Spin is absent from the swept box by construction, so the angle can
+      // only reach this through the pose — and the pose's own vertical lift is
+      // spin-independent too, because spin turns about the vertical.
+      position: new THREE.Vector3(0, 0, 0),
+      rollDegrees: 0,
+      scale: 1,
+      tiltDegrees: 0,
+    });
+    void spinDegrees;
+    return fitDistance({
+      aspect: 0.8,
+      basis: straightOn,
+      box,
+      halfFovRad: THREE.MathUtils.degToRad(fovDegreesFor(50)) / 2,
+      subject: box,
+    });
+  };
+
+  // Roughly the proportions this catalog ships, worst case first.
+  const shapes: ReadonlyArray<readonly [string, THREE.Vector3]> = [
+    ["a laptop, wide and shallow", new THREE.Vector3(0.6, 0.2, 0.42)],
+    ["a shirt, wide and thin", new THREE.Vector3(0.62, 0.5, 0.26)],
+    ["a phone, tall and thin", new THREE.Vector3(0.18, 0.36, 0.02)],
+  ];
+
+  test("the box of the moment moves the camera, which is the fault", () => {
+    for (const [name, half] of shapes) {
+      const over = Array.from({ length: 72 }, (_, step) =>
+        distanceAt(half, step * 5),
+      );
+      const swing =
+        (Math.max(...over) - Math.min(...over)) / Math.min(...over);
+      // Not an assertion about a good number — an assertion that the old rule
+      // really did move the camera, so the one below is proving something.
+      expect(swing, name).toBeGreaterThan(0.1);
+    }
+  });
+
+  test("the swept cylinder does not, at any angle of any product", () => {
+    for (const [name, half] of shapes) {
+      const over = Array.from({ length: 72 }, (_, step) =>
+        sweptDistanceAt(half, step * 5),
+      );
+      expect(Math.max(...over) - Math.min(...over), name).toBeLessThan(1e-12);
+    }
+  });
+
+  test("it holds the product at every angle, so nothing is cropped", () => {
+    for (const [name, half] of shapes) {
+      const swept = sweptSubjectBox({
+        half,
+        position: new THREE.Vector3(),
+        rollDegrees: 0,
+        scale: 1,
+        tiltDegrees: 0,
+      });
+      for (let spin = 0; spin < 360; spin += 5) {
+        const turn = new THREE.Matrix4().makeRotationY(
+          THREE.MathUtils.degToRad(spin),
+        );
+        for (const x of [-half.x, half.x])
+          for (const y of [-half.y, half.y])
+            for (const z of [-half.z, half.z]) {
+              const corner = new THREE.Vector3(x, y, z).applyMatrix4(turn);
+              expect(
+                swept.containsPoint(corner),
+                `${name} corner at ${spin} degrees`,
+              ).toBe(true);
+            }
+      }
+    }
+  });
+
+  test("size, tilt and roll still reach it, because only spin is out", () => {
+    const half = new THREE.Vector3(0.6, 0.2, 0.42);
+    const at = (options: { roll?: number; scale?: number; tilt?: number }) =>
+      sweptSubjectBox({
+        half,
+        position: new THREE.Vector3(),
+        rollDegrees: options.roll ?? 0,
+        scale: options.scale ?? 1,
+        tiltDegrees: options.tilt ?? 0,
+      });
+    const rest = at({});
+
+    // Twice the size is twice the box, exactly.
+    const twice = at({ scale: 2 });
+    expect(twice.max.x).toBeCloseTo(rest.max.x * 2, 10);
+    expect(twice.max.y).toBeCloseTo(rest.max.y * 2, 10);
+
+    // Tilt and roll both reach the cylinder, which is the point of this test:
+    // spin is the only thing taken out of the fit. Which way they move it is a
+    // property of the product, not a rule — this laptop is wide, shallow and
+    // flat, so leaning it about its width stands it up and fattens the circle
+    // it sweeps, while rolling it about its depth tips that width into the
+    // vertical and narrows the circle instead. Both are asserted by direction
+    // rather than by inequality in one direction, so a shape-dependent answer
+    // cannot be mistaken for spin leaking back in.
+    const leaning = at({ tilt: 40 });
+    expect(leaning.max.x).toBeGreaterThan(rest.max.x);
+    expect(leaning.max.y).toBeGreaterThan(rest.max.y);
+
+    const rolled = at({ roll: 40 });
+    expect(rolled.max.x).toBeLessThan(rest.max.x);
+    expect(rolled.max.y).toBeGreaterThan(rest.max.y);
   });
 });

@@ -11,6 +11,7 @@ import {
   fovDegreesFor,
   heldBox,
   readFitBasis,
+  sweptSubjectBox,
 } from "./render/camera-fit";
 import { TABLE_YAW } from "./render/set-geometry";
 import type { RasterSettings } from "./render/raster-renderer";
@@ -63,13 +64,22 @@ const WIDEST = 3;
  * proportions are the box.
  *
  * Posed, because the renderer frames the device where it is standing and not
- * where it was measured. `measureFraming` takes the subject's *world* box
- * after the turntable has turned, leaned and scaled it; reading the catalog's
- * resting proportions instead gave a frame that answered a question the
- * picture was no longer being asked. Turned forty-five degrees, a T-shirt
- * presents two thirds of the width it does square-on, and the frame stayed
- * the square-on one: 57 per cent of the export came out bare backdrop, in two
- * bands down the sides of a shirt that was supposed to be touching them.
+ * where it was measured. Reading the catalog's resting proportions instead
+ * gave a frame that answered a question the picture was no longer being asked:
+ * leaned or scaled, the device no longer filled the frame drawn for it.
+ *
+ * Swept about the vertical, for the same reason and by the same rule the
+ * renderer uses. This frame is the shape the export is cut to, so if it
+ * tracked the spin angle the crop would breathe over a turntable exactly as
+ * the camera used to — and worse, it would breathe out of step with a camera
+ * that no longer does. `measureFraming` and this both take the cylinder the
+ * device sweeps, so the two agree at every angle, which is the whole reason
+ * this file shares the renderer's arithmetic rather than restating it.
+ *
+ * The cost is honest and worth naming: a stable frame has to hold the widest
+ * presentation, so a device parked at forty-five degrees is framed for the
+ * turn it could make rather than the turn it has made, and carries some
+ * backdrop either side that the old per-angle frame cut away.
  */
 function measureSet(
   settings: RasterSettings,
@@ -87,14 +97,13 @@ function measureSet(
     radius: 1,
     transform: { ...settings.transform, spin: settings.spin },
   });
-  const framing = new THREE.Box3(half.clone().negate(), half.clone())
-    .applyMatrix4(
-      new THREE.Matrix4().compose(
-        pose.position,
-        new THREE.Quaternion().setFromEuler(pose.rotation),
-        new THREE.Vector3().setScalar(pose.scale),
-      ),
-    );
+  const framing = sweptSubjectBox({
+    half,
+    position: pose.position,
+    rollDegrees: settings.transform.roll,
+    scale: pose.scale,
+    tiltDegrees: settings.transform.tilt,
+  });
 
   // The device is offered a table only if one was drawn for it, which is the
   // same question `applySurface` asks before it builds one.

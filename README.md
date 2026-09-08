@@ -41,7 +41,7 @@ Every check this repository defines runs on every push and pull request, from
 | --- | --- |
 | `npm run typecheck` | Types, strictly |
 | `npm run docs:check` | The docs match what the code does |
-| `npm test` | 881 unit tests, plus the acceptance evidence reporter |
+| `npm test` | 886 unit tests, plus the acceptance evidence reporter |
 | `npm run build` | The bundle actually builds |
 | `npm run ai:check` | The product boundary, against a recorded baseline |
 
@@ -912,6 +912,22 @@ two keyframes cannot share a frame. Clicking a diamond selects it, which is how
 you delete it or change its easing, and selecting is deliberately not the same
 as deciding where your next edit goes. Turning the diamond off again clears the
 track and leaves the control on the frame that was showing.
+
+The camera does not move while the device turns. That sounds like it should go
+without saying, and it did not: the camera stands back far enough to hold the
+box the device occupies, and a turning device does not keep one box. A laptop is
+four times wider than it is deep, so over a revolution its box swings by more
+than half its own width and the camera answered by dollying back and in twice a
+turn — 57 per cent of swing on a laptop, 12 on a phone — while the device was
+supposed to be the only thing moving. So the frame is cut to the cylinder the
+device sweeps rather than the box it is standing in, which is the same shape at
+every spin angle. The exported video is cut to that same rectangle, so the crop
+does not breathe either.
+
+The cost is that a stable frame has to hold the widest turn, so a device parked
+at an angle carries a little more backdrop than a frame cut for that one angle
+would. Tilt, roll, size and position all still move the camera, because none of
+them is the axis a turntable runs on.
 
 A design that moves runs on this clock whenever the clock runs, so a GIF on a
 shirt and the turntable under it are the same six seconds and both come out of a

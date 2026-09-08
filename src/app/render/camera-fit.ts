@@ -203,3 +203,65 @@ export function fitReach(request: {
   }
   return { across, upright };
 }
+
+/**
+ * The room the subject needs at every spin angle, rather than at this one.
+ *
+ * A camera framed on the box the subject occupies right now is a camera that
+ * moves when the subject turns, because an axis-aligned box is not something a
+ * turning object keeps. A laptop is four times wider than it is deep: square
+ * on it needs a wide frame, at a quarter turn a narrow one, and on the
+ * diagonal the widest of the three. Framing each of those in turn dollies the
+ * camera in and out twice a revolution — which is the one thing a turntable
+ * must not do, since the whole point of it is that the subject turns and
+ * nothing else does.
+ *
+ * So the subject is framed on the cylinder it sweeps rather than the box it is
+ * in. Spin is applied last and about the room's vertical, so sweeping that
+ * axis covers every spin angle exactly: the answer is the same number whatever
+ * `spin` says, and the camera has nothing to react to. Tilt and roll are
+ * applied first and so are still in the shape being swept, which keeps a
+ * leaning subject inside the frame instead of letting a corner out of it.
+ *
+ * Eight corners rather than the mesh, because the corners of a box that
+ * contains the subject are at least as far from the axis as the subject is.
+ */
+export function sweptSubjectBox(request: {
+  /** Half the subject's rest box, about its own centre. */
+  half: THREE.Vector3;
+  /** Where the posed subject's own centre stands in the room. */
+  position: THREE.Vector3;
+  rollDegrees: number;
+  scale: number;
+  tiltDegrees: number;
+}): THREE.Box3 {
+  const { half, position, rollDegrees, scale, tiltDegrees } = request;
+  // Spin deliberately absent: this is the shape being swept, not the pose.
+  const rotation = new THREE.Euler(
+    THREE.MathUtils.degToRad(tiltDegrees),
+    0,
+    THREE.MathUtils.degToRad(rollDegrees),
+    "YXZ",
+  );
+  const turn = new THREE.Matrix4().makeRotationFromEuler(rotation);
+  const corner = new THREE.Vector3();
+  let radius = 0;
+  let lowest = Number.POSITIVE_INFINITY;
+  let highest = Number.NEGATIVE_INFINITY;
+
+  for (const x of [-half.x, half.x]) {
+    for (const y of [-half.y, half.y]) {
+      for (const z of [-half.z, half.z]) {
+        corner.set(x, y, z).applyMatrix4(turn).multiplyScalar(scale);
+        radius = Math.max(radius, Math.hypot(corner.x, corner.z));
+        lowest = Math.min(lowest, corner.y);
+        highest = Math.max(highest, corner.y);
+      }
+    }
+  }
+
+  return new THREE.Box3(
+    new THREE.Vector3(position.x - radius, position.y + lowest, position.z - radius),
+    new THREE.Vector3(position.x + radius, position.y + highest, position.z + radius),
+  );
+}
