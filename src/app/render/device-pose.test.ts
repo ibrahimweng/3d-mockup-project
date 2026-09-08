@@ -1,6 +1,13 @@
 import * as THREE from "three";
 import { describe, expect, test } from "vitest";
 
+import {
+  fitDistance,
+  fovDegreesFor,
+  heldBox,
+  readFitBasis,
+  sweptSubjectBox,
+} from "./camera-fit";
 import { getDevicePose, minimumDeviceScale } from "./device-pose";
 import type { DeviceTransform } from "./scene-types";
 
@@ -75,6 +82,49 @@ test("spin turns the subject without moving the camera", () => {
   const full = new THREE.Vector3(0, 0, 1).applyEuler(pose({ spin: 360 }).rotation);
   expect(full.x).toBeCloseTo(0, 10);
   expect(full.z).toBeCloseTo(1, 10);
+
+  /**
+   * And the camera, which is the half of this the pose cannot speak for.
+   *
+   * Everything above proves the subject turns and stays where it is. None of
+   * it proves the sentence this test is named after, because the camera is not
+   * in the pose — and while nothing here was wrong, the camera moved anyway.
+   * Its distance was derived from the box the subject occupied, and a board
+   * more than three times longer than it is wide occupies a very different box
+   * square-on from the one it occupies on the diagonal, so a turntable dollied
+   * the camera in and out twice a revolution.
+   *
+   * So the fit is asked directly, at every five degrees of a full turn, on the
+   * same board the rest of this file poses.
+   */
+  const basis = readFitBasis({ position: [0, 0.6, 3.4], up: [0, 1, 0] });
+  const halfFovRad = THREE.MathUtils.degToRad(fovDegreesFor(50)) / 2;
+  const aspect = 0.8;
+  const distanceAt = (spin: number): number => {
+    const posed = pose({ spin });
+    const box = sweptSubjectBox({
+      half,
+      position: posed.position,
+      rollDegrees: 0,
+      scale: posed.scale,
+      tiltDegrees: 0,
+    });
+    return fitDistance({
+      aspect,
+      basis,
+      box: heldBox(box, groundY, aspect),
+      halfFovRad,
+      subject: box,
+    });
+  };
+
+  const still = distanceAt(0);
+  for (let spin = 0; spin <= 360; spin += 5) {
+    expect(distanceAt(spin), `the camera at ${spin} degrees`).toBeCloseTo(
+      still,
+      12,
+    );
+  }
 });
 
 test("tilt leans the device without turning it", () => {

@@ -63,34 +63,31 @@ describe("infinite scene bounds", () => {
   });
 
   /**
-   * The frame is cut for the picture that is actually being taken.
+   * The frame is cut for the pose, apart from the turn the product could make.
    *
    * A crop measured off the catalog's resting proportions answers for a
    * product standing square-on, and nothing in the app keeps it standing that
-   * way: spin, tilt and roll are three sliders at the top of the panel. The
-   * shirt is 0.69 wide and 0.29 deep, so a quarter turn presents well under
-   * half the width -- and the export kept the square-on frame around it, 57
-   * per cent bare backdrop in two bands down the sides.
+   * way: tilt and roll are two sliders at the top of the panel and both change
+   * what shape of frame holds the thing.
+   *
+   * Spin is the one that does not, and deliberately. It is the turntable axis,
+   * the axis an animation runs on, and a frame that tracked it would breathe
+   * over a loop: the shirt is 0.69 wide and 0.29 deep, so its box swings by
+   * more than half its width over one revolution and the crop would swing with
+   * it. So the frame holds the cylinder the product sweeps, which is the same
+   * shape at every spin angle. It joins size and position as something that
+   * moves the picture without changing the frame around it.
    */
-  it("cuts the frame for the pose the product is actually in", () => {
+  it("cuts the frame for the pose, and holds it through the turn", () => {
     const square = getMockupSceneRect(
       frameState({ "camera.orbit": headOn, "device.model": "tshirt" }),
     );
-    const turned = getMockupSceneRect(
-      frameState({
-        "camera.orbit": headOn,
-        "device.model": "tshirt",
-        "device.spin": 90,
-      }),
-    );
-    // Side-on the shirt is its own depth across, which is well under half its
-    // width, so the frame it wants is a good deal narrower.
-    expect(turned.width / turned.height).toBeLessThan(
-      (square.width / square.height) * 0.75,
-    );
 
-    // A lean puts the shirt's corners where its faces were, which is a taller
-    // box than the one it rests in.
+    // A lean still reaches the frame, which is the point: spin is the only
+    // thing taken out of it. It now widens the frame rather than narrowing it,
+    // and that is the swept rule being consistent rather than a surprise --
+    // leaning tips the shirt's height into the circle it sweeps, so the
+    // cylinder gets fatter and shorter at the same time.
     const leaning = getMockupSceneRect(
       frameState({
         "camera.orbit": headOn,
@@ -98,32 +95,80 @@ describe("infinite scene bounds", () => {
         "device.tilt": 40,
       }),
     );
-    expect(leaning.width / leaning.height).toBeLessThan(square.width / square.height);
+    expect(leaning.width / leaning.height).toBeGreaterThan(
+      square.width / square.height,
+    );
 
-    // Size is not a shape, and neither is where the product is standing: both
-    // move the picture without changing what shape of frame holds it, and a
-    // crop that shifted under them would fight the controls rather than
-    // follow them.
+    // Size is not a shape, and neither is where the product is standing, and
+    // neither is how far round the turntable has got: all three move the
+    // picture without changing what shape of frame holds it, and a crop that
+    // shifted under them would fight the controls rather than follow them.
     for (const [target, value] of [
       ["device.scale", 140],
       ["device.positionX", 30],
       ["device.positionY", -20],
+      ["device.spin", 90],
+      ["device.spin", 45],
+      ["device.spin", 215],
     ] as const) {
       const moved = getMockupSceneRect(
         frameState({ "camera.orbit": headOn, "device.model": "tshirt", [target]: value }),
       );
-      expect(moved, target).toEqual(square);
+      expect(moved, `${target} ${value}`).toEqual(square);
     }
   });
 
-  it("refuses to cut a strip out of a device seen edge on", () => {
+  /**
+   * The whole revolution, for every product, because this is what a turntable
+   * export is made of.
+   *
+   * One frame in a hundred and eighty that is a different shape from its
+   * neighbours is a video that jumps, and measuring the two ends only would
+   * miss it: the box a turning product occupies is widest on the diagonal,
+   * so 0 and 90 degrees can agree with each other and disagree with 45.
+   */
+  it("holds one frame through a full revolution of every product", () => {
+    for (const id of deviceIds) {
+      const rest = getMockupSceneRect(
+        frameState({ "camera.orbit": headOn, "device.model": id }),
+      );
+      for (let spin = 0; spin < 360; spin += 5) {
+        const turned = getMockupSceneRect(
+          frameState({
+            "camera.orbit": headOn,
+            "device.model": id,
+            "device.spin": spin,
+          }),
+        );
+        expect(turned, `${id} at ${spin} degrees`).toEqual(rest);
+      }
+    }
+  });
+
+  /**
+   * A phone seen edge on, which used to be the worst case and is no longer a
+   * case at all.
+   *
+   * The frame was cut to the box the product presented along one viewing
+   * direction, and a phone edge on is fourteen times taller than it is deep --
+   * an honest sliver nobody can use, saved only by a clamp at one to three.
+   * Framing the swept cylinder answers this by construction: a cylinder is the
+   * same width from every direction round it, so the frame no longer depends
+   * on which way the camera is standing and there is no sliver to clamp. The
+   * assertion is deliberately not the clamp value any more, because reaching
+   * the clamp would now mean something had gone wrong.
+   */
+  it("frames a device the same way from every direction round it", () => {
     const rect = getMockupSceneRect(
       frameState({ "camera.orbit": edgeOn, "device.model": "iphone-17-pro-max" }),
     );
-    // A phone edge on is fourteen times taller than it is deep, and the honest
-    // frame for that is a sliver nobody can use. The clamp is what stops one
-    // degree of orbit turning the export into a ribbon.
-    expect(rect.width / rect.height).toBeCloseTo(1 / 3, 2);
+    const front = getMockupSceneRect(
+      frameState({ "camera.orbit": headOn, "device.model": "iphone-17-pro-max" }),
+    );
+    expect(rect).toEqual(front);
+    // Clear of the one-to-three clamp, so the frame is a measurement rather
+    // than a floor being hit.
+    expect(rect.width / rect.height).toBeGreaterThan(1 / 3 + 0.05);
   });
 
   it("keeps every measured device frame on its own bounding sphere", () => {

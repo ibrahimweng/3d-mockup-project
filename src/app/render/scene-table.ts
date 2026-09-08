@@ -27,7 +27,7 @@ export type Table = {
    */
   product: THREE.Box3;
   top: THREE.MeshStandardMaterial;
-  measureFraming: () => void;
+  measureFraming: (subjectWorldBox?: THREE.Box3) => void;
   ready: () => Promise<unknown>;
   setStaged: (visible: boolean) => void;
   target: THREE.Vector3;
@@ -234,8 +234,29 @@ export function createTable(
   const framing = new THREE.Box3();
   const product = new THREE.Box3();
   const target = new THREE.Vector3();
-  const measureFraming = (): void => {
-    framing.setFromObject(context.subject);
+  /**
+   * The subject's own contribution, handed in rather than measured here.
+   *
+   * What the camera has to hold for the subject is the cylinder it sweeps as
+   * it spins, not the box it stands in at this instant, and only the caller
+   * knows the pose well enough to work that out. Reading the live object
+   * instead is what used to put the spin angle into the framing, and from
+   * there into the camera's distance. Remembered so that a surface change,
+   * which knows nothing about the pose, can re-measure without undoing it.
+   */
+  const subject = new THREE.Box3();
+  let subjectMeasured = false;
+  const measureFraming = (subjectWorldBox?: THREE.Box3): void => {
+    if (subjectWorldBox) {
+      subject.copy(subjectWorldBox);
+      subjectMeasured = true;
+    }
+
+    if (subjectMeasured) {
+      framing.copy(subject);
+    } else {
+      framing.setFromObject(context.subject);
+    }
     product.copy(framing);
     const size = options.device.surface;
     if (surfaceKind !== "none" && size) {

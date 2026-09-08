@@ -13,6 +13,7 @@ import {
   capturePrintRelief,
   type ArtworkZoneBinding,
 } from "./artwork-binding";
+import { sweptSubjectBox } from "./camera-fit";
 import { createKeyLight } from "./scene-key";
 import { createRoom } from "./scene-room";
 import { getDevicePose } from "./device-pose";
@@ -660,21 +661,32 @@ export async function buildDeviceScene(options: {
       /**
        * Re-measure what the camera has to hold, now that the device has moved.
        *
-       * The framing box is the device's world bounds, and a turned device
-       * occupies a different box from a square-on one. It used to be measured
-       * only when the surface was applied, which in `applyLiveSettings` happens
-       * *before* the transform below — so every frame was fitted to the box of
-       * the pose before it, and the camera never quite returned to where it had
-       * been.
+       * It is handed the cylinder the device sweeps rather than the box it is
+       * standing in, and the difference is the whole reason this exists. The
+       * framing used to be the device's live world bounds, and a turned device
+       * occupies a different box from a square-on one — so a turntable moved
+       * the camera. A laptop is four times wider than it is deep and its box
+       * swings by half its own depth over a revolution, which the camera
+       * answered by dollying back and in twice a turn while the subject was
+       * supposed to be the only thing moving. Swept, the number is the same at
+       * every spin angle, so the camera has nothing to react to and the
+       * animation is the device turning and nothing else.
        *
-       * Measured: scrubbing through five poses and back to the first left the
-       * camera 8.6e-6 away in x and 1.2e-5 in z, with y bit-identical because
-       * spin turns about the vertical and an axis-aligned box does not change
-       * height when it turns. That is a fraction of a pixel, and it showed up
-       * as 6,686 edge pixels differing by a mean of 16 against a flat-surface
-       * mean of 1.25 — a picture that will not come back to itself.
+       * It is still re-measured per pose, because tilt, roll, size and
+       * position all change the shape being swept and all of them are still
+       * the camera's business. Only spin is out, and it is out exactly:
+       * spin is applied last and about the room's vertical, which is the axis
+       * being swept.
        */
-      furniture.measureFraming();
+      furniture.measureFraming(
+        sweptSubjectBox({
+          half,
+          position: nextPosition,
+          rollDegrees: transform.roll,
+          scale,
+          tiltDegrees: transform.tilt,
+        }),
+      );
       return true;
     },
     subjectRadius: sphere.radius,
