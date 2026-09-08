@@ -15,7 +15,7 @@ import {
 } from "./render/camera-fit";
 import { TABLE_YAW } from "./render/set-geometry";
 import type { RasterSettings } from "./render/raster-renderer";
-import { readRasterSettings } from "./render/settings";
+import { readFramingTransform, readRasterSettings } from "./render/settings";
 import { readSurfaceId } from "./surfaces";
 
 /**
@@ -92,17 +92,22 @@ function measureSet(
   // the same order: scale, then turn, then stand it back on the floor. A
   // radius of one because `frame` is already the box over its own bounding
   // radius, which is the unit every offset here is counted in.
+  // The pose the framing is measured from, which is the product's own pose
+  // while Auto frame is on and the pose it was switched off at while it is
+  // off. The crop is the shape the export is cut to, so it has to freeze on
+  // exactly the same rule the camera does or the two would part company.
   const pose = getDevicePose({
     half,
     radius: 1,
-    transform: { ...settings.transform, spin: settings.spin },
+    transform: { ...readFramingTransform(settings), spin: settings.spin },
   });
+  const framingTransform = readFramingTransform(settings);
   const framing = sweptSubjectBox({
     half,
     position: pose.position,
-    rollDegrees: settings.transform.roll,
+    rollDegrees: framingTransform.roll,
     scale: pose.scale,
-    tiltDegrees: settings.transform.tilt,
+    tiltDegrees: framingTransform.tilt,
   });
 
   // The device is offered a table only if one was drawn for it, which is the

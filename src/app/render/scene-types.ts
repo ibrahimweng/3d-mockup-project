@@ -89,6 +89,27 @@ export type FloorSettings = {
  * and the offsets are fractions of the device's radius rather than scene
  * units, so the same numbers place any model the same way.
  */
+/**
+ * Where the device stands and how big it is, without the turntable angle.
+ *
+ * Named because two different poses are carried around now and they have to be
+ * the same shape: the one the product is in, and the one the camera is framing
+ * from, which part company the moment Auto frame is switched off. Spin is
+ * absent from both — it is the turntable axis, and the framing has been
+ * deliberately blind to it since the camera stopped dollying through a turn.
+ *
+ * The offsets are fractions of the device's own radius rather than scene
+ * units, so the same numbers place a watch and a laptop the same way.
+ */
+export type DevicePlacement = {
+  offsetX: number;
+  offsetY: number;
+  offsetZ: number;
+  roll: number;
+  scale: number;
+  tilt: number;
+};
+
 export type DeviceTransform = {
   offsetX: number;
   offsetY: number;
@@ -138,7 +159,10 @@ export type DeviceScene = {
    * Returns whether the pose actually changed, so a redraw is only spent when
    * there is something new to draw.
    */
-  setTransform: (transform: DeviceTransform) => boolean;
+  setTransform: (
+    transform: DeviceTransform,
+    framingTransform?: DeviceTransform,
+  ) => boolean;
   /** The device geometry, so a hit test can ignore the ground. */
   subject: THREE.Object3D;
   /**
