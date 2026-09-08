@@ -338,6 +338,23 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
   },
   {
     automated: true,
+    automatedTestName: "auto frame off holds the framing the camera was left with",
+    browser: true,
+    browserTestName:
+      "browser: auto frame off holds the frame while the product moves inside it",
+    componentType: "switch",
+    evidence: "product-output",
+    expectedObservable:
+      "With Auto frame on, leaning or resizing the product moves the camera to keep holding it, so the product's size in the picture barely answers the control. Switching Auto frame off does not move the picture at all \u2014 the camera stops on the frame it was showing \u2014 and from then on Size, Position, Tilt and Roll move the product inside that frame instead: it can be pushed off centre, run past the edge, or made to fill the shot. Switching it back on returns the camera to holding the whole set.",
+    fixture: "the default device in the default studio",
+    id: "camera.autoFrame.hold",
+    kind: "control",
+    target: "camera.autoFrame",
+    userAction:
+      "Switch Auto frame off, then drag Size to 250% and Position X off centre.",
+  },
+  {
+    automated: true,
     automatedTestName: "framing offset shifts the picture without leaning it",
     browser: true,
     browserTestName:

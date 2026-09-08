@@ -307,6 +307,18 @@ export const appSchema = defineToolcraft({
         },
         {
           controls: {
+            autoFrame: {
+              applicability: { mode: "always" },
+              defaultValue: true,
+              description:
+                "Whether the camera keeps the whole set in shot by itself. On, it stands back far enough to hold the product and whatever it is on, and re-derives that whenever the product is leaned, resized or moved — so those controls compose the picture and the camera answers them. Off, it stops where it is and stays there, and the same controls move the product inside the frame instead of being partly cancelled by a camera following it. Off is how you push the product off centre, run it past the edge, or fill the frame with it.",
+              label: "Auto frame",
+              performanceReason:
+                "Auto frame decides whether the camera's distance is re-derived on a transform change; neither branch rebuilds the scene.",
+              performanceRole: "responsiveness",
+              target: "camera.autoFrame",
+              type: "switch",
+            },
             focalLength: {
               applicability: { mode: "always" },
               defaultValue: 85,

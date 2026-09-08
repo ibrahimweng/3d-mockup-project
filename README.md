@@ -41,7 +41,7 @@ Every check this repository defines runs on every push and pull request, from
 | --- | --- |
 | `npm run typecheck` | Types, strictly |
 | `npm run docs:check` | The docs match what the code does |
-| `npm test` | 886 unit tests, plus the acceptance evidence reporter |
+| `npm test` | 890 unit tests, plus the acceptance evidence reporter |
 | `npm run build` | The bundle actually builds |
 | `npm run ai:check` | The product boundary, against a recorded baseline |
 
@@ -928,6 +928,21 @@ The cost is that a stable frame has to hold the widest turn, so a device parked
 at an angle carries a little more backdrop than a frame cut for that one angle
 would. Tilt, roll, size and position all still move the camera, because none of
 them is the axis a turntable runs on.
+
+**Auto frame**, in the Camera section, is the switch for that last part. On,
+which is the default, the camera keeps the whole set in shot by itself and
+re-derives where it stands whenever the device is leaned, resized or moved — so
+those controls compose the picture and the camera answers them, which also means
+it partly cancels them. Push the device bigger and the camera backs away from it.
+
+Off, the camera stops on the frame it was showing and stays there. Nothing moves
+at the moment you switch it: it holds the pose it was framing, so there is no
+jump and nothing to re-compose. From then on Size, Position, Tilt and Roll move
+the device inside that frame, which is how you push it off centre, run it past
+the edge, or fill the shot with it. Switching it back on hands the camera back.
+
+The frozen pose is saved with the rest of the workspace, so the frame you left
+is the frame you come back to, and an export is cut to it as well.
 
 A design that moves runs on this clock whenever the clock runs, so a GIF on a
 shirt and the turntable under it are the same six seconds and both come out of a

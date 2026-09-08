@@ -14,6 +14,7 @@ import {
   heldBox,
   readFitBasis,
 } from "./camera-fit";
+import { readFramingTransform } from "./settings";
 import {
   buildDeviceScene,
   loadEnvironment,
@@ -24,6 +25,7 @@ import {
   type SurfaceSettings,
   type SweepSettings,
 } from "./device-scene";
+import type { DevicePlacement } from "./scene-types";
 
 /** How many rows of the frame the output signature is read from. */
 const SIGNATURE_ROWS = 4;
@@ -53,29 +55,21 @@ export type RasterSettings = {
    * not pick, with room around it — and Infinity canvas has no artboard, so the
    * frame is cut from the set instead and the set has to fill it.
    */
+  /** Whether the camera re-derives its framing when the product moves. */
+  autoFrame: boolean;
   fit: "artboard" | "scene";
   floor: FloorSettings;
   focalLength: number;
+  /** The pose the camera froze on; null while Auto frame is on. */
+  framePose: DevicePlacement | null;
   /** Where the subject sits in the picture, each axis -1 to 1 with 0 centred. */
   framing: { x: number; y: number };
   lighting: LightingSettings;
   showBackground: boolean;
   /** How far the device is turned about its own upright axis, in degrees. */
   spin: number;
-  /**
-   * Where the device stands and how big it is.
-   *
-   * The offsets are fractions of the device's own radius rather than scene
-   * units, so the same numbers place a watch and a laptop the same way.
-   */
-  transform: {
-    offsetX: number;
-    offsetY: number;
-    offsetZ: number;
-    roll: number;
-    scale: number;
-    tilt: number;
-  };
+  /** Where the device stands and how big it is. */
+  transform: DevicePlacement;
   surface: SurfaceSettings;
   sweep: SweepSettings;
   /** How tightly the picture is cropped on the fitted framing, 1 being it. */
@@ -359,7 +353,10 @@ export class RasterRenderer {
     built.setSweep(settings.sweep);
     built.setGround(settings.showBackground, settings.backgroundColor);
     built.setFloor(settings.floor);
-    built.setTransform({ ...settings.transform, spin: settings.spin });
+    built.setTransform(
+      { ...settings.transform, spin: settings.spin },
+      { ...readFramingTransform(settings), spin: settings.spin },
+    );
     // Colour, lights and the ground plane all feed the depth map.
     this.invalidateShadow();
   }

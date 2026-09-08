@@ -46,6 +46,64 @@ function num(values: Record<string, unknown>, key: string, fallback: number) {
   return Number.isFinite(value) ? value : fallback;
 }
 
+/**
+ * The pose the camera froze on, if it has been frozen.
+ *
+ * Written by the studio when Auto frame is switched off and read back here.
+ * Every field is checked rather than trusted, because this is the one value in
+ * the workspace that no control renders: a persisted file, a settings import
+ * or a hand-edited store could carry anything, and a bad number here would
+ * put the camera somewhere no control could explain or undo.
+ */
+export function readFramePose(
+  values: Record<string, unknown>,
+): RasterSettings["framePose"] {
+  const stored = values["camera.framePose"];
+
+  if (typeof stored !== "object" || stored === null) {
+    return null;
+  }
+
+  const pose = stored as Record<string, unknown>;
+  const read = (key: string): number | null => {
+    const value = pose[key];
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
+  };
+  const offsetX = read("offsetX");
+  const offsetY = read("offsetY");
+  const offsetZ = read("offsetZ");
+  const roll = read("roll");
+  const scale = read("scale");
+  const tilt = read("tilt");
+
+  if (
+    offsetX === null ||
+    offsetY === null ||
+    offsetZ === null ||
+    roll === null ||
+    scale === null ||
+    tilt === null
+  ) {
+    return null;
+  }
+
+  return { offsetX, offsetY, offsetZ, roll, scale, tilt };
+}
+
+/**
+ * The pose the framing is measured from, which is not always the pose the
+ * product is in.
+ *
+ * They are the same thing while Auto frame is on. While it is off they part
+ * company, and that parting is the whole feature: the product goes where the
+ * controls put it and the camera stays where it was left.
+ */
+export function readFramingTransform(
+  settings: RasterSettings,
+): RasterSettings["transform"] {
+  return settings.autoFrame ? settings.transform : (settings.framePose ?? settings.transform);
+}
+
 function str(values: Record<string, unknown>, key: string, fallback: string) {
   const value = values[key];
   return typeof value === "string" && value ? value : fallback;
@@ -135,6 +193,8 @@ export function readRasterSettings(
     // has anywhere for it to land.
     printBackground: str(values, "artwork.background", DEFAULT_ARTWORK_BACKGROUND),
     framing: pad(values, "camera.framing"),
+    autoFrame: values["camera.autoFrame"] !== false,
+    framePose: readFramePose(values),
     spin: num(values, "device.spin", 0),
     transform: {
       offsetX: num(values, "device.positionX", 0) / 100,

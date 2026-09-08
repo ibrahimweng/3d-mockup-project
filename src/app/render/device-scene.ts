@@ -13,7 +13,7 @@ import {
   capturePrintRelief,
   type ArtworkZoneBinding,
 } from "./artwork-binding";
-import { sweptSubjectBox } from "./camera-fit";
+import { measureFramingPose } from "./framing-pose";
 import { createKeyLight } from "./scene-key";
 import { createRoom } from "./scene-room";
 import { getDevicePose } from "./device-pose";
@@ -209,6 +209,14 @@ export async function buildDeviceScene(options: {
   const spinner = new THREE.Group();
   spinner.add(subject);
   scene.add(spinner);
+
+  /**
+   * The pose the framing was last measured from, which the early-out below
+   * has to compare separately from the spinner's: with Auto frame off the
+   * product moves and the framing deliberately does not, and switching it back
+   * on moves the framing while the product stands still.
+   */
+  let framingKey = "";
 
   const groundY = bounds.min.y - centre.y;
   /**
@@ -635,20 +643,33 @@ export async function buildDeviceScene(options: {
      * place any model the same way rather than meaning something different for
      * every model that comes through.
      */
-    setTransform: (transform: DeviceTransform): boolean => {
+    setTransform: (
+      transform: DeviceTransform,
+      framingTransform: DeviceTransform = transform,
+    ): boolean => {
       const {
         position: nextPosition,
         rotation: nextRotation,
         scale,
       } = getDevicePose({ half, radius: sphere.radius, transform });
+      // Where the camera frames from: the same pose while Auto frame is on,
+      // and the pose it was switched off at while it is off.
+      const framed = measureFramingPose({
+        half,
+        radius: sphere.radius,
+        transform: framingTransform,
+      });
 
       if (
         spinner.position.equals(nextPosition) &&
         spinner.rotation.equals(nextRotation) &&
-        spinner.scale.x === scale
+        spinner.scale.x === scale &&
+        framingKey === framed.key
       ) {
         return false;
       }
+
+      framingKey = framed.key;
 
       spinner.position.copy(nextPosition);
       spinner.rotation.copy(nextRotation);
@@ -658,35 +679,10 @@ export async function buildDeviceScene(options: {
       // child of it, so it has to be posed too or the device moves while its
       // reflection stays where it started.
       room.setMirrorPose(subject.matrixWorld);
-      /**
-       * Re-measure what the camera has to hold, now that the device has moved.
-       *
-       * It is handed the cylinder the device sweeps rather than the box it is
-       * standing in, and the difference is the whole reason this exists. The
-       * framing used to be the device's live world bounds, and a turned device
-       * occupies a different box from a square-on one — so a turntable moved
-       * the camera. A laptop is four times wider than it is deep and its box
-       * swings by half its own depth over a revolution, which the camera
-       * answered by dollying back and in twice a turn while the subject was
-       * supposed to be the only thing moving. Swept, the number is the same at
-       * every spin angle, so the camera has nothing to react to and the
-       * animation is the device turning and nothing else.
-       *
-       * It is still re-measured per pose, because tilt, roll, size and
-       * position all change the shape being swept and all of them are still
-       * the camera's business. Only spin is out, and it is out exactly:
-       * spin is applied last and about the room's vertical, which is the axis
-       * being swept.
-       */
-      furniture.measureFraming(
-        sweptSubjectBox({
-          half,
-          position: nextPosition,
-          rollDegrees: transform.roll,
-          scale,
-          tiltDegrees: transform.tilt,
-        }),
-      );
+      // What the camera has to hold, now that something it frames from moved.
+      // `measureFramingPose` says what that box is and why it is the swept
+      // cylinder rather than the box the device is standing in.
+      furniture.measureFraming(framed.box);
       return true;
     },
     subjectRadius: sphere.radius,

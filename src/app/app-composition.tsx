@@ -3,6 +3,7 @@ import { CircleHelp, Command } from "lucide-react";
 import type { ToolcraftAppComposition } from "@/toolcraft/runtime/react";
 
 import { appSchema } from "./app-schema";
+import { CameraFrameLock } from "./camera-frame-lock";
 import { mockupExportRenderer } from "./export-renderer";
 import { MockupPreview } from "./preview";
 import { GuideRuntime } from "./guide/guide-runtime";
@@ -23,6 +24,7 @@ export const appComposition: ToolcraftAppComposition = {
   canvasContent: (
     <>
       <MockupPreview />
+      <CameraFrameLock />
       <SceneReport />
       <QuickActionDialog />
       <GuideRuntime />

@@ -432,9 +432,14 @@ export const appControlSectionInventory: readonly ToolcraftControlSectionInvento
       entity: "Camera",
       entityId: "camera",
       groupingReason:
-        "Pose, focal length and zoom are the properties of one lens looking at the scene; together they fix where it stands, how compressed the picture is, and how much of the frame the subject fills.",
+        "Pose, focal length, zoom and whether the framing is automatic are the properties of one lens looking at the scene; together they fix where it stands, how compressed the picture is, how much of the frame the subject fills, and whether it re-derives any of that when the product moves.",
       id: "camera",
-      targets: ["camera.focalLength", "camera.orbit", "camera.zoom"],
+      targets: [
+        "camera.autoFrame",
+        "camera.focalLength",
+        "camera.orbit",
+        "camera.zoom",
+      ],
       title: "Camera",
     },
     {
