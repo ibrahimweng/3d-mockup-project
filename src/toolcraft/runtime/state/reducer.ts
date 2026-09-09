@@ -67,8 +67,12 @@ export function toolcraftReducer(
     case "timeline.changeKeyframeEasing":
     case "timeline.deleteControlKeyframes":
     case "timeline.deleteKeyframe":
+    case "timeline.deleteSelectedKeyframes":
     case "timeline.moveKeyframe":
+    case "timeline.moveSelectedKeyframes":
+    case "timeline.pasteKeyframes":
     case "timeline.selectKeyframe":
+    case "timeline.setKeyframeSelection":
     case "timeline.setCurrentTime":
     case "timeline.setDuration":
     case "timeline.setExpanded":

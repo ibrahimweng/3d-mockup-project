@@ -143,6 +143,17 @@ export function readTimeline(value: unknown): Partial<ToolcraftTimelineState> | 
     timeline.selectedKeyframeId = value.selectedKeyframeId;
   }
 
+  // Read after the anchor so a file written before selections could hold more
+  // than one keyframe still restores a consistent pair rather than an anchor
+  // sitting outside its own selection.
+  if (Array.isArray(value.selectedKeyframeIds)) {
+    timeline.selectedKeyframeIds = value.selectedKeyframeIds.filter(
+      (item): item is string => typeof item === "string",
+    );
+  } else if (typeof timeline.selectedKeyframeId === "string") {
+    timeline.selectedKeyframeIds = [timeline.selectedKeyframeId];
+  }
+
   if (Array.isArray(value.keyframeGroups)) {
     timeline.keyframeGroups = value.keyframeGroups.flatMap((item) => {
       const group = readKeyframeGroup(item);

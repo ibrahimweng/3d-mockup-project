@@ -124,8 +124,15 @@ export type ToolcraftCommand =
   | { type: "timeline.toggleExpanded" }
   | { type: "timeline.togglePlayback" }
   | { type: "timeline.toggleLoop" }
-  | { keyframeId: string | null; type: "timeline.selectKeyframe" }
+  | {
+      /** Add to the selection rather than replacing it, the way Shift-click does. */
+      additive?: boolean;
+      keyframeId: string | null;
+      type: "timeline.selectKeyframe";
+    }
+  | { keyframeIds: readonly string[]; type: "timeline.setKeyframeSelection" }
   | { keyframeId: string; type: "timeline.deleteKeyframe" }
+  | { type: "timeline.deleteSelectedKeyframes" }
   | { controlId: string; type: "timeline.deleteControlKeyframes" }
   | {
       controlId: string;
@@ -144,6 +151,21 @@ export type ToolcraftCommand =
       valueLabel: string;
     }
   | { keyframeId: string; timeSeconds: number; type: "timeline.moveKeyframe" }
+  | {
+      /**
+       * The keyframe under the pointer. It lands exactly on `timeSeconds` and
+       * every other selected keyframe shifts by the same amount, so a selection
+       * keeps its own shape while it is dragged.
+       */
+      anchorKeyframeId: string;
+      timeSeconds: number;
+      type: "timeline.moveSelectedKeyframes";
+    }
+  | {
+      keyframes: readonly ToolcraftTimelineClipboardKeyframe[];
+      timeSeconds: number;
+      type: "timeline.pasteKeyframes";
+    }
   | { playbackRate: number; type: "timeline.setPlaybackRate" }
   | {
       easing: ToolcraftTimelineKeyframeEasing;
@@ -424,6 +446,24 @@ export type ToolcraftTimelineKeyframeGroup = {
   label: string;
 };
 
+/**
+ * A copied keyframe, holding everything except where it was.
+ *
+ * `offsetSeconds` is how far this keyframe sat behind the earliest one in the
+ * copy, so a paste can rebuild the group's shape starting at the playhead. The
+ * id is deliberately absent: an id here is its control and its time, so a
+ * pasted keyframe gets a new one at the time it lands on rather than carrying
+ * the old one to a frame it no longer sits at.
+ */
+export type ToolcraftTimelineClipboardKeyframe = {
+  controlId: string;
+  controlLabel: string;
+  easing?: ToolcraftTimelineKeyframeEasing;
+  offsetSeconds: number;
+  value?: unknown;
+  valueLabel: string;
+};
+
 export type ToolcraftTimelineState = {
   currentTimeSeconds: number;
   durationSeconds: number;
@@ -439,7 +479,24 @@ export type ToolcraftTimelineState = {
    * and an export is unaffected by whatever this was left at.
    */
   playbackRate: number;
+  /**
+   * The keyframe the single-keyframe tools act on: the curve editor, the time
+   * readout, the arrow keys. It is the last keyframe added to the selection,
+   * and it is always one of `selectedKeyframeIds` — null exactly when that is
+   * empty.
+   */
   selectedKeyframeId: string | null;
+  /**
+   * Every selected keyframe, in the order they were selected.
+   *
+   * Kept beside the anchor rather than replacing it because the two answer
+   * different questions. "Which curve am I editing" has one answer and always
+   * did; "which keyframes does this drag move" did not exist until a selection
+   * could hold more than one. Collapsing them would have made every reader of
+   * the anchor pick a keyframe out of a set for itself, each with its own idea
+   * of which one.
+   */
+  selectedKeyframeIds: readonly string[];
 };
 
 export type ToolcraftPanelId = "controls" | "layers" | "timeline" | "toolbar";

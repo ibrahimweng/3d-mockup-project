@@ -20,7 +20,15 @@ import {
   getToolcraftTimelineViewTime,
   type ToolcraftTimelineViewWindow,
 } from '../../state/timeline-view-window';
+import {
+  getToolcraftTimelineSnapToleranceSeconds,
+  snapToolcraftTimelineTime,
+} from '../../state/timeline-snapping';
 import { TimelineIconButton } from './timeline-icon-button';
+import {
+  getTimelineKeyframeDisplayTime,
+  type TimelineKeyframeDragPreview,
+} from './timeline-keyframes';
 import { TimelineKeyframeEasingPopover } from './timeline-easing-popover';
 import {
   getTimelineCalcPositionStyle,
@@ -31,9 +39,10 @@ import {
 } from './timeline-panel-layout';
 
 type TimelineKeyframeDragState = {
-  controlId: string;
   didMove: boolean;
   initialTimeSeconds: number;
+  /** Every keyframe this drag moves, decided once at pointer down. */
+  keyframeIds: ReadonlySet<string>;
   keyframeId: string;
   latestTimeSeconds: number;
   pointerId: number;
@@ -42,16 +51,21 @@ type TimelineKeyframeDragState = {
 };
 
 type TimelineKeyframeRowProps = {
+  dragPreview: TimelineKeyframeDragPreview | null;
   durationSeconds: number;
   group: ToolcraftTimelineKeyframeGroup;
   isNested?: boolean;
   isScrubbing: boolean;
   onChangeKeyframeEasing: (keyframeId: string, easing: ToolcraftTimelineKeyframeEasing) => void;
   onDeleteControlKeyframes: (controlId: string) => void;
+  onDragPreviewChange: (dragPreview: TimelineKeyframeDragPreview | null) => void;
   onKeyframeDragStart: () => void;
-  onMoveKeyframe: (keyframeId: string, timeSeconds: number) => string | null;
-  onSelectedKeyframeChange: (keyframeId: string | null) => void;
+  onMoveSelectedKeyframes: (anchorKeyframeId: string, timeSeconds: number) => void;
+  onSelectKeyframe: (keyframeId: string | null, additive: boolean) => void;
   selectedKeyframeId: string | null;
+  selectedKeyframeIds: readonly string[];
+  /** Times a dragged keyframe may land exactly on. Excludes what is moving. */
+  snapTimesSeconds: readonly number[];
   view: ToolcraftTimelineViewWindow;
 };
 
@@ -97,24 +111,28 @@ function getTimelineTrackTimeFromClientX({
 }
 
 export function TimelineKeyframeRow({
+  dragPreview,
   durationSeconds,
   group,
   isNested = false,
   isScrubbing,
   onChangeKeyframeEasing,
   onDeleteControlKeyframes,
+  onDragPreviewChange,
   onKeyframeDragStart,
-  onMoveKeyframe,
-  onSelectedKeyframeChange,
+  onMoveSelectedKeyframes,
+  onSelectKeyframe,
   selectedKeyframeId,
+  selectedKeyframeIds,
+  snapTimesSeconds,
   view,
 }: TimelineKeyframeRowProps): React.JSX.Element {
   const [isVisible, setIsVisible] = useState(true);
-  const [draftKeyframeTimes, setDraftKeyframeTimes] = useState<Record<string, number>>({});
   const keyframeDragRef = useRef<TimelineKeyframeDragState | null>(null);
   const keyframeClickIntentRef = useRef<{
     didMove: boolean;
     keyframeId: string;
+    selectionSizeOnPointerDown: number;
     wasSelectedOnPointerDown: boolean;
   } | null>(null);
   const selectedGroupKeyframe = group.keyframes.find(
@@ -122,6 +140,24 @@ export function TimelineKeyframeRow({
   );
   const getKeyframeTrackElement = (target: Element): HTMLElement | null =>
     target.closest('[data-slot="timeline-keyframe-track"]');
+  /**
+   * Which keyframes this press is about to drag.
+   *
+   * Decided here rather than read from the selection on the next render,
+   * because the selection change dispatched below has not landed yet and the
+   * first pointer move can arrive before it does. Pressing something already in
+   * the selection drags the whole selection; pressing anything else drags only
+   * it, which is what makes a plain click on one keyframe still a single move.
+   */
+  const getDragKeyframeIds = (keyframeId: string, additive: boolean): ReadonlySet<string> => {
+    if (additive) {
+      return new Set([...selectedKeyframeIds, keyframeId]);
+    }
+
+    return selectedKeyframeIds.includes(keyframeId)
+      ? new Set(selectedKeyframeIds)
+      : new Set([keyframeId]);
+  };
   const handleKeyframePointerDown = (
     event: React.PointerEvent<HTMLButtonElement>,
     keyframe: ToolcraftTimelineKeyframe,
@@ -135,20 +171,34 @@ export function TimelineKeyframeRow({
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture?.(event.pointerId);
-    onSelectedKeyframeChange(keyframe.id);
-    onKeyframeDragStart();
-    const wasSelectedOnPointerDown = keyframe.id === selectedKeyframeId;
 
-    keyframeClickIntentRef.current = {
-      didMove: false,
-      keyframeId: keyframe.id,
-      wasSelectedOnPointerDown,
-    };
+    const additive = event.shiftKey;
+    const keyframeIds = getDragKeyframeIds(keyframe.id, additive);
+
+    // A shift-press commits its selection change immediately, because it is
+    // the whole intent of the press. A plain press on something already
+    // selected holds off until the click, so that pressing one keyframe of a
+    // selection to drag the group does not first collapse the group to it.
+    if (additive || !selectedKeyframeIds.includes(keyframe.id)) {
+      onSelectKeyframe(keyframe.id, additive);
+    }
+
+    onKeyframeDragStart();
+    const wasSelectedOnPointerDown = selectedKeyframeIds.includes(keyframe.id);
+
+    keyframeClickIntentRef.current = additive
+      ? null
+      : {
+          didMove: false,
+          keyframeId: keyframe.id,
+          selectionSizeOnPointerDown: selectedKeyframeIds.length,
+          wasSelectedOnPointerDown,
+        };
     keyframeDragRef.current = {
-      controlId: keyframe.controlId,
       didMove: false,
       initialTimeSeconds: keyframe.timeSeconds,
       keyframeId: keyframe.id,
+      keyframeIds,
       latestTimeSeconds: keyframe.timeSeconds,
       pointerId: event.pointerId,
       trackElement,
@@ -165,12 +215,32 @@ export function TimelineKeyframeRow({
     event.preventDefault();
     event.stopPropagation();
 
-    const nextTimeSeconds = getTimelineTrackTimeFromClientX({
+    const pointerTimeSeconds = getTimelineTrackTimeFromClientX({
       clientX: event.clientX,
       durationSeconds,
       trackElement: dragState.trackElement,
       view,
     });
+    // Alt places a keyframe wherever the pointer is, the escape hatch every
+    // snapping timeline has. Snapping is on by default here rather than off
+    // behind Shift as it is in After Effects, because Shift is already how you
+    // add to a selection and because the times worth landing on exactly --
+    // the playhead, the two ends of the loop -- are the ones that are hardest
+    // to hit by hand at a hundredth of a second.
+    const nextTimeSeconds = event.altKey
+      ? pointerTimeSeconds
+      : roundToolcraftTimelineKeyframeTime(
+          snapToolcraftTimelineTime({
+            candidateSeconds: pointerTimeSeconds,
+            snapTimesSeconds,
+            toleranceSeconds: getToolcraftTimelineSnapToleranceSeconds(
+              view,
+              dragState.trackElement.getBoundingClientRect().width -
+                timelineTrackStartVisualOffsetPx -
+                timelineTrackEndInsetPx,
+            ),
+          }),
+        );
 
     dragState.latestTimeSeconds = nextTimeSeconds;
     const didMove = nextTimeSeconds !== dragState.initialTimeSeconds;
@@ -180,11 +250,11 @@ export function TimelineKeyframeRow({
       keyframeClickIntentRef.current.didMove = didMove;
     }
 
-    setDraftKeyframeTimes((currentDrafts) =>
-      currentDrafts[dragState.keyframeId] === nextTimeSeconds
-        ? currentDrafts
-        : { ...currentDrafts, [dragState.keyframeId]: nextTimeSeconds },
-    );
+    onDragPreviewChange({
+      anchorKeyframeId: dragState.keyframeId,
+      keyframeIds: dragState.keyframeIds,
+      offsetSeconds: nextTimeSeconds - dragState.initialTimeSeconds,
+    });
   };
   const endKeyframeDrag = (event: React.PointerEvent<HTMLButtonElement>): void => {
     const dragState = keyframeDragRef.current;
@@ -201,23 +271,10 @@ export function TimelineKeyframeRow({
     }
 
     if (dragState.didMove) {
-      const nextSelectedKeyframeId = onMoveKeyframe(
-        dragState.keyframeId,
-        dragState.latestTimeSeconds,
-      );
-
-      onSelectedKeyframeChange(
-        nextSelectedKeyframeId ??
-          getToolcraftTimelineKeyframeId(dragState.controlId, dragState.latestTimeSeconds),
-      );
+      onMoveSelectedKeyframes(dragState.keyframeId, dragState.latestTimeSeconds);
     }
 
-    setDraftKeyframeTimes((currentDrafts) => {
-      const nextDrafts = { ...currentDrafts };
-
-      delete nextDrafts[dragState.keyframeId];
-      return nextDrafts;
-    });
+    onDragPreviewChange(null);
     keyframeDragRef.current = null;
   };
 
@@ -301,8 +358,8 @@ export function TimelineKeyframeRow({
             />
             <AnimatePresence initial={false}>
               {group.keyframes.map((keyframe) => {
-                const isSelected = keyframe.id === selectedKeyframeId;
-                const displayTimeSeconds = draftKeyframeTimes[keyframe.id] ?? keyframe.timeSeconds;
+                const isSelected = selectedKeyframeIds.includes(keyframe.id);
+                const displayTimeSeconds = getTimelineKeyframeDisplayTime(keyframe, dragPreview);
                 const viewRatio = getToolcraftTimelineViewRatio(displayTimeSeconds, view);
 
                 // The track does not clip, so a keyframe outside a zoomed window
@@ -331,18 +388,28 @@ export function TimelineKeyframeRow({
 
                       keyframeClickIntentRef.current = null;
 
-                      if (clickIntent?.didMove) {
+                      // A shift-click settled the selection on pointer down --
+                      // adding or removing this keyframe is the whole point of
+                      // it -- so there is nothing left for the click to decide.
+                      // Falling through to the branch below would have read the
+                      // selection it had just changed and cleared the lot.
+                      if (!clickIntent || clickIntent.didMove) {
                         return;
                       }
 
-                      if (clickIntent?.keyframeId === keyframe.id) {
-                        onSelectedKeyframeChange(
-                          clickIntent.wasSelectedOnPointerDown ? null : keyframe.id,
-                        );
-                        return;
-                      }
-
-                      onSelectedKeyframeChange(isSelected ? null : keyframe.id);
+                      // Everything here is judged on the selection as it was
+                      // before the press, because pressing an unselected
+                      // keyframe already selected it. Clicking the one selected
+                      // keyframe clears it; clicking one of several narrows to
+                      // it, which is how a group is broken up after being
+                      // dragged; clicking an unselected one selects it.
+                      onSelectKeyframe(
+                        clickIntent.wasSelectedOnPointerDown &&
+                          clickIntent.selectionSizeOnPointerDown === 1
+                          ? null
+                          : keyframe.id,
+                        false,
+                      );
                     }}
                     onPointerCancel={endKeyframeDrag}
                     onPointerDown={(event) => handleKeyframePointerDown(event, keyframe)}
@@ -370,7 +437,7 @@ export function TimelineKeyframeRow({
           <TimelineIconButton
             label={`Delete ${group.label} keyframes`}
             onClick={() => {
-              onSelectedKeyframeChange(null);
+              onSelectKeyframe(null, false);
               onDeleteControlKeyframes(group.controlId);
             }}
             size="icon-sm"

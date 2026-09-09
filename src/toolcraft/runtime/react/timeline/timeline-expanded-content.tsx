@@ -25,7 +25,11 @@ import {
   isEditableTimelineEventTarget,
   isTimelineInteractiveElement,
 } from './timeline-event-targets';
-import { findTimelineKeyframe } from './timeline-keyframes';
+import { getToolcraftTimelineSnapTimes } from '../../state/timeline-snapping';
+import {
+  findTimelineKeyframe,
+  type TimelineKeyframeDragPreview,
+} from './timeline-keyframes';
 import { TimelineKeyframeRow } from './timeline-keyframe-row';
 import { TimelineObjectTrackRow } from './timeline-object-track-row';
 import {
@@ -49,11 +53,15 @@ type TimelineExpandedContentProps = {
   keyframeGroups: readonly ToolcraftTimelineKeyframeGroup[];
   onChangeKeyframeEasing: (keyframeId: string, easing: ToolcraftTimelineKeyframeEasing) => void;
   onDeleteControlKeyframes: (controlId: string) => void;
+  onCopySelectedKeyframes: () => void;
   onDeleteKeyframe: (keyframeId: string) => void;
+  onDeleteSelectedKeyframes: () => void;
   onKeyframeDragStart: () => void;
   onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void;
   onLostPointerCapture: () => void;
   onMoveKeyframe: (keyframeId: string, timeSeconds: number) => string | null;
+  onMoveSelectedKeyframes: (anchorKeyframeId: string, timeSeconds: number) => void;
+  onPasteKeyframes: () => void;
   onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
   onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;
   onPointerUp: (event: React.PointerEvent<HTMLDivElement>) => void;
@@ -61,10 +69,14 @@ type TimelineExpandedContentProps = {
   objectTracks: readonly ToolcraftTimelineObjectTrack[];
   onPanView: (deltaSeconds: number) => void;
   onScrubToTime: (timeSeconds: number) => void;
+  onSelectKeyframe: (keyframeId: string | null, additive: boolean) => void;
+  onSelectKeyframes: (keyframeIds: readonly string[]) => void;
   onSelectedKeyframeChange: (keyframeId: string | null) => void;
+  onStepToKeyframe: (direction: -1 | 1) => void;
   onToggleObjectExpanded: (objectId: string) => void;
   onZoomChange: (zoom: number) => void;
   selectedKeyframeId: string | null;
+  selectedKeyframeIds: readonly string[];
   stripRef: React.RefObject<HTMLDivElement | null>;
   view: ToolcraftTimelineViewWindow;
 };
@@ -128,37 +140,57 @@ export function TimelineExpandedContent({
   isScrubbing,
   keyframeGroups,
   onChangeKeyframeEasing,
+  onCopySelectedKeyframes,
   onDeleteControlKeyframes,
   onDeleteKeyframe,
+  onDeleteSelectedKeyframes,
   onKeyframeDragStart,
   onKeyDown,
   onLostPointerCapture,
   onMoveKeyframe,
+  onMoveSelectedKeyframes,
+  onPasteKeyframes,
   onPointerDown,
   onPointerMove,
   objectTracks,
   onPointerUp,
   onPanView,
   onScrubToTime,
+  onSelectKeyframe,
+  onSelectKeyframes,
   onSelectedKeyframeChange,
+  onStepToKeyframe,
   onToggleObjectExpanded,
   onZoomChange,
   selectedKeyframeId,
+  selectedKeyframeIds,
   stripRef,
   view,
 }: TimelineExpandedContentProps): React.JSX.Element {
+  const [dragPreview, setDragPreview] = React.useState<TimelineKeyframeDragPreview | null>(
+    null,
+  );
+  const snapTimesSeconds = React.useMemo(
+    () =>
+      getToolcraftTimelineSnapTimes({
+        currentTimeSeconds,
+        durationSeconds,
+        excludedKeyframeIds: dragPreview?.keyframeIds ?? new Set<string>(),
+        keyframeGroups,
+      }),
+    [currentTimeSeconds, durationSeconds, dragPreview, keyframeGroups],
+  );
   const trackPlayheadStyle = getTimelineTrackPositionStyle(currentTimeSeconds, view);
   const isPlayheadInView = isToolcraftTimelineTimeInView(currentTimeSeconds, view);
   const rulerTicks = getTimelineRulerTicks(view);
   const rulerTickDecimals = getTimelineRulerTickDecimals(rulerTicks);
   const selectedKeyframe = findTimelineKeyframe(keyframeGroups, selectedKeyframeId);
   const deleteSelectedKeyframe = (): void => {
-    if (!selectedKeyframeId) {
+    if (selectedKeyframeIds.length === 0) {
       return;
     }
 
-    onDeleteKeyframe(selectedKeyframeId);
-    onSelectedKeyframeChange(null);
+    onDeleteSelectedKeyframes();
   };
   const moveSelectedKeyframeByStep = (direction: -1 | 1): void => {
     if (!selectedKeyframe) {
@@ -185,8 +217,36 @@ export function TimelineExpandedContent({
       return;
     }
 
+    const isAccelerator = event.metaKey || event.ctrlKey;
+
+    // The clipboard and select-all first, because they are the only shortcuts
+    // here that share a key with something else and have to win it.
+    if (isAccelerator && (event.key === 'c' || event.key === 'C')) {
+      if (selectedKeyframeIds.length === 0) {
+        return;
+      }
+
+      event.preventDefault();
+      onCopySelectedKeyframes();
+      return;
+    }
+
+    if (isAccelerator && (event.key === 'v' || event.key === 'V')) {
+      event.preventDefault();
+      onPasteKeyframes();
+      return;
+    }
+
+    if (isAccelerator && (event.key === 'a' || event.key === 'A')) {
+      event.preventDefault();
+      onSelectKeyframes(
+        keyframeGroups.flatMap((group) => group.keyframes.map((keyframe) => keyframe.id)),
+      );
+      return;
+    }
+
     if (event.key === 'Delete' || event.key === 'Backspace') {
-      if (!selectedKeyframeId) {
+      if (selectedKeyframeIds.length === 0) {
         return;
       }
 
@@ -195,9 +255,38 @@ export function TimelineExpandedContent({
       return;
     }
 
-    if (event.key === 'Escape' && selectedKeyframeId) {
+    if (event.key === 'Escape' && selectedKeyframeIds.length > 0) {
       event.preventDefault();
-      onSelectedKeyframeChange(null);
+      onSelectKeyframe(null, false);
+      return;
+    }
+
+    // J and K step the playhead between keyframes, and Home and End go to the
+    // ends of the loop -- the two frames a seamless loop is judged on. They
+    // act on the playhead rather than on the selection. Space is deliberately
+    // absent: the panel already binds it on the document, so handling it here
+    // too would toggle playback twice and cancel itself out.
+    if (event.key === 'j' || event.key === 'J') {
+      event.preventDefault();
+      onStepToKeyframe(-1);
+      return;
+    }
+
+    if (event.key === 'k' || event.key === 'K') {
+      event.preventDefault();
+      onStepToKeyframe(1);
+      return;
+    }
+
+    if (event.key === 'Home') {
+      event.preventDefault();
+      onScrubToTime(0);
+      return;
+    }
+
+    if (event.key === 'End') {
+      event.preventDefault();
+      onScrubToTime(durationSeconds);
       return;
     }
 
@@ -412,6 +501,7 @@ export function TimelineExpandedContent({
               ...(isTrackExpanded
                 ? track.groups.map((group) => (
                     <TimelineKeyframeRow
+                      dragPreview={dragPreview}
                       durationSeconds={durationSeconds}
                       group={group}
                       isNested
@@ -419,10 +509,13 @@ export function TimelineExpandedContent({
                       key={group.controlId}
                       onChangeKeyframeEasing={onChangeKeyframeEasing}
                       onDeleteControlKeyframes={onDeleteControlKeyframes}
+                      onDragPreviewChange={setDragPreview}
                       onKeyframeDragStart={onKeyframeDragStart}
-                      onMoveKeyframe={onMoveKeyframe}
-                      onSelectedKeyframeChange={onSelectedKeyframeChange}
+                      onMoveSelectedKeyframes={onMoveSelectedKeyframes}
+                      onSelectKeyframe={onSelectKeyframe}
                       selectedKeyframeId={selectedKeyframeId}
+                      selectedKeyframeIds={selectedKeyframeIds}
+                      snapTimesSeconds={snapTimesSeconds}
                       view={view}
                     />
                   ))

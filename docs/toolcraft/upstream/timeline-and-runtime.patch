@@ -1,6 +1,6 @@
 diff -ruN pristine/runtime/contracts/component-contracts.runtime.ts current/runtime/contracts/component-contracts.runtime.ts
---- pristine/runtime/contracts/component-contracts.runtime.ts	2026-09-07 23:19:15.479325863 +0000
-+++ current/runtime/contracts/component-contracts.runtime.ts	2026-09-07 10:34:36.427956498 +0000
+--- pristine/runtime/contracts/component-contracts.runtime.ts	2026-09-09 01:44:44.244028811 +0000
++++ current/runtime/contracts/component-contracts.runtime.ts	2026-09-09 01:44:44.290059040 +0000
 @@ -246,10 +246,10 @@
        "Every Control Section Inventory entry declares required entityId, entity, exact targets, and groupingReason. One entity with ten or fewer controls stays in one section regardless of control type, visual height, or target namespace.",
        "An entity above ten controls splits into balanced workflow sections of two to ten controls. Every split section keeps the same entityId and entity and declares a unique workflowStage plus splitReason.",
@@ -15,8 +15,8 @@ diff -ruN pristine/runtime/contracts/component-contracts.runtime.ts current/runt
        "Runtime Setup uses 12px top spacing so its first control row has equal top, left, and right insets. Ordinary controls-panel body sections keep 8px top spacing. Both use 24px bottom spacing; sticky footer action sections keep their dedicated spacing.",
        "Broad section titles such as Flow, Icon, Shapes, Scene, Text, Typography, or Motion are only valid for small cohesive groups; use specific titles such as Flow Motion, Flow Geometry, Letter Burst, Shape Colors, Logo Glow, Logo Plate, or Text Block for larger groups.",
 diff -ruN pristine/runtime/export/video-encoding-backend.ts current/runtime/export/video-encoding-backend.ts
---- pristine/runtime/export/video-encoding-backend.ts	2026-09-07 23:19:15.479576635 +0000
-+++ current/runtime/export/video-encoding-backend.ts	2026-09-07 10:34:36.434728623 +0000
+--- pristine/runtime/export/video-encoding-backend.ts	2026-09-09 01:44:44.245672000 +0000
++++ current/runtime/export/video-encoding-backend.ts	2026-09-09 01:44:44.290875592 +0000
 @@ -34,7 +34,7 @@
    request: ToolcraftVideoEncoderBackendFactoryRequest,
  ): Promise<ToolcraftVideoEncoderBackend> {
@@ -35,8 +35,8 @@ diff -ruN pristine/runtime/export/video-encoding-backend.ts current/runtime/expo
        vp8: supportResults[2] === true,
        vp9: supportResults[1] === true,
 diff -ruN pristine/runtime/export/video-encoding-policy.ts current/runtime/export/video-encoding-policy.ts
---- pristine/runtime/export/video-encoding-policy.ts	2026-09-07 23:19:15.479920816 +0000
-+++ current/runtime/export/video-encoding-policy.ts	2026-09-07 10:34:36.434728623 +0000
+--- pristine/runtime/export/video-encoding-policy.ts	2026-09-09 01:44:44.245706366 +0000
++++ current/runtime/export/video-encoding-policy.ts	2026-09-09 01:44:44.290937663 +0000
 @@ -3,9 +3,10 @@
  
  export const TOOLCRAFT_MAX_VIDEO_ARTIFACT_BYTES = 96 * 1024 * 1024;
@@ -91,8 +91,8 @@ diff -ruN pristine/runtime/export/video-encoding-policy.ts current/runtime/expor
  
    if (!candidate) {
 diff -ruN pristine/runtime/index.ts current/runtime/index.ts
---- pristine/runtime/index.ts	2026-09-07 23:19:15.480117854 +0000
-+++ current/runtime/index.ts	2026-09-07 10:34:36.434728623 +0000
+--- pristine/runtime/index.ts	2026-09-09 01:44:44.245741506 +0000
++++ current/runtime/index.ts	2026-09-09 01:44:44.290997056 +0000
 @@ -25,6 +25,8 @@
  export * from "./state/persistence";
  export * from "./state/reducer";
@@ -103,8 +103,8 @@ diff -ruN pristine/runtime/index.ts current/runtime/index.ts
  export * from "./state/types";
  export * from "./testing/performance";
 diff -ruN pristine/runtime/react/app-shell/toolbar-panel.tsx current/runtime/react/app-shell/toolbar-panel.tsx
---- pristine/runtime/react/app-shell/toolbar-panel.tsx	2026-09-07 23:19:15.480314029 +0000
-+++ current/runtime/react/app-shell/toolbar-panel.tsx	2026-09-07 10:34:36.499961563 +0000
+--- pristine/runtime/react/app-shell/toolbar-panel.tsx	2026-09-09 01:44:44.256395136 +0000
++++ current/runtime/react/app-shell/toolbar-panel.tsx	2026-09-09 01:44:44.295911914 +0000
 @@ -19,7 +19,22 @@
  import { useToolcraftCommittedSelector } from "./toolcraft-selectors";
  import { useToolcraftDispatch } from "./use-toolcraft";
@@ -158,8 +158,8 @@ diff -ruN pristine/runtime/react/app-shell/toolbar-panel.tsx current/runtime/rea
          <ToolbarIconButton
            label="Center canvas"
 diff -ruN pristine/runtime/react/app-shell/toolcraft-app.tsx current/runtime/react/app-shell/toolcraft-app.tsx
---- pristine/runtime/react/app-shell/toolcraft-app.tsx	2026-09-07 23:19:15.480551469 +0000
-+++ current/runtime/react/app-shell/toolcraft-app.tsx	2026-09-07 10:34:36.499961563 +0000
+--- pristine/runtime/react/app-shell/toolcraft-app.tsx	2026-09-09 01:44:44.256432776 +0000
++++ current/runtime/react/app-shell/toolcraft-app.tsx	2026-09-09 01:44:44.295927302 +0000
 @@ -26,7 +26,7 @@
  import { LayersPanel } from "../layers/layers-panel";
  import { useToolcraftModelRenderPreparationStatus } from "../model-rendering/model-render-provider";
@@ -289,8 +289,8 @@ diff -ruN pristine/runtime/react/app-shell/toolcraft-app.tsx current/runtime/rea
    );
  }
 diff -ruN pristine/runtime/react/controls-panel/conditions/control-conditions.ts current/runtime/react/controls-panel/conditions/control-conditions.ts
---- pristine/runtime/react/controls-panel/conditions/control-conditions.ts	2026-09-07 12:59:47.000000000 +0000
-+++ current/runtime/react/controls-panel/conditions/control-conditions.ts	2026-09-07 23:12:54.006195139 +0000
+--- pristine/runtime/react/controls-panel/conditions/control-conditions.ts	2026-09-09 01:44:44.258995494 +0000
++++ current/runtime/react/controls-panel/conditions/control-conditions.ts	2026-09-09 01:44:44.296652909 +0000
 @@ -15,6 +15,7 @@
  } from "../../../schema/types";
  import type { ToolcraftState } from "../../../state/types";
@@ -333,8 +333,8 @@ diff -ruN pristine/runtime/react/controls-panel/conditions/control-conditions.ts
    ...conditions: ReadonlyArray<ToolcraftControlConditionSchema | undefined>
  ): string[] {
 diff -ruN pristine/runtime/react/controls-panel/keyframes/controls-panel-keyframes.tsx current/runtime/react/controls-panel/keyframes/controls-panel-keyframes.tsx
---- pristine/runtime/react/controls-panel/keyframes/controls-panel-keyframes.tsx	2026-09-07 12:59:47.000000000 +0000
-+++ current/runtime/react/controls-panel/keyframes/controls-panel-keyframes.tsx	2026-09-07 23:10:04.780928557 +0000
+--- pristine/runtime/react/controls-panel/keyframes/controls-panel-keyframes.tsx	2026-09-09 01:44:44.259097585 +0000
++++ current/runtime/react/controls-panel/keyframes/controls-panel-keyframes.tsx	2026-09-09 01:44:44.296703314 +0000
 @@ -12,10 +12,7 @@
  
  import { getToolcraftControlKeyframeCapability } from "../../../schema/keyframe-capability";
@@ -413,8 +413,8 @@ diff -ruN pristine/runtime/react/controls-panel/keyframes/controls-panel-keyfram
        value,
        valueLabel: formatValueLabel(control, value),
 diff -ruN pristine/runtime/react/controls-panel/layout/controls-panel-control-group.tsx current/runtime/react/controls-panel/layout/controls-panel-control-group.tsx
---- pristine/runtime/react/controls-panel/layout/controls-panel-control-group.tsx	2026-09-07 12:59:47.000000000 +0000
-+++ current/runtime/react/controls-panel/layout/controls-panel-control-group.tsx	2026-09-07 23:27:56.502527517 +0000
+--- pristine/runtime/react/controls-panel/layout/controls-panel-control-group.tsx	2026-09-09 01:44:44.259097585 +0000
++++ current/runtime/react/controls-panel/layout/controls-panel-control-group.tsx	2026-09-09 01:44:44.296999884 +0000
 @@ -19,7 +19,7 @@
  import type { ToolcraftControlRendererMap } from "../control-renderers";
  import {
@@ -513,8 +513,8 @@ diff -ruN pristine/runtime/react/controls-panel/layout/controls-panel-control-gr
  
      if (entries.length > 1) {
 diff -ruN pristine/runtime/react/controls-panel/layout/controls-panel-section.tsx current/runtime/react/controls-panel/layout/controls-panel-section.tsx
---- pristine/runtime/react/controls-panel/layout/controls-panel-section.tsx	2026-09-07 23:19:15.480768084 +0000
-+++ current/runtime/react/controls-panel/layout/controls-panel-section.tsx	2026-09-07 23:28:03.041959891 +0000
+--- pristine/runtime/react/controls-panel/layout/controls-panel-section.tsx	2026-09-09 01:44:44.259488088 +0000
++++ current/runtime/react/controls-panel/layout/controls-panel-section.tsx	2026-09-09 01:44:44.296734485 +0000
 @@ -85,7 +85,6 @@
  type SectionKeyframeSelection = {
    group: ToolcraftTimelineKeyframeGroup | undefined;
@@ -610,8 +610,8 @@ diff -ruN pristine/runtime/react/controls-panel/layout/controls-panel-section.ts
          ) : undefined
        }
 diff -ruN pristine/runtime/react/panel-host/panel-host-config.ts current/runtime/react/panel-host/panel-host-config.ts
---- pristine/runtime/react/panel-host/panel-host-config.ts	2026-09-07 23:19:15.481104965 +0000
-+++ current/runtime/react/panel-host/panel-host-config.ts	2026-09-07 10:34:36.529882201 +0000
+--- pristine/runtime/react/panel-host/panel-host-config.ts	2026-09-09 01:44:44.262150167 +0000
++++ current/runtime/react/panel-host/panel-host-config.ts	2026-09-09 01:44:44.298090814 +0000
 @@ -1,7 +1,8 @@
  import type { ToolcraftPanelType, PanelDragMode, PanelSnapEdge } from "./panel-host-types";
  
@@ -646,8 +646,8 @@ diff -ruN pristine/runtime/react/panel-host/panel-host-config.ts current/runtime
    },
  } satisfies Record<ToolcraftPanelType, PanelTypeConfig>;
 diff -ruN pristine/runtime/react/panel-host/panel-host.tsx current/runtime/react/panel-host/panel-host.tsx
---- pristine/runtime/react/panel-host/panel-host.tsx	2026-09-07 23:19:15.481355363 +0000
-+++ current/runtime/react/panel-host/panel-host.tsx	2026-09-07 10:34:36.532299688 +0000
+--- pristine/runtime/react/panel-host/panel-host.tsx	2026-09-09 01:44:44.262356632 +0000
++++ current/runtime/react/panel-host/panel-host.tsx	2026-09-09 01:44:44.298130455 +0000
 @@ -15,6 +15,7 @@
    panelDragIgnoredTargetSelector,
    panelDragTransition,
@@ -689,8 +689,8 @@ diff -ruN pristine/runtime/react/panel-host/panel-host.tsx current/runtime/react
    if (placement === "surface") {
      return <>{children}</>;
 diff -ruN pristine/runtime/react/timeline/timeline-easing-editor.tsx current/runtime/react/timeline/timeline-easing-editor.tsx
---- pristine/runtime/react/timeline/timeline-easing-editor.tsx	2026-09-07 23:19:15.481648231 +0000
-+++ current/runtime/react/timeline/timeline-easing-editor.tsx	2026-09-07 10:34:36.532299688 +0000
+--- pristine/runtime/react/timeline/timeline-easing-editor.tsx	2026-09-09 01:44:44.262419116 +0000
++++ current/runtime/react/timeline/timeline-easing-editor.tsx	2026-09-09 01:44:44.298177001 +0000
 @@ -43,6 +43,14 @@
    const animationFrameRef = useRef<number | null>(null);
    const [isCurveAnimating, setIsCurveAnimating] = useState(false);
@@ -734,8 +734,8 @@ diff -ruN pristine/runtime/react/timeline/timeline-easing-editor.tsx current/run
            <>
              <line
 diff -ruN pristine/runtime/react/timeline/timeline-easing-icons.tsx current/runtime/react/timeline/timeline-easing-icons.tsx
---- pristine/runtime/react/timeline/timeline-easing-icons.tsx	2026-09-07 23:19:15.481965389 +0000
-+++ current/runtime/react/timeline/timeline-easing-icons.tsx	2026-09-07 10:34:36.533567831 +0000
+--- pristine/runtime/react/timeline/timeline-easing-icons.tsx	2026-09-09 01:44:44.262596218 +0000
++++ current/runtime/react/timeline/timeline-easing-icons.tsx	2026-09-09 01:44:44.298206660 +0000
 @@ -20,7 +20,15 @@
    easing: ToolcraftTimelineKeyframeEasing;
    size?: number;
@@ -804,8 +804,8 @@ diff -ruN pristine/runtime/react/timeline/timeline-easing-icons.tsx current/runt
 +  );
 +}
 diff -ruN pristine/runtime/react/timeline/timeline-easing-model.ts current/runtime/react/timeline/timeline-easing-model.ts
---- pristine/runtime/react/timeline/timeline-easing-model.ts	2026-09-07 23:19:15.482203172 +0000
-+++ current/runtime/react/timeline/timeline-easing-model.ts	2026-09-07 10:34:36.533567831 +0000
+--- pristine/runtime/react/timeline/timeline-easing-model.ts	2026-09-09 01:44:44.262627212 +0000
++++ current/runtime/react/timeline/timeline-easing-model.ts	2026-09-09 01:44:44.298221206 +0000
 @@ -106,9 +106,9 @@
  function cloneToolcraftTimelineKeyframeEasing(
    easing: ToolcraftTimelineKeyframeEasing,
@@ -980,8 +980,8 @@ diff -ruN pristine/runtime/react/timeline/timeline-easing-model.ts current/runti
 +  );
  }
 diff -ruN pristine/runtime/react/timeline/timeline-easing-popover-content.tsx current/runtime/react/timeline/timeline-easing-popover-content.tsx
---- pristine/runtime/react/timeline/timeline-easing-popover-content.tsx	2026-09-07 23:19:15.482570004 +0000
-+++ current/runtime/react/timeline/timeline-easing-popover-content.tsx	2026-09-07 10:34:36.533567831 +0000
+--- pristine/runtime/react/timeline/timeline-easing-popover-content.tsx	2026-09-09 01:44:44.262662798 +0000
++++ current/runtime/react/timeline/timeline-easing-popover-content.tsx	2026-09-09 01:44:44.298235258 +0000
 @@ -8,12 +8,18 @@
  import {
    findTimelineEasingPresetName,
@@ -1104,9 +1104,9 @@ diff -ruN pristine/runtime/react/timeline/timeline-easing-popover-content.tsx cu
                value={inputValue}
              />
 diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/runtime/react/timeline/timeline-expanded-content.tsx
---- pristine/runtime/react/timeline/timeline-expanded-content.tsx	2026-09-07 23:19:15.482933336 +0000
-+++ current/runtime/react/timeline/timeline-expanded-content.tsx	2026-09-07 10:34:36.533567831 +0000
-@@ -13,6 +13,13 @@
+--- pristine/runtime/react/timeline/timeline-expanded-content.tsx	2026-09-09 01:44:44.262804561 +0000
++++ current/runtime/react/timeline/timeline-expanded-content.tsx	2026-09-09 01:44:44.298280996 +0000
+@@ -13,13 +13,25 @@
    roundToolcraftTimelineKeyframeTime,
    toolcraftTimelineScrubStepSeconds,
  } from '../../state/timeline-values';
@@ -1120,15 +1120,32 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
  import {
    getTimelineEventTargetElement,
    isEditableTimelineEventTarget,
-@@ -20,6 +27,7 @@
+   isTimelineInteractiveElement,
  } from './timeline-event-targets';
- import { findTimelineKeyframe } from './timeline-keyframes';
+-import { findTimelineKeyframe } from './timeline-keyframes';
++import { getToolcraftTimelineSnapTimes } from '../../state/timeline-snapping';
++import {
++  findTimelineKeyframe,
++  type TimelineKeyframeDragPreview,
++} from './timeline-keyframes';
  import { TimelineKeyframeRow } from './timeline-keyframe-row';
 +import { TimelineObjectTrackRow } from './timeline-object-track-row';
  import {
    getTimelineCalcPositionStyle,
    timelineExpandedTrackEndOffsetPx,
-@@ -49,9 +57,16 @@
+@@ -41,17 +53,32 @@
+   keyframeGroups: readonly ToolcraftTimelineKeyframeGroup[];
+   onChangeKeyframeEasing: (keyframeId: string, easing: ToolcraftTimelineKeyframeEasing) => void;
+   onDeleteControlKeyframes: (controlId: string) => void;
++  onCopySelectedKeyframes: () => void;
+   onDeleteKeyframe: (keyframeId: string) => void;
++  onDeleteSelectedKeyframes: () => void;
+   onKeyframeDragStart: () => void;
+   onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void;
+   onLostPointerCapture: () => void;
+   onMoveKeyframe: (keyframeId: string, timeSeconds: number) => string | null;
++  onMoveSelectedKeyframes: (anchorKeyframeId: string, timeSeconds: number) => void;
++  onPasteKeyframes: () => void;
    onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
    onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;
    onPointerUp: (event: React.PointerEvent<HTMLDivElement>) => void;
@@ -1136,16 +1153,20 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
 +  objectTracks: readonly ToolcraftTimelineObjectTrack[];
 +  onPanView: (deltaSeconds: number) => void;
 +  onScrubToTime: (timeSeconds: number) => void;
++  onSelectKeyframe: (keyframeId: string | null, additive: boolean) => void;
++  onSelectKeyframes: (keyframeIds: readonly string[]) => void;
    onSelectedKeyframeChange: (keyframeId: string | null) => void;
++  onStepToKeyframe: (direction: -1 | 1) => void;
 +  onToggleObjectExpanded: (objectId: string) => void;
 +  onZoomChange: (zoom: number) => void;
    selectedKeyframeId: string | null;
++  selectedKeyframeIds: readonly string[];
    stripRef: React.RefObject<HTMLDivElement | null>;
 +  view: ToolcraftTimelineViewWindow;
  };
  
  function cn(...classNames: Array<string | false | null | undefined>): string {
-@@ -62,8 +77,32 @@
+@@ -62,8 +89,32 @@
    return value.toFixed(2);
  }
  
@@ -1180,7 +1201,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
  }
  
  function getTimelineRulerMarkRatios(): number[] {
-@@ -72,9 +111,9 @@
+@@ -72,9 +123,9 @@
  
  function getTimelineTrackPositionStyle(
    currentTimeSeconds: number,
@@ -1192,7 +1213,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
  
    return getTimelineCalcPositionStyle(
      ratio,
-@@ -83,6 +122,7 @@
+@@ -83,33 +134,63 @@
  }
  
  export function TimelineExpandedContent({
@@ -1200,30 +1221,146 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
    currentTimeSeconds,
    durationSeconds,
    isScrubbing,
-@@ -96,12 +136,21 @@
+   keyframeGroups,
+   onChangeKeyframeEasing,
++  onCopySelectedKeyframes,
+   onDeleteControlKeyframes,
+   onDeleteKeyframe,
++  onDeleteSelectedKeyframes,
+   onKeyframeDragStart,
+   onKeyDown,
+   onLostPointerCapture,
    onMoveKeyframe,
++  onMoveSelectedKeyframes,
++  onPasteKeyframes,
    onPointerDown,
    onPointerMove,
 +  objectTracks,
    onPointerUp,
 +  onPanView,
 +  onScrubToTime,
++  onSelectKeyframe,
++  onSelectKeyframes,
    onSelectedKeyframeChange,
++  onStepToKeyframe,
 +  onToggleObjectExpanded,
 +  onZoomChange,
    selectedKeyframeId,
++  selectedKeyframeIds,
    stripRef,
 +  view,
  }: TimelineExpandedContentProps): React.JSX.Element {
 -  const trackPlayheadStyle = getTimelineTrackPositionStyle(currentTimeSeconds, durationSeconds);
++  const [dragPreview, setDragPreview] = React.useState<TimelineKeyframeDragPreview | null>(
++    null,
++  );
++  const snapTimesSeconds = React.useMemo(
++    () =>
++      getToolcraftTimelineSnapTimes({
++        currentTimeSeconds,
++        durationSeconds,
++        excludedKeyframeIds: dragPreview?.keyframeIds ?? new Set<string>(),
++        keyframeGroups,
++      }),
++    [currentTimeSeconds, durationSeconds, dragPreview, keyframeGroups],
++  );
 +  const trackPlayheadStyle = getTimelineTrackPositionStyle(currentTimeSeconds, view);
 +  const isPlayheadInView = isToolcraftTimelineTimeInView(currentTimeSeconds, view);
 +  const rulerTicks = getTimelineRulerTicks(view);
 +  const rulerTickDecimals = getTimelineRulerTickDecimals(rulerTicks);
    const selectedKeyframe = findTimelineKeyframe(keyframeGroups, selectedKeyframeId);
    const deleteSelectedKeyframe = (): void => {
-     if (!selectedKeyframeId) {
-@@ -166,6 +215,38 @@
+-    if (!selectedKeyframeId) {
++    if (selectedKeyframeIds.length === 0) {
+       return;
+     }
+ 
+-    onDeleteKeyframe(selectedKeyframeId);
+-    onSelectedKeyframeChange(null);
++    onDeleteSelectedKeyframes();
+   };
+   const moveSelectedKeyframeByStep = (direction: -1 | 1): void => {
+     if (!selectedKeyframe) {
+@@ -136,8 +217,36 @@
+       return;
+     }
+ 
++    const isAccelerator = event.metaKey || event.ctrlKey;
++
++    // The clipboard and select-all first, because they are the only shortcuts
++    // here that share a key with something else and have to win it.
++    if (isAccelerator && (event.key === 'c' || event.key === 'C')) {
++      if (selectedKeyframeIds.length === 0) {
++        return;
++      }
++
++      event.preventDefault();
++      onCopySelectedKeyframes();
++      return;
++    }
++
++    if (isAccelerator && (event.key === 'v' || event.key === 'V')) {
++      event.preventDefault();
++      onPasteKeyframes();
++      return;
++    }
++
++    if (isAccelerator && (event.key === 'a' || event.key === 'A')) {
++      event.preventDefault();
++      onSelectKeyframes(
++        keyframeGroups.flatMap((group) => group.keyframes.map((keyframe) => keyframe.id)),
++      );
++      return;
++    }
++
+     if (event.key === 'Delete' || event.key === 'Backspace') {
+-      if (!selectedKeyframeId) {
++      if (selectedKeyframeIds.length === 0) {
+         return;
+       }
+ 
+@@ -146,9 +255,38 @@
+       return;
+     }
+ 
+-    if (event.key === 'Escape' && selectedKeyframeId) {
++    if (event.key === 'Escape' && selectedKeyframeIds.length > 0) {
+       event.preventDefault();
+-      onSelectedKeyframeChange(null);
++      onSelectKeyframe(null, false);
++      return;
++    }
++
++    // J and K step the playhead between keyframes, and Home and End go to the
++    // ends of the loop -- the two frames a seamless loop is judged on. They
++    // act on the playhead rather than on the selection. Space is deliberately
++    // absent: the panel already binds it on the document, so handling it here
++    // too would toggle playback twice and cancel itself out.
++    if (event.key === 'j' || event.key === 'J') {
++      event.preventDefault();
++      onStepToKeyframe(-1);
++      return;
++    }
++
++    if (event.key === 'k' || event.key === 'K') {
++      event.preventDefault();
++      onStepToKeyframe(1);
++      return;
++    }
++
++    if (event.key === 'Home') {
++      event.preventDefault();
++      onScrubToTime(0);
++      return;
++    }
++
++    if (event.key === 'End') {
++      event.preventDefault();
++      onScrubToTime(durationSeconds);
+       return;
+     }
+ 
+@@ -166,6 +304,38 @@
  
      onKeyDown(event);
    };
@@ -1262,7 +1399,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
    const handleExpandedPointerDown = (event: React.PointerEvent<HTMLDivElement>): void => {
      const targetElement = getTimelineEventTargetElement(event.target);
      const clickedKeyframe = targetElement?.closest('[data-slot="timeline-keyframe"]');
-@@ -184,7 +265,23 @@
+@@ -184,7 +354,23 @@
  
    return (
      <div className="flex min-h-0 flex-1 flex-col" data-slot="timeline-expanded">
@@ -1287,7 +1424,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
          <div className="flex min-w-0 items-center px-3 text-[11px] leading-4 text-[color:color-mix(in_oklab,var(--foreground)_75%,transparent)] select-none">
            <span className="min-w-0 truncate opacity-60">Properties</span>
          </div>
-@@ -194,13 +291,13 @@
+@@ -194,13 +380,13 @@
              data-slot="timeline-expanded-ruler-labels"
              style={{ left: timelineRulerLeftInsetPx, right: timelineRulerRightInsetPx }}
            >
@@ -1304,7 +1441,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
                </span>
              ))}
            </div>
-@@ -243,13 +340,18 @@
+@@ -243,13 +429,18 @@
          onPointerDown={handleExpandedPointerDown}
          onPointerMove={onPointerMove}
          onPointerUp={onPointerUp}
@@ -1324,7 +1461,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
            data-slot="timeline-expanded-playhead"
            style={trackPlayheadStyle}
          />
-@@ -267,7 +369,9 @@
+@@ -267,7 +458,9 @@
            className={cn(
              'absolute top-[-1px] z-30 size-[9px] -translate-x-1/2 -translate-y-1/2 cursor-ew-resize rounded-[2px] bg-[color:var(--foreground)] shadow-[0_2px_2px_color-mix(in_oklab,var(--background)_20%,transparent)] transition-transform duration-[120ms] ease-out',
              isScrubbing && 'scale-[1.25] cursor-grabbing',
@@ -1334,7 +1471,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
            data-slot="timeline-expanded-playhead-handle"
            style={trackPlayheadStyle}
          />
-@@ -280,22 +384,53 @@
+@@ -280,22 +473,57 @@
          >
            Add your first keyframe from the properties panel.
          </motion.div>
@@ -1382,6 +1519,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
 +              ...(isTrackExpanded
 +                ? track.groups.map((group) => (
 +                    <TimelineKeyframeRow
++                      dragPreview={dragPreview}
 +                      durationSeconds={durationSeconds}
 +                      group={group}
 +                      isNested
@@ -1389,10 +1527,13 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
 +                      key={group.controlId}
 +                      onChangeKeyframeEasing={onChangeKeyframeEasing}
 +                      onDeleteControlKeyframes={onDeleteControlKeyframes}
++                      onDragPreviewChange={setDragPreview}
 +                      onKeyframeDragStart={onKeyframeDragStart}
-+                      onMoveKeyframe={onMoveKeyframe}
-+                      onSelectedKeyframeChange={onSelectedKeyframeChange}
++                      onMoveSelectedKeyframes={onMoveSelectedKeyframes}
++                      onSelectKeyframe={onSelectKeyframe}
 +                      selectedKeyframeId={selectedKeyframeId}
++                      selectedKeyframeIds={selectedKeyframeIds}
++                      snapTimesSeconds={snapTimesSeconds}
 +                      view={view}
 +                    />
 +                  ))
@@ -1404,10 +1545,40 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
        </div>
      </div>
    );
+diff -ruN pristine/runtime/react/timeline/timeline-keyframe-clipboard.ts current/runtime/react/timeline/timeline-keyframe-clipboard.ts
+--- pristine/runtime/react/timeline/timeline-keyframe-clipboard.ts	1970-01-01 00:00:00.000000000 +0000
++++ current/runtime/react/timeline/timeline-keyframe-clipboard.ts	2026-09-09 01:44:44.298447830 +0000
+@@ -0,0 +1,26 @@
++import type { ToolcraftTimelineClipboardKeyframe } from '../../state/types';
++
++/**
++ * What was last copied, held outside the workspace on purpose.
++ *
++ * A clipboard is not part of the document. Keeping it in state would put it in
++ * the undo history, in a saved file, and in an exported settings blob — three
++ * places a copy has no business surviving into, and one of them shared. It
++ * lives here for the same reason the system clipboard is not in your document:
++ * it belongs to the session, not to the work.
++ *
++ * Module scope rather than a ref so that it survives the timeline panel
++ * unmounting, which is what happens whenever the panel is collapsed. Copying,
++ * collapsing the panel and pasting is an ordinary thing to do.
++ */
++let clipboardKeyframes: readonly ToolcraftTimelineClipboardKeyframe[] = [];
++
++export function setToolcraftTimelineClipboard(
++  keyframes: readonly ToolcraftTimelineClipboardKeyframe[],
++): void {
++  clipboardKeyframes = keyframes;
++}
++
++export function getToolcraftTimelineClipboard(): readonly ToolcraftTimelineClipboardKeyframe[] {
++  return clipboardKeyframes;
++}
 diff -ruN pristine/runtime/react/timeline/timeline-keyframe-row.tsx current/runtime/react/timeline/timeline-keyframe-row.tsx
---- pristine/runtime/react/timeline/timeline-keyframe-row.tsx	2026-09-07 23:19:15.483257982 +0000
-+++ current/runtime/react/timeline/timeline-keyframe-row.tsx	2026-09-07 10:34:36.533567831 +0000
-@@ -15,6 +15,11 @@
+--- pristine/runtime/react/timeline/timeline-keyframe-row.tsx	2026-09-09 01:44:44.262878411 +0000
++++ current/runtime/react/timeline/timeline-keyframe-row.tsx	2026-09-09 01:44:44.298312261 +0000
+@@ -15,7 +15,20 @@
    getToolcraftTimelineKeyframeId,
    roundToolcraftTimelineKeyframeTime,
  } from '../../state/timeline-values';
@@ -1416,26 +1587,56 @@ diff -ruN pristine/runtime/react/timeline/timeline-keyframe-row.tsx current/runt
 +  getToolcraftTimelineViewTime,
 +  type ToolcraftTimelineViewWindow,
 +} from '../../state/timeline-view-window';
++import {
++  getToolcraftTimelineSnapToleranceSeconds,
++  snapToolcraftTimelineTime,
++} from '../../state/timeline-snapping';
  import { TimelineIconButton } from './timeline-icon-button';
++import {
++  getTimelineKeyframeDisplayTime,
++  type TimelineKeyframeDragPreview,
++} from './timeline-keyframes';
  import { TimelineKeyframeEasingPopover } from './timeline-easing-popover';
  import {
-@@ -39,6 +44,7 @@
+   getTimelineCalcPositionStyle,
+@@ -26,9 +39,10 @@
+ } from './timeline-panel-layout';
+ 
+ type TimelineKeyframeDragState = {
+-  controlId: string;
+   didMove: boolean;
+   initialTimeSeconds: number;
++  /** Every keyframe this drag moves, decided once at pointer down. */
++  keyframeIds: ReadonlySet<string>;
+   keyframeId: string;
+   latestTimeSeconds: number;
+   pointerId: number;
+@@ -37,15 +51,22 @@
+ };
+ 
  type TimelineKeyframeRowProps = {
++  dragPreview: TimelineKeyframeDragPreview | null;
    durationSeconds: number;
    group: ToolcraftTimelineKeyframeGroup;
 +  isNested?: boolean;
    isScrubbing: boolean;
    onChangeKeyframeEasing: (keyframeId: string, easing: ToolcraftTimelineKeyframeEasing) => void;
    onDeleteControlKeyframes: (controlId: string) => void;
-@@ -46,6 +52,7 @@
-   onMoveKeyframe: (keyframeId: string, timeSeconds: number) => string | null;
-   onSelectedKeyframeChange: (keyframeId: string | null) => void;
++  onDragPreviewChange: (dragPreview: TimelineKeyframeDragPreview | null) => void;
+   onKeyframeDragStart: () => void;
+-  onMoveKeyframe: (keyframeId: string, timeSeconds: number) => string | null;
+-  onSelectedKeyframeChange: (keyframeId: string | null) => void;
++  onMoveSelectedKeyframes: (anchorKeyframeId: string, timeSeconds: number) => void;
++  onSelectKeyframe: (keyframeId: string | null, additive: boolean) => void;
    selectedKeyframeId: string | null;
++  selectedKeyframeIds: readonly string[];
++  /** Times a dragged keyframe may land exactly on. Excludes what is moving. */
++  snapTimesSeconds: readonly number[];
 +  view: ToolcraftTimelineViewWindow;
  };
  
  function cn(...classNames: Array<string | false | null | undefined>): string {
-@@ -58,9 +65,9 @@
+@@ -58,9 +79,9 @@
  
  function getTimelineKeyframePositionStyle(
    timeSeconds: number,
@@ -1447,7 +1648,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-keyframe-row.tsx current/runt
  
    return getTimelineCalcPositionStyle(ratio, timelineTrackStartVisualOffsetPx * (1 - ratio));
  }
-@@ -69,10 +76,12 @@
+@@ -69,10 +90,12 @@
    clientX,
    durationSeconds,
    trackElement,
@@ -1460,7 +1661,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-keyframe-row.tsx current/runt
  }): number {
    const rect = trackElement.getBoundingClientRect();
    const trackLeft = rect.left + timelineTrackStartVisualOffsetPx;
-@@ -83,13 +92,14 @@
+@@ -83,27 +106,33 @@
    const ratio = Math.max(0, Math.min(1, (clientX - trackLeft) / trackWidth));
  
    return roundToolcraftTimelineKeyframeTime(
@@ -1470,29 +1671,180 @@ diff -ruN pristine/runtime/react/timeline/timeline-keyframe-row.tsx current/runt
  }
  
  export function TimelineKeyframeRow({
++  dragPreview,
    durationSeconds,
    group,
 +  isNested = false,
    isScrubbing,
    onChangeKeyframeEasing,
    onDeleteControlKeyframes,
-@@ -97,6 +107,7 @@
-   onMoveKeyframe,
-   onSelectedKeyframeChange,
++  onDragPreviewChange,
+   onKeyframeDragStart,
+-  onMoveKeyframe,
+-  onSelectedKeyframeChange,
++  onMoveSelectedKeyframes,
++  onSelectKeyframe,
    selectedKeyframeId,
++  selectedKeyframeIds,
++  snapTimesSeconds,
 +  view,
  }: TimelineKeyframeRowProps): React.JSX.Element {
    const [isVisible, setIsVisible] = useState(true);
-   const [draftKeyframeTimes, setDraftKeyframeTimes] = useState<Record<string, number>>({});
-@@ -158,6 +169,7 @@
+-  const [draftKeyframeTimes, setDraftKeyframeTimes] = useState<Record<string, number>>({});
+   const keyframeDragRef = useRef<TimelineKeyframeDragState | null>(null);
+   const keyframeClickIntentRef = useRef<{
+     didMove: boolean;
+     keyframeId: string;
++    selectionSizeOnPointerDown: number;
+     wasSelectedOnPointerDown: boolean;
+   } | null>(null);
+   const selectedGroupKeyframe = group.keyframes.find(
+@@ -111,6 +140,24 @@
+   );
+   const getKeyframeTrackElement = (target: Element): HTMLElement | null =>
+     target.closest('[data-slot="timeline-keyframe-track"]');
++  /**
++   * Which keyframes this press is about to drag.
++   *
++   * Decided here rather than read from the selection on the next render,
++   * because the selection change dispatched below has not landed yet and the
++   * first pointer move can arrive before it does. Pressing something already in
++   * the selection drags the whole selection; pressing anything else drags only
++   * it, which is what makes a plain click on one keyframe still a single move.
++   */
++  const getDragKeyframeIds = (keyframeId: string, additive: boolean): ReadonlySet<string> => {
++    if (additive) {
++      return new Set([...selectedKeyframeIds, keyframeId]);
++    }
++
++    return selectedKeyframeIds.includes(keyframeId)
++      ? new Set(selectedKeyframeIds)
++      : new Set([keyframeId]);
++  };
+   const handleKeyframePointerDown = (
+     event: React.PointerEvent<HTMLButtonElement>,
+     keyframe: ToolcraftTimelineKeyframe,
+@@ -124,20 +171,34 @@
+     event.preventDefault();
+     event.stopPropagation();
+     event.currentTarget.setPointerCapture?.(event.pointerId);
+-    onSelectedKeyframeChange(keyframe.id);
++
++    const additive = event.shiftKey;
++    const keyframeIds = getDragKeyframeIds(keyframe.id, additive);
++
++    // A shift-press commits its selection change immediately, because it is
++    // the whole intent of the press. A plain press on something already
++    // selected holds off until the click, so that pressing one keyframe of a
++    // selection to drag the group does not first collapse the group to it.
++    if (additive || !selectedKeyframeIds.includes(keyframe.id)) {
++      onSelectKeyframe(keyframe.id, additive);
++    }
++
+     onKeyframeDragStart();
+-    const wasSelectedOnPointerDown = keyframe.id === selectedKeyframeId;
++    const wasSelectedOnPointerDown = selectedKeyframeIds.includes(keyframe.id);
+ 
+-    keyframeClickIntentRef.current = {
+-      didMove: false,
+-      keyframeId: keyframe.id,
+-      wasSelectedOnPointerDown,
+-    };
++    keyframeClickIntentRef.current = additive
++      ? null
++      : {
++          didMove: false,
++          keyframeId: keyframe.id,
++          selectionSizeOnPointerDown: selectedKeyframeIds.length,
++          wasSelectedOnPointerDown,
++        };
+     keyframeDragRef.current = {
+-      controlId: keyframe.controlId,
+       didMove: false,
+       initialTimeSeconds: keyframe.timeSeconds,
+       keyframeId: keyframe.id,
++      keyframeIds,
+       latestTimeSeconds: keyframe.timeSeconds,
+       pointerId: event.pointerId,
+       trackElement,
+@@ -154,11 +215,32 @@
+     event.preventDefault();
+     event.stopPropagation();
+ 
+-    const nextTimeSeconds = getTimelineTrackTimeFromClientX({
++    const pointerTimeSeconds = getTimelineTrackTimeFromClientX({
        clientX: event.clientX,
        durationSeconds,
        trackElement: dragState.trackElement,
 +      view,
      });
++    // Alt places a keyframe wherever the pointer is, the escape hatch every
++    // snapping timeline has. Snapping is on by default here rather than off
++    // behind Shift as it is in After Effects, because Shift is already how you
++    // add to a selection and because the times worth landing on exactly --
++    // the playhead, the two ends of the loop -- are the ones that are hardest
++    // to hit by hand at a hundredth of a second.
++    const nextTimeSeconds = event.altKey
++      ? pointerTimeSeconds
++      : roundToolcraftTimelineKeyframeTime(
++          snapToolcraftTimelineTime({
++            candidateSeconds: pointerTimeSeconds,
++            snapTimesSeconds,
++            toleranceSeconds: getToolcraftTimelineSnapToleranceSeconds(
++              view,
++              dragState.trackElement.getBoundingClientRect().width -
++                timelineTrackStartVisualOffsetPx -
++                timelineTrackEndInsetPx,
++            ),
++          }),
++        );
  
      dragState.latestTimeSeconds = nextTimeSeconds;
-@@ -226,7 +238,13 @@
+     const didMove = nextTimeSeconds !== dragState.initialTimeSeconds;
+@@ -168,11 +250,11 @@
+       keyframeClickIntentRef.current.didMove = didMove;
+     }
+ 
+-    setDraftKeyframeTimes((currentDrafts) =>
+-      currentDrafts[dragState.keyframeId] === nextTimeSeconds
+-        ? currentDrafts
+-        : { ...currentDrafts, [dragState.keyframeId]: nextTimeSeconds },
+-    );
++    onDragPreviewChange({
++      anchorKeyframeId: dragState.keyframeId,
++      keyframeIds: dragState.keyframeIds,
++      offsetSeconds: nextTimeSeconds - dragState.initialTimeSeconds,
++    });
+   };
+   const endKeyframeDrag = (event: React.PointerEvent<HTMLButtonElement>): void => {
+     const dragState = keyframeDragRef.current;
+@@ -189,23 +271,10 @@
+     }
+ 
+     if (dragState.didMove) {
+-      const nextSelectedKeyframeId = onMoveKeyframe(
+-        dragState.keyframeId,
+-        dragState.latestTimeSeconds,
+-      );
+-
+-      onSelectedKeyframeChange(
+-        nextSelectedKeyframeId ??
+-          getToolcraftTimelineKeyframeId(dragState.controlId, dragState.latestTimeSeconds),
+-      );
++      onMoveSelectedKeyframes(dragState.keyframeId, dragState.latestTimeSeconds);
+     }
+ 
+-    setDraftKeyframeTimes((currentDrafts) => {
+-      const nextDrafts = { ...currentDrafts };
+-
+-      delete nextDrafts[dragState.keyframeId];
+-      return nextDrafts;
+-    });
++    onDragPreviewChange(null);
+     keyframeDragRef.current = null;
+   };
+ 
+@@ -226,7 +295,13 @@
        transition={timelineKeyframePresenceTransition}
      >
        <div className="grid h-9 w-full grid-cols-[164px_minmax(0,1fr)_36px] overflow-visible">
@@ -1507,10 +1859,14 @@ diff -ruN pristine/runtime/react/timeline/timeline-keyframe-row.tsx current/runt
            <TimelineIconButton
              label={`Toggle ${group.label} visibility`}
              onClick={() => setIsVisible((currentValue) => !currentValue)}
-@@ -285,6 +303,13 @@
+@@ -283,8 +358,15 @@
+             />
+             <AnimatePresence initial={false}>
                {group.keyframes.map((keyframe) => {
-                 const isSelected = keyframe.id === selectedKeyframeId;
-                 const displayTimeSeconds = draftKeyframeTimes[keyframe.id] ?? keyframe.timeSeconds;
+-                const isSelected = keyframe.id === selectedKeyframeId;
+-                const displayTimeSeconds = draftKeyframeTimes[keyframe.id] ?? keyframe.timeSeconds;
++                const isSelected = selectedKeyframeIds.includes(keyframe.id);
++                const displayTimeSeconds = getTimelineKeyframeDisplayTime(keyframe, dragPreview);
 +                const viewRatio = getToolcraftTimelineViewRatio(displayTimeSeconds, view);
 +
 +                // The track does not clip, so a keyframe outside a zoomed window
@@ -1521,7 +1877,43 @@ diff -ruN pristine/runtime/react/timeline/timeline-keyframe-row.tsx current/runt
  
                  return (
                    <motion.button
-@@ -323,7 +348,7 @@
+@@ -306,24 +388,34 @@
+ 
+                       keyframeClickIntentRef.current = null;
+ 
+-                      if (clickIntent?.didMove) {
+-                        return;
+-                      }
+-
+-                      if (clickIntent?.keyframeId === keyframe.id) {
+-                        onSelectedKeyframeChange(
+-                          clickIntent.wasSelectedOnPointerDown ? null : keyframe.id,
+-                        );
++                      // A shift-click settled the selection on pointer down --
++                      // adding or removing this keyframe is the whole point of
++                      // it -- so there is nothing left for the click to decide.
++                      // Falling through to the branch below would have read the
++                      // selection it had just changed and cleared the lot.
++                      if (!clickIntent || clickIntent.didMove) {
+                         return;
+                       }
+ 
+-                      onSelectedKeyframeChange(isSelected ? null : keyframe.id);
++                      // Everything here is judged on the selection as it was
++                      // before the press, because pressing an unselected
++                      // keyframe already selected it. Clicking the one selected
++                      // keyframe clears it; clicking one of several narrows to
++                      // it, which is how a group is broken up after being
++                      // dragged; clicking an unselected one selects it.
++                      onSelectKeyframe(
++                        clickIntent.wasSelectedOnPointerDown &&
++                          clickIntent.selectionSizeOnPointerDown === 1
++                          ? null
++                          : keyframe.id,
++                        false,
++                      );
+                     }}
+                     onPointerCancel={endKeyframeDrag}
                      onPointerDown={(event) => handleKeyframePointerDown(event, keyframe)}
                      onPointerMove={handleKeyframePointerMove}
                      onPointerUp={endKeyframeDrag}
@@ -1530,9 +1922,53 @@ diff -ruN pristine/runtime/react/timeline/timeline-keyframe-row.tsx current/runt
                      title={keyframe.valueLabel}
                      transition={timelineKeyframePresenceTransition}
                      type="button"
+@@ -345,7 +437,7 @@
+           <TimelineIconButton
+             label={`Delete ${group.label} keyframes`}
+             onClick={() => {
+-              onSelectedKeyframeChange(null);
++              onSelectKeyframe(null, false);
+               onDeleteControlKeyframes(group.controlId);
+             }}
+             size="icon-sm"
+diff -ruN pristine/runtime/react/timeline/timeline-keyframes.ts current/runtime/react/timeline/timeline-keyframes.ts
+--- pristine/runtime/react/timeline/timeline-keyframes.ts	2026-09-09 01:44:44.262908990 +0000
++++ current/runtime/react/timeline/timeline-keyframes.ts	2026-09-09 01:44:44.298436171 +0000
+@@ -3,6 +3,31 @@
+   ToolcraftTimelineKeyframeGroup,
+ } from '../../state/types';
+ 
++/**
++ * A drag in progress, shared by every row rather than held by the one under
++ * the pointer.
++ *
++ * A selection can span tracks, so the rows that are not being pressed still
++ * have to draw their own selected keyframes moving. The row that owns the
++ * pointer publishes one offset and the set it applies to; each row shifts its
++ * own keyframes by it. Nothing is committed until the pointer comes up.
++ */
++export type TimelineKeyframeDragPreview = {
++  readonly anchorKeyframeId: string;
++  readonly keyframeIds: ReadonlySet<string>;
++  readonly offsetSeconds: number;
++};
++
++/** Where a keyframe is drawn right now, which during a drag is not where it is. */
++export function getTimelineKeyframeDisplayTime(
++  keyframe: ToolcraftTimelineKeyframe,
++  dragPreview: TimelineKeyframeDragPreview | null,
++): number {
++  return dragPreview?.keyframeIds.has(keyframe.id)
++    ? keyframe.timeSeconds + dragPreview.offsetSeconds
++    : keyframe.timeSeconds;
++}
++
+ export function findTimelineKeyframe(
+   keyframeGroups: readonly ToolcraftTimelineKeyframeGroup[],
+   keyframeId: string | null,
 diff -ruN pristine/runtime/react/timeline/timeline-object-track-row.tsx current/runtime/react/timeline/timeline-object-track-row.tsx
 --- pristine/runtime/react/timeline/timeline-object-track-row.tsx	1970-01-01 00:00:00.000000000 +0000
-+++ current/runtime/react/timeline/timeline-object-track-row.tsx	2026-09-07 10:34:36.533567831 +0000
++++ current/runtime/react/timeline/timeline-object-track-row.tsx	2026-09-09 01:44:44.298337989 +0000
 @@ -0,0 +1,149 @@
 +'use client';
 +
@@ -1684,8 +2120,8 @@ diff -ruN pristine/runtime/react/timeline/timeline-object-track-row.tsx current/
 +  );
 +}
 diff -ruN pristine/runtime/react/timeline/timeline-panel-header.tsx current/runtime/react/timeline/timeline-panel-header.tsx
---- pristine/runtime/react/timeline/timeline-panel-header.tsx	2026-09-07 23:19:15.483767137 +0000
-+++ current/runtime/react/timeline/timeline-panel-header.tsx	2026-09-07 10:34:36.534728620 +0000
+--- pristine/runtime/react/timeline/timeline-panel-header.tsx	2026-09-09 01:44:44.262948300 +0000
++++ current/runtime/react/timeline/timeline-panel-header.tsx	2026-09-09 01:44:44.298353965 +0000
 @@ -3,9 +3,30 @@
  import * as React from 'react';
  import { useEffect, useRef, useState, type CSSProperties } from 'react';
@@ -2033,8 +2469,8 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel-header.tsx current/runt
          <span className="relative z-10 flex shrink-0" data-slot="timeline-panel-expand-toggle">
            <TimelineIconButton
 diff -ruN pristine/runtime/react/timeline/timeline-panel-responsive-layout.ts current/runtime/react/timeline/timeline-panel-responsive-layout.ts
---- pristine/runtime/react/timeline/timeline-panel-responsive-layout.ts	2026-09-07 23:19:15.484232284 +0000
-+++ current/runtime/react/timeline/timeline-panel-responsive-layout.ts	2026-09-07 10:34:36.534728620 +0000
+--- pristine/runtime/react/timeline/timeline-panel-responsive-layout.ts	2026-09-09 01:44:44.263059715 +0000
++++ current/runtime/react/timeline/timeline-panel-responsive-layout.ts	2026-09-09 01:44:44.298385857 +0000
 @@ -70,11 +70,17 @@
      }
    }
@@ -2058,8 +2494,8 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel-responsive-layout.ts cu
    const minCenterX = leftLimit + halfWidth;
    const maxCenterX = rightLimit - halfWidth;
 diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/react/timeline/timeline-panel.tsx
---- pristine/runtime/react/timeline/timeline-panel.tsx	2026-09-07 23:19:15.484633502 +0000
-+++ current/runtime/react/timeline/timeline-panel.tsx	2026-09-07 10:34:36.534728620 +0000
+--- pristine/runtime/react/timeline/timeline-panel.tsx	2026-09-09 01:44:44.263102370 +0000
++++ current/runtime/react/timeline/timeline-panel.tsx	2026-09-09 01:44:44.298398718 +0000
 @@ -4,6 +4,7 @@
  import {
    useCallback,
@@ -2068,7 +2504,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/rea
    useRef,
    useState,
    type CSSProperties,
-@@ -18,11 +19,21 @@
+@@ -18,16 +19,31 @@
    ToolcraftTimelineKeyframeGroup,
  } from '../../state/types';
  import { isTimelineReadyForPlayback } from '../../state/timeline-readiness';
@@ -2090,7 +2526,17 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/rea
    getTimelineEventTargetElement,
    isEditableTimelineEventTarget,
    isTimelineInteractiveElement,
-@@ -70,7 +81,9 @@
+ } from './timeline-event-targets';
+ import { TimelineExpandedContent } from './timeline-expanded-content';
++import { copyToolcraftTimelineSelection } from '../../state/timeline-selection';
++import {
++  getToolcraftTimelineClipboard,
++  setToolcraftTimelineClipboard,
++} from './timeline-keyframe-clipboard';
+ import { findTimelineKeyframe } from './timeline-keyframes';
+ import {
+   TimelinePanelHeader,
+@@ -70,7 +86,9 @@
  const timelinePanelHeaderHeightPx = 36;
  const timelineExpandedRulerHeightPx = 36;
  const timelineEmptyStateHeightPx = timelineKeyframeRowHeightPx;
@@ -2101,7 +2547,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/rea
  const timelineKeyframeListMaxHeightPx =
    maxVisibleTimelineKeyframeRows * timelineKeyframeRowHeightPx;
  const timelinePanelExpandCollapseTransition = {
-@@ -90,11 +103,10 @@
+@@ -90,11 +108,10 @@
  const selectCurrentTimeSeconds = (state: ToolcraftState) =>
    state.timeline.currentTimeSeconds;
  
@@ -2114,7 +2560,11 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/rea
    const rowAreaHeight =
      rowCount > 0
        ? Math.min(rowCount * timelineKeyframeRowHeightPx, timelineKeyframeListMaxHeightPx)
-@@ -153,11 +165,52 @@
+@@ -150,14 +167,56 @@
+     isPlaying,
+     keyframeGroups,
+     selectedKeyframeId,
++    selectedKeyframeIds,
    } = timeline;
    const [defaultExpandedPending, setDefaultExpandedPending] = useState(defaultExpanded);
    const [isHoverPaused, setIsHoverPaused] = useState(false);
@@ -2168,7 +2618,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/rea
    const isExpandCollapseTransition = previousIsExpandedRef.current !== isExpanded;
    const timelinePanelTransition = isExpandCollapseTransition
      ? timelinePanelExpandCollapseTransition
-@@ -220,6 +273,113 @@
+@@ -220,12 +279,158 @@
      },
      [dispatch, store],
    );
@@ -2282,7 +2732,52 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/rea
    const setSelectedKeyframeId = useCallback(
      (keyframeId: string | null): void => {
        dispatch({ keyframeId, type: 'timeline.selectKeyframe' });
-@@ -233,7 +393,32 @@
+     },
+     [dispatch],
+   );
++  const selectKeyframe = useCallback(
++    (keyframeId: string | null, additive: boolean): void => {
++      dispatch({ additive, keyframeId, type: 'timeline.selectKeyframe' });
++    },
++    [dispatch],
++  );
++  const selectKeyframes = useCallback(
++    (keyframeIds: readonly string[]): void => {
++      dispatch({ keyframeIds, type: 'timeline.setKeyframeSelection' });
++    },
++    [dispatch],
++  );
++  const moveSelectedKeyframes = useCallback(
++    (anchorKeyframeId: string, timeSeconds: number): void => {
++      dispatch({ anchorKeyframeId, timeSeconds, type: 'timeline.moveSelectedKeyframes' });
++    },
++    [dispatch],
++  );
++  const deleteSelectedKeyframes = useCallback((): void => {
++    dispatch({ type: 'timeline.deleteSelectedKeyframes' });
++  }, [dispatch]);
++  const copySelectedKeyframes = useCallback((): void => {
++    setToolcraftTimelineClipboard(
++      copyToolcraftTimelineSelection(keyframeGroups, selectedKeyframeIds),
++    );
++  }, [keyframeGroups, selectedKeyframeIds]);
++  const pasteKeyframes = useCallback((): void => {
++    const keyframes = getToolcraftTimelineClipboard();
++
++    if (keyframes.length === 0) {
++      return;
++    }
++
++    dispatch({
++      keyframes,
++      timeSeconds: getCurrentTimeSeconds(),
++      type: 'timeline.pasteKeyframes',
++    });
++  }, [dispatch, getCurrentTimeSeconds]);
+   const scrubber = useTimelineScrubber({
+     commitCurrentTimeSeconds,
+     currentTimeSeconds,
+@@ -233,7 +438,32 @@
      durationSeconds,
      setCurrentTimeSeconds,
      setIsPlaying,
@@ -2315,7 +2810,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/rea
    const deleteKeyframe = useCallback(
      (keyframeId: string): void => {
        dispatch({ keyframeId, type: 'timeline.deleteKeyframe' });
-@@ -267,6 +452,8 @@
+@@ -267,6 +497,8 @@
    useTimelineClock({
      durationSeconds,
      getCurrentTimeSeconds,
@@ -2324,7 +2819,28 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/rea
      isHoverPaused,
      isLooping,
      isPlaying: displayedIsPlaying,
-@@ -333,6 +520,101 @@
+@@ -296,7 +528,10 @@
+         return;
+       }
+ 
+-      deleteKeyframe(selectedKeyframeId);
++      // The whole selection, not just the anchor. Delete pressed with five
++      // keyframes highlighted has one obvious meaning, and removing one of
++      // them while the other four stay highlighted is not it.
++      deleteSelectedKeyframes();
+     };
+ 
+     document.addEventListener('keydown', handleDocumentKeyDown);
+@@ -304,7 +539,7 @@
+     return () => {
+       document.removeEventListener('keydown', handleDocumentKeyDown);
+     };
+-  }, [deleteKeyframe, selectedKeyframeId]);
++  }, [deleteSelectedKeyframes, selectedKeyframeId, setSelectedKeyframeId]);
+ 
+   useEffect(() => {
+     if (!selectedKeyframeId || typeof document === 'undefined') {
+@@ -333,6 +568,101 @@
      };
    }, [selectedKeyframeId]);
  
@@ -2426,7 +2942,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/rea
    const commitDurationValue = (nextValue: string): void => {
      const nextDuration = clampToolcraftTimelineDurationSeconds(Number.parseFloat(nextValue));
  
-@@ -349,20 +631,31 @@
+@@ -349,20 +679,31 @@
    };
    const resolvedPanelPlacement = panelPlacement ?? (framed ? 'frame' : 'surface');
    const shouldConstrainToContainer = resolvedPanelPlacement === 'surface';
@@ -2463,7 +2979,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/rea
    const timelinePanelLayoutStyle: CSSProperties = {
      transform: timelinePanelOffsetX !== 0 ? `translateX(${timelinePanelOffsetX}px)` : undefined,
    };
-@@ -383,9 +676,11 @@
+@@ -383,9 +724,11 @@
        )}
        data-expanded-height={isExpanded ? expandedPanelSize.height : undefined}
        data-responsive-width={
@@ -2477,7 +2993,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/rea
        data-hover-paused={isHoverPaused ? 'true' : 'false'}
        data-playback-ready={playbackReady ? 'true' : 'false'}
        data-scrubbing={scrubber.isScrubbing ? 'true' : 'false'}
-@@ -430,29 +725,32 @@
+@@ -430,49 +773,67 @@
            isLooping={isLooping}
            isPlaying={displayedIsPlaying}
            isScrubbing={scrubber.isScrubbing}
@@ -2519,26 +3035,45 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/rea
          />
          {isExpanded && keyframesEnabled ? (
            <TimelineExpandedContent
-@@ -470,9 +768,16 @@
++            collapsedObjectIds={collapsedObjectIds}
+             currentTimeSeconds={currentTimeSeconds}
+             durationSeconds={durationSeconds}
+             isScrubbing={scrubber.isScrubbing}
+             keyframeGroups={keyframeGroups}
++            objectTracks={objectTracks}
+             onChangeKeyframeEasing={changeKeyframeEasing}
++            onCopySelectedKeyframes={copySelectedKeyframes}
+             onDeleteControlKeyframes={deleteControlKeyframes}
+             onDeleteKeyframe={deleteKeyframe}
+-            onKeyframeDragStart={() => setIsPlaying(false)}
++            onDeleteSelectedKeyframes={deleteSelectedKeyframes}
+             onKeyDown={scrubber.handleScrubKeyDown}
++            onKeyframeDragStart={() => setIsPlaying(false)}
+             onLostPointerCapture={scrubber.handleScrubLostPointerCapture}
+             onMoveKeyframe={moveKeyframe}
++            onMoveSelectedKeyframes={moveSelectedKeyframes}
++            onPanView={panView}
++            onPasteKeyframes={pasteKeyframes}
              onPointerDown={scrubber.handleScrubPointerDown}
              onPointerMove={scrubber.handleScrubPointerMove}
              onPointerUp={scrubber.handleScrubPointerUp}
-+            collapsedObjectIds={collapsedObjectIds}
-+            objectTracks={objectTracks}
-+            onPanView={panView}
 +            onScrubToTime={scrubToTime}
++            onSelectKeyframe={selectKeyframe}
++            onSelectKeyframes={selectKeyframes}
              onSelectedKeyframeChange={setSelectedKeyframeId}
++            onStepToKeyframe={stepToKeyframe}
 +            onToggleObjectExpanded={toggleObjectExpanded}
 +            onZoomChange={changeZoom}
              selectedKeyframeId={selectedKeyframeId}
++            selectedKeyframeIds={selectedKeyframeIds}
              stripRef={scrubber.stripRef}
 +            view={view}
            />
          ) : null}
        </PanelSurface>
 diff -ruN pristine/runtime/react/timeline/timeline-playback-hooks.ts current/runtime/react/timeline/timeline-playback-hooks.ts
---- pristine/runtime/react/timeline/timeline-playback-hooks.ts	2026-09-07 23:19:15.485268694 +0000
-+++ current/runtime/react/timeline/timeline-playback-hooks.ts	2026-09-07 10:34:36.534728620 +0000
+--- pristine/runtime/react/timeline/timeline-playback-hooks.ts	2026-09-09 01:44:44.263141104 +0000
++++ current/runtime/react/timeline/timeline-playback-hooks.ts	2026-09-09 01:44:44.298421681 +0000
 @@ -8,13 +8,34 @@
    clampToolcraftTimelineTime,
    toolcraftTimelineScrubStepSeconds,
@@ -2702,16 +3237,16 @@ diff -ruN pristine/runtime/react/timeline/timeline-playback-hooks.ts current/run
    };
    const handleScrubKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
 diff -ruN pristine/runtime/schema/runtime-section-titles.ts current/runtime/schema/runtime-section-titles.ts
---- pristine/runtime/schema/runtime-section-titles.ts	2026-09-07 23:19:15.485613357 +0000
-+++ current/runtime/schema/runtime-section-titles.ts	2026-09-07 10:34:36.546728620 +0000
+--- pristine/runtime/schema/runtime-section-titles.ts	2026-09-09 01:44:44.264951235 +0000
++++ current/runtime/schema/runtime-section-titles.ts	2026-09-09 01:44:44.299224505 +0000
 @@ -1 +1,4 @@
  export const toolcraftRuntimeSetupSectionTitle = "Setup";
 +
 +/** The stable id of the runtime-created Setup section. */
 +export const toolcraftRuntimeSetupSectionId = "runtime.setup";
 diff -ruN pristine/runtime/schema/runtime-setup-section.ts current/runtime/schema/runtime-setup-section.ts
---- pristine/runtime/schema/runtime-setup-section.ts	2026-09-07 23:19:15.486036496 +0000
-+++ current/runtime/schema/runtime-setup-section.ts	2026-09-07 10:34:36.546728620 +0000
+--- pristine/runtime/schema/runtime-setup-section.ts	2026-09-09 01:44:44.265071644 +0000
++++ current/runtime/schema/runtime-setup-section.ts	2026-09-09 01:44:44.299248616 +0000
 @@ -4,7 +4,10 @@
  } from "./canvas-aspect-ratio-presets";
  import { normalizeToolcraftAdditionalValueTargets } from "./additional-value-targets";
@@ -2766,8 +3301,8 @@ diff -ruN pristine/runtime/schema/runtime-setup-section.ts current/runtime/schem
      layoutGroups: [
        ...backgroundControls.layoutGroups,
 diff -ruN pristine/runtime/schema/schema-resolvers.ts current/runtime/schema/schema-resolvers.ts
---- pristine/runtime/schema/schema-resolvers.ts	2026-09-07 23:19:15.486435194 +0000
-+++ current/runtime/schema/schema-resolvers.ts	2026-09-07 10:34:36.546728620 +0000
+--- pristine/runtime/schema/schema-resolvers.ts	2026-09-09 01:44:44.265158124 +0000
++++ current/runtime/schema/schema-resolvers.ts	2026-09-09 01:44:44.299274078 +0000
 @@ -70,6 +70,11 @@
    }
  
@@ -2781,8 +3316,8 @@ diff -ruN pristine/runtime/schema/schema-resolvers.ts current/runtime/schema/sch
        timeline.defaultDurationSeconds,
      ),
 diff -ruN pristine/runtime/schema/types.ts current/runtime/schema/types.ts
---- pristine/runtime/schema/types.ts	2026-09-07 23:19:15.486859886 +0000
-+++ current/runtime/schema/types.ts	2026-09-07 10:34:36.550728620 +0000
+--- pristine/runtime/schema/types.ts	2026-09-09 01:44:44.265199913 +0000
++++ current/runtime/schema/types.ts	2026-09-09 01:44:44.299286694 +0000
 @@ -4,6 +4,8 @@
    ToolcraftSectionLayout,
  } from "../contracts/types";
@@ -2841,8 +3376,8 @@ diff -ruN pristine/runtime/schema/types.ts current/runtime/schema/types.ts
    enabled: boolean;
    mode: ToolcraftTimelineMode;
 diff -ruN pristine/runtime/state/create-template-state.ts current/runtime/state/create-template-state.ts
---- pristine/runtime/state/create-template-state.ts	2026-09-07 23:19:15.487315261 +0000
-+++ current/runtime/state/create-template-state.ts	2026-09-07 10:34:36.568116635 +0000
+--- pristine/runtime/state/create-template-state.ts	2026-09-09 01:44:44.267549016 +0000
++++ current/runtime/state/create-template-state.ts	2026-09-09 01:44:44.300176172 +0000
 @@ -8,6 +8,7 @@
    ToolcraftTimelineKeyframeGroup,
    ToolcraftTimelineState,
@@ -2851,7 +3386,7 @@ diff -ruN pristine/runtime/state/create-template-state.ts current/runtime/state/
  import { toolcraftCanvasZoomDefault } from "./canvas-zoom";
  import {
    getToolcraftDefaultCanvasMode,
-@@ -78,7 +79,25 @@
+@@ -78,8 +79,27 @@
      durationSeconds: defaultDurationSeconds,
      expanded: false,
      isLooping: true,
@@ -2876,9 +3411,11 @@ diff -ruN pristine/runtime/state/create-template-state.ts current/runtime/state/
 +    isPlaying: false,
 +    playbackRate: 1,
      selectedKeyframeId: null,
++    selectedKeyframeIds: [],
      ...timeline,
      keyframeGroups: cloneTimelineKeyframeGroups(
-@@ -125,8 +144,23 @@
+       timeline?.keyframeGroups ?? [],
+@@ -125,8 +145,23 @@
    const validSectionIds = new Set(
      schema.panels.controls?.sections.map((section) => section.id) ?? [],
    );
@@ -2904,8 +3441,8 @@ diff -ruN pristine/runtime/state/create-template-state.ts current/runtime/state/
      ),
    );
 diff -ruN pristine/runtime/state/keyframe-evaluation.ts current/runtime/state/keyframe-evaluation.ts
---- pristine/runtime/state/keyframe-evaluation.ts	2026-09-07 23:19:15.487792888 +0000
-+++ current/runtime/state/keyframe-evaluation.ts	2026-09-07 10:34:36.570728619 +0000
+--- pristine/runtime/state/keyframe-evaluation.ts	2026-09-09 01:44:44.267658040 +0000
++++ current/runtime/state/keyframe-evaluation.ts	2026-09-09 01:44:44.300362504 +0000
 @@ -1,3 +1,4 @@
 +import { applyContinuousEasingToSegment } from "./timeline-continuous-easing";
  import type {
@@ -2983,8 +3520,8 @@ diff -ruN pristine/runtime/state/keyframe-evaluation.ts current/runtime/state/ke
      return interpolateToolcraftValue(
        getKeyframeRuntimeValue(fromKeyframe),
 diff -ruN pristine/runtime/state/persistence-reader-timeline.ts current/runtime/state/persistence-reader-timeline.ts
---- pristine/runtime/state/persistence-reader-timeline.ts	2026-09-07 23:19:15.488264098 +0000
-+++ current/runtime/state/persistence-reader-timeline.ts	2026-09-07 10:34:36.578728619 +0000
+--- pristine/runtime/state/persistence-reader-timeline.ts	2026-09-09 01:44:44.268680404 +0000
++++ current/runtime/state/persistence-reader-timeline.ts	2026-09-09 01:44:44.300610627 +0000
 @@ -1,3 +1,4 @@
 +import { clampToolcraftTimelinePlaybackRate } from "./timeline-values";
  import {
@@ -3012,10 +3549,37 @@ diff -ruN pristine/runtime/state/persistence-reader-timeline.ts current/runtime/
    if (typeof value.isPlaying === "boolean") {
      timeline.isPlaying = value.isPlaying;
    }
+@@ -134,6 +143,17 @@
+     timeline.selectedKeyframeId = value.selectedKeyframeId;
+   }
+ 
++  // Read after the anchor so a file written before selections could hold more
++  // than one keyframe still restores a consistent pair rather than an anchor
++  // sitting outside its own selection.
++  if (Array.isArray(value.selectedKeyframeIds)) {
++    timeline.selectedKeyframeIds = value.selectedKeyframeIds.filter(
++      (item): item is string => typeof item === "string",
++    );
++  } else if (typeof timeline.selectedKeyframeId === "string") {
++    timeline.selectedKeyframeIds = [timeline.selectedKeyframeId];
++  }
++
+   if (Array.isArray(value.keyframeGroups)) {
+     timeline.keyframeGroups = value.keyframeGroups.flatMap((item) => {
+       const group = readKeyframeGroup(item);
 diff -ruN pristine/runtime/state/reducer.ts current/runtime/state/reducer.ts
---- pristine/runtime/state/reducer.ts	2026-09-07 23:19:15.488658195 +0000
-+++ current/runtime/state/reducer.ts	2026-09-07 10:34:36.582728619 +0000
-@@ -72,6 +72,7 @@
+--- pristine/runtime/state/reducer.ts	2026-09-09 01:44:44.268891678 +0000
++++ current/runtime/state/reducer.ts	2026-09-09 01:44:44.300676714 +0000
+@@ -67,11 +67,16 @@
+     case "timeline.changeKeyframeEasing":
+     case "timeline.deleteControlKeyframes":
+     case "timeline.deleteKeyframe":
++    case "timeline.deleteSelectedKeyframes":
+     case "timeline.moveKeyframe":
++    case "timeline.moveSelectedKeyframes":
++    case "timeline.pasteKeyframes":
+     case "timeline.selectKeyframe":
++    case "timeline.setKeyframeSelection":
      case "timeline.setCurrentTime":
      case "timeline.setDuration":
      case "timeline.setExpanded":
@@ -3025,7 +3589,7 @@ diff -ruN pristine/runtime/state/reducer.ts current/runtime/state/reducer.ts
      case "timeline.toggleExpanded":
 diff -ruN pristine/runtime/state/timeline-continuous-easing.ts current/runtime/state/timeline-continuous-easing.ts
 --- pristine/runtime/state/timeline-continuous-easing.ts	1970-01-01 00:00:00.000000000 +0000
-+++ current/runtime/state/timeline-continuous-easing.ts	2026-09-07 10:34:36.582728619 +0000
++++ current/runtime/state/timeline-continuous-easing.ts	2026-09-09 01:44:44.300838352 +0000
 @@ -0,0 +1,196 @@
 +import type {
 +  ToolcraftTimelineBezierControlPoints,
@@ -3225,7 +3789,7 @@ diff -ruN pristine/runtime/state/timeline-continuous-easing.ts current/runtime/s
 +}
 diff -ruN pristine/runtime/state/timeline-object-tracks.ts current/runtime/state/timeline-object-tracks.ts
 --- pristine/runtime/state/timeline-object-tracks.ts	1970-01-01 00:00:00.000000000 +0000
-+++ current/runtime/state/timeline-object-tracks.ts	2026-09-07 10:34:36.582728619 +0000
++++ current/runtime/state/timeline-object-tracks.ts	2026-09-09 01:44:44.300868440 +0000
 @@ -0,0 +1,96 @@
 +import type {
 +  ToolcraftTimelineKeyframe,
@@ -3324,9 +3888,9 @@ diff -ruN pristine/runtime/state/timeline-object-tracks.ts current/runtime/state
 +  );
 +}
 diff -ruN pristine/runtime/state/timeline-reducer.ts current/runtime/state/timeline-reducer.ts
---- pristine/runtime/state/timeline-reducer.ts	2026-09-07 23:19:15.489761980 +0000
-+++ current/runtime/state/timeline-reducer.ts	2026-09-07 23:27:29.093960667 +0000
-@@ -3,7 +3,9 @@
+--- pristine/runtime/state/timeline-reducer.ts	2026-09-09 01:44:44.269061212 +0000
++++ current/runtime/state/timeline-reducer.ts	2026-09-09 01:44:44.300024985 +0000
+@@ -3,13 +3,23 @@
    getToolcraftValueControls,
    normalizeToolcraftControlValue,
  } from "./control-value-normalization";
@@ -3336,7 +3900,30 @@ diff -ruN pristine/runtime/state/timeline-reducer.ts current/runtime/state/timel
    clampToolcraftTimelineDurationSeconds,
    clampToolcraftTimelineTime,
    getToolcraftTimelineKeyframeId,
-@@ -29,6 +31,7 @@
+   roundToolcraftTimelineKeyframeTime,
+   toolcraftTimelineMinDurationSeconds,
+ } from "./timeline-values";
++import {
++  createToolcraftTimelineSelection,
++  emptyToolcraftTimelineSelection,
++  getToolcraftTimelinePasteTimes,
++  moveToolcraftTimelineSelection,
++  pruneToolcraftTimelineSelection,
++  applyToolcraftTimelineSelection,
++} from "./timeline-selection";
+ import type {
+   ToolcraftCommand,
+   ToolcraftState,
+@@ -24,11 +34,16 @@
+       | "timeline.changeKeyframeEasing"
+       | "timeline.deleteControlKeyframes"
+       | "timeline.deleteKeyframe"
++      | "timeline.deleteSelectedKeyframes"
+       | "timeline.moveKeyframe"
++      | "timeline.moveSelectedKeyframes"
++      | "timeline.pasteKeyframes"
+       | "timeline.selectKeyframe"
++      | "timeline.setKeyframeSelection"
        | "timeline.setCurrentTime"
        | "timeline.setDuration"
        | "timeline.setExpanded"
@@ -3344,7 +3931,7 @@ diff -ruN pristine/runtime/state/timeline-reducer.ts current/runtime/state/timel
        | "timeline.setPlaying"
        | "timeline.toggleControlKeyframes"
        | "timeline.toggleExpanded"
-@@ -117,6 +120,42 @@
+@@ -117,6 +132,42 @@
    return keyframeGroups.map((group) => (group.controlId === controlId ? nextGroup : group));
  }
  
@@ -3387,7 +3974,7 @@ diff -ruN pristine/runtime/state/timeline-reducer.ts current/runtime/state/timel
  function mapTimelineKeyframeGroups(
    keyframeGroups: readonly ToolcraftTimelineKeyframeGroup[],
    keyframeId: string,
-@@ -220,6 +259,20 @@
+@@ -220,6 +271,20 @@
        };
      }
  
@@ -3408,9 +3995,87 @@ diff -ruN pristine/runtime/state/timeline-reducer.ts current/runtime/state/timel
      case "timeline.toggleLoop": {
        return {
          ...state,
-@@ -259,10 +312,14 @@
+@@ -235,11 +300,73 @@
+         ...state,
+         timeline: {
+           ...state.timeline,
+-          selectedKeyframeId: command.keyframeId,
++          ...applyToolcraftTimelineSelection(
++            state.timeline,
++            command.keyframeId,
++            command.additive === true,
++          ),
+         },
+       };
+     }
+ 
++    case "timeline.setKeyframeSelection": {
++      return {
++        ...state,
++        timeline: {
++          ...state.timeline,
++          ...pruneToolcraftTimelineSelection(
++            createToolcraftTimelineSelection(command.keyframeIds),
++            state.timeline.keyframeGroups,
++          ),
++        },
++      };
++    }
++
++    /**
++     * Delete every selected keyframe as one entry in history.
++     *
++     * Deleting a five-keyframe selection one command at a time would take five
++     * undos to put back, and each intermediate state is one nobody asked for.
++     */
++    case "timeline.deleteSelectedKeyframes": {
++      const doomed = new Set(state.timeline.selectedKeyframeIds);
++
++      if (doomed.size === 0) {
++        return state;
++      }
++
++      const keyframeGroups = state.timeline.keyframeGroups
++        .map((group) => ({
++          ...group,
++          keyframes: group.keyframes.filter((keyframe) => !doomed.has(keyframe.id)),
++        }))
++        .filter((group) => group.keyframes.length > 0);
++
++      if (
++        keyframeGroups.length === state.timeline.keyframeGroups.length &&
++        keyframeGroups.every(
++          (group, index) =>
++            group.keyframes.length ===
++            state.timeline.keyframeGroups[index]?.keyframes.length,
++        )
++      ) {
++        return state;
++      }
++
++      const timeline = {
++        ...state.timeline,
++        ...emptyToolcraftTimelineSelection,
++        keyframeGroups,
++      };
++      const heldValues = getUnkeyframedControlValuePatch(state, keyframeGroups);
++
++      return commitToolcraftStatePatch(state, {
++        after: { ...heldValues.after, timeline },
++        before: { ...heldValues.before, timeline: state.timeline },
++        label: "Delete keyframes",
++      });
++    }
++
+     case "timeline.deleteKeyframe": {
+       if (
+         !state.timeline.keyframeGroups.some((group) =>
+@@ -257,12 +384,16 @@
+             keyframes: group.keyframes.filter((keyframe) => keyframe.id !== command.keyframeId),
+           }))
            .filter((group) => group.keyframes.length > 0),
-         selectedKeyframeId: null,
+-        selectedKeyframeId: null,
++        ...emptyToolcraftTimelineSelection,
        };
 +      const heldValues = getUnkeyframedControlValuePatch(
 +        state,
@@ -3425,9 +4090,12 @@ diff -ruN pristine/runtime/state/timeline-reducer.ts current/runtime/state/timel
          label: "Delete keyframe",
        });
      }
-@@ -279,10 +336,14 @@
+@@ -277,12 +408,16 @@
+         keyframeGroups: state.timeline.keyframeGroups.filter(
+           (group) => group.controlId !== command.controlId,
          ),
-         selectedKeyframeId: null,
+-        selectedKeyframeId: null,
++        ...emptyToolcraftTimelineSelection,
        };
 +      const heldValues = getUnkeyframedControlValuePatch(
 +        state,
@@ -3442,9 +4110,12 @@ diff -ruN pristine/runtime/state/timeline-reducer.ts current/runtime/state/timel
          label: "Delete control keyframes",
        });
      }
-@@ -301,10 +362,14 @@
+@@ -299,12 +434,16 @@
+           keyframeGroups: state.timeline.keyframeGroups.filter(
+             (group) => group.controlId !== command.controlId,
            ),
-           selectedKeyframeId: null,
+-          selectedKeyframeId: null,
++          ...emptyToolcraftTimelineSelection,
          };
 +        const heldValues = getUnkeyframedControlValuePatch(
 +          state,
@@ -3459,7 +4130,25 @@ diff -ruN pristine/runtime/state/timeline-reducer.ts current/runtime/state/timel
            label: "Delete control keyframes",
          });
        }
-@@ -398,16 +463,32 @@
+@@ -335,7 +474,7 @@
+           keyframe,
+           keyframeGroups: state.timeline.keyframeGroups,
+         }),
+-        selectedKeyframeId: keyframe.id,
++        ...createToolcraftTimelineSelection([keyframe.id]),
+       };
+ 
+       return commitToolcraftStatePatch(state, {
+@@ -372,7 +511,7 @@
+           keyframe,
+           keyframeGroups: state.timeline.keyframeGroups,
+         }),
+-        selectedKeyframeId: keyframe.id,
++        ...createToolcraftTimelineSelection([keyframe.id]),
+       };
+ 
+       return commitToolcraftStatePatch(state, {
+@@ -398,18 +537,34 @@
          targetKeyframe.controlId,
          timeSeconds,
        );
@@ -3498,11 +4187,476 @@ diff -ruN pristine/runtime/state/timeline-reducer.ts current/runtime/state/timel
 +            ? { ...group, keyframes: movedKeyframes }
 +            : group,
          ),
-         selectedKeyframeId: nextKeyframeId,
+-        selectedKeyframeId: nextKeyframeId,
++        ...createToolcraftTimelineSelection([nextKeyframeId]),
        };
+ 
+       return commitToolcraftStatePatch(state, {
+@@ -419,6 +574,100 @@
+       });
+     }
+ 
++    case "timeline.moveSelectedKeyframes": {
++      const moved = moveToolcraftTimelineSelection({
++        anchorKeyframeId: command.anchorKeyframeId,
++        durationSeconds: state.timeline.durationSeconds,
++        keyframeGroups: state.timeline.keyframeGroups,
++        selectedKeyframeIds: state.timeline.selectedKeyframeIds,
++        timeSeconds: command.timeSeconds,
++      });
++
++      if (!moved) {
++        return state;
++      }
++
++      const timeline = {
++        ...state.timeline,
++        ...moved.selection,
++        keyframeGroups: moved.keyframeGroups,
++      };
++
++      return commitToolcraftStatePatch(state, {
++        after: { timeline },
++        before: { timeline: state.timeline },
++        label: "Move keyframes",
++      });
++    }
++
++    /**
++     * Put a copied shape down starting at a time.
++     *
++     * A pasted keyframe joins the track its control already has, or brings one
++     * back if the track was deleted since the copy — the same reach
++     * `upsertControlKeyframe` has, because pasting is the same act of saying
++     * this control has a value at this time. Values go through the control's
++     * own normalization on the way in, so a copy taken before a control
++     * changed shape cannot put an impossible value on a track.
++     */
++    case "timeline.pasteKeyframes": {
++      const times = getToolcraftTimelinePasteTimes(
++        command.keyframes,
++        command.timeSeconds,
++        state.timeline.durationSeconds,
++      );
++      let keyframeGroups = state.timeline.keyframeGroups;
++      const pastedIds: string[] = [];
++
++      command.keyframes.forEach((clipboardKeyframe, index) => {
++        const timeSeconds = times[index];
++        const normalized = normalizeTimelineControlValue(
++          state,
++          clipboardKeyframe.controlId,
++          clipboardKeyframe.value,
++        );
++
++        if (timeSeconds === undefined || !normalized.accepted) {
++          return;
++        }
++
++        const keyframe: ToolcraftTimelineKeyframe = {
++          controlId: clipboardKeyframe.controlId,
++          controlLabel: clipboardKeyframe.controlLabel,
++          ...(clipboardKeyframe.easing ? { easing: clipboardKeyframe.easing } : {}),
++          id: getToolcraftTimelineKeyframeId(clipboardKeyframe.controlId, timeSeconds),
++          timeSeconds,
++          value: normalized.value,
++          valueLabel: clipboardKeyframe.valueLabel,
++        };
++
++        keyframeGroups = upsertTimelineControlKeyframeGroup({
++          controlId: keyframe.controlId,
++          controlLabel: keyframe.controlLabel,
++          keyframe,
++          keyframeGroups,
++        });
++        pastedIds.push(keyframe.id);
++      });
++
++      if (pastedIds.length === 0) {
++        return state;
++      }
++
++      const timeline = {
++        ...state.timeline,
++        ...createToolcraftTimelineSelection(pastedIds),
++        expanded: true,
++        keyframeGroups,
++      };
++
++      return commitToolcraftStatePatch(state, {
++        after: { timeline },
++        before: { timeline: state.timeline },
++        label: "Paste keyframes",
++      });
++    }
++
+     case "timeline.changeKeyframeEasing": {
+       if (
+         !state.timeline.keyframeGroups.some((group) =>
+diff -ruN pristine/runtime/state/timeline-selection.ts current/runtime/state/timeline-selection.ts
+--- pristine/runtime/state/timeline-selection.ts	1970-01-01 00:00:00.000000000 +0000
++++ current/runtime/state/timeline-selection.ts	2026-09-09 01:44:44.301014639 +0000
+@@ -0,0 +1,252 @@
++import {
++  clampToolcraftTimelineTime,
++  getToolcraftTimelineKeyframeId,
++  roundToolcraftTimelineKeyframeTime,
++} from "./timeline-values";
++import type {
++  ToolcraftTimelineClipboardKeyframe,
++  ToolcraftTimelineKeyframe,
++  ToolcraftTimelineKeyframeGroup,
++} from "./types";
++
++/**
++ * A selection, kept as a pair so the anchor is never outside its own set.
++ *
++ * Everything that changes what is selected goes through here rather than
++ * writing the two fields itself, because the invariant between them — the
++ * anchor is the last id, or null when there are none — is the sort of thing
++ * that holds in every branch until it doesn't.
++ */
++export type ToolcraftTimelineSelection = {
++  readonly selectedKeyframeId: string | null;
++  readonly selectedKeyframeIds: readonly string[];
++};
++
++export const emptyToolcraftTimelineSelection: ToolcraftTimelineSelection = {
++  selectedKeyframeId: null,
++  selectedKeyframeIds: [],
++};
++
++/** The pair for an explicit list, de-duplicated, anchored on the last one. */
++export function createToolcraftTimelineSelection(
++  keyframeIds: readonly string[],
++): ToolcraftTimelineSelection {
++  const unique = [...new Set(keyframeIds)];
++
++  return {
++    selectedKeyframeId: unique[unique.length - 1] ?? null,
++    selectedKeyframeIds: unique,
++  };
++}
++
++/**
++ * One click's worth of selection change.
++ *
++ * A plain selection replaces what was there, which is what this command has
++ * always done — deciding that a click on the already-selected keyframe means
++ * "clear" belongs to the row, which knows what was under the pointer when the
++ * press started, and it says so by passing null. Shift-click adds, and
++ * shift-clicking something already in the set removes it, which is how every
++ * timeline lets you correct a selection without starting again.
++ */
++export function applyToolcraftTimelineSelection(
++  selection: ToolcraftTimelineSelection,
++  keyframeId: string | null,
++  additive: boolean,
++): ToolcraftTimelineSelection {
++  if (keyframeId === null) {
++    return emptyToolcraftTimelineSelection;
++  }
++
++  if (!additive) {
++    return createToolcraftTimelineSelection([keyframeId]);
++  }
++
++  return createToolcraftTimelineSelection(
++    selection.selectedKeyframeIds.includes(keyframeId)
++      ? selection.selectedKeyframeIds.filter((item) => item !== keyframeId)
++      : [...selection.selectedKeyframeIds, keyframeId],
++  );
++}
++
++/** Drop ids that no longer name a keyframe, so a stale selection cannot act. */
++export function pruneToolcraftTimelineSelection(
++  selection: ToolcraftTimelineSelection,
++  keyframeGroups: readonly ToolcraftTimelineKeyframeGroup[],
++): ToolcraftTimelineSelection {
++  const live = new Set(
++    keyframeGroups.flatMap((group) => group.keyframes.map((keyframe) => keyframe.id)),
++  );
++
++  return createToolcraftTimelineSelection(
++    selection.selectedKeyframeIds.filter((id) => live.has(id)),
++  );
++}
++
++function getSelectedKeyframes(
++  keyframeGroups: readonly ToolcraftTimelineKeyframeGroup[],
++  selectedKeyframeIds: readonly string[],
++): readonly ToolcraftTimelineKeyframe[] {
++  const selected = new Set(selectedKeyframeIds);
++
++  return keyframeGroups.flatMap((group) =>
++    group.keyframes.filter((keyframe) => selected.has(keyframe.id)),
++  );
++}
++
++/**
++ * Shift every selected keyframe so the one under the pointer lands on a time.
++ *
++ * The shift is clamped by the whole selection rather than by the keyframe
++ * being dragged, so a group dragged towards either end stops when its leading
++ * keyframe reaches the end instead of piling the rest of the selection up on
++ * top of it. Dragging back out again restores the spacing, because nothing was
++ * lost on the way in.
++ *
++ * An unselected keyframe a moved one lands on is replaced, which is what a
++ * single keyframe dragged onto another already does. Two selected keyframes
++ * cannot collide with each other: they all move by the same amount, and no two
++ * on one track started at the same time.
++ */
++export function moveToolcraftTimelineSelection({
++  anchorKeyframeId,
++  durationSeconds,
++  keyframeGroups,
++  selectedKeyframeIds,
++  timeSeconds,
++}: {
++  anchorKeyframeId: string;
++  durationSeconds: number;
++  keyframeGroups: readonly ToolcraftTimelineKeyframeGroup[];
++  selectedKeyframeIds: readonly string[];
++  timeSeconds: number;
++}): {
++  keyframeGroups: ToolcraftTimelineKeyframeGroup[];
++  selection: ToolcraftTimelineSelection;
++} | null {
++  const moving = getSelectedKeyframes(keyframeGroups, selectedKeyframeIds);
++  const anchor = moving.find((keyframe) => keyframe.id === anchorKeyframeId);
++
++  if (!anchor || moving.length === 0) {
++    return null;
++  }
++
++  const earliest = Math.min(...moving.map((keyframe) => keyframe.timeSeconds));
++  const latest = Math.max(...moving.map((keyframe) => keyframe.timeSeconds));
++  const requested =
++    roundToolcraftTimelineKeyframeTime(
++      clampToolcraftTimelineTime(timeSeconds, durationSeconds),
++    ) - anchor.timeSeconds;
++  const deltaSeconds = roundToolcraftTimelineKeyframeTime(
++    Math.min(Math.max(requested, -earliest), durationSeconds - latest),
++  );
++
++  if (deltaSeconds === 0) {
++    return null;
++  }
++
++  const movingIds = new Set(moving.map((keyframe) => keyframe.id));
++  const nextSelectedIds: string[] = [];
++  const nextGroups = keyframeGroups.map((group) => {
++    if (!group.keyframes.some((keyframe) => movingIds.has(keyframe.id))) {
++      return group;
++    }
++
++    const movedTimes = new Set(
++      group.keyframes
++        .filter((keyframe) => movingIds.has(keyframe.id))
++        .map((keyframe) =>
++          roundToolcraftTimelineKeyframeTime(keyframe.timeSeconds + deltaSeconds),
++        ),
++    );
++    const keyframes = group.keyframes
++      .flatMap((keyframe) => {
++        if (!movingIds.has(keyframe.id)) {
++          return movedTimes.has(keyframe.timeSeconds) ? [] : [keyframe];
++        }
++
++        const nextTimeSeconds = roundToolcraftTimelineKeyframeTime(
++          keyframe.timeSeconds + deltaSeconds,
++        );
++
++        return [
++          {
++            ...keyframe,
++            id: getToolcraftTimelineKeyframeId(keyframe.controlId, nextTimeSeconds),
++            timeSeconds: nextTimeSeconds,
++          },
++        ];
++      })
++      .sort((first, second) => first.timeSeconds - second.timeSeconds);
++
++    for (const keyframe of keyframes) {
++      if (movedTimes.has(keyframe.timeSeconds)) {
++        nextSelectedIds.push(keyframe.id);
++      }
++    }
++
++    return { ...group, keyframes };
++  });
++
++  return {
++    keyframeGroups: nextGroups,
++    selection: createToolcraftTimelineSelection(nextSelectedIds),
++  };
++}
++
++/**
++ * What a copy of the current selection holds.
++ *
++ * Times are stored as offsets from the earliest keyframe in the copy, so a
++ * paste is "put this shape down starting here" rather than "put it back where
++ * it came from". Copying one keyframe therefore pastes it at the playhead,
++ * which is the common case and needs no special handling.
++ */
++export function copyToolcraftTimelineSelection(
++  keyframeGroups: readonly ToolcraftTimelineKeyframeGroup[],
++  selectedKeyframeIds: readonly string[],
++): readonly ToolcraftTimelineClipboardKeyframe[] {
++  const selected = getSelectedKeyframes(keyframeGroups, selectedKeyframeIds);
++
++  if (selected.length === 0) {
++    return [];
++  }
++
++  const earliest = Math.min(...selected.map((keyframe) => keyframe.timeSeconds));
++
++  return selected.map((keyframe) => ({
++    controlId: keyframe.controlId,
++    controlLabel: keyframe.controlLabel,
++    ...(keyframe.easing ? { easing: keyframe.easing } : {}),
++    offsetSeconds: roundToolcraftTimelineKeyframeTime(keyframe.timeSeconds - earliest),
++    value: keyframe.value,
++    valueLabel: keyframe.valueLabel,
++  }));
++}
++
++/**
++ * Where a pasted keyframe lands, and what it replaces.
++ *
++ * The whole copy is offset from the playhead, and a copy longer than the time
++ * left is not truncated but shifted back so all of it fits — losing the tail
++ * of a pasted move is worse than starting it earlier than asked, and the
++ * clamped version would silently stack every overhanging keyframe on the last
++ * frame.
++ */
++export function getToolcraftTimelinePasteTimes(
++  keyframes: readonly ToolcraftTimelineClipboardKeyframe[],
++  timeSeconds: number,
++  durationSeconds: number,
++): readonly number[] {
++  const span = Math.max(0, ...keyframes.map((keyframe) => keyframe.offsetSeconds));
++  const start = clampToolcraftTimelineTime(
++    Math.min(timeSeconds, durationSeconds - span),
++    durationSeconds,
++  );
++
++  return keyframes.map((keyframe) =>
++    roundToolcraftTimelineKeyframeTime(
++      clampToolcraftTimelineTime(start + keyframe.offsetSeconds, durationSeconds),
++    ),
++  );
++}
+diff -ruN pristine/runtime/state/timeline-snapping.ts current/runtime/state/timeline-snapping.ts
+--- pristine/runtime/state/timeline-snapping.ts	1970-01-01 00:00:00.000000000 +0000
++++ current/runtime/state/timeline-snapping.ts	2026-09-09 01:44:44.301032251 +0000
+@@ -0,0 +1,101 @@
++import type { ToolcraftTimelineKeyframeGroup } from "./types";
++import type { ToolcraftTimelineViewWindow } from "./timeline-view-window";
++
++/**
++ * How close a dragged keyframe has to come before it lands on something.
++ *
++ * Measured on screen rather than in seconds, because the timeline zooms: eight
++ * pixels is the same easy reach whether the track is showing six seconds or
++ * half of one, and a tolerance in seconds would be unusably sticky zoomed in
++ * and useless zoomed out.
++ */
++export const toolcraftTimelineSnapDistancePx = 8;
++
++/**
++ * The times a dragged keyframe is allowed to land exactly on.
++ *
++ * The playhead is there because keying against the frame you are looking at is
++ * most of what this panel is for. The two ends are there because a loop that
++ * does not start and finish on them is not seamless, and landing on them by
++ * hand at 0.01s resolution is a matter of luck. Other keyframes are there so
++ * two properties can be made to move together, which is the timeline's version
++ * of lining two things up.
++ *
++ * Keyframes being dragged are excluded — a selection would otherwise snap to
++ * itself and never move.
++ */
++export function getToolcraftTimelineSnapTimes({
++  currentTimeSeconds,
++  durationSeconds,
++  excludedKeyframeIds,
++  keyframeGroups,
++}: {
++  currentTimeSeconds: number;
++  durationSeconds: number;
++  excludedKeyframeIds: ReadonlySet<string>;
++  keyframeGroups: readonly ToolcraftTimelineKeyframeGroup[];
++}): readonly number[] {
++  const times = new Set<number>([0, durationSeconds, currentTimeSeconds]);
++
++  for (const group of keyframeGroups) {
++    for (const keyframe of group.keyframes) {
++      if (!excludedKeyframeIds.has(keyframe.id)) {
++        times.add(keyframe.timeSeconds);
++      }
++    }
++  }
++
++  return [...times];
++}
++
++/**
++ * The nearest snap target within reach, or the time asked for.
++ *
++ * Ties go to the earlier target, which only matters when two sit exactly the
++ * same distance either side and picking one arbitrarily would make the result
++ * depend on the order the tracks happen to be in.
++ */
++export function snapToolcraftTimelineTime({
++  candidateSeconds,
++  snapTimesSeconds,
++  toleranceSeconds,
++}: {
++  candidateSeconds: number;
++  snapTimesSeconds: readonly number[];
++  toleranceSeconds: number;
++}): number {
++  if (!(toleranceSeconds > 0)) {
++    return candidateSeconds;
++  }
++
++  let nearest: number | null = null;
++  let nearestDistance = toleranceSeconds;
++
++  for (const snapTime of snapTimesSeconds) {
++    const distance = Math.abs(snapTime - candidateSeconds);
++
++    if (distance < nearestDistance || (distance === nearestDistance && snapTime < (nearest ?? Infinity))) {
++      nearest = snapTime;
++      nearestDistance = distance;
++    }
++  }
++
++  return nearest ?? candidateSeconds;
++}
++
++/**
++ * The snap tolerance in seconds for a track of a given width on screen.
++ *
++ * The view span rather than the whole duration, because that is what the
++ * track's pixels are showing once the panel is zoomed in.
++ */
++export function getToolcraftTimelineSnapToleranceSeconds(
++  view: ToolcraftTimelineViewWindow,
++  trackWidthPx: number,
++): number {
++  if (!(trackWidthPx > 0)) {
++    return 0;
++  }
++
++  return (view.spanSeconds / trackWidthPx) * toolcraftTimelineSnapDistancePx;
++}
 diff -ruN pristine/runtime/state/timeline-values.ts current/runtime/state/timeline-values.ts
---- pristine/runtime/state/timeline-values.ts	2026-09-07 23:19:15.490220267 +0000
-+++ current/runtime/state/timeline-values.ts	2026-09-07 10:34:36.582728619 +0000
+--- pristine/runtime/state/timeline-values.ts	2026-09-09 01:44:44.269094054 +0000
++++ current/runtime/state/timeline-values.ts	2026-09-09 01:44:44.300890299 +0000
 @@ -43,3 +43,23 @@
  ): string {
    return `${controlId}::${formatToolcraftTimelineKeyframeSeconds(timeSeconds)}`;
@@ -3529,7 +4683,7 @@ diff -ruN pristine/runtime/state/timeline-values.ts current/runtime/state/timeli
 +}
 diff -ruN pristine/runtime/state/timeline-view-window.ts current/runtime/state/timeline-view-window.ts
 --- pristine/runtime/state/timeline-view-window.ts	1970-01-01 00:00:00.000000000 +0000
-+++ current/runtime/state/timeline-view-window.ts	2026-09-07 10:34:36.582728619 +0000
++++ current/runtime/state/timeline-view-window.ts	2026-09-09 01:44:44.300902108 +0000
 @@ -0,0 +1,174 @@
 +export const toolcraftTimelineMinZoom = 1;
 +export const toolcraftTimelineMaxZoom = 12;
@@ -3705,9 +4859,23 @@ diff -ruN pristine/runtime/state/timeline-view-window.ts current/runtime/state/t
 +
 +  return view.startSeconds;
 +}
+diff -ruN pristine/runtime/state/toolcraft-external-store-history.ts current/runtime/state/toolcraft-external-store-history.ts
+--- pristine/runtime/state/toolcraft-external-store-history.ts	2026-09-09 01:44:44.269166958 +0000
++++ current/runtime/state/toolcraft-external-store-history.ts	2026-09-09 01:44:44.300937621 +0000
+@@ -39,6 +39,10 @@
+     previous.isLooping === next.isLooping &&
+     previous.isPlaying === next.isPlaying &&
+     previous.selectedKeyframeId === next.selectedKeyframeId &&
++    previous.selectedKeyframeIds.length === next.selectedKeyframeIds.length &&
++    previous.selectedKeyframeIds.every(
++      (item, index) => item === next.selectedKeyframeIds[index],
++    ) &&
+     toolcraftTimelineKeyframeGroupListsEqual(
+       previous.keyframeGroups,
+       next.keyframeGroups,
 diff -ruN pristine/runtime/state/toolcraft-keyframe-equality.ts current/runtime/state/toolcraft-keyframe-equality.ts
---- pristine/runtime/state/toolcraft-keyframe-equality.ts	2026-09-07 23:19:15.490985945 +0000
-+++ current/runtime/state/toolcraft-keyframe-equality.ts	2026-09-07 10:34:36.586728619 +0000
+--- pristine/runtime/state/toolcraft-keyframe-equality.ts	2026-09-09 01:44:44.269286477 +0000
++++ current/runtime/state/toolcraft-keyframe-equality.ts	2026-09-09 01:44:44.300998440 +0000
 @@ -16,7 +16,7 @@
      return false;
    }
@@ -3718,17 +4886,49 @@ diff -ruN pristine/runtime/state/toolcraft-keyframe-equality.ts current/runtime/
    }
  
 diff -ruN pristine/runtime/state/types.ts current/runtime/state/types.ts
---- pristine/runtime/state/types.ts	2026-09-07 23:19:15.491412174 +0000
-+++ current/runtime/state/types.ts	2026-09-07 10:34:36.586728619 +0000
-@@ -144,6 +144,7 @@
-       valueLabel: string;
+--- pristine/runtime/state/types.ts	2026-09-09 01:44:44.269324392 +0000
++++ current/runtime/state/types.ts	2026-09-09 01:44:44.301045111 +0000
+@@ -124,8 +124,15 @@
+   | { type: "timeline.toggleExpanded" }
+   | { type: "timeline.togglePlayback" }
+   | { type: "timeline.toggleLoop" }
+-  | { keyframeId: string | null; type: "timeline.selectKeyframe" }
++  | {
++      /** Add to the selection rather than replacing it, the way Shift-click does. */
++      additive?: boolean;
++      keyframeId: string | null;
++      type: "timeline.selectKeyframe";
++    }
++  | { keyframeIds: readonly string[]; type: "timeline.setKeyframeSelection" }
+   | { keyframeId: string; type: "timeline.deleteKeyframe" }
++  | { type: "timeline.deleteSelectedKeyframes" }
+   | { controlId: string; type: "timeline.deleteControlKeyframes" }
+   | {
+       controlId: string;
+@@ -145,6 +152,22 @@
      }
    | { keyframeId: string; timeSeconds: number; type: "timeline.moveKeyframe" }
-+  | { playbackRate: number; type: "timeline.setPlaybackRate" }
    | {
++      /**
++       * The keyframe under the pointer. It lands exactly on `timeSeconds` and
++       * every other selected keyframe shifts by the same amount, so a selection
++       * keeps its own shape while it is dragged.
++       */
++      anchorKeyframeId: string;
++      timeSeconds: number;
++      type: "timeline.moveSelectedKeyframes";
++    }
++  | {
++      keyframes: readonly ToolcraftTimelineClipboardKeyframe[];
++      timeSeconds: number;
++      type: "timeline.pasteKeyframes";
++    }
++  | { playbackRate: number; type: "timeline.setPlaybackRate" }
++  | {
        easing: ToolcraftTimelineKeyframeEasing;
        keyframeId: string;
-@@ -202,6 +203,7 @@
+       type: "timeline.changeKeyframeEasing";
+@@ -202,6 +225,7 @@
    "timeline.toggleControlKeyframes",
    "timeline.upsertControlKeyframe",
    "timeline.moveKeyframe",
@@ -3736,7 +4936,7 @@ diff -ruN pristine/runtime/state/types.ts current/runtime/state/types.ts
    "timeline.changeKeyframeEasing",
    "history.undo",
    "history.redo",
-@@ -393,6 +395,16 @@
+@@ -393,6 +417,16 @@
        type: "bezier";
      }
    | {
@@ -3753,7 +4953,32 @@ diff -ruN pristine/runtime/state/types.ts current/runtime/state/types.ts
        type: "step";
      };
  
-@@ -419,6 +431,14 @@
+@@ -412,6 +446,24 @@
+   label: string;
+ };
+ 
++/**
++ * A copied keyframe, holding everything except where it was.
++ *
++ * `offsetSeconds` is how far this keyframe sat behind the earliest one in the
++ * copy, so a paste can rebuild the group's shape starting at the playhead. The
++ * id is deliberately absent: an id here is its control and its time, so a
++ * pasted keyframe gets a new one at the time it lands on rather than carrying
++ * the old one to a frame it no longer sits at.
++ */
++export type ToolcraftTimelineClipboardKeyframe = {
++  controlId: string;
++  controlLabel: string;
++  easing?: ToolcraftTimelineKeyframeEasing;
++  offsetSeconds: number;
++  value?: unknown;
++  valueLabel: string;
++};
++
+ export type ToolcraftTimelineState = {
+   currentTimeSeconds: number;
+   durationSeconds: number;
+@@ -419,7 +471,32 @@
    isLooping: boolean;
    isPlaying: boolean;
    keyframeGroups: ToolcraftTimelineKeyframeGroup[];
@@ -3765,12 +4990,30 @@ diff -ruN pristine/runtime/state/types.ts current/runtime/state/types.ts
 +   * and an export is unaffected by whatever this was left at.
 +   */
 +  playbackRate: number;
++  /**
++   * The keyframe the single-keyframe tools act on: the curve editor, the time
++   * readout, the arrow keys. It is the last keyframe added to the selection,
++   * and it is always one of `selectedKeyframeIds` — null exactly when that is
++   * empty.
++   */
    selectedKeyframeId: string | null;
++  /**
++   * Every selected keyframe, in the order they were selected.
++   *
++   * Kept beside the anchor rather than replacing it because the two answer
++   * different questions. "Which curve am I editing" has one answer and always
++   * did; "which keyframes does this drag move" did not exist until a selection
++   * could hold more than one. Collapsing them would have made every reader of
++   * the anchor pick a keyframe out of a set for itself, each with its own idea
++   * of which one.
++   */
++  selectedKeyframeIds: readonly string[];
  };
  
+ export type ToolcraftPanelId = "controls" | "layers" | "timeline" | "toolbar";
 diff -ruN pristine/ui/components/control-layout/index.tsx current/ui/components/control-layout/index.tsx
---- pristine/ui/components/control-layout/index.tsx	2026-09-07 23:19:15.491945619 +0000
-+++ current/ui/components/control-layout/index.tsx	2026-09-07 10:34:36.606728619 +0000
+--- pristine/ui/components/control-layout/index.tsx	2026-09-09 01:44:44.272636858 +0000
++++ current/ui/components/control-layout/index.tsx	2026-09-09 01:44:44.303729396 +0000
 @@ -146,6 +146,25 @@
      event.stopPropagation();
    }
@@ -3807,8 +5050,8 @@ diff -ruN pristine/ui/components/control-layout/index.tsx current/ui/components/
          >
            {action}
 diff -ruN pristine/ui/components/primitives/slider/slider-parts.tsx current/ui/components/primitives/slider/slider-parts.tsx
---- pristine/ui/components/primitives/slider/slider-parts.tsx	2026-09-07 23:19:15.492408401 +0000
-+++ current/ui/components/primitives/slider/slider-parts.tsx	2026-09-07 10:34:36.653987001 +0000
+--- pristine/ui/components/primitives/slider/slider-parts.tsx	2026-09-09 01:44:44.279901557 +0000
++++ current/ui/components/primitives/slider/slider-parts.tsx	2026-09-09 01:44:44.307510710 +0000
 @@ -137,14 +137,38 @@
    count,
    disabled = false,

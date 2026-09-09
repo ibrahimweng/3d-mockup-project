@@ -39,6 +39,10 @@ function timelinesEqualWithoutCurrentTime(
     previous.isLooping === next.isLooping &&
     previous.isPlaying === next.isPlaying &&
     previous.selectedKeyframeId === next.selectedKeyframeId &&
+    previous.selectedKeyframeIds.length === next.selectedKeyframeIds.length &&
+    previous.selectedKeyframeIds.every(
+      (item, index) => item === next.selectedKeyframeIds[index],
+    ) &&
     toolcraftTimelineKeyframeGroupListsEqual(
       previous.keyframeGroups,
       next.keyframeGroups,
