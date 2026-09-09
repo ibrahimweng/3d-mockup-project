@@ -326,9 +326,14 @@ export const appControlSectionInventory: readonly ToolcraftControlSectionInvento
       entity: "Video Export",
       entityId: "video-export",
       groupingReason:
-        "The container and the frame size are the two things a video file is written with, and neither means anything without the other; they sit together above the action that uses them.",
+        "The container, the frame size and the shutter are what a video file is written with, and none of them means anything without the others; they sit together above the action that uses them. The shutter angle is here rather than in a section of its own because it only describes the blur the switch beside it turns on, and a setting belongs with what it settles.",
       id: "video-export",
-      targets: ["export.video.format", "export.video.resolution"],
+      targets: [
+        "export.video.format",
+        "export.video.resolution",
+        "export.video.motionBlur",
+        "export.video.shutterAngle",
+      ],
       title: "Video Export",
     },
     {
