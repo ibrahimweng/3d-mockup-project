@@ -5,6 +5,7 @@ import type { CSSProperties } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 
 import type {
+  ToolcraftTimelineBezierControlPoints,
   ToolcraftTimelineKeyframeEasing,
   ToolcraftTimelineKeyframeGroup,
 } from '../../state/types';
@@ -51,6 +52,10 @@ type TimelineExpandedContentProps = {
   durationSeconds: number;
   isScrubbing: boolean;
   keyframeGroups: readonly ToolcraftTimelineKeyframeGroup[];
+  onChangeKeyframeEaseIn: (
+    keyframeId: string,
+    controlPoints: ToolcraftTimelineBezierControlPoints | null,
+  ) => void;
   onChangeKeyframeEasing: (keyframeId: string, easing: ToolcraftTimelineKeyframeEasing) => void;
   onDeleteControlKeyframes: (controlId: string) => void;
   onCopySelectedKeyframes: () => void;
@@ -139,6 +144,7 @@ export function TimelineExpandedContent({
   durationSeconds,
   isScrubbing,
   keyframeGroups,
+  onChangeKeyframeEaseIn,
   onChangeKeyframeEasing,
   onCopySelectedKeyframes,
   onDeleteControlKeyframes,
@@ -516,6 +522,7 @@ export function TimelineExpandedContent({
                       isNested
                       isScrubbing={isScrubbing}
                       key={group.controlId}
+                      onChangeKeyframeEaseIn={onChangeKeyframeEaseIn}
                       onChangeKeyframeEasing={onChangeKeyframeEasing}
                       onDeleteControlKeyframes={onDeleteControlKeyframes}
                       onDragPreviewChange={setDragPreview}

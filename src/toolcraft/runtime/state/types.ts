@@ -170,7 +170,20 @@ export type ToolcraftCommand =
   | {
       easing: ToolcraftTimelineKeyframeEasing;
       keyframeId: string;
+      /**
+       * Apply to every selected keyframe rather than just this one, so a curve
+       * can be set across a whole track in one go instead of one popover per
+       * keyframe.
+       */
+      applyToSelection?: boolean;
       type: "timeline.changeKeyframeEasing";
+    }
+  | {
+      /** The incoming handle. Null clears it, handing the segment back to its start. */
+      controlPoints: ToolcraftTimelineBezierControlPoints | null;
+      keyframeId: string;
+      applyToSelection?: boolean;
+      type: "timeline.changeKeyframeEaseIn";
     }
   | { type: "history.undo" }
   | { type: "history.redo" };
@@ -231,6 +244,7 @@ export const toolcraftRuntimeCommandTypes = [
   "timeline.pasteKeyframes",
   "timeline.setPlaybackRate",
   "timeline.changeKeyframeEasing",
+  "timeline.changeKeyframeEaseIn",
   "history.undo",
   "history.redo",
 ] as const satisfies readonly ToolcraftCommand["type"][];
@@ -438,6 +452,24 @@ export type ToolcraftTimelineKeyframe = {
   controlId: string;
   controlLabel: string;
   easing?: ToolcraftTimelineKeyframeEasing;
+  /**
+   * How the motion *arrives* at this keyframe, as against `easing`, which says
+   * how it leaves.
+   *
+   * A cubic segment has a handle at each end. Until this existed, both belonged
+   * to the keyframe the segment left, so a keyframe had no say in how anything
+   * reached it: easing the landing of a move meant reaching back and shaping
+   * the keyframe before it, and a keyframe with different neighbours on either
+   * side could not be eased on one side without changing the other. After
+   * Effects gives every keyframe an incoming and an outgoing handle, and this
+   * is that incoming one.
+   *
+   * Only the second pair is read, since the first belongs to the keyframe at
+   * the other end of the segment. Absent, the segment keeps both handles from
+   * the keyframe it leaves, which is exactly what every keyframe did before
+   * this field existed — so an animation built earlier evaluates identically.
+   */
+  easeIn?: ToolcraftTimelineBezierControlPoints;
   id: string;
   timeSeconds: number;
   value?: unknown;
@@ -462,6 +494,7 @@ export type ToolcraftTimelineKeyframeGroup = {
 export type ToolcraftTimelineClipboardKeyframe = {
   controlId: string;
   controlLabel: string;
+  easeIn?: ToolcraftTimelineBezierControlPoints;
   easing?: ToolcraftTimelineKeyframeEasing;
   offsetSeconds: number;
   value?: unknown;

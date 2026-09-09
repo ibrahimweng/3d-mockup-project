@@ -15,6 +15,7 @@ import { motion } from 'motion/react';
 import type {
   ToolcraftPanelState,
   ToolcraftState,
+  ToolcraftTimelineBezierControlPoints,
   ToolcraftTimelineKeyframeEasing,
   ToolcraftTimelineKeyframeGroup,
 } from '../../state/types';
@@ -671,11 +672,33 @@ export function TimelinePanel({
   const deleteControlKeyframes = (controlId: string): void => {
     dispatch({ controlId, type: 'timeline.deleteControlKeyframes' });
   };
+  /**
+   * Curve edits reach the whole selection, which is what makes easing a track
+   * one action rather than one popover per keyframe. The reducer only widens
+   * when the keyframe being edited is itself part of the selection, so shaping
+   * one that is not selected still means only it.
+   */
   const changeKeyframeEasing = (
     keyframeId: string,
     nextEasing: ToolcraftTimelineKeyframeEasing,
   ): void => {
-    dispatch({ easing: nextEasing, keyframeId, type: 'timeline.changeKeyframeEasing' });
+    dispatch({
+      applyToSelection: true,
+      easing: nextEasing,
+      keyframeId,
+      type: 'timeline.changeKeyframeEasing',
+    });
+  };
+  const changeKeyframeEaseIn = (
+    keyframeId: string,
+    controlPoints: ToolcraftTimelineBezierControlPoints | null,
+  ): void => {
+    dispatch({
+      applyToSelection: true,
+      controlPoints,
+      keyframeId,
+      type: 'timeline.changeKeyframeEaseIn',
+    });
   };
   const resolvedPanelPlacement = panelPlacement ?? (framed ? 'frame' : 'surface');
   const shouldConstrainToContainer = resolvedPanelPlacement === 'surface';
@@ -808,6 +831,7 @@ export function TimelinePanel({
             isScrubbing={scrubber.isScrubbing}
             keyframeGroups={keyframeGroups}
             objectTracks={objectTracks}
+            onChangeKeyframeEaseIn={changeKeyframeEaseIn}
             onChangeKeyframeEasing={changeKeyframeEasing}
             onCopySelectedKeyframes={copySelectedKeyframes}
             onDeleteControlKeyframes={deleteControlKeyframes}

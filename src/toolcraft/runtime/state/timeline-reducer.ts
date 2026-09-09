@@ -31,6 +31,7 @@ type ToolcraftTimelineCommand = Extract<
   ToolcraftCommand,
   {
     type:
+      | "timeline.changeKeyframeEaseIn"
       | "timeline.changeKeyframeEasing"
       | "timeline.deleteControlKeyframes"
       | "timeline.deleteKeyframe"
@@ -170,7 +171,7 @@ function getUnkeyframedControlValuePatch(
 
 function mapTimelineKeyframeGroups(
   keyframeGroups: readonly ToolcraftTimelineKeyframeGroup[],
-  keyframeId: string,
+  keyframeIds: ReadonlySet<string>,
   updateKeyframe: (
     keyframe: ToolcraftTimelineKeyframeGroup["keyframes"][number],
   ) => ToolcraftTimelineKeyframeGroup["keyframes"][number],
@@ -178,9 +179,27 @@ function mapTimelineKeyframeGroups(
   return keyframeGroups.map((group) => ({
     ...group,
     keyframes: group.keyframes.map((keyframe) =>
-      keyframe.id === keyframeId ? updateKeyframe(keyframe) : keyframe,
+      keyframeIds.has(keyframe.id) ? updateKeyframe(keyframe) : keyframe,
     ),
   }));
+}
+
+/**
+ * The keyframes a curve edit applies to.
+ *
+ * Just the one it was aimed at, unless the command asked for the selection and
+ * that keyframe is part of it — shaping a curve with several keyframes selected
+ * means all of them, and shaping one that is not in the selection means only
+ * it, whatever else happens to be selected elsewhere.
+ */
+function getTimelineEasingTargetIds(
+  state: ToolcraftState,
+  keyframeId: string,
+  applyToSelection: boolean | undefined,
+): ReadonlySet<string> {
+  return applyToSelection && state.timeline.selectedKeyframeIds.includes(keyframeId)
+    ? new Set(state.timeline.selectedKeyframeIds)
+    : new Set([keyframeId]);
 }
 
 export function reduceToolcraftTimelineCommand(
@@ -669,9 +688,15 @@ export function reduceToolcraftTimelineCommand(
     }
 
     case "timeline.changeKeyframeEasing": {
+      const keyframeIds = getTimelineEasingTargetIds(
+        state,
+        command.keyframeId,
+        command.applyToSelection,
+      );
+
       if (
         !state.timeline.keyframeGroups.some((group) =>
-          group.keyframes.some((keyframe) => keyframe.id === command.keyframeId),
+          group.keyframes.some((keyframe) => keyframeIds.has(keyframe.id)),
         )
       ) {
         return state;
@@ -681,7 +706,7 @@ export function reduceToolcraftTimelineCommand(
         ...state.timeline,
         keyframeGroups: mapTimelineKeyframeGroups(
           state.timeline.keyframeGroups,
-          command.keyframeId,
+          keyframeIds,
           (keyframe) => ({
             ...keyframe,
             easing: command.easing,
@@ -693,6 +718,49 @@ export function reduceToolcraftTimelineCommand(
         after: { timeline },
         before: { timeline: state.timeline },
         label: "Change keyframe easing",
+      });
+    }
+
+    /**
+     * Shape how the motion arrives at a keyframe.
+     *
+     * Separate from `changeKeyframeEasing` rather than another field on it,
+     * because they write different halves of different segments: this one
+     * belongs to the segment *before* the keyframe, and that one to the segment
+     * after it. Clearing it hands the whole segment back to the keyframe it
+     * leaves, which is where both handles lived before this existed.
+     */
+    case "timeline.changeKeyframeEaseIn": {
+      const keyframeIds = getTimelineEasingTargetIds(
+        state,
+        command.keyframeId,
+        command.applyToSelection,
+      );
+
+      if (
+        !state.timeline.keyframeGroups.some((group) =>
+          group.keyframes.some((keyframe) => keyframeIds.has(keyframe.id)),
+        )
+      ) {
+        return state;
+      }
+
+      const timeline = {
+        ...state.timeline,
+        keyframeGroups: mapTimelineKeyframeGroups(
+          state.timeline.keyframeGroups,
+          keyframeIds,
+          ({ easeIn: _easeIn, ...keyframe }) =>
+            command.controlPoints
+              ? { ...keyframe, easeIn: [...command.controlPoints] as typeof command.controlPoints }
+              : keyframe,
+        ),
+      };
+
+      return commitToolcraftStatePatch(state, {
+        after: { timeline },
+        before: { timeline: state.timeline },
+        label: "Change keyframe ease in",
       });
     }
   }

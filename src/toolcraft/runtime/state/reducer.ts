@@ -64,6 +64,7 @@ export function toolcraftReducer(
     case "media.transform":
       return reduceToolcraftMediaCommand(state, command);
 
+    case "timeline.changeKeyframeEaseIn":
     case "timeline.changeKeyframeEasing":
     case "timeline.deleteControlKeyframes":
     case "timeline.deleteKeyframe":

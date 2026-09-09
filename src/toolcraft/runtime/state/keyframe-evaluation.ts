@@ -81,9 +81,17 @@ function easeProgress(
  * The curve a segment actually runs on, once its two ends have had their say.
  *
  * A hold is absolute and shortcuts everything else. Otherwise the segment
- * starts from whatever curve its opening keyframe carries, and each end that
- * asked to be continuous replaces its own handle with one solved from that
- * keyframe's neighbours.
+ * starts from whatever curve its opening keyframe carries, then each end takes
+ * back the handle nearest itself if it asked to: the closing keyframe's
+ * `easeIn` replaces the second handle, and either end that asked to be
+ * continuous replaces its own handle with one solved from that keyframe's
+ * neighbours.
+ *
+ * The order matters at the closing end, where `easeIn` and continuous both
+ * want the same handle. Continuous is applied last and wins, because it is a
+ * statement about the joint — carry the motion through at the speed it arrives
+ * — that a fixed handle cannot express, and a keyframe set to continuous has
+ * said the stronger thing.
  */
 function getSegmentEasing(
   keyframes: readonly ToolcraftTimelineKeyframe[],
@@ -100,10 +108,18 @@ function getSegmentEasing(
     fromEasing.type === "bezier"
       ? fromEasing.controlPoints
       : defaultTimelineBezierControlPoints;
+  // Only the second pair of the arriving keyframe's handle is read; its first
+  // pair describes the segment *leaving* that keyframe and belongs to the next
+  // one along. Absent, the segment keeps both handles from the keyframe it
+  // leaves, which is what every segment did before `easeIn` existed.
+  const toEaseIn = keyframes[fromIndex + 1]?.easeIn;
+  const segmentControlPoints: ToolcraftTimelineBezierControlPoints = toEaseIn
+    ? [baseControlPoints[0], baseControlPoints[1], toEaseIn[2], toEaseIn[3]]
+    : [...baseControlPoints];
 
   return {
     controlPoints: applyContinuousEasingToSegment(
-      [...baseControlPoints],
+      segmentControlPoints,
       keyframes,
       fromIndex,
     ),

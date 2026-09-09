@@ -6,6 +6,7 @@ import { Eye, EyeOff, Trash2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 
 import type {
+  ToolcraftTimelineBezierControlPoints,
   ToolcraftTimelineKeyframe,
   ToolcraftTimelineKeyframeEasing,
   ToolcraftTimelineKeyframeGroup,
@@ -56,6 +57,10 @@ type TimelineKeyframeRowProps = {
   group: ToolcraftTimelineKeyframeGroup;
   isNested?: boolean;
   isScrubbing: boolean;
+  onChangeKeyframeEaseIn: (
+    keyframeId: string,
+    controlPoints: ToolcraftTimelineBezierControlPoints | null,
+  ) => void;
   onChangeKeyframeEasing: (keyframeId: string, easing: ToolcraftTimelineKeyframeEasing) => void;
   onDeleteControlKeyframes: (controlId: string) => void;
   onDragPreviewChange: (dragPreview: TimelineKeyframeDragPreview | null) => void;
@@ -116,6 +121,7 @@ export function TimelineKeyframeRow({
   group,
   isNested = false,
   isScrubbing,
+  onChangeKeyframeEaseIn,
   onChangeKeyframeEasing,
   onDeleteControlKeyframes,
   onDragPreviewChange,
@@ -326,11 +332,16 @@ export function TimelineKeyframeRow({
           {selectedGroupKeyframe ? (
             <span className="ml-auto flex shrink-0" data-slot="timeline-keyframe-easing-control">
               <TimelineKeyframeEasingPopover
+                easeIn={selectedGroupKeyframe.easeIn}
                 easing={selectedGroupKeyframe.easing}
                 label={group.label}
                 onChange={(nextEasing) =>
                   onChangeKeyframeEasing(selectedGroupKeyframe.id, nextEasing)
                 }
+                onChangeEaseIn={(controlPoints) =>
+                  onChangeKeyframeEaseIn(selectedGroupKeyframe.id, controlPoints)
+                }
+                selectedCount={selectedKeyframeIds.length}
               />
             </span>
           ) : null}

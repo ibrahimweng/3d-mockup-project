@@ -1,6 +1,6 @@
 # Upstream patch for the framework changes this app carries
 
-This app modifies 38 framework files and adds 7 more under `src/toolcraft/`.
+This app modifies 39 framework files and adds 7 more under `src/toolcraft/`.
 The integrity manifest is signed, so those changes can never verify here: the
 manifest can only be reissued by whoever holds the framework's private key.
 `timeline-and-runtime.patch` exists so that reissuing it is a review rather
@@ -10,7 +10,7 @@ than an archaeology exercise.
 
 `diff -ruN` from each file's pristine content — the version whose SHA-256
 matches `src/toolcraft/.toolcraft-manifest.json` — to the version this app
-ships. 45 files, +3150 / -336.
+ships. 46 files, +3460 / -345.
 
 Every pristine version was recovered from this repository's own history by
 searching each file's commits for the blob matching its manifest hash, so the
@@ -38,7 +38,7 @@ entries worth reading before reviewing this are the timeline integrity
 exception, the continuous-keyframe entry, the transport entry, and the camera
 framing fix.
 
-Six of the 45 are not timeline work and should be judged separately.
+Six of the 46 are not timeline work and should be judged separately.
 `ui/components/primitives/slider/slider-parts.tsx` makes a slider state its own
 range so an orientation proof can read it, and the export files sit behind the
 AV1 fallback.
