@@ -159,6 +159,34 @@ export type ToolcraftCommand =
       value: unknown;
       valueLabel: string;
     }
+  | {
+      /**
+       * Replace whole tracks in one act.
+       *
+       * A preset is not a sequence of edits, it is one statement about what the
+       * timeline now holds — so it is one command, one patch, and one thing to
+       * undo. Building it out of a delete and a keyframe-per-write instead put
+       * a dozen entries in the history for one press, and merging those does
+       * not fix it: a delete patch also carries the value each cleared control
+       * falls back to, and a merge keeps the first `before` with the last
+       * `after`, so the fallbacks on either side of the join go missing.
+       *
+       * A track with no keyframes is removed, and the control keeps whatever
+       * the playhead was showing rather than snapping back to a raw value that
+       * nothing has read since the track was laid down.
+       */
+      tracks: readonly {
+        controlId: string;
+        controlLabel: string;
+        keyframes: readonly {
+          easing?: ToolcraftTimelineKeyframeEasing;
+          timeSeconds: number;
+          value: unknown;
+          valueLabel: string;
+        }[];
+      }[];
+      type: "timeline.setControlKeyframes";
+    }
   | { keyframeId: string; timeSeconds: number; type: "timeline.moveKeyframe" }
   | {
       /**
@@ -248,6 +276,7 @@ export const toolcraftRuntimeCommandTypes = [
   "timeline.deleteControlKeyframes",
   "timeline.toggleControlKeyframes",
   "timeline.upsertControlKeyframe",
+  "timeline.setControlKeyframes",
   "timeline.moveKeyframe",
   "timeline.moveSelectedKeyframes",
   "timeline.pasteKeyframes",

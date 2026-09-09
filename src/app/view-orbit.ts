@@ -41,7 +41,6 @@ const TARGET = "camera.orbit";
 const TRACK_LABEL = "Camera";
 const HISTORY_LABEL = "Rotate view";
 const DEGREES_PER_PIXEL = 0.4;
-const RADIANS_PER_PIXEL = (DEGREES_PER_PIXEL * Math.PI) / 180;
 /** Stop just short of the pole, where up and the view direction collapse. */
 const POLE_LIMIT = Math.PI / 2 - 0.01;
 
@@ -63,23 +62,28 @@ export type ViewOrbitHandlers = {
 const claimsOrbit = claimsViewOrbit;
 
 /**
- * Turn a pose by a pointer delta.
+ * Turn a pose by an angle.
  *
  * The pose is a direction from the subject plus an up vector, so the turn is
  * done in spherical terms: yaw around world up, pitch clamped short of the
  * pole so the view never flips over the top.
+ *
+ * Angles rather than pixels, because a drag is not the only thing that turns a
+ * camera. A motion preset arcs it by a stated number of degrees, and it has to
+ * arrive at the same place a drag of that size would rather than carrying a
+ * second copy of this arithmetic that is free to drift from this one.
  */
-export function turn(
+export function turnByDegrees(
   pose: ToolcraftOrientationPose,
-  deltaX: number,
-  deltaY: number,
+  yawDegrees: number,
+  pitchDegrees: number,
 ): ToolcraftOrientationPose {
   const [x, y, z] = pose.position;
   const radius = Math.hypot(x, y, z) || 1;
-  const yaw = Math.atan2(x, z) - deltaX * RADIANS_PER_PIXEL;
+  const yaw = Math.atan2(x, z) - (yawDegrees * Math.PI) / 180;
   const pitch = Math.max(
     -POLE_LIMIT,
-    Math.min(POLE_LIMIT, Math.asin(y / radius) + deltaY * RADIANS_PER_PIXEL),
+    Math.min(POLE_LIMIT, Math.asin(Math.max(-1, Math.min(1, y / radius))) + (pitchDegrees * Math.PI) / 180),
   );
 
   const horizontal = Math.cos(pitch) * radius;
@@ -91,6 +95,15 @@ export function turn(
     ],
     up: pose.up,
   };
+}
+
+/** The same turn, in the pixels a drag moved. */
+export function turn(
+  pose: ToolcraftOrientationPose,
+  deltaX: number,
+  deltaY: number,
+): ToolcraftOrientationPose {
+  return turnByDegrees(pose, deltaX * DEGREES_PER_PIXEL, deltaY * DEGREES_PER_PIXEL);
 }
 
 export type OrbitTarget = {

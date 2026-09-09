@@ -22,6 +22,7 @@ import {
   PANEL_TAB_TARGET,
   onTab,
 } from "./panel-tabs";
+import { MOTION_SECTION } from "./schema-motion";
 import { PRODUCT_PARTS_SECTION } from "./schema-product-parts";
 import { DEFAULT_SCENE_PRESET, SCENE_PRESET_OPTIONS } from "./scene-presets";
 import { DEFAULT_SURFACE, SURFACE_OPTIONS } from "./surfaces";
@@ -214,6 +215,7 @@ export const appSchema = defineToolcraft({
           visibleWhen: onTab("product"),
         },
         PRODUCT_PARTS_SECTION,
+        MOTION_SECTION,
         ARTWORK_SECTION,
         ARTWORK_TEMPLATES_SECTION,
         {

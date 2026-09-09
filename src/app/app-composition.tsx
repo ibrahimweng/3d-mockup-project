@@ -17,6 +17,8 @@ import { readDeviceDefinition, readDeviceId } from "./product-domain";
 import { rendererPipeline } from "./render/pipeline";
 import { getMockupSceneRect } from "./scene-bounds";
 import { downloadArtworkTemplates } from "./template-download";
+import { getMotionPresetCommand } from "./apply-motion-preset";
+import { readMotionPresetId } from "./motion-presets";
 
 export const appComposition: ToolcraftAppComposition = {
   // The palette renders into a portal, so where it is mounted decides only
@@ -34,17 +36,42 @@ export const appComposition: ToolcraftAppComposition = {
   ),
   exportRenderer: mockupExportRenderer,
   /**
-   * The one action this product owns that the runtime does not.
+   * The two actions this product owns that the runtime does not.
    *
    * Export PNG and Export Video are typed export roles the runtime runs
-   * itself; anything else reaching here is the product's. This one is
-   * synchronous because it is a link being followed rather than an artifact
-   * being made — there is nothing to report progress on and nothing to await.
+   * itself; anything else reaching here is the product's. Both of these are
+   * synchronous — one follows a link and one dispatches a command — so there is
+   * nothing to report progress on and nothing to await.
    */
-  onPanelAction: ({ action, state }) => {
-    if (action.value !== "download-templates") return undefined;
-    const id = readDeviceId((state.values as Record<string, unknown>)["device.model"]);
-    downloadArtworkTemplates(readDeviceDefinition(id), id);
+  onPanelAction: ({ action, dispatch, state }) => {
+    if (action.value === "download-templates") {
+      const id = readDeviceId((state.values as Record<string, unknown>)["device.model"]);
+      downloadArtworkTemplates(readDeviceDefinition(id), id);
+      return undefined;
+    }
+
+    if (action.value === "apply-motion") {
+      const command = getMotionPresetCommand(
+        state,
+        readMotionPresetId((state.values as Record<string, unknown>)["motion.preset"]),
+      );
+
+      // Null means there is nothing to do — None chosen with none of its tracks
+      // keyed — and dispatching a command that writes no tracks would still
+      // cost a place in the history for a press that changed nothing.
+      if (command) {
+        dispatch(command);
+        // A move that has just been laid down is a move somebody wants to see,
+        // and the timeline opens paused because an empty loop has nothing to
+        // show. Skipped when the preset was None: there is nothing to play.
+        if (readMotionPresetId((state.values as Record<string, unknown>)["motion.preset"]) !== "none") {
+          dispatch({ isPlaying: true, type: "timeline.setPlaying" });
+        }
+      }
+
+      return undefined;
+    }
+
     return undefined;
   },
   // The product renderer draws the device itself; the runtime's generic image
