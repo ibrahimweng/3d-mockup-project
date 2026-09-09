@@ -124,8 +124,15 @@ export type ToolcraftCommand =
   | { type: "timeline.toggleExpanded" }
   | { type: "timeline.togglePlayback" }
   | { type: "timeline.toggleLoop" }
-  | { keyframeId: string | null; type: "timeline.selectKeyframe" }
+  | {
+      /** Add to the selection rather than replacing it, the way Shift-click does. */
+      additive?: boolean;
+      keyframeId: string | null;
+      type: "timeline.selectKeyframe";
+    }
+  | { keyframeIds: readonly string[]; type: "timeline.setKeyframeSelection" }
   | { keyframeId: string; type: "timeline.deleteKeyframe" }
+  | { type: "timeline.deleteSelectedKeyframes" }
   | { controlId: string; type: "timeline.deleteControlKeyframes" }
   | {
       controlId: string;
@@ -144,11 +151,39 @@ export type ToolcraftCommand =
       valueLabel: string;
     }
   | { keyframeId: string; timeSeconds: number; type: "timeline.moveKeyframe" }
+  | {
+      /**
+       * The keyframe under the pointer. It lands exactly on `timeSeconds` and
+       * every other selected keyframe shifts by the same amount, so a selection
+       * keeps its own shape while it is dragged.
+       */
+      anchorKeyframeId: string;
+      timeSeconds: number;
+      type: "timeline.moveSelectedKeyframes";
+    }
+  | {
+      keyframes: readonly ToolcraftTimelineClipboardKeyframe[];
+      timeSeconds: number;
+      type: "timeline.pasteKeyframes";
+    }
   | { playbackRate: number; type: "timeline.setPlaybackRate" }
   | {
       easing: ToolcraftTimelineKeyframeEasing;
       keyframeId: string;
+      /**
+       * Apply to every selected keyframe rather than just this one, so a curve
+       * can be set across a whole track in one go instead of one popover per
+       * keyframe.
+       */
+      applyToSelection?: boolean;
       type: "timeline.changeKeyframeEasing";
+    }
+  | {
+      /** The incoming handle. Null clears it, handing the segment back to its start. */
+      controlPoints: ToolcraftTimelineBezierControlPoints | null;
+      keyframeId: string;
+      applyToSelection?: boolean;
+      type: "timeline.changeKeyframeEaseIn";
     }
   | { type: "history.undo" }
   | { type: "history.redo" };
@@ -198,13 +233,18 @@ export const toolcraftRuntimeCommandTypes = [
   "timeline.togglePlayback",
   "timeline.toggleLoop",
   "timeline.selectKeyframe",
+  "timeline.setKeyframeSelection",
   "timeline.deleteKeyframe",
+  "timeline.deleteSelectedKeyframes",
   "timeline.deleteControlKeyframes",
   "timeline.toggleControlKeyframes",
   "timeline.upsertControlKeyframe",
   "timeline.moveKeyframe",
+  "timeline.moveSelectedKeyframes",
+  "timeline.pasteKeyframes",
   "timeline.setPlaybackRate",
   "timeline.changeKeyframeEasing",
+  "timeline.changeKeyframeEaseIn",
   "history.undo",
   "history.redo",
 ] as const satisfies readonly ToolcraftCommand["type"][];
@@ -412,6 +452,24 @@ export type ToolcraftTimelineKeyframe = {
   controlId: string;
   controlLabel: string;
   easing?: ToolcraftTimelineKeyframeEasing;
+  /**
+   * How the motion *arrives* at this keyframe, as against `easing`, which says
+   * how it leaves.
+   *
+   * A cubic segment has a handle at each end. Until this existed, both belonged
+   * to the keyframe the segment left, so a keyframe had no say in how anything
+   * reached it: easing the landing of a move meant reaching back and shaping
+   * the keyframe before it, and a keyframe with different neighbours on either
+   * side could not be eased on one side without changing the other. After
+   * Effects gives every keyframe an incoming and an outgoing handle, and this
+   * is that incoming one.
+   *
+   * Only the second pair is read, since the first belongs to the keyframe at
+   * the other end of the segment. Absent, the segment keeps both handles from
+   * the keyframe it leaves, which is exactly what every keyframe did before
+   * this field existed — so an animation built earlier evaluates identically.
+   */
+  easeIn?: ToolcraftTimelineBezierControlPoints;
   id: string;
   timeSeconds: number;
   value?: unknown;
@@ -422,6 +480,25 @@ export type ToolcraftTimelineKeyframeGroup = {
   controlId: string;
   keyframes: ToolcraftTimelineKeyframe[];
   label: string;
+};
+
+/**
+ * A copied keyframe, holding everything except where it was.
+ *
+ * `offsetSeconds` is how far this keyframe sat behind the earliest one in the
+ * copy, so a paste can rebuild the group's shape starting at the playhead. The
+ * id is deliberately absent: an id here is its control and its time, so a
+ * pasted keyframe gets a new one at the time it lands on rather than carrying
+ * the old one to a frame it no longer sits at.
+ */
+export type ToolcraftTimelineClipboardKeyframe = {
+  controlId: string;
+  controlLabel: string;
+  easeIn?: ToolcraftTimelineBezierControlPoints;
+  easing?: ToolcraftTimelineKeyframeEasing;
+  offsetSeconds: number;
+  value?: unknown;
+  valueLabel: string;
 };
 
 export type ToolcraftTimelineState = {
@@ -439,7 +516,24 @@ export type ToolcraftTimelineState = {
    * and an export is unaffected by whatever this was left at.
    */
   playbackRate: number;
+  /**
+   * The keyframe the single-keyframe tools act on: the curve editor, the time
+   * readout, the arrow keys. It is the last keyframe added to the selection,
+   * and it is always one of `selectedKeyframeIds` — null exactly when that is
+   * empty.
+   */
   selectedKeyframeId: string | null;
+  /**
+   * Every selected keyframe, in the order they were selected.
+   *
+   * Kept beside the anchor rather than replacing it because the two answer
+   * different questions. "Which curve am I editing" has one answer and always
+   * did; "which keyframes does this drag move" did not exist until a selection
+   * could hold more than one. Collapsing them would have made every reader of
+   * the anchor pick a keyframe out of a set for itself, each with its own idea
+   * of which one.
+   */
+  selectedKeyframeIds: readonly string[];
 };
 
 export type ToolcraftPanelId = "controls" | "layers" | "timeline" | "toolbar";

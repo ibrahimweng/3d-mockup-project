@@ -45,9 +45,22 @@ function getTimelineEasingPresetButtonClassName(isActive: boolean): string {
 }
 export function TimelineEasingPopoverContent({
   easing,
+  header,
+  jointKindsAllowed = true,
   onChange,
 }: {
   easing: ToolcraftTimelineKeyframeEasing;
+  /** Rendered above the presets, always in view while the list scrolls. */
+  header?: React.ReactNode;
+  /**
+   * Whether Continuous and Hold are on offer.
+   *
+   * Both describe a whole segment rather than one end of one -- continuous
+   * solves a handle from a keyframe's neighbours, and a hold shortcuts the
+   * curve entirely -- so neither means anything when what is being edited is
+   * a single handle. They are withheld rather than shown and ignored.
+   */
+  jointKindsAllowed?: boolean;
   onChange: (easing: ToolcraftTimelineKeyframeEasing) => void;
 }): React.JSX.Element {
   const [inputValue, setInputValue] = useState(getEasingInputValue(easing));
@@ -71,7 +84,8 @@ export function TimelineEasingPopoverContent({
     value = inputValue,
     { revertOnInvalid = false }: { revertOnInvalid?: boolean } = {},
   ): void => {
-    const nextEasing = parseToolcraftTimelineKeyframeEasing(value, easing);
+    const parsed = parseToolcraftTimelineKeyframeEasing(value, easing);
+    const nextEasing = parsed && !jointKindsAllowed && parsed.type !== 'bezier' ? null : parsed;
 
     if (!nextEasing) {
       if (revertOnInvalid) {
@@ -80,7 +94,11 @@ export function TimelineEasingPopoverContent({
         return;
       }
 
-      setInputError('Use cubic-bezier(x1, y1, x2, y2), continuous, or step.');
+      setInputError(
+        jointKindsAllowed
+          ? 'Use cubic-bezier(x1, y1, x2, y2), continuous, or step.'
+          : 'Use cubic-bezier(x1, y1, x2, y2).',
+      );
       return;
     }
 
@@ -102,6 +120,8 @@ export function TimelineEasingPopoverContent({
         className="w-px shrink-0 self-stretch bg-[color:color-mix(in_oklab,var(--border)_10%,transparent)]"
         data-slot="timeline-easing-divider"
       />
+      <div className="flex min-w-0 flex-1 flex-col">
+      {header}
       <ScrollFade
         className="max-h-[240px] min-w-0 flex-1 py-3 pr-3 pl-3"
         containerClassName="min-w-0 flex-1"
@@ -127,7 +147,13 @@ export function TimelineEasingPopoverContent({
               Keyframe
             </span>
             <div className="grid grid-cols-2 gap-1.5">
-              {timelineKeyframeEasingKindOptions.map((option) => (
+              {timelineKeyframeEasingKindOptions
+                .filter(
+                  (option) =>
+                    jointKindsAllowed ||
+                    (option.kind !== 'continuous' && option.kind !== 'hold'),
+                )
+                .map((option) => (
                 <button
                   className={getTimelineEasingPresetButtonClassName(option.kind === activeKind)}
                   data-slot="timeline-easing-kind"
@@ -258,6 +284,7 @@ export function TimelineEasingPopoverContent({
           </div>
         </div>
       </ScrollFade>
+      </div>
     </div>
   );
 }

@@ -15,6 +15,7 @@ import { motion } from 'motion/react';
 import type {
   ToolcraftPanelState,
   ToolcraftState,
+  ToolcraftTimelineBezierControlPoints,
   ToolcraftTimelineKeyframeEasing,
   ToolcraftTimelineKeyframeGroup,
 } from '../../state/types';
@@ -39,6 +40,11 @@ import {
   isTimelineInteractiveElement,
 } from './timeline-event-targets';
 import { TimelineExpandedContent } from './timeline-expanded-content';
+import { copyToolcraftTimelineSelection } from '../../state/timeline-selection';
+import {
+  getToolcraftTimelineClipboard,
+  setToolcraftTimelineClipboard,
+} from './timeline-keyframe-clipboard';
 import { findTimelineKeyframe } from './timeline-keyframes';
 import {
   TimelinePanelHeader,
@@ -162,6 +168,7 @@ export function TimelinePanel({
     isPlaying,
     keyframeGroups,
     selectedKeyframeId,
+    selectedKeyframeIds,
   } = timeline;
   const [defaultExpandedPending, setDefaultExpandedPending] = useState(defaultExpanded);
   const [isHoverPaused, setIsHoverPaused] = useState(false);
@@ -386,6 +393,45 @@ export function TimelinePanel({
     },
     [dispatch],
   );
+  const selectKeyframe = useCallback(
+    (keyframeId: string | null, additive: boolean): void => {
+      dispatch({ additive, keyframeId, type: 'timeline.selectKeyframe' });
+    },
+    [dispatch],
+  );
+  const selectKeyframes = useCallback(
+    (keyframeIds: readonly string[]): void => {
+      dispatch({ keyframeIds, type: 'timeline.setKeyframeSelection' });
+    },
+    [dispatch],
+  );
+  const moveSelectedKeyframes = useCallback(
+    (anchorKeyframeId: string, timeSeconds: number): void => {
+      dispatch({ anchorKeyframeId, timeSeconds, type: 'timeline.moveSelectedKeyframes' });
+    },
+    [dispatch],
+  );
+  const deleteSelectedKeyframes = useCallback((): void => {
+    dispatch({ type: 'timeline.deleteSelectedKeyframes' });
+  }, [dispatch]);
+  const copySelectedKeyframes = useCallback((): void => {
+    setToolcraftTimelineClipboard(
+      copyToolcraftTimelineSelection(keyframeGroups, selectedKeyframeIds),
+    );
+  }, [keyframeGroups, selectedKeyframeIds]);
+  const pasteKeyframes = useCallback((): void => {
+    const keyframes = getToolcraftTimelineClipboard();
+
+    if (keyframes.length === 0) {
+      return;
+    }
+
+    dispatch({
+      keyframes,
+      timeSeconds: getCurrentTimeSeconds(),
+      type: 'timeline.pasteKeyframes',
+    });
+  }, [dispatch, getCurrentTimeSeconds]);
   const scrubber = useTimelineScrubber({
     commitCurrentTimeSeconds,
     currentTimeSeconds,
@@ -483,7 +529,10 @@ export function TimelinePanel({
         return;
       }
 
-      deleteKeyframe(selectedKeyframeId);
+      // The whole selection, not just the anchor. Delete pressed with five
+      // keyframes highlighted has one obvious meaning, and removing one of
+      // them while the other four stay highlighted is not it.
+      deleteSelectedKeyframes();
     };
 
     document.addEventListener('keydown', handleDocumentKeyDown);
@@ -491,7 +540,7 @@ export function TimelinePanel({
     return () => {
       document.removeEventListener('keydown', handleDocumentKeyDown);
     };
-  }, [deleteKeyframe, selectedKeyframeId]);
+  }, [deleteSelectedKeyframes, selectedKeyframeId, setSelectedKeyframeId]);
 
   useEffect(() => {
     if (!selectedKeyframeId || typeof document === 'undefined') {
@@ -623,11 +672,33 @@ export function TimelinePanel({
   const deleteControlKeyframes = (controlId: string): void => {
     dispatch({ controlId, type: 'timeline.deleteControlKeyframes' });
   };
+  /**
+   * Curve edits reach the whole selection, which is what makes easing a track
+   * one action rather than one popover per keyframe. The reducer only widens
+   * when the keyframe being edited is itself part of the selection, so shaping
+   * one that is not selected still means only it.
+   */
   const changeKeyframeEasing = (
     keyframeId: string,
     nextEasing: ToolcraftTimelineKeyframeEasing,
   ): void => {
-    dispatch({ easing: nextEasing, keyframeId, type: 'timeline.changeKeyframeEasing' });
+    dispatch({
+      applyToSelection: true,
+      easing: nextEasing,
+      keyframeId,
+      type: 'timeline.changeKeyframeEasing',
+    });
+  };
+  const changeKeyframeEaseIn = (
+    keyframeId: string,
+    controlPoints: ToolcraftTimelineBezierControlPoints | null,
+  ): void => {
+    dispatch({
+      applyToSelection: true,
+      controlPoints,
+      keyframeId,
+      type: 'timeline.changeKeyframeEaseIn',
+    });
   };
   const resolvedPanelPlacement = panelPlacement ?? (framed ? 'frame' : 'surface');
   const shouldConstrainToContainer = resolvedPanelPlacement === 'surface';
@@ -754,28 +825,37 @@ export function TimelinePanel({
         />
         {isExpanded && keyframesEnabled ? (
           <TimelineExpandedContent
+            collapsedObjectIds={collapsedObjectIds}
             currentTimeSeconds={currentTimeSeconds}
             durationSeconds={durationSeconds}
             isScrubbing={scrubber.isScrubbing}
             keyframeGroups={keyframeGroups}
+            objectTracks={objectTracks}
+            onChangeKeyframeEaseIn={changeKeyframeEaseIn}
             onChangeKeyframeEasing={changeKeyframeEasing}
+            onCopySelectedKeyframes={copySelectedKeyframes}
             onDeleteControlKeyframes={deleteControlKeyframes}
             onDeleteKeyframe={deleteKeyframe}
-            onKeyframeDragStart={() => setIsPlaying(false)}
+            onDeleteSelectedKeyframes={deleteSelectedKeyframes}
             onKeyDown={scrubber.handleScrubKeyDown}
+            onKeyframeDragStart={() => setIsPlaying(false)}
             onLostPointerCapture={scrubber.handleScrubLostPointerCapture}
             onMoveKeyframe={moveKeyframe}
+            onMoveSelectedKeyframes={moveSelectedKeyframes}
+            onPanView={panView}
+            onPasteKeyframes={pasteKeyframes}
             onPointerDown={scrubber.handleScrubPointerDown}
             onPointerMove={scrubber.handleScrubPointerMove}
             onPointerUp={scrubber.handleScrubPointerUp}
-            collapsedObjectIds={collapsedObjectIds}
-            objectTracks={objectTracks}
-            onPanView={panView}
             onScrubToTime={scrubToTime}
+            onSelectKeyframe={selectKeyframe}
+            onSelectKeyframes={selectKeyframes}
             onSelectedKeyframeChange={setSelectedKeyframeId}
+            onStepToKeyframe={stepToKeyframe}
             onToggleObjectExpanded={toggleObjectExpanded}
             onZoomChange={changeZoom}
             selectedKeyframeId={selectedKeyframeId}
+            selectedKeyframeIds={selectedKeyframeIds}
             stripRef={scrubber.stripRef}
             view={view}
           />

@@ -99,6 +99,7 @@ function createDefaultTimelineState({
     isPlaying: false,
     playbackRate: 1,
     selectedKeyframeId: null,
+    selectedKeyframeIds: [],
     ...timeline,
     keyframeGroups: cloneTimelineKeyframeGroups(
       timeline?.keyframeGroups ?? [],

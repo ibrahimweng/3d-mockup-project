@@ -12,6 +12,14 @@ import {
   roundToolcraftTimelineKeyframeTime,
   toolcraftTimelineMinDurationSeconds,
 } from "./timeline-values";
+import {
+  createToolcraftTimelineSelection,
+  emptyToolcraftTimelineSelection,
+  getToolcraftTimelinePasteTimes,
+  moveToolcraftTimelineSelection,
+  pruneToolcraftTimelineSelection,
+  applyToolcraftTimelineSelection,
+} from "./timeline-selection";
 import type {
   ToolcraftCommand,
   ToolcraftState,
@@ -23,11 +31,16 @@ type ToolcraftTimelineCommand = Extract<
   ToolcraftCommand,
   {
     type:
+      | "timeline.changeKeyframeEaseIn"
       | "timeline.changeKeyframeEasing"
       | "timeline.deleteControlKeyframes"
       | "timeline.deleteKeyframe"
+      | "timeline.deleteSelectedKeyframes"
       | "timeline.moveKeyframe"
+      | "timeline.moveSelectedKeyframes"
+      | "timeline.pasteKeyframes"
       | "timeline.selectKeyframe"
+      | "timeline.setKeyframeSelection"
       | "timeline.setCurrentTime"
       | "timeline.setDuration"
       | "timeline.setExpanded"
@@ -158,7 +171,7 @@ function getUnkeyframedControlValuePatch(
 
 function mapTimelineKeyframeGroups(
   keyframeGroups: readonly ToolcraftTimelineKeyframeGroup[],
-  keyframeId: string,
+  keyframeIds: ReadonlySet<string>,
   updateKeyframe: (
     keyframe: ToolcraftTimelineKeyframeGroup["keyframes"][number],
   ) => ToolcraftTimelineKeyframeGroup["keyframes"][number],
@@ -166,9 +179,27 @@ function mapTimelineKeyframeGroups(
   return keyframeGroups.map((group) => ({
     ...group,
     keyframes: group.keyframes.map((keyframe) =>
-      keyframe.id === keyframeId ? updateKeyframe(keyframe) : keyframe,
+      keyframeIds.has(keyframe.id) ? updateKeyframe(keyframe) : keyframe,
     ),
   }));
+}
+
+/**
+ * The keyframes a curve edit applies to.
+ *
+ * Just the one it was aimed at, unless the command asked for the selection and
+ * that keyframe is part of it — shaping a curve with several keyframes selected
+ * means all of them, and shaping one that is not in the selection means only
+ * it, whatever else happens to be selected elsewhere.
+ */
+function getTimelineEasingTargetIds(
+  state: ToolcraftState,
+  keyframeId: string,
+  applyToSelection: boolean | undefined,
+): ReadonlySet<string> {
+  return applyToSelection && state.timeline.selectedKeyframeIds.includes(keyframeId)
+    ? new Set(state.timeline.selectedKeyframeIds)
+    : new Set([keyframeId]);
 }
 
 export function reduceToolcraftTimelineCommand(
@@ -288,9 +319,71 @@ export function reduceToolcraftTimelineCommand(
         ...state,
         timeline: {
           ...state.timeline,
-          selectedKeyframeId: command.keyframeId,
+          ...applyToolcraftTimelineSelection(
+            state.timeline,
+            command.keyframeId,
+            command.additive === true,
+          ),
         },
       };
+    }
+
+    case "timeline.setKeyframeSelection": {
+      return {
+        ...state,
+        timeline: {
+          ...state.timeline,
+          ...pruneToolcraftTimelineSelection(
+            createToolcraftTimelineSelection(command.keyframeIds),
+            state.timeline.keyframeGroups,
+          ),
+        },
+      };
+    }
+
+    /**
+     * Delete every selected keyframe as one entry in history.
+     *
+     * Deleting a five-keyframe selection one command at a time would take five
+     * undos to put back, and each intermediate state is one nobody asked for.
+     */
+    case "timeline.deleteSelectedKeyframes": {
+      const doomed = new Set(state.timeline.selectedKeyframeIds);
+
+      if (doomed.size === 0) {
+        return state;
+      }
+
+      const keyframeGroups = state.timeline.keyframeGroups
+        .map((group) => ({
+          ...group,
+          keyframes: group.keyframes.filter((keyframe) => !doomed.has(keyframe.id)),
+        }))
+        .filter((group) => group.keyframes.length > 0);
+
+      if (
+        keyframeGroups.length === state.timeline.keyframeGroups.length &&
+        keyframeGroups.every(
+          (group, index) =>
+            group.keyframes.length ===
+            state.timeline.keyframeGroups[index]?.keyframes.length,
+        )
+      ) {
+        return state;
+      }
+
+      const timeline = {
+        ...state.timeline,
+        ...emptyToolcraftTimelineSelection,
+        keyframeGroups,
+      };
+      const heldValues = getUnkeyframedControlValuePatch(state, keyframeGroups);
+
+      return commitToolcraftStatePatch(state, {
+        after: { ...heldValues.after, timeline },
+        before: { ...heldValues.before, timeline: state.timeline },
+        label: "Delete keyframes",
+      });
     }
 
     case "timeline.deleteKeyframe": {
@@ -310,7 +403,7 @@ export function reduceToolcraftTimelineCommand(
             keyframes: group.keyframes.filter((keyframe) => keyframe.id !== command.keyframeId),
           }))
           .filter((group) => group.keyframes.length > 0),
-        selectedKeyframeId: null,
+        ...emptyToolcraftTimelineSelection,
       };
       const heldValues = getUnkeyframedControlValuePatch(
         state,
@@ -334,7 +427,7 @@ export function reduceToolcraftTimelineCommand(
         keyframeGroups: state.timeline.keyframeGroups.filter(
           (group) => group.controlId !== command.controlId,
         ),
-        selectedKeyframeId: null,
+        ...emptyToolcraftTimelineSelection,
       };
       const heldValues = getUnkeyframedControlValuePatch(
         state,
@@ -360,7 +453,7 @@ export function reduceToolcraftTimelineCommand(
           keyframeGroups: state.timeline.keyframeGroups.filter(
             (group) => group.controlId !== command.controlId,
           ),
-          selectedKeyframeId: null,
+          ...emptyToolcraftTimelineSelection,
         };
         const heldValues = getUnkeyframedControlValuePatch(
           state,
@@ -400,7 +493,7 @@ export function reduceToolcraftTimelineCommand(
           keyframe,
           keyframeGroups: state.timeline.keyframeGroups,
         }),
-        selectedKeyframeId: keyframe.id,
+        ...createToolcraftTimelineSelection([keyframe.id]),
       };
 
       return commitToolcraftStatePatch(state, {
@@ -437,7 +530,7 @@ export function reduceToolcraftTimelineCommand(
           keyframe,
           keyframeGroups: state.timeline.keyframeGroups,
         }),
-        selectedKeyframeId: keyframe.id,
+        ...createToolcraftTimelineSelection([keyframe.id]),
       };
 
       return commitToolcraftStatePatch(state, {
@@ -490,7 +583,7 @@ export function reduceToolcraftTimelineCommand(
             ? { ...group, keyframes: movedKeyframes }
             : group,
         ),
-        selectedKeyframeId: nextKeyframeId,
+        ...createToolcraftTimelineSelection([nextKeyframeId]),
       };
 
       return commitToolcraftStatePatch(state, {
@@ -500,10 +593,110 @@ export function reduceToolcraftTimelineCommand(
       });
     }
 
+    case "timeline.moveSelectedKeyframes": {
+      const moved = moveToolcraftTimelineSelection({
+        anchorKeyframeId: command.anchorKeyframeId,
+        durationSeconds: state.timeline.durationSeconds,
+        keyframeGroups: state.timeline.keyframeGroups,
+        selectedKeyframeIds: state.timeline.selectedKeyframeIds,
+        timeSeconds: command.timeSeconds,
+      });
+
+      if (!moved) {
+        return state;
+      }
+
+      const timeline = {
+        ...state.timeline,
+        ...moved.selection,
+        keyframeGroups: moved.keyframeGroups,
+      };
+
+      return commitToolcraftStatePatch(state, {
+        after: { timeline },
+        before: { timeline: state.timeline },
+        label: "Move keyframes",
+      });
+    }
+
+    /**
+     * Put a copied shape down starting at a time.
+     *
+     * A pasted keyframe joins the track its control already has, or brings one
+     * back if the track was deleted since the copy — the same reach
+     * `upsertControlKeyframe` has, because pasting is the same act of saying
+     * this control has a value at this time. Values go through the control's
+     * own normalization on the way in, so a copy taken before a control
+     * changed shape cannot put an impossible value on a track.
+     */
+    case "timeline.pasteKeyframes": {
+      const times = getToolcraftTimelinePasteTimes(
+        command.keyframes,
+        command.timeSeconds,
+        state.timeline.durationSeconds,
+      );
+      let keyframeGroups = state.timeline.keyframeGroups;
+      const pastedIds: string[] = [];
+
+      command.keyframes.forEach((clipboardKeyframe, index) => {
+        const timeSeconds = times[index];
+        const normalized = normalizeTimelineControlValue(
+          state,
+          clipboardKeyframe.controlId,
+          clipboardKeyframe.value,
+        );
+
+        if (timeSeconds === undefined || !normalized.accepted) {
+          return;
+        }
+
+        const keyframe: ToolcraftTimelineKeyframe = {
+          controlId: clipboardKeyframe.controlId,
+          controlLabel: clipboardKeyframe.controlLabel,
+          ...(clipboardKeyframe.easing ? { easing: clipboardKeyframe.easing } : {}),
+          id: getToolcraftTimelineKeyframeId(clipboardKeyframe.controlId, timeSeconds),
+          timeSeconds,
+          value: normalized.value,
+          valueLabel: clipboardKeyframe.valueLabel,
+        };
+
+        keyframeGroups = upsertTimelineControlKeyframeGroup({
+          controlId: keyframe.controlId,
+          controlLabel: keyframe.controlLabel,
+          keyframe,
+          keyframeGroups,
+        });
+        pastedIds.push(keyframe.id);
+      });
+
+      if (pastedIds.length === 0) {
+        return state;
+      }
+
+      const timeline = {
+        ...state.timeline,
+        ...createToolcraftTimelineSelection(pastedIds),
+        expanded: true,
+        keyframeGroups,
+      };
+
+      return commitToolcraftStatePatch(state, {
+        after: { timeline },
+        before: { timeline: state.timeline },
+        label: "Paste keyframes",
+      });
+    }
+
     case "timeline.changeKeyframeEasing": {
+      const keyframeIds = getTimelineEasingTargetIds(
+        state,
+        command.keyframeId,
+        command.applyToSelection,
+      );
+
       if (
         !state.timeline.keyframeGroups.some((group) =>
-          group.keyframes.some((keyframe) => keyframe.id === command.keyframeId),
+          group.keyframes.some((keyframe) => keyframeIds.has(keyframe.id)),
         )
       ) {
         return state;
@@ -513,7 +706,7 @@ export function reduceToolcraftTimelineCommand(
         ...state.timeline,
         keyframeGroups: mapTimelineKeyframeGroups(
           state.timeline.keyframeGroups,
-          command.keyframeId,
+          keyframeIds,
           (keyframe) => ({
             ...keyframe,
             easing: command.easing,
@@ -525,6 +718,49 @@ export function reduceToolcraftTimelineCommand(
         after: { timeline },
         before: { timeline: state.timeline },
         label: "Change keyframe easing",
+      });
+    }
+
+    /**
+     * Shape how the motion arrives at a keyframe.
+     *
+     * Separate from `changeKeyframeEasing` rather than another field on it,
+     * because they write different halves of different segments: this one
+     * belongs to the segment *before* the keyframe, and that one to the segment
+     * after it. Clearing it hands the whole segment back to the keyframe it
+     * leaves, which is where both handles lived before this existed.
+     */
+    case "timeline.changeKeyframeEaseIn": {
+      const keyframeIds = getTimelineEasingTargetIds(
+        state,
+        command.keyframeId,
+        command.applyToSelection,
+      );
+
+      if (
+        !state.timeline.keyframeGroups.some((group) =>
+          group.keyframes.some((keyframe) => keyframeIds.has(keyframe.id)),
+        )
+      ) {
+        return state;
+      }
+
+      const timeline = {
+        ...state.timeline,
+        keyframeGroups: mapTimelineKeyframeGroups(
+          state.timeline.keyframeGroups,
+          keyframeIds,
+          ({ easeIn: _easeIn, ...keyframe }) =>
+            command.controlPoints
+              ? { ...keyframe, easeIn: [...command.controlPoints] as typeof command.controlPoints }
+              : keyframe,
+        ),
+      };
+
+      return commitToolcraftStatePatch(state, {
+        after: { timeline },
+        before: { timeline: state.timeline },
+        label: "Change keyframe ease in",
       });
     }
   }

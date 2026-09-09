@@ -74,6 +74,10 @@ function readKeyframe(value: unknown): ToolcraftTimelineKeyframe | undefined {
     valueLabel: value.valueLabel,
   };
   const easing = readKeyframeEasing(value.easing);
+  // Validated the same way as any other stored curve rather than trusted: a
+  // saved file is the one place a keyframe can arrive carrying something no
+  // control could have produced.
+  const easeIn = readBezierControlPoints(value.easeIn);
 
   if ("value" in value) {
     keyframe.value = value.value;
@@ -81,6 +85,10 @@ function readKeyframe(value: unknown): ToolcraftTimelineKeyframe | undefined {
 
   if (easing) {
     keyframe.easing = easing;
+  }
+
+  if (easeIn) {
+    keyframe.easeIn = easeIn;
   }
 
   return keyframe;
@@ -141,6 +149,17 @@ export function readTimeline(value: unknown): Partial<ToolcraftTimelineState> | 
 
   if (typeof value.selectedKeyframeId === "string" || value.selectedKeyframeId === null) {
     timeline.selectedKeyframeId = value.selectedKeyframeId;
+  }
+
+  // Read after the anchor so a file written before selections could hold more
+  // than one keyframe still restores a consistent pair rather than an anchor
+  // sitting outside its own selection.
+  if (Array.isArray(value.selectedKeyframeIds)) {
+    timeline.selectedKeyframeIds = value.selectedKeyframeIds.filter(
+      (item): item is string => typeof item === "string",
+    );
+  } else if (typeof timeline.selectedKeyframeId === "string") {
+    timeline.selectedKeyframeIds = [timeline.selectedKeyframeId];
   }
 
   if (Array.isArray(value.keyframeGroups)) {
