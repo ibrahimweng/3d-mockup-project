@@ -4,6 +4,7 @@ import {
   type ToolcraftBrowserAction,
   type ToolcraftBrowserProofSession,
 } from "./browser-proof-session";
+import { openPanelTabOwning } from "./browser-control-target-helpers";
 
 export type ToolcraftOrientationAxis =
   | "+x"
@@ -84,6 +85,16 @@ async function getOrientationGizmo(
   page: Page,
   target: string,
 ): Promise<Locator> {
+  // Put the panel on the tab that owns the target first.
+  //
+  // The gizmo is a canvas handle, but its visibility follows the section that
+  // declares it, so a gizmo whose section sits behind a panel tab is absent
+  // rather than hidden until that tab is chosen. This proof drives a control by
+  // its schema target and has no business caring which tab was last left open,
+  // which is what `openPanelTabOwning` already exists for elsewhere. Without
+  // it the first gizmo action here found zero of them and the whole proof for
+  // the orbit requirement failed on its first assertion.
+  await openPanelTabOwning(page, target);
   const gizmo = page.getByRole("application", {
     name: "3D orientation gizmo",
   });
