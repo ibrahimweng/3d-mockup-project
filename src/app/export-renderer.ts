@@ -44,9 +44,10 @@ import {
  *
  * A still is one frame, so building a renderer, loading the model, convolving
  * the environment and throwing it all away again cost nothing anybody noticed.
- * A video is a hundred and eighty frames of the same scene, and paying that
- * per frame meant reloading the HDR environment for every one — about seven
- * seconds each, so a six-second loop never finished at all.
+ * A video is hundreds of frames of the same scene — three hundred and sixty
+ * for a six-second loop at sixty — and paying that per frame meant reloading
+ * the HDR environment for every one, about seven seconds each, so a loop never
+ * finished at all.
  *
  * Holding one renderer makes the model and environment caches inside it do
  * their job across the whole export: `update` rebuilds only when the device
@@ -132,6 +133,10 @@ export const mockupExportRenderer: ToolcraftProductExportRenderer = {
     const shutterTimes = blur.enabled
       ? getMotionBlurSampleTimes({
           durationSeconds: state.timeline.durationSeconds,
+          // The rate the runtime is encoding at, read from the same control it
+          // resolves from: a shutter is a fraction of a frame, so how long a
+          // frame is has to be the same number on both sides.
+          framesPerSecond: blur.framesPerSecond,
           shutterAngleDegrees: blur.shutterAngleDegrees,
           timeSeconds,
         })

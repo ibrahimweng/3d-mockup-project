@@ -1,7 +1,9 @@
 export {
+  resolveToolcraftVideoExportSettings,
   toolcraftImageExportFormatTarget,
   toolcraftImageExportResolutionTarget,
   toolcraftVideoExportFormatTarget,
+  toolcraftVideoExportFrameRateTarget,
   toolcraftVideoExportResolutionTarget,
 } from "./artifact-export-settings";
 export type {
@@ -10,8 +12,17 @@ export type {
   ToolcraftResolvedImageExportSettings,
   ToolcraftResolvedVideoExportSettings,
   ToolcraftVideoExportFormat,
+  ToolcraftVideoExportFrameRate,
   ToolcraftVideoExportPresetResolution,
 } from "./artifact-export-settings";
+export {
+  getToolcraftVideoExportBitrate,
+} from "./video-encoding-policy";
+export {
+  createToolcraftVideoFrameSchedule,
+  TOOLCRAFT_VIDEO_EXPORT_FRAMES_PER_SECOND,
+} from "./video-frame-schedule";
+export type { ToolcraftVideoFrameScheduleEntry } from "./video-frame-schedule";
 export { shouldIncludeToolcraftPreviewBackground } from "./export-background";
 export type { ToolcraftPreviewBackgroundOptions } from "./export-background";
 export {

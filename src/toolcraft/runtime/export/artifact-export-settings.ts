@@ -4,12 +4,25 @@ import { ToolcraftArtifactExportError } from "./export-error";
 export const toolcraftImageExportFormatTarget = "export.image.format";
 export const toolcraftImageExportResolutionTarget = "export.image.resolution";
 export const toolcraftVideoExportFormatTarget = "export.video.format";
+export const toolcraftVideoExportFrameRateTarget = "export.video.frameRate";
 export const toolcraftVideoExportResolutionTarget = "export.video.resolution";
 
 export type ToolcraftImageExportFormat = "jpg" | "png";
 export type ToolcraftImageExportPresetResolution = "2k" | "4k" | "8k";
 export type ToolcraftVideoExportFormat = "mp4" | "webm";
 export type ToolcraftVideoExportPresetResolution = "4k" | "current";
+
+/**
+ * How many frames a second of video is cut into.
+ *
+ * Two, because these are the two that mean something. Thirty is the rate this
+ * runtime encoded at before the number was a choice, and sixty is what a slow
+ * camera move needs: at thirty a pan across a product steps rather than
+ * travels, and the stepping is the thing people call "cheap" without being
+ * able to say why. It costs twice the frames to render and roughly twice the
+ * bytes.
+ */
+export type ToolcraftVideoExportFrameRate = 30 | 60;
 
 export type ToolcraftResolvedImageExportSettings = Readonly<{
   format: ToolcraftImageExportFormat;
@@ -18,6 +31,7 @@ export type ToolcraftResolvedImageExportSettings = Readonly<{
 
 export type ToolcraftResolvedVideoExportSettings = Readonly<{
   format: ToolcraftVideoExportFormat;
+  frameRate: ToolcraftVideoExportFrameRate;
   resolution: ToolcraftVideoExportPresetResolution;
 }>;
 
@@ -77,6 +91,24 @@ function resolveVideoResolution(
     : invalidSetting(toolcraftVideoExportResolutionTarget);
 }
 
+/**
+ * The rate, from a control that may hold a string or a number.
+ *
+ * A select hands back its option's string; a workspace written before this
+ * existed has no value at all and falls to the default. Anything else is
+ * refused rather than rounded, because a frame rate the schedule and the
+ * encoder disagreed about would produce a file whose motion runs at the wrong
+ * speed — which looks like a bad animation rather than like a bad setting.
+ */
+function resolveVideoFrameRate(state: ToolcraftState): ToolcraftVideoExportFrameRate {
+  const value = getSettingValue(state, toolcraftVideoExportFrameRateTarget, "60");
+  const rate = typeof value === "string" ? Number(value) : value;
+
+  return rate === 30 || rate === 60
+    ? rate
+    : invalidSetting(toolcraftVideoExportFrameRateTarget);
+}
+
 export function resolveToolcraftImageExportSettings(
   state: ToolcraftState,
 ): ToolcraftResolvedImageExportSettings {
@@ -91,6 +123,7 @@ export function resolveToolcraftVideoExportSettings(
 ): ToolcraftResolvedVideoExportSettings {
   return Object.freeze({
     format: resolveVideoFormat(state),
+    frameRate: resolveVideoFrameRate(state),
     resolution: resolveVideoResolution(state),
   });
 }

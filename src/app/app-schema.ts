@@ -598,8 +598,8 @@ export const appSchema = defineToolcraft({
      *
      * The animation this product exists to make is a turntable, and the length
      * of a turntable loop is the length of one turn. Six seconds reads as
-     * deliberate rather than frantic at a full 360, and it divides evenly into
-     * the thirtieth-of-a-second frames a video export is cut into.
+     * deliberate rather than frantic at a full 360, and it divides evenly at
+     * either rate a video export offers, so no frame lands between two.
      */
     timeline: {
       /**

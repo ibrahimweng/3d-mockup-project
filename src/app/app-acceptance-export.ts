@@ -54,7 +54,7 @@ export const exportAcceptance: readonly ToolcraftComponentAcceptance[] = [
     componentType: "select",
     evidence: "exported-bytes",
     expectedObservable:
-      "Exporting as MP4 downloads a file that decodes as MP4; exporting as WebM downloads one that decodes as WebM. Both run for the timeline's duration and carry one packet every thirtieth of a second.",
+      "Exporting as MP4 downloads a file that decodes as MP4; exporting as WebM downloads one that decodes as WebM. Both run for the timeline's duration and carry one packet per frame of the chosen rate.",
     fixture: "the default device with Spin keyframed a full turn",
     id: "video-export.settings",
     kind: "control",
@@ -78,6 +78,24 @@ export const exportAcceptance: readonly ToolcraftComponentAcceptance[] = [
     optionCoverage: "each-visible-item",
     target: "export.video.resolution",
     userAction: "Choose each Resolution option and run Export Video.",
+  },
+  {
+    automated: true,
+    automatedTestName:
+      "the shutter follows the frame rate, because a shutter is part of a frame",
+    browser: true,
+    browserTestName:
+      "browser: sixty frames a second writes twice the frames and holds the loop's length",
+    componentType: "select",
+    evidence: "product-output",
+    expectedObservable:
+      "At 60 fps a six second loop is encoded as three hundred and sixty frames instead of a hundred and eighty, and the file still runs six seconds \u2014 so a slow camera move travels where at 30 it stepped. The shutter follows: the same shutter angle is half the smear at 60, because a shutter is a fraction of a frame. Twice the frames is roughly twice the render time and twice the file.",
+    fixture: "the default device with a camera arc keyed across the loop",
+    id: "video-export.frameRate",
+    kind: "control",
+    optionCoverage: ["30", "60"],
+    target: "export.video.frameRate",
+    userAction: "Choose each Frame rate option and run Export Video.",
   },
   {
     automated: true,

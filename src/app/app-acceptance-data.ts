@@ -330,6 +330,7 @@ export const appControlSectionInventory: readonly ToolcraftControlSectionInvento
       id: "video-export",
       targets: [
         "export.video.format",
+        "export.video.frameRate",
         "export.video.resolution",
         "export.video.motionBlur",
         "export.video.shutterAngle",

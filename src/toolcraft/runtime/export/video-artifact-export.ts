@@ -63,7 +63,9 @@ export async function exportToolcraftVideoArtifact(
 ): Promise<ToolcraftVideoArtifactExportResult> {
   const settings = resolveToolcraftVideoExportSettings(request.state);
   const durationSeconds = request.state.timeline.durationSeconds;
-  const schedule = createToolcraftVideoFrameSchedule(durationSeconds);
+  // The schedule and the encoder are handed the same number on purpose: laid
+  // out at one rate and declared at another, the file plays at the wrong speed.
+  const schedule = createToolcraftVideoFrameSchedule(durationSeconds, settings.frameRate);
   const framePlan = createToolcraftVideoArtifactFramePlan(request.state, schedule);
   const frame = resolveToolcraftVideoArtifactFrame({
     boundsProvider: request.boundsProvider,
@@ -92,6 +94,7 @@ export async function exportToolcraftVideoArtifact(
       createToolcraftVideoEncoderBackend)({
       canvas,
       durationSeconds,
+      framesPerSecond: settings.frameRate,
       height: size.height,
       requestedFormat: settings.format,
       width: size.width,

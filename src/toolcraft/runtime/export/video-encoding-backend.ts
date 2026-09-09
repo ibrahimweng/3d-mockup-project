@@ -21,6 +21,8 @@ export type ToolcraftVideoEncoderBackend = Readonly<{
 export type ToolcraftVideoEncoderBackendFactoryRequest = Readonly<{
   canvas: HTMLCanvasElement;
   durationSeconds: number;
+  /** Must be the rate the frame schedule was built at, or the file runs fast. */
+  framesPerSecond?: number;
   height: number;
   requestedFormat: ToolcraftVideoExportFormat;
   width: number;
@@ -44,8 +46,10 @@ export async function createToolcraftVideoEncoderBackend(
       }),
     ),
   );
+  const framesPerSecond = request.framesPerSecond ?? 30;
   const policy = resolveToolcraftVideoEncodingPolicy({
     durationSeconds: request.durationSeconds,
+    framesPerSecond,
     height: request.height,
     requestedFormat: request.requestedFormat,
     support: {
@@ -76,7 +80,7 @@ export async function createToolcraftVideoEncoderBackend(
     codec: policy.codec,
     keyFrameInterval: 2,
   });
-  output.addVideoTrack(source, { frameRate: 30 });
+  output.addVideoTrack(source, { frameRate: framesPerSecond });
   await output.start();
   let closed = false;
   let finalized = false;

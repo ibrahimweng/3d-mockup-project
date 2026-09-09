@@ -44,13 +44,50 @@ const webmCandidates: readonly ToolcraftVideoEncodingCandidate[] = Object.freeze
   Object.freeze({ codec: "vp8", extension: ".webm", mediaType: "video/webm" }),
 ]);
 
+/** The rate every bitrate in this runtime was written against. */
+const baselineFramesPerSecond = 30;
+
+/**
+ * What a frame past the baseline costs, as a share of what a baseline one did.
+ *
+ * Not one. Twice the frames are half as far apart, so consecutive pictures are
+ * more alike and most of what the codec writes for each is the difference from
+ * the last — the extra frames are cheap, not free. A half is the ratio the
+ * streaming services publish for exactly this step: the same picture at sixty
+ * is recommended at about half again the bits of thirty, not at double.
+ */
+const extraFrameBitCost = 0.5;
+
+/**
+ * Bits a second for a picture this big at this rate.
+ *
+ * The frame rate was a literal 30 here for as long as the encoder only ever
+ * encoded at 30, which made it invisible that this is a rate at all and not a
+ * quality constant. Leaving it would have given every sixty-frame export a
+ * thirty-frame budget, so it would have come out softer than the file it
+ * replaced with nothing on screen to say why.
+ *
+ * At the baseline this is the number this runtime has always produced, so an
+ * export nobody re-configured is byte-for-byte the export it was.
+ *
+ * Still clamped at both ends: the floor keeps a small canvas from being
+ * starved, and the ceiling is what keeps a 4K sixty-frame export inside the
+ * artifact budget.
+ */
 export function getToolcraftVideoExportBitrate(
   width: number,
   height: number,
+  framesPerSecond: number = baselineFramesPerSecond,
 ): number {
+  const rateFactor =
+    1 + (framesPerSecond / baselineFramesPerSecond - 1) * extraFrameBitCost;
+
   return Math.max(
     2_000_000,
-    Math.min(12_000_000, Math.round(width * height * 30 * 0.05)),
+    Math.min(
+      12_000_000,
+      Math.round(width * height * baselineFramesPerSecond * 0.05 * rateFactor),
+    ),
   );
 }
 
@@ -66,18 +103,20 @@ function assertArtifactBudget(bitrate: number, durationSeconds: number): void {
 
 export function resolveToolcraftVideoEncodingPolicy({
   durationSeconds,
+  framesPerSecond = baselineFramesPerSecond,
   height,
   requestedFormat,
   support,
   width,
 }: Readonly<{
   durationSeconds: number;
+  framesPerSecond?: number;
   height: number;
   requestedFormat: ToolcraftVideoExportFormat;
   support: ToolcraftVideoEncodingSupport;
   width: number;
 }>): ToolcraftVideoEncodingPolicy {
-  const bitrate = getToolcraftVideoExportBitrate(width, height);
+  const bitrate = getToolcraftVideoExportBitrate(width, height, framesPerSecond);
   assertArtifactBudget(bitrate, durationSeconds);
   // The requested container is tried in full before falling back to the other
   // one, so a missing H.264 encoder costs the codec rather than the format.
