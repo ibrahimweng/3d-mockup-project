@@ -189,6 +189,66 @@ test("browser: a motion preset lays down keyframes that loop and can then be edi
   ).toEqual({});
 });
 
+test("browser: a loop too short for its animation says so", async ({ page }) => {
+  // Found by driving the built app rather than by reading it. Shorten the loop
+  // under an animation and it quietly stops closing: what is past the new end
+  // is still there — lengthening brings it all back — but nothing was drawn
+  // there, so a loop that hitches once a cycle looked exactly like one that
+  // does not. In an editor with no opinion about looping that is ordinary; here
+  // every move ends on the frame it began on, and losing that silently is the
+  // defect.
+  await page.setViewportSize({ height: 2000, width: 2600 });
+  await page.goto("/");
+  await page
+    .locator("[data-toolcraft-product-output]")
+    .first()
+    .waitFor({ state: "visible", timeout: 120_000 });
+  await page.waitForTimeout(3_000);
+  await openTimeline(page);
+
+  const setDuration = async (seconds: number): Promise<void> => {
+    await page.getByRole("button", { name: "Edit timeline duration" }).first().click();
+    await page.waitForTimeout(400);
+    const editor = page.locator('[data-slot="timeline-duration-editor"]').first();
+    await editor.click();
+    await page.keyboard.press("ControlOrMeta+a");
+    await page.keyboard.type(String(seconds));
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(2_500);
+  };
+  const strandedCounts = (): Promise<string[]> =>
+    page
+      .locator('[data-slot="timeline-keyframes-past-end"]')
+      .evaluateAll((nodes) => nodes.map((node) => node.textContent ?? ""));
+
+  await applyMotion(page, "Hero");
+  const fitted = await timelineRows(page);
+
+  expect(
+    await strandedCounts(),
+    "A move laid down for this loop fits it, so there is nothing to report.",
+  ).toEqual([]);
+
+  await setDuration(3);
+  const stranded = await strandedCounts();
+
+  expect(
+    stranded.length,
+    "Halving the loop leaves keyframes past its end, and the rows have to say so.",
+  ).toBeGreaterThan(0);
+  for (const count of stranded) {
+    expect(count).toMatch(/^\+\d+$/);
+  }
+
+  // Nothing was destroyed: the loop grows back and so does the animation.
+  await setDuration(6);
+  expect(await strandedCounts(), "and the warning clears when the loop fits again").toEqual([]);
+  expect(
+    await timelineRows(page),
+    "Shortening a loop must not delete anything, which is what makes the marker the right fix.",
+  ).toEqual(fitted);
+});
+
 test("browser: each product is given the move that suits it", async ({ page }) => {
   // The claim the tuning table makes, and the one that cannot be checked
   // anywhere but here: Hero is a different animation for different products,
