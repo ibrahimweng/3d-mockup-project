@@ -11,7 +11,6 @@ import {
   clampToolcraftTimelineTime,
   getToolcraftTimelineKeyframeId,
   roundToolcraftTimelineKeyframeTime,
-  toolcraftTimelineMinDurationSeconds,
 } from "./timeline-values";
 import {
   createToolcraftTimelineSelection,
@@ -232,9 +231,15 @@ export function reduceToolcraftTimelineCommand(
     }
 
     case "timeline.setDuration": {
+      // A malformed duration keeps the one the timeline already has. The
+      // fallback used to be the minimum, which turned an unreadable command
+      // into a one-second loop and stranded every keyframe past it — the
+      // largest possible change in answer to no change at all. Falling back to
+      // the current length leaves the animation alone, and the panel refuses an
+      // unreadable edit before it ever reaches here.
       const durationSeconds = clampToolcraftTimelineDurationSeconds(
         command.durationSeconds,
-        toolcraftTimelineMinDurationSeconds,
+        state.timeline.durationSeconds,
       );
       const timeline = {
         ...state.timeline,
