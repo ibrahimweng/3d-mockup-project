@@ -1,4 +1,8 @@
 import { applyContinuousEasingToSegment } from "./timeline-continuous-easing";
+import {
+  interpolateToolcraftOrientation,
+  isToolcraftOrientationValue,
+} from "./timeline-orientation-interpolation";
 import type {
   ToolcraftState,
   ToolcraftTimelineBezierControlPoints,
@@ -144,6 +148,14 @@ function interpolateToolcraftValue(
 ): unknown {
   if (typeof fromValue === "number" && typeof toValue === "number") {
     return fromValue + (toValue - fromValue) * progress;
+  }
+
+  // Before the record path below, because a camera pose is a record of numbers
+  // and would otherwise be interpolated component by component -- which moves
+  // the camera through the inside of the sphere it is orbiting rather than
+  // around it, and for a half turn puts it exactly on the product.
+  if (isToolcraftOrientationValue(fromValue) && isToolcraftOrientationValue(toValue)) {
+    return interpolateToolcraftOrientation(fromValue, toValue, progress);
   }
 
   if (Array.isArray(fromValue) && Array.isArray(toValue) && fromValue.length === toValue.length) {

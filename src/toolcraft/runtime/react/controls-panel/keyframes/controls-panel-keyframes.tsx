@@ -26,6 +26,19 @@ function canCreateControlKeyframe(control: ToolcraftControlSchema): boolean {
   return getToolcraftControlKeyframeCapability(control).capable;
 }
 
+/**
+ * The control whose keyframe diamond belongs on the section header.
+ *
+ * Two kinds qualify, and they are the same kind underneath: a control with no
+ * row of its own to put a diamond on.
+ *
+ * The first is a control named after its own section, which the panel draws
+ * without repeating the title. The second is a control declared `label: false`
+ * — an orientation gizmo is the case that exists, drawn as canvas chrome rather
+ * than as a panel row. Until the camera pose could be keyed, that second kind
+ * was always unkeyable, so the question never came up; a keyframeable control
+ * that no diamond can reach is a control you cannot animate.
+ */
 export function getControlsPanelSectionHeaderKeyframeEntry(
   entries: readonly ControlEntry[],
   title: React.ReactNode,
@@ -34,17 +47,20 @@ export function getControlsPanelSectionHeaderKeyframeEntry(
     return null;
   }
 
-  return (
-    entries.find(([id, control]) => {
-      if (control.type === "channelMixer" || control.type === "curves") {
-        return false;
-      }
+  const eligible = entries.filter(([, control]) => {
+    if (control.type === "channelMixer" || control.type === "curves") {
+      return false;
+    }
 
-      return (
-        getControlName(id, control.label) === title &&
-        canCreateControlKeyframe(control)
-      );
-    }) ?? null
+    return canCreateControlKeyframe(control);
+  });
+
+  // Named after the section first, so a section that has both keeps the
+  // behaviour it already had.
+  return (
+    eligible.find(([id, control]) => getControlName(id, control.label) === title) ??
+    eligible.find(([, control]) => control.label === false) ??
+    null
   );
 }
 
@@ -117,7 +133,10 @@ export function createControlsPanelKeyframeActions({
     name: string,
     value: unknown,
   ) => React.ReactNode;
-  getSectionHeaderKeyframeAction: (entry: ControlEntry) => React.ReactNode;
+  getSectionHeaderKeyframeAction: (
+    entry: ControlEntry,
+    sectionTitle?: string,
+  ) => React.ReactNode;
   getSectionHeaderKeyframeEntry: (
     entries: readonly ControlEntry[],
     title: React.ReactNode,
@@ -251,9 +270,23 @@ export function createControlsPanelKeyframeActions({
     return getControlsPanelSectionHeaderKeyframeEntry(entries, title);
   }
 
-  function getSectionHeaderKeyframeAction(entry: ControlEntry): React.ReactNode {
+  /**
+   * The diamond on a section header.
+   *
+   * A control with no label has no name worth reading — `getControlName` falls
+   * back to its id, so the orientation gizmo would offer "Add orbit keyframe".
+   * The section is what somebody is actually keying, so the section's title is
+   * the name: "Add Camera keyframe".
+   */
+  function getSectionHeaderKeyframeAction(
+    entry: ControlEntry,
+    sectionTitle?: string,
+  ): React.ReactNode {
     const [id, control] = entry;
-    const name = getControlName(id, control.label);
+    const name =
+      control.label === false && sectionTitle
+        ? sectionTitle
+        : getControlName(id, control.label);
 
     return getKeyframeLabelAction(control, name, getControlValue(control));
   }

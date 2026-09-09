@@ -347,7 +347,7 @@ export const TOOLCRAFT_RUNTIME_COMPONENT_CONTRACTS = {
       "Keyframe custom renderers must prove zoom, radar, and canvas viewport stability while expanding the timeline, creating keyframes, and scrubbing or playing the timeline.",
       "Keyframe renderers must not re-decode media or re-upload source textures on timeline ticks, scrubs, playback, or evaluated setting changes.",
       "Timeline-driven preview renderers must suspend or coalesce non-essential animation work during canvas drag, pan, pinch, zoom, and radar/center interactions without mutating the user's timeline play/pause state.",
-      "Use keyframeable: false only on controls that are structurally unsupported by the shared keyframe capability helper; capable controls cannot opt out to hide broken animation wiring.",
+      "Use keyframeable: false only on controls that are structurally unsupported by the shared keyframe capability helper; capable controls cannot opt out to hide broken animation wiring. A control type is supported once the evaluator can interpolate its value meaningfully, which for an orientation means spherically rather than component-wise.",
       "Right-panel animation controls may tune renderer parameters such as mode, intensity, speed, or stagger only after animation intent is declared; they must not replace top timeline transport.",
       "Do not put Pause or Resume in panelActions; playback belongs to TimelinePanel transport controls.",
       "Do not replace TimelinePanel with an app-level playback, transport, or timeline panel to avoid runtime performance issues; fix the Toolcraft runtime clock/state path instead.",

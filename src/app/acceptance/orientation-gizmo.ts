@@ -71,11 +71,14 @@ function getOrientationControlErrors({
     );
   }
 
-  if (control.keyframeable !== false) {
-    errors.push(
-      `${label} orientationGizmo must set keyframeable: false; view orbit is direct editor state, not a timeline property.`,
-    );
-  }
+  // The orbit used to be required non-keyframeable, on the grounds that where
+  // you stand to look at something is direct editor state rather than part of
+  // the animation. That was right while the timeline could only interpolate a
+  // pose component by component, which cuts through the sphere instead of
+  // going round it. The evaluator now carries a pose around the sphere, and a
+  // camera move is one of the things people most want to animate, so the rule
+  // that remains is the one that was actually load-bearing: the pose must stay
+  // a single shared target, checked below and in `camera-orbit-pose.test.ts`.
 
   if (!hasValidOrientationDefault(control)) {
     errors.push(

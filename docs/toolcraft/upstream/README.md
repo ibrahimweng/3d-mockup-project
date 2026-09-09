@@ -1,6 +1,6 @@
 # Upstream patch for the framework changes this app carries
 
-This app modifies 39 framework files and adds 9 more under `src/toolcraft/`.
+This app modifies 45 framework files and adds 10 more under `src/toolcraft/`.
 The integrity manifest is signed, so those changes can never verify here: the
 manifest can only be reissued by whoever holds the framework's private key.
 `timeline-and-runtime.patch` exists so that reissuing it is a review rather
@@ -10,7 +10,7 @@ than an archaeology exercise.
 
 `diff -ruN` from each file's pristine content — the version whose SHA-256
 matches `src/toolcraft/.toolcraft-manifest.json` — to the version this app
-ships. 48 files, +4005 / -345.
+ships. 55 files, +4303 / -366.
 
 Every pristine version was recovered from this repository's own history by
 searching each file's commits for the blob matching its manifest hash, so the
@@ -19,7 +19,7 @@ searching each file's commits for the blob matching its manifest hash, so the
 ## It is verified against the manifest, not against a memory
 
 Applied to a tree of those pristine files, the patch reproduces this app's
-`src/toolcraft/` exactly: all 669 files hash-identical, 0 differing, nothing
+`src/toolcraft/` exactly: all 670 files hash-identical, 0 differing, nothing
 extra. The pristine tree itself is checked the same way, and all 659 files the
 manifest names hash to the value it records. The check is reproducible — see
 the worklog entry for the method.
@@ -38,7 +38,7 @@ entries worth reading before reviewing this are the timeline integrity
 exception, the continuous-keyframe entry, the transport entry, and the camera
 framing fix.
 
-Six of the 48 are not timeline work and should be judged separately.
+Six of the 55 are not timeline work and should be judged separately.
 `ui/components/primitives/slider/slider-parts.tsx` makes a slider state its own
 range so an orientation proof can read it, and the export files sit behind the
 AV1 fallback.
@@ -59,7 +59,7 @@ constant. That reverses two rules stated in `component-contracts.runtime.ts` and
 amends them in the same change rather than leaving the contract contradicting
 the code; the reasoning is in the worklog.
 
-Three of the 40 are the newest timeline work and sit in the controls panel
+Three of the 55 sit in the controls panel
 rather than the timeline panel, which is worth flagging because that is a
 surface the exception had not reached before:
 `runtime/react/controls-panel/keyframes/controls-panel-keyframes.tsx`,
@@ -71,6 +71,23 @@ whichever keyframe was last selected. Both are general: they are how a keyframe
 editor is expected to behave, and neither knows anything about this product.
 The one contract line they read against is quoted and argued with in the
 worklog rather than left unmentioned.
+
+Six more are the newest work and are the only ones that touch the camera:
+`runtime/state/timeline-orientation-interpolation.ts` is the addition, and
+`runtime/state/keyframe-evaluation.ts`, `runtime/schema/keyframe-capability.ts`,
+`runtime/state/orientation-pose.ts`,
+`runtime/react/controls-panel/values/controls-panel-value-labels.ts` and
+`runtime/state/types.ts` with `runtime/state/timeline-reducer.ts` are the rest.
+Together they let an orientation be keyframed at all. The runtime refused it —
+`keyframeable: false` was required on every orientation gizmo — and the reason
+was sound while every keyframed value was interpolated component by component,
+because doing that to a camera pose sends the camera through the product rather
+than around it. The evaluator now carries a direction around the sphere and its
+distance along a straight line, so the rule it was protecting no longer holds
+and the contract lines stating it are amended in the same change rather than
+left contradicting the code. The two command fields are separate and general: a
+keyframe write can now merge into a history group the way a value write always
+could, which is what makes a gesture that keys as it goes one thing to undo.
 
 ## What this patch does not do
 

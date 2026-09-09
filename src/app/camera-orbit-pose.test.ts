@@ -23,9 +23,15 @@ test("orbit pose is shared by gizmo, drag, preview and export", () => {
   );
   expect(gizmos).toHaveLength(1);
   expect(gizmos[0].target).toBe(orbitTarget);
-  // Not keyframeable: the camera is where you are standing, not part of the
-  // animation, and a keyed camera would fight the turntable.
-  expect(gizmos[0].keyframeable).toBe(false);
+  // Keyframeable, which it did not used to be. The old rule said the camera is
+  // where you are standing rather than part of the animation, and that a keyed
+  // camera would fight the turntable. The first half was a statement about what
+  // the timeline could interpolate -- a pose interpolated component by component
+  // cuts through the sphere rather than going round it -- and the evaluator now
+  // carries one round. The second half does not happen: a keyed orbit and a
+  // keyed spin compose, exactly as animating a layer and a camera together does
+  // anywhere else, which the interpolation tests cover directly.
+  expect(gizmos[0].keyframeable).not.toBe(false);
 
   // Every reader names the same target. This is the claim the requirement
   // actually makes, and it spans four files, so it is checked across all four

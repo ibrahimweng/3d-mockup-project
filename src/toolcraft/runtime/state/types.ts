@@ -145,6 +145,15 @@ export type ToolcraftCommand =
   | {
       controlId: string;
       controlLabel: string;
+      /**
+       * The same two fields `controls.setValue` takes, and for the same reason.
+       * A drag writes a keyframe on every animation frame it lasts, and without
+       * a group each of those is its own undo entry: turning the camera for a
+       * second would take sixty presses to take back. Merged, one gesture is
+       * one entry, and undo returns the track to what it was before the drag.
+       */
+      history?: ToolcraftHistoryMode;
+      historyGroup?: string;
       timeSeconds?: number;
       type: "timeline.upsertControlKeyframe";
       value: unknown;

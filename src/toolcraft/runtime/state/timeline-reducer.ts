@@ -533,11 +533,20 @@ export function reduceToolcraftTimelineCommand(
         ...createToolcraftTimelineSelection([keyframe.id]),
       };
 
-      return commitToolcraftStatePatch(state, {
-        after: { timeline },
-        before: { timeline: state.timeline },
-        label: "Set control keyframe",
-      });
+      return commitToolcraftStatePatch(
+        state,
+        {
+          after: { timeline },
+          before: { timeline: state.timeline },
+          label: "Set control keyframe",
+        },
+        // A gesture that keys as it goes -- turning the camera, dragging a
+        // slider on a keyed control -- sends one of these per animation frame,
+        // all of them landing on the same keyframe because the playhead has
+        // not moved. Merged, the whole gesture is one undo entry that goes
+        // back to the track as it stood before the drag began.
+        { group: command.historyGroup, mode: command.history },
+      );
     }
 
     case "timeline.moveKeyframe": {

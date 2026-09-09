@@ -1,3 +1,4 @@
+import { describeToolcraftOrientationPose } from "../../../state/orientation-pose";
 import type { ToolcraftControlSchema } from "../../../schema/types";
 import { asCanvasAspectRatioValue } from "./controls-panel-aspect-ratio-values";
 import { asCollectionItems } from "./controls-panel-collection-values";
@@ -49,6 +50,11 @@ export function formatControlValueLabel(
         control.items?.find((item) => item.value === value)?.alt ??
         asString(value)
       );
+    case "orientationGizmo":
+      // Yaw and pitch rather than two three-vectors, so a camera keyframe's
+      // tooltip says where the camera is standing. The same wording the drag
+      // itself writes, because it is the same function.
+      return describeToolcraftOrientationPose(value);
     case "palette": {
       if (isRecord(value)) {
         const family = asString(value.family);

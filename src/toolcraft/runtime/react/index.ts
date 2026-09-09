@@ -25,6 +25,7 @@ export * from "./model-rendering/lazy-three-model-render-binding";
 export * from "./model-rendering/model-canvas-layer";
 export {
   DEFAULT_TOOLCRAFT_ORIENTATION_POSE,
+  describeToolcraftOrientationPose,
   readToolcraftOrientationPose,
   type ToolcraftOrientationPose,
 } from "./orientation-gizmo/orientation-gizmo-math";

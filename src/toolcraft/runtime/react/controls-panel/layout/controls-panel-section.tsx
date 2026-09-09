@@ -207,7 +207,10 @@ export const ControlsPanelSectionHeaderAction = React.memo(
       ),
     });
     const keyframeAction = headerKeyframeEntry
-      ? keyframeActions.getSectionHeaderKeyframeAction(headerKeyframeEntry)
+      ? keyframeActions.getSectionHeaderKeyframeAction(
+          headerKeyframeEntry,
+          typeof renderedSectionTitle === "string" ? renderedSectionTitle : undefined,
+        )
       : null;
     const resetLabel = `Reset ${
       typeof renderedSectionTitle === "string"

@@ -390,7 +390,7 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
     componentType: "orientationGizmo",
     evidence: "product-output",
     expectedObservable:
-      "Dragging the device rotates it live, the middle button moves the board without touching the pose, the gizmo writes the same pose, undo and reset restore it, and an exported PNG shows the same orientation with no gizmo in it.",
+      "Dragging the device rotates it live, the middle button moves the board without touching the pose, the gizmo writes the same pose, undo and reset restore it, and an exported PNG shows the same orientation with no gizmo in it. Keyed, the pose animates: the camera travels around the product at a steady speed and holds its distance, so a quarter turn sweeps rather than cutting the corner and a half turn goes round rather than through.",
     fixture: "the default device with a screenshot applied",
     id: "camera.orbit.pose",
     interactionId: "camera-orbit",
@@ -398,8 +398,9 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
     orientationGizmoCoverage: "all-required-orientation-gizmo-behavior",
     referenceCoverage: "renderer-loop",
     target: "camera.orbit",
+    timelineCoverage: "keyframes",
     userAction:
-      "Drag the device to rotate, drag with the middle button, click a gizmo axis, undo, and export a PNG.",
+      "Drag the device to rotate, drag with the middle button, click a gizmo axis, undo, export a PNG, then key the pose at two times and scrub between them.",
   },
   {
     automated: true,
