@@ -21,6 +21,11 @@ const keyframeCapableControlTypes = new Set([
   "color",
   "curves",
   "gradient",
+  // An orientation is a pose rather than a number, and it is here because the
+  // evaluator carries one around the sphere rather than straight through it.
+  // Without that it could not be listed: component-wise interpolation of a
+  // direction is not an orbit, and a half turn through it is undefined.
+  "orientationGizmo",
   "rangeInput",
   "rangeSlider",
   "slider",

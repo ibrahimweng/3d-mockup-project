@@ -255,7 +255,10 @@ describe("Toolcraft orientation gizmo acceptance", () => {
           "must have provably mutually exclusive visibility conditions",
         ),
         expect.stringContaining("must set label: false"),
-        expect.stringContaining("must set keyframeable: false"),
+        // No longer among them: an orientation used to be required
+        // non-keyframeable, because interpolating a pose component by component
+        // cuts through the sphere rather than going round it. The evaluator now
+        // carries one round, so the pose can be animated and the rule is gone.
         expect.stringContaining("defaultValue must be a non-degenerate"),
         expect.stringContaining("contains only orientationGizmo"),
         expect.stringContaining("uses Vector for a three-dimensional orbit"),

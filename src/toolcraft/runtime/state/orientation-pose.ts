@@ -68,6 +68,29 @@ export function decodeToolcraftOrientationPose(
   return isUsablePose(pose) ? clonePose(pose) : null;
 }
 
+/**
+ * A pose in the two numbers somebody would recognise.
+ *
+ * Yaw and pitch in degrees, which are exactly what the two axes of a drag
+ * change. The stored value is two three-vectors, and "0.36, 0.14, 1" says
+ * nothing about where the camera is standing — which matters wherever a pose
+ * has to be named rather than drawn, a keyframe's tooltip being the first
+ * place. A value that is not a usable pose has no angles to report, so it is
+ * named for what it is rather than given a made-up zero.
+ */
+export function describeToolcraftOrientationPose(value: unknown): string {
+  const pose = decodeToolcraftOrientationPose(value);
+
+  if (!pose) {
+    return "Pose";
+  }
+
+  const [x, y, z] = pose.position;
+  const degrees = (radians: number) => Math.round((radians * 180) / Math.PI);
+
+  return `${degrees(Math.atan2(x, z))}°, ${degrees(Math.asin(y / Math.hypot(x, y, z)))}°`;
+}
+
 export function readToolcraftOrientationPose(
   value: unknown,
   fallback: ToolcraftOrientationPose = DEFAULT_TOOLCRAFT_ORIENTATION_POSE,

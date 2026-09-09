@@ -2,11 +2,14 @@ import * as React from "react";
 
 import { claimsViewOrbit } from "./pointer-ownership";
 import {
+  describeToolcraftOrientationPose,
   readToolcraftOrientationPose,
   useToolcraft,
   useToolcraftDispatch,
+  useToolcraftEvaluatedValue,
   type ToolcraftOrientationPose,
 } from "@/toolcraft/runtime/react";
+import type { ToolcraftCommand } from "@/toolcraft/runtime";
 
 /**
  * Turntable orbit, from anywhere on the canvas.
@@ -27,9 +30,15 @@ import {
  *
  * Horizontal movement turns around world up, vertical movement turns around
  * the screen-horizontal axis, at 0.4 degrees per CSS pixel.
+ *
+ * Once the camera is keyed the drag writes keyframes instead of the value, so
+ * turning the product is how a camera move is animated: key the pose at the
+ * start, move the playhead, drag, and the timeline has the move. See
+ * `orbitCommand` for why it is one or the other and never both.
  */
 
 const TARGET = "camera.orbit";
+const TRACK_LABEL = "Camera";
 const HISTORY_LABEL = "Rotate view";
 const DEGREES_PER_PIXEL = 0.4;
 const RADIANS_PER_PIXEL = (DEGREES_PER_PIXEL * Math.PI) / 180;
@@ -84,17 +93,86 @@ export function turn(
   };
 }
 
+export type OrbitTarget = {
+  /** Whether the timeline owns the camera, and so where a turn has to go. */
+  keyed: boolean;
+  pose: ToolcraftOrientationPose;
+};
+
+/**
+ * The pose a turn starts from, and whether the timeline owns it.
+ *
+ * Evaluated rather than raw. Once the camera is keyed, `state.values` still
+ * holds whatever it was last set to before the first keyframe went down, and
+ * nothing reads it any more — the frame on screen comes from the track. A drag
+ * that started from the raw value would jump the camera to a pose nobody is
+ * looking at on its first frame and then write that, which is the same fault
+ * the panel's number fields had before they read the evaluated value too.
+ *
+ * Returned as a ref so a drag applies to the pose the last frame committed
+ * rather than to whatever React last rendered.
+ */
+function useOrbitTarget(): React.MutableRefObject<OrbitTarget> {
+  const { state } = useToolcraft();
+  const evaluated = useToolcraftEvaluatedValue(TARGET);
+  const targetRef = React.useRef<OrbitTarget>({
+    keyed: false,
+    pose: readToolcraftOrientationPose(evaluated),
+  });
+
+  targetRef.current = {
+    keyed: state.timeline.keyframeGroups.some((group) => group.controlId === TARGET),
+    pose: readToolcraftOrientationPose(evaluated),
+  };
+
+  return targetRef;
+}
+
+/**
+ * Where a turn goes: into the value, or into a keyframe at the playhead.
+ *
+ * One or the other, never both. While the camera is keyed the raw value is not
+ * what anything reads, so writing it as well would only put a stale pose in the
+ * saved file. And two commands sharing one history group would merge into each
+ * other rather than into themselves — the merge only looks at the entry it
+ * landed behind — which would leave undo holding a value patch with a timeline
+ * patch's contents.
+ *
+ * `timeSeconds` is left off so the reducer keys the playhead, which is the
+ * frame the person dragging is looking at.
+ */
+export function orbitCommand(
+  keyed: boolean,
+  pose: ToolcraftOrientationPose,
+  historyGroup?: string,
+): ToolcraftCommand {
+  const history = historyGroup ? ("merge" as const) : undefined;
+
+  return keyed
+    ? {
+        controlId: TARGET,
+        controlLabel: TRACK_LABEL,
+        history,
+        historyGroup,
+        type: "timeline.upsertControlKeyframe",
+        value: pose,
+        valueLabel: describeToolcraftOrientationPose(pose),
+      }
+    : {
+        history,
+        historyGroup,
+        label: HISTORY_LABEL,
+        target: TARGET,
+        type: "controls.setValue",
+        value: pose,
+      };
+}
+
 export function useViewOrbit(): ViewOrbitHandlers {
   const dispatch = useToolcraftDispatch();
-  const { state } = useToolcraft();
   const gestureRef = React.useRef<Gesture | null>(null);
   const groupRef = React.useRef(0);
-  // Read through a ref so a drag applies to the pose the last frame committed
-  // rather than to whatever React last rendered.
-  const poseRef = React.useRef<ToolcraftOrientationPose>(
-    readToolcraftOrientationPose(state.values[TARGET]),
-  );
-  poseRef.current = readToolcraftOrientationPose(state.values[TARGET]);
+  const targetRef = useOrbitTarget();
 
   const onPointerDown = React.useCallback(
     (event: React.PointerEvent<HTMLCanvasElement>): boolean => {
@@ -134,15 +212,10 @@ export function useViewOrbit(): ViewOrbitHandlers {
     gesture.pendingX = 0;
     gesture.pendingY = 0;
 
-    dispatch({
-      history: "merge",
-      historyGroup: gesture.group,
-      label: HISTORY_LABEL,
-      target: TARGET,
-      type: "controls.setValue",
-      value: turn(poseRef.current, pendingX, pendingY),
-    });
-  }, [dispatch]);
+    const { keyed, pose } = targetRef.current;
+
+    dispatch(orbitCommand(keyed, turn(pose, pendingX, pendingY), gesture.group));
+  }, [dispatch, targetRef]);
 
   const onPointerMove = React.useCallback(
     (event: React.PointerEvent<HTMLCanvasElement>): boolean => {
@@ -220,11 +293,7 @@ export function useCanvasKeyboardOrbit(): (
   event: React.KeyboardEvent<HTMLCanvasElement>,
 ) => boolean {
   const dispatch = useToolcraftDispatch();
-  const { state } = useToolcraft();
-  const poseRef = React.useRef<ToolcraftOrientationPose>(
-    readToolcraftOrientationPose(state.values[TARGET]),
-  );
-  poseRef.current = readToolcraftOrientationPose(state.values[TARGET]);
+  const targetRef = useOrbitTarget();
 
   return React.useCallback(
     (event: React.KeyboardEvent<HTMLCanvasElement>): boolean => {
@@ -240,14 +309,13 @@ export function useCanvasKeyboardOrbit(): (
       event.preventDefault();
       event.stopPropagation();
 
-      dispatch({
-        label: HISTORY_LABEL,
-        target: TARGET,
-        type: "controls.setValue",
-        value: turn(poseRef.current, direction.x * step, direction.y * step),
-      });
+      const { keyed, pose } = targetRef.current;
+
+      // No history group, so each press is its own entry — a press is a
+      // discrete decision, and keyed or not, undo should take back one of them.
+      dispatch(orbitCommand(keyed, turn(pose, direction.x * step, direction.y * step)));
       return true;
     },
-    [dispatch],
+    [dispatch, targetRef],
   );
 }

@@ -18,6 +18,7 @@ import {
 export { ToolcraftOrientationQuaternion } from "./orientation-quaternion";
 export {
   DEFAULT_TOOLCRAFT_ORIENTATION_POSE,
+  describeToolcraftOrientationPose,
   readToolcraftOrientationPose,
   type ToolcraftOrientationPose,
 } from "../../state/orientation-pose";

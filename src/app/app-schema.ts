@@ -356,10 +356,11 @@ export const appSchema = defineToolcraft({
             orbit: {
               applicability: { mode: "always" },
               defaultValue: { position: [-0.36, 0.14, 1], up: [0, 1, 0] },
-              keyframeable: false,
+              description:
+                "Where the camera stands, as a direction from the product and an up vector. Drag the product or the gizmo to set it. Keyed, it animates: the pose travels around the product at a steady speed rather than cutting across, so a camera move looks like one somebody performed rather than one interpolated.",
               label: false,
               performanceReason:
-                "Orbiting moves the camera and redraws one frame; nothing is rebuilt and nothing has to re-converge.",
+                "Orbiting moves the camera and redraws one frame; nothing is rebuilt and nothing has to re-converge. Keyed, it is evaluated per frame like any other keyframed control.",
               performanceRole: "responsiveness",
               target: "camera.orbit",
               type: "orientationGizmo",
