@@ -229,24 +229,41 @@ export function copyToolcraftTimelineSelection(
  *
  * The whole copy is offset from the playhead, and a copy longer than the time
  * left is not truncated but shifted back so all of it fits — losing the tail
- * of a pasted move is worse than starting it earlier than asked, and the
- * clamped version would silently stack every overhanging keyframe on the last
- * frame.
+ * of a pasted move is worse than starting it earlier than asked, and clamping
+ * would stack every overhanging keyframe on the last frame.
+ *
+ * Shifting back can only work while the copy is shorter than the loop. A copy
+ * longer than the whole loop has no start that fits, and pulling it back to
+ * zero neither made it fit nor left the overhang anywhere but the last frame —
+ * where each one overwrote the last, so the final keyframe of the copy landed
+ * on the loop's end and silently replaced whatever was already there. That is
+ * reachable rather than exotic: shortening a loop deliberately leaves the
+ * keyframes past its end in place, so any copy taken afterwards is longer than
+ * the loop it will be pasted into.
+ *
+ * So a keyframe that has nowhere to go is not placed. `undefined` is that
+ * answer, and it is deliberately not the same as zero: dropping the tail of a
+ * copy that could never have fitted leaves the track alone, where stacking it
+ * rewrites keyframes the paste was never asked to touch.
  */
 export function getToolcraftTimelinePasteTimes(
   keyframes: readonly ToolcraftTimelineClipboardKeyframe[],
   timeSeconds: number,
   durationSeconds: number,
-): readonly number[] {
+): readonly (number | undefined)[] {
   const span = Math.max(0, ...keyframes.map((keyframe) => keyframe.offsetSeconds));
+  const room = durationSeconds - span;
+  // With room to spare the copy is pulled back until it fits, exactly as
+  // before, and nothing is ever dropped. With none, no start fits, so it
+  // begins where it was asked to and only what fits is placed.
   const start = clampToolcraftTimelineTime(
-    Math.min(timeSeconds, durationSeconds - span),
+    room >= 0 ? Math.min(timeSeconds, room) : timeSeconds,
     durationSeconds,
   );
 
-  return keyframes.map((keyframe) =>
-    roundToolcraftTimelineKeyframeTime(
-      clampToolcraftTimelineTime(start + keyframe.offsetSeconds, durationSeconds),
-    ),
-  );
+  return keyframes.map((keyframe) => {
+    const time = roundToolcraftTimelineKeyframeTime(start + keyframe.offsetSeconds);
+
+    return time > durationSeconds ? undefined : time;
+  });
 }
