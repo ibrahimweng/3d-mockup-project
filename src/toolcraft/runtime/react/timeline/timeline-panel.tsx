@@ -175,6 +175,12 @@ export function TimelinePanel({
   const [zoom, setZoom] = useState(toolcraftTimelineMinZoom);
   const [viewStartSeconds, setViewStartSeconds] = useState(0);
   const [collapsedObjectIds, setCollapsedObjectIds] = useState<readonly string[]>([]);
+  /**
+   * Which way the tracks are drawn. Runtime view state, like the expand
+   * toggle beside it: it changes nothing about the animation, so it stays out
+   * of the workspace, out of history and out of an exported file.
+   */
+  const [isGraphMode, setIsGraphMode] = useState(false);
   const displayedIsPlaying = playbackReady && isPlaying;
   const isCompact = variant === 'compact';
   const isExpanded = !isCompact && keyframesEnabled && (expanded || defaultExpandedPending);
@@ -689,6 +695,26 @@ export function TimelinePanel({
       type: 'timeline.changeKeyframeEasing',
     });
   };
+  /**
+   * Dragging a point in the graph writes the value at that keyframe's own time,
+   * which lands on the keyframe already there rather than adding one beside it.
+   */
+  const changeKeyframeValue = (keyframeId: string, value: number): void => {
+    const keyframe = findTimelineKeyframe(keyframeGroups, keyframeId);
+
+    if (!keyframe) {
+      return;
+    }
+
+    dispatch({
+      controlId: keyframe.controlId,
+      controlLabel: keyframe.controlLabel,
+      timeSeconds: keyframe.timeSeconds,
+      type: 'timeline.upsertControlKeyframe',
+      value,
+      valueLabel: String(Math.round(value * 100) / 100),
+    });
+  };
   const changeKeyframeEaseIn = (
     keyframeId: string,
     controlPoints: ToolcraftTimelineBezierControlPoints | null,
@@ -816,6 +842,8 @@ export function TimelinePanel({
             setDefaultExpandedPending(false);
             dispatch({ expanded: !isExpanded, type: 'timeline.setExpanded' });
           }}
+          isGraphMode={isGraphMode}
+          onToggleGraphMode={() => setIsGraphMode((current) => !current)}
           onToggleLoop={() => dispatch({ type: 'timeline.toggleLoop' })}
           onTogglePlayback={togglePlayback}
           onZoomChange={changeZoom}
@@ -831,7 +859,9 @@ export function TimelinePanel({
             isScrubbing={scrubber.isScrubbing}
             keyframeGroups={keyframeGroups}
             objectTracks={objectTracks}
+            isGraphMode={isGraphMode}
             onChangeKeyframeEaseIn={changeKeyframeEaseIn}
+            onChangeKeyframeValue={changeKeyframeValue}
             onChangeKeyframeEasing={changeKeyframeEasing}
             onCopySelectedKeyframes={copySelectedKeyframes}
             onDeleteControlKeyframes={deleteControlKeyframes}
