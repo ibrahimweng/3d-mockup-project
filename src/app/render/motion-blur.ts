@@ -14,12 +14,25 @@
  */
 
 /**
- * The runtime encodes video on a fixed 30 FPS schedule, so a frame stands for
- * a thirtieth of a second. Named here rather than passed in because the export
- * frame the product is handed carries a size and not a rate — and if the
- * runtime's schedule ever changed, this is the line that would have to.
+ * What a frame is worth, in seconds, at the rate being encoded.
+ *
+ * This used to be the constant `1 / 30`, with a note saying that if the
+ * runtime's schedule ever changed this was the line that would have to. The
+ * schedule now takes a rate, so it did — and the note was the whole hazard:
+ * two numbers that had to agree, in different files, with nothing to make them.
+ * A shutter is a fraction of a frame, so at sixty frames a second a 180 degree
+ * shutter is a hundred-and-twentieth of a second rather than a sixtieth. Left
+ * at thirty it would have smeared every sixty-frame export across twice the
+ * time it stands for, which reads as a soft render rather than as a bug.
  */
-export const motionBlurFrameSeconds = 1 / 30;
+export function getMotionBlurFrameSeconds(framesPerSecond: number): number {
+  return Number.isFinite(framesPerSecond) && framesPerSecond > 0
+    ? 1 / framesPerSecond
+    : 1 / defaultMotionBlurFramesPerSecond;
+}
+
+/** The rate the runtime encoded at before the rate was a choice. */
+export const defaultMotionBlurFramesPerSecond = 30;
 
 /**
  * How many times a blurred frame is drawn.
@@ -41,12 +54,18 @@ export const defaultMotionBlurShutterAngleDegrees = 180;
  * every tool that offers it: 360 degrees is a shutter open for the whole frame,
  * 180 for half of it, and the film convention is 180.
  */
-export function getMotionBlurShutterSeconds(shutterAngleDegrees: number): number {
+export function getMotionBlurShutterSeconds(
+  shutterAngleDegrees: number,
+  framesPerSecond: number = defaultMotionBlurFramesPerSecond,
+): number {
   if (!Number.isFinite(shutterAngleDegrees) || shutterAngleDegrees <= 0) {
     return 0;
   }
 
-  return (Math.min(shutterAngleDegrees, 360) / 360) * motionBlurFrameSeconds;
+  return (
+    (Math.min(shutterAngleDegrees, 360) / 360) *
+    getMotionBlurFrameSeconds(framesPerSecond)
+  );
 }
 
 /**
@@ -64,16 +83,18 @@ export function getMotionBlurShutterSeconds(shutterAngleDegrees: number): number
  */
 export function getMotionBlurSampleTimes({
   durationSeconds,
+  framesPerSecond = defaultMotionBlurFramesPerSecond,
   sampleCount = motionBlurSampleCount,
   shutterAngleDegrees,
   timeSeconds,
 }: {
   durationSeconds: number;
+  framesPerSecond?: number;
   sampleCount?: number;
   shutterAngleDegrees: number;
   timeSeconds: number;
 }): readonly number[] {
-  const shutterSeconds = getMotionBlurShutterSeconds(shutterAngleDegrees);
+  const shutterSeconds = getMotionBlurShutterSeconds(shutterAngleDegrees, framesPerSecond);
 
   if (shutterSeconds <= 0 || sampleCount < 2 || !(durationSeconds > 0)) {
     return [timeSeconds];
@@ -145,8 +166,11 @@ export function getMotionBlurSampleAlpha(sampleIndex: number): number {
  */
 export function readMotionBlurSettings(values: Record<string, unknown>): {
   enabled: boolean;
+  framesPerSecond: number;
   shutterAngleDegrees: number;
 } {
+  const storedRate = values["export.video.frameRate"];
+  const rate = typeof storedRate === "string" ? Number(storedRate) : storedRate;
   const stored = values["export.video.shutterAngle"];
   // The control is a select, so this arrives as the option's string. Numbers
   // are taken too, because a workspace written before it was one would carry
@@ -155,6 +179,10 @@ export function readMotionBlurSettings(values: Record<string, unknown>): {
 
   return {
     enabled: values["export.video.motionBlur"] === true,
+    // Read from the same control the runtime resolves the rate from, so the
+    // shutter cannot disagree with the schedule about how long a frame is.
+    framesPerSecond:
+      rate === 30 || rate === 60 ? rate : defaultMotionBlurFramesPerSecond,
     shutterAngleDegrees:
       typeof angle === "number" && Number.isFinite(angle) && angle >= 0
         ? Math.min(angle, 360)

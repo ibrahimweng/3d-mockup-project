@@ -1,13 +1,14 @@
 import { expect, test } from "vitest";
 
 import {
+  defaultMotionBlurFramesPerSecond,
   defaultMotionBlurShutterAngleDegrees,
   getMotionBlurSampleAlpha,
   readMotionBlurSettings,
   getMotionBlurSampleTimes,
   getMotionBlurShutterSeconds,
   hasMotionAcrossShutter,
-  motionBlurFrameSeconds,
+  getMotionBlurFrameSeconds,
   motionBlurSampleCount,
   wrapMotionBlurTime,
 } from "./render/motion-blur";
@@ -23,13 +24,14 @@ import {
 
 test("a shutter angle is a fraction of the frame it opens for", () => {
   // The film convention, and the reason the control is in degrees at all:
-  // 360 is a shutter open for the whole frame, 180 for half of it.
-  expect(getMotionBlurShutterSeconds(360)).toBeCloseTo(motionBlurFrameSeconds, 12);
+  // 360 is a shutter open for the whole frame, 180 for half of it. Measured at
+  // thirty frames a second; the same fractions at sixty are the test below.
+  expect(getMotionBlurShutterSeconds(360)).toBeCloseTo(getMotionBlurFrameSeconds(30), 12);
   expect(getMotionBlurShutterSeconds(defaultMotionBlurShutterAngleDegrees)).toBeCloseTo(
-    motionBlurFrameSeconds / 2,
+    getMotionBlurFrameSeconds(30) / 2,
     12,
   );
-  expect(getMotionBlurShutterSeconds(90)).toBeCloseTo(motionBlurFrameSeconds / 4, 12);
+  expect(getMotionBlurShutterSeconds(90)).toBeCloseTo(getMotionBlurFrameSeconds(30) / 4, 12);
 
   // Closed, or nonsense, means no shutter to spread anything across.
   for (const angle of [0, -10, Number.NaN, Number.POSITIVE_INFINITY]) {
@@ -38,7 +40,7 @@ test("a shutter angle is a fraction of the frame it opens for", () => {
 
   // Past a full frame is still a full frame; a shutter cannot be open longer
   // than the frame it belongs to.
-  expect(getMotionBlurShutterSeconds(720)).toBeCloseTo(motionBlurFrameSeconds, 12);
+  expect(getMotionBlurShutterSeconds(720)).toBeCloseTo(getMotionBlurFrameSeconds(30), 12);
 });
 
 test("samples are centred on the frame's own time", () => {
@@ -128,6 +130,7 @@ test("the export controls are validated, not trusted", () => {
   // number that no slider could have produced has to be refused here.
   expect(readMotionBlurSettings({})).toEqual({
     enabled: false,
+    framesPerSecond: defaultMotionBlurFramesPerSecond,
     shutterAngleDegrees: defaultMotionBlurShutterAngleDegrees,
   });
   expect(
@@ -135,7 +138,11 @@ test("the export controls are validated, not trusted", () => {
       "export.video.motionBlur": true,
       "export.video.shutterAngle": "90",
     }),
-  ).toEqual({ enabled: true, shutterAngleDegrees: 90 });
+  ).toEqual({
+    enabled: true,
+    framesPerSecond: defaultMotionBlurFramesPerSecond,
+    shutterAngleDegrees: 90,
+  });
 
   // A number is taken too: a workspace written before the control was a select
   // carries one, and there is nothing to gain by refusing a value already right.
@@ -211,4 +218,57 @@ test("the sample opacities average the shutter rather than trailing it", () => {
   // The first sample is opaque, so it covers rather than blending with an
   // uninitialised destination.
   expect(getMotionBlurSampleAlpha(0)).toBe(1);
+});
+
+test("the shutter follows the frame rate, because a shutter is part of a frame", () => {
+  // The coupling this whole change exists to make honest. A frame at sixty is
+  // half as long as a frame at thirty, so the same shutter angle is half the
+  // time — which is a real part of why sixty looks crisper and not only
+  // smoother. Left uncoupled, every sixty-frame export would have been smeared
+  // across twice the time it stands for and read as a soft render.
+  expect(getMotionBlurFrameSeconds(60)).toBeCloseTo(1 / 60, 12);
+  expect(getMotionBlurShutterSeconds(180, 60)).toBeCloseTo(1 / 120, 12);
+  expect(getMotionBlurShutterSeconds(360, 60)).toBeCloseTo(1 / 60, 12);
+  expect(getMotionBlurShutterSeconds(180, 60)).toBeCloseTo(
+    getMotionBlurShutterSeconds(180, 30) / 2,
+    12,
+  );
+
+  // And the samples land inside that shorter shutter rather than the old one.
+  const times = getMotionBlurSampleTimes({
+    durationSeconds: 6,
+    framesPerSecond: 60,
+    shutterAngleDegrees: 360,
+    timeSeconds: 3,
+  });
+  for (const time of times) {
+    expect(Math.abs(time - 3)).toBeLessThanOrEqual(1 / 120 + 1e-12);
+  }
+
+  // A rate that could not have come from the control falls back rather than
+  // dividing by it.
+  for (const bad of [0, -30, Number.NaN, Number.POSITIVE_INFINITY]) {
+    expect(getMotionBlurFrameSeconds(bad), String(bad)).toBeCloseTo(
+      1 / defaultMotionBlurFramesPerSecond,
+      12,
+    );
+  }
+});
+
+test("the frame rate is read from the same control the runtime resolves it from", () => {
+  // Two numbers that have to agree, so they come from one place. The select
+  // hands back a string; a workspace written before the control existed has
+  // nothing and falls back to what the runtime always encoded at.
+  expect(
+    readMotionBlurSettings({ "export.video.frameRate": "60" }).framesPerSecond,
+  ).toBe(60);
+  expect(readMotionBlurSettings({ "export.video.frameRate": 60 }).framesPerSecond).toBe(60);
+  expect(readMotionBlurSettings({ "export.video.frameRate": "30" }).framesPerSecond).toBe(30);
+
+  for (const bad of [null, "fast", 24, 120, {}]) {
+    expect(
+      readMotionBlurSettings({ "export.video.frameRate": bad }).framesPerSecond,
+      JSON.stringify(bad) ?? "undefined",
+    ).toBe(defaultMotionBlurFramesPerSecond);
+  }
 });

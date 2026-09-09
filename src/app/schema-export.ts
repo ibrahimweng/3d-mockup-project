@@ -69,6 +69,22 @@ export const VIDEO_EXPORT_SECTION = {
               target: "export.video.format",
               type: "select",
             },
+            frameRate: {
+              applicability: { mode: "always" },
+              defaultValue: "60",
+              description:
+                "How many frames each second of video is cut into. Sixty is the default because thirty is where a slow move stops travelling and starts stepping — a camera arc or a gentle float at thirty judders in a way most people read as cheap without being able to say why, and the same move at sixty reads as one continuous thing. Thirty is half the frames to render and roughly half the file, and is the right choice for a fast turn where nobody is looking at any one frame long enough to see the step.",
+              label: "Frame rate",
+              options: [
+                { label: "30 fps", value: "30" },
+                { label: "60 fps", value: "60" },
+              ],
+              performanceReason:
+                "The frame rate only decides how many frames an export renders and what rate they are declared at; the preview draws one frame per change either way.",
+              performanceRole: "responsiveness",
+              target: "export.video.frameRate",
+              type: "select",
+            },
             motionBlur: {
               applicability: { mode: "always" },
               defaultValue: false,
@@ -88,7 +104,7 @@ export const VIDEO_EXPORT_SECTION = {
               },
               defaultValue: "180",
               description:
-                "How much of each frame the shutter is open for. 360 degrees is open for the whole frame and blurs the most; 180 is the film convention and what most footage you have seen was shot at; smaller angles are crisper and more strobed. A short list rather than a dial because these are the angles a camera actually offers, and because a shutter is a property of the export rather than of the scene -- a slider here would carry a keyframe diamond for something no frame of the animation can sensibly differ on.",
+                "How much of each frame the shutter is open for. 360 degrees is open for the whole frame and blurs the most; 180 is the film convention and what most footage you have seen was shot at; smaller angles are crisper and more strobed. It follows the frame rate, because a shutter is a fraction of a frame: the same angle at 60 fps is half the smear it is at 30, which is part of why the higher rate reads as crisper as well as smoother. A short list rather than a dial because these are the angles a camera actually offers, and because a shutter is a property of the export rather than of the scene -- a slider here would carry a keyframe diamond for something no frame of the animation can sensibly differ on.",
               label: "Shutter angle",
               options: [
                 { label: "90°", value: "90" },
@@ -108,10 +124,10 @@ export const VIDEO_EXPORT_SECTION = {
               /**
                * Smaller than the image ceiling, deliberately.
                *
-               * A still is one frame and can afford eight thousand pixels. A
-               * six-second loop is a hundred and eighty of them, so the same
-               * ceiling would be a hundred and eighty times the work; 4K is as
-               * far as that scales while an export still finishes.
+               * A still is one frame and can afford eight thousand pixels.
+               * A six-second loop at sixty is three hundred and sixty of them,
+               * so the same ceiling would be three hundred and sixty times the
+               * work; 4K is as far as that scales while an export finishes.
                */
               label: "Resolution",
               options: [
