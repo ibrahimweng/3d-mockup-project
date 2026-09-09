@@ -249,6 +249,61 @@ test("browser: a loop too short for its animation says so", async ({ page }) => 
   ).toEqual(fitted);
 });
 
+test("browser: turning a track off takes its row away with it", async ({ page }) => {
+  // Found by driving the built app. With several tracks keyed by presets,
+  // disabling one left its row on the timeline — full height, fully opaque,
+  // every diamond still drawn — while the animation no longer had that track
+  // at all. The state was right and a reload proved it; only the panel lied,
+  // and it lied in the worst direction, showing motion that is not there.
+  await page.setViewportSize({ height: 2000, width: 2600 });
+  await page.goto("/");
+  await page
+    .locator("[data-toolcraft-product-output]")
+    .first()
+    .waitFor({ state: "visible", timeout: 120_000 });
+  await page.waitForTimeout(3_000);
+  await openTimeline(page);
+
+  // Several tracks, laid down the way the fault needs them: by preset, over
+  // each other. Hand-keying one control at a time never reproduced it.
+  await applyMotion(page, "Hero");
+  await applyMotion(page, "Camera arc");
+  await applyMotion(page, "Light sweep");
+  await applyMotion(page, "Float");
+
+  const before = await timelineRows(page);
+  expect(Object.keys(before).length, "four presets fill several rows").toBeGreaterThan(3);
+  expect(before).toHaveProperty("Spin");
+
+  await page.getByRole("button", { name: "Disable Spin keyframes" }).first().click();
+  await page.waitForTimeout(3_000);
+
+  const after = await timelineRows(page);
+  expect(after, "the row goes when the track does").not.toHaveProperty("Spin");
+  for (const row of Object.keys(before).filter((name) => name !== "Spin")) {
+    expect(after, `${row} must survive`).toHaveProperty(row);
+  }
+
+  // Measured as what a person can see rather than as what is in the document:
+  // a row held open by an exit animation that never finishes is fully opaque,
+  // which is exactly why this was worth catching.
+  const visibleSpin = await page.evaluate(() => {
+    let count = 0;
+    for (const node of document.querySelectorAll('[data-slot="timeline-keyframe"]')) {
+      if (!(node.getAttribute("aria-label") ?? "").startsWith("Spin keyframe")) continue;
+      let opacity = 1;
+      let element: Element | null = node;
+      while (element && element !== document.body) {
+        opacity *= Number(getComputedStyle(element).opacity || 1);
+        element = element.parentElement;
+      }
+      if (opacity > 0.05) count += 1;
+    }
+    return count;
+  });
+  expect(visibleSpin, "no ghost diamonds left on screen").toBe(0);
+});
+
 test("browser: each product is given the move that suits it", async ({ page }) => {
   // The claim the tuning table makes, and the one that cannot be checked
   // anywhere but here: Hero is a different animation for different products,

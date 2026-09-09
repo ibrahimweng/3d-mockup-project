@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import type { CSSProperties } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { motion } from 'motion/react';
 
 import type {
   ToolcraftTimelineBezierControlPoints,
@@ -526,7 +526,23 @@ export function TimelineExpandedContent({
               view={view}
             />
           ) : (
-          <AnimatePresence initial={false}>
+          <>
+          {/*
+            * Not wrapped in AnimatePresence, on purpose.
+            *
+            * Its job is to hold a removed child on screen until that child's
+            * exit animation finishes, and here it held some of them forever.
+            * Disable a track while several are keyed and its row stayed —
+            * fully opaque, full height, all its diamonds drawn — while the
+            * animation itself no longer had that track at all. The state was
+            * right and a reload proved it; only the panel was lying, and it
+            * lied in the worst direction, showing motion that is not there.
+            *
+            * Both row components set `initial` and `animate`, so they still
+            * grow in when a track is added. What is given up is the collapse
+            * on the way out: a removed row now goes at once. That is the
+            * cheaper half of the trade by a wide margin.
+            */}
           {objectTracks.flatMap((track) => {
             const isTrackExpanded = !collapsedObjectIds.includes(track.objectId);
 
@@ -572,7 +588,7 @@ export function TimelineExpandedContent({
                 : []),
             ];
           })}
-          </AnimatePresence>
+          </>
           )}
         </div>
       </div>

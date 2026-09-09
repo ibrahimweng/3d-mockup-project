@@ -219,3 +219,51 @@ test("the timeline opens when a move is laid down", () => {
   // they have.
   expect(apply(fresh(), "hero").timeline.expanded).toBe(true);
 });
+
+test("a preset keeps every track where it already was", () => {
+  // Rebuilding the list as "everything else, then what this command wrote"
+  // reordered the panel every time one preset went on over another: rows
+  // jumped under the pointer, and the row list is animated, which turned a
+  // reorder-and-remove in one commit into rows that never left the screen.
+  const turning = apply(fresh(), "turntable");
+  const order = () => (state: ToolcraftState) =>
+    state.timeline.keyframeGroups.map((group) => group.controlId);
+
+  // Spin first, then a camera move appended after it.
+  expect(order()(turning)).toEqual(["device.spin"]);
+
+  const arced = apply(turning, "arc");
+  expect(order()(arced)).toEqual(["device.spin", "camera.orbit"]);
+
+  // Re-applying the first one must not move it to the end.
+  const again = apply(arced, "turntable");
+  expect(
+    order()(again),
+    "a track that is replaced keeps its place; only a new one is appended",
+  ).toEqual(["device.spin", "camera.orbit"]);
+
+  // And a third preset lands after both.
+  const lit = apply(again, "light-sweep");
+  expect(order()(lit)).toEqual(["device.spin", "camera.orbit", "light.keyDirection"]);
+});
+
+test("turning a track off leaves the others exactly as they were", () => {
+  // The state half of the ghost-row fault. What was wrong was only the
+  // drawing, but this is the guarantee the drawing has to match.
+  const built = apply(apply(apply(fresh(), "hero"), "arc"), "float");
+  const before = built.timeline.keyframeGroups.map((group) => group.controlId);
+
+  expect(before).toContain("device.spin");
+
+  const off = run(built, {
+    controlId: "device.spin",
+    controlLabel: "Spin",
+    type: "timeline.toggleControlKeyframes",
+    value: 0,
+    valueLabel: "0",
+  });
+
+  expect(off.timeline.keyframeGroups.map((group) => group.controlId)).toEqual(
+    before.filter((controlId) => controlId !== "device.spin"),
+  );
+});
