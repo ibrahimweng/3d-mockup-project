@@ -170,15 +170,24 @@ export function TimelineExpandedContent({
   const [dragPreview, setDragPreview] = React.useState<TimelineKeyframeDragPreview | null>(
     null,
   );
+  /**
+   * Keyed on the dragged set rather than on the drag, which is the difference
+   * between memoising and not. The preview is a fresh object on every pointer
+   * move, so depending on it rebuilt this list once per move over every
+   * keyframe in the workspace; the set inside it is made once when the press
+   * starts and is the same object for the life of the drag. Nothing else here
+   * changes while a drag is running.
+   */
+  const draggedKeyframeIds = dragPreview?.keyframeIds;
   const snapTimesSeconds = React.useMemo(
     () =>
       getToolcraftTimelineSnapTimes({
         currentTimeSeconds,
         durationSeconds,
-        excludedKeyframeIds: dragPreview?.keyframeIds ?? new Set<string>(),
+        excludedKeyframeIds: draggedKeyframeIds ?? new Set<string>(),
         keyframeGroups,
       }),
-    [currentTimeSeconds, durationSeconds, dragPreview, keyframeGroups],
+    [currentTimeSeconds, draggedKeyframeIds, durationSeconds, keyframeGroups],
   );
   const trackPlayheadStyle = getTimelineTrackPositionStyle(currentTimeSeconds, view);
   const isPlayheadInView = isToolcraftTimelineTimeInView(currentTimeSeconds, view);
