@@ -1,11 +1,20 @@
 import type * as THREE from "three";
 
-import type { ToolcraftProductExportRenderer } from "@/toolcraft/runtime";
+import {
+  evaluateToolcraftTimelineValues,
+  type ToolcraftProductExportRenderer,
+} from "@/toolcraft/runtime";
 import { readToolcraftOrientationPose } from "@/toolcraft/runtime/react";
 import { getExportArtworkFrame } from "./artwork-store";
 import { readZoneAssets } from "./artwork-slots";
 import { readDeviceDefinition, type ArtworkZoneId } from "./product-domain";
 import { cutExport, planExportGrid } from "./render/export-grid";
+import {
+  getMotionBlurSampleAlpha,
+  getMotionBlurSampleTimes,
+  hasMotionAcrossShutter,
+  readMotionBlurSettings,
+} from "./render/motion-blur";
 import { RasterRenderer } from "./render/raster-renderer";
 import { createScreenPainter } from "./render/screen-texture";
 import {
@@ -110,9 +119,35 @@ function acquireExportRenderer(
 export const mockupExportRenderer: ToolcraftProductExportRenderer = {
   baseFileName: "mockup",
   renderFrame: async ({ context, state, timeSeconds }) => {
-    const values = state.values as Record<string, unknown>;
-    const settings = readRasterSettings(values, state.canvas.mode);
-    const pose = readToolcraftOrientationPose(values["camera.orbit"]);
+    /**
+     * How many instants this one frame is made of.
+     *
+     * One, unless motion blur is on and something actually moves across the
+     * shutter. The second half of that matters as much as the first: a still
+     * export, a held track and a pair of keyframes carrying the same value all
+     * produce identical samples, and averaging eight copies of one picture back
+     * into itself is eight renders for the pixels one would have given.
+     */
+    const blur = readMotionBlurSettings(state.values as Record<string, unknown>);
+    const shutterTimes = blur.enabled
+      ? getMotionBlurSampleTimes({
+          durationSeconds: state.timeline.durationSeconds,
+          shutterAngleDegrees: blur.shutterAngleDegrees,
+          timeSeconds,
+        })
+      : [timeSeconds];
+    const shutterValues = shutterTimes.map(
+      (sampleSeconds) =>
+        evaluateToolcraftTimelineValues(state, sampleSeconds) as Record<string, unknown>,
+    );
+    const isMoving = hasMotionAcrossShutter(
+      shutterValues,
+      state.timeline.keyframeGroups.map((group) => group.controlId),
+    );
+    const sampleTimes = isMoving ? shutterTimes : [timeSeconds];
+    const sampleValues = isMoving
+      ? shutterValues
+      : [state.values as Record<string, unknown>];
 
     /**
      * The picture to draw, taken off the artifact rather than worked out again.
@@ -131,7 +166,19 @@ export const mockupExportRenderer: ToolcraftProductExportRenderer = {
     };
     const held = acquireExportRenderer(picture);
     const { canvas, renderer } = held;
-    {
+    /**
+     * The grid is the same for every sample, and finding it resizes the
+     * renderer's buffers to probe what the context will really allocate.
+     * Doing that once per sample would reallocate them eight times a frame for
+     * an answer that cannot have changed.
+     */
+    let grid: ReturnType<typeof planExportGrid> | null = null;
+
+    for (let sampleIndex = 0; sampleIndex < sampleTimes.length; sampleIndex += 1) {
+      const sampleSeconds = sampleTimes[sampleIndex] ?? timeSeconds;
+      const values = sampleValues[sampleIndex] ?? (state.values as Record<string, unknown>);
+      const settings = readRasterSettings(values, state.canvas.mode);
+      const pose = readToolcraftOrientationPose(values["camera.orbit"]);
       /**
        * Wait for a scene, but only when there is one being built.
        *
@@ -161,7 +208,7 @@ export const mockupExportRenderer: ToolcraftProductExportRenderer = {
       const decoded = await Promise.all(
         [...readZoneAssets(state.mediaAssets)].map(
           async ([zone, asset]) =>
-            [zone, await getExportArtworkFrame(asset.id, timeSeconds), asset] as const,
+            [zone, await getExportArtworkFrame(asset.id, sampleSeconds), asset] as const,
         ),
       );
       const textures = new Map<ArtworkZoneId, THREE.Texture | null>();
@@ -202,7 +249,7 @@ export const mockupExportRenderer: ToolcraftProductExportRenderer = {
        * allocate, and every piece is drawn at its own full resolution. 8K is
        * 8K again, and it is 8K on a machine that cannot hold an 8K frame.
        */
-      const grid = planExportGrid(picture, (want) => {
+      grid ??= planExportGrid(picture, (want) => {
         renderer.setSize(want.width, want.height, 1);
         return renderer.drawingBuffer;
       });
@@ -213,6 +260,7 @@ export const mockupExportRenderer: ToolcraftProductExportRenderer = {
       // resampled edge is a seam down the middle of the export.
       context.save();
       context.setTransform(1, 0, 0, 1, 0, 0);
+      context.globalAlpha = getMotionBlurSampleAlpha(sampleIndex);
       for (const tile of cutExport(picture, grid)) {
         renderer.renderTile(tile);
         context.drawImage(canvas, tile.x, tile.y, tile.width, tile.height);

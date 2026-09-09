@@ -230,6 +230,24 @@ function getEvaluatedTimelineGroupValue(
   return fallbackValue;
 }
 
+/**
+ * One keyframe group's value at a time, without a whole state to ask through.
+ *
+ * The value graph draws a track by sampling it many times a frame, and it has
+ * to draw what the animation actually does. Reimplementing the curve resolution
+ * against the same keyframes would be a second implementation to keep in step,
+ * and the first time the two drifted the graph would be lying about the very
+ * thing it exists to show. This is the same function the panel, the canvas and
+ * the video export reach through.
+ */
+export function evaluateToolcraftTimelineGroupValue(
+  group: ToolcraftTimelineKeyframeGroup,
+  timeSeconds: number,
+  fallbackValue?: unknown,
+): unknown {
+  return getEvaluatedTimelineGroupValue(group, timeSeconds, fallbackValue);
+}
+
 export function evaluateToolcraftTimelineValue(
   state: ToolcraftState,
   target: string,

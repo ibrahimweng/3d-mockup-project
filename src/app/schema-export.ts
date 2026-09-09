@@ -69,6 +69,39 @@ export const VIDEO_EXPORT_SECTION = {
               target: "export.video.format",
               type: "select",
             },
+            motionBlur: {
+              applicability: { mode: "always" },
+              defaultValue: false,
+              description:
+                "Whether each exported frame covers the slice of time it stands for, the way a camera's shutter does. Off, every frame is a single sharp instant, and quick motion reads as a stack of stills played fast rather than as something filmed. On, a frame that moves is smeared across its own shutter. It costs: a blurred frame is drawn eight times instead of once, so a clip takes roughly eight times as long to write. Frames where nothing moves cost nothing extra.",
+              label: "Motion blur",
+              performanceReason:
+                "Motion blur only decides how many times each frame is drawn when an export runs; the preview still draws one frame per change.",
+              performanceRole: "responsiveness",
+              target: "export.video.motionBlur",
+              type: "switch",
+            },
+            shutterAngle: {
+              applicability: {
+                all: [{ equals: true, target: "export.video.motionBlur" }],
+                mode: "conditional",
+              },
+              defaultValue: "180",
+              description:
+                "How much of each frame the shutter is open for. 360 degrees is open for the whole frame and blurs the most; 180 is the film convention and what most footage you have seen was shot at; smaller angles are crisper and more strobed. A short list rather than a dial because these are the angles a camera actually offers, and because a shutter is a property of the export rather than of the scene -- a slider here would carry a keyframe diamond for something no frame of the animation can sensibly differ on.",
+              label: "Shutter angle",
+              options: [
+                { label: "90°", value: "90" },
+                { label: "180°", value: "180" },
+                { label: "270°", value: "270" },
+                { label: "360°", value: "360" },
+              ],
+              performanceReason:
+                "The shutter angle only widens the span each frame is sampled across when an export runs; the number of samples does not change and the preview is untouched.",
+              performanceRole: "responsiveness",
+              target: "export.video.shutterAngle",
+              type: "select",
+            },
             resolution: {
               applicability: { mode: "always" },
               defaultValue: "current",

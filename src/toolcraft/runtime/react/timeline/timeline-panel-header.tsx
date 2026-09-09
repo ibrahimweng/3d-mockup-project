@@ -13,6 +13,7 @@ import {
   Repeat,
   Repeat1,
   Search,
+  Spline,
 } from 'lucide-react';
 
 import type { ToolcraftTimelineAnimationSchema } from '../../schema/types';
@@ -34,6 +35,7 @@ type TimelinePanelHeaderProps = {
   currentTimeSeconds: number;
   durationSeconds: number;
   isExpanded: boolean;
+  isGraphMode: boolean;
   isLooping: boolean;
   isPlaying: boolean;
   isScrubbing: boolean;
@@ -53,6 +55,7 @@ type TimelinePanelHeaderProps = {
   onSetPlaybackRate: (playbackRate: number) => void;
   onStepToKeyframe: (direction: -1 | 1) => void;
   onToggleExpanded: () => void;
+  onToggleGraphMode: () => void;
   onToggleLoop: () => void;
   onTogglePlayback: () => void;
   onZoomChange: (zoom: number) => void;
@@ -406,6 +409,7 @@ export function TimelinePanelHeader({
   onAddAnimation,
   onCurrentTimeCommit,
   isExpanded,
+  isGraphMode,
   isLooping,
   isPlaying,
   isScrubbing,
@@ -421,6 +425,7 @@ export function TimelinePanelHeader({
   onSetPlaybackRate,
   onStepToKeyframe,
   onToggleExpanded,
+  onToggleGraphMode,
   onToggleLoop,
   onTogglePlayback,
   onZoomChange,
@@ -570,6 +575,17 @@ export function TimelinePanelHeader({
           valueSeconds={durationSeconds}
         />
       </div>
+      {isExpanded ? (
+        <span className="relative z-10 flex shrink-0" data-slot="timeline-graph-mode-toggle">
+          <TimelineIconButton
+            label={isGraphMode ? 'Show keyframe rows' : 'Show value graph'}
+            onClick={onToggleGraphMode}
+            tooltipSide="top"
+          >
+            <Spline data-icon={isGraphMode ? 'graph-on' : 'graph-off'} />
+          </TimelineIconButton>
+        </span>
+      ) : null}
       {isExpanded ? <TimelineZoomControl onZoomChange={onZoomChange} view={view} /> : null}
       {canExpand ? (
         <span className="relative z-10 flex shrink-0" data-slot="timeline-panel-expand-toggle">

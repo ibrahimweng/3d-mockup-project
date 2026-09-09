@@ -1,6 +1,6 @@
 diff -ruN pristine/runtime/contracts/component-contracts.runtime.ts current/runtime/contracts/component-contracts.runtime.ts
 --- pristine/runtime/contracts/component-contracts.runtime.ts	2026-09-09 01:44:44.244028811 +0000
-+++ current/runtime/contracts/component-contracts.runtime.ts	2026-09-09 03:47:27.141977114 +0000
++++ current/runtime/contracts/component-contracts.runtime.ts	2026-09-09 04:05:07.603649359 +0000
 @@ -246,10 +246,10 @@
        "Every Control Section Inventory entry declares required entityId, entity, exact targets, and groupingReason. One entity with ten or fewer controls stays in one section regardless of control type, visual height, or target namespace.",
        "An entity above ten controls splits into balanced workflow sections of two to ten controls. Every split section keeps the same entityId and entity and declares a unique workflowStage plus splitReason.",
@@ -16,7 +16,7 @@ diff -ruN pristine/runtime/contracts/component-contracts.runtime.ts current/runt
        "Broad section titles such as Flow, Icon, Shapes, Scene, Text, Typography, or Motion are only valid for small cohesive groups; use specific titles such as Flow Motion, Flow Geometry, Letter Burst, Shape Colors, Logo Glow, Logo Plate, or Text Block for larger groups.",
 diff -ruN pristine/runtime/export/video-encoding-backend.ts current/runtime/export/video-encoding-backend.ts
 --- pristine/runtime/export/video-encoding-backend.ts	2026-09-09 01:44:44.245672000 +0000
-+++ current/runtime/export/video-encoding-backend.ts	2026-09-09 03:47:27.143935259 +0000
++++ current/runtime/export/video-encoding-backend.ts	2026-09-09 04:05:07.604826227 +0000
 @@ -34,7 +34,7 @@
    request: ToolcraftVideoEncoderBackendFactoryRequest,
  ): Promise<ToolcraftVideoEncoderBackend> {
@@ -36,7 +36,7 @@ diff -ruN pristine/runtime/export/video-encoding-backend.ts current/runtime/expo
        vp9: supportResults[1] === true,
 diff -ruN pristine/runtime/export/video-encoding-policy.ts current/runtime/export/video-encoding-policy.ts
 --- pristine/runtime/export/video-encoding-policy.ts	2026-09-09 01:44:44.245706366 +0000
-+++ current/runtime/export/video-encoding-policy.ts	2026-09-09 03:47:27.143950383 +0000
++++ current/runtime/export/video-encoding-policy.ts	2026-09-09 04:05:07.604838537 +0000
 @@ -3,9 +3,10 @@
  
  export const TOOLCRAFT_MAX_VIDEO_ARTIFACT_BYTES = 96 * 1024 * 1024;
@@ -92,7 +92,7 @@ diff -ruN pristine/runtime/export/video-encoding-policy.ts current/runtime/expor
    if (!candidate) {
 diff -ruN pristine/runtime/index.ts current/runtime/index.ts
 --- pristine/runtime/index.ts	2026-09-09 01:44:44.245741506 +0000
-+++ current/runtime/index.ts	2026-09-09 03:47:27.143985569 +0000
++++ current/runtime/index.ts	2026-09-09 04:05:07.604861961 +0000
 @@ -25,6 +25,8 @@
  export * from "./state/persistence";
  export * from "./state/reducer";
@@ -104,7 +104,7 @@ diff -ruN pristine/runtime/index.ts current/runtime/index.ts
  export * from "./testing/performance";
 diff -ruN pristine/runtime/react/app-shell/toolbar-panel.tsx current/runtime/react/app-shell/toolbar-panel.tsx
 --- pristine/runtime/react/app-shell/toolbar-panel.tsx	2026-09-09 01:44:44.256395136 +0000
-+++ current/runtime/react/app-shell/toolbar-panel.tsx	2026-09-09 03:47:27.149774265 +0000
++++ current/runtime/react/app-shell/toolbar-panel.tsx	2026-09-09 04:05:07.610241018 +0000
 @@ -19,7 +19,22 @@
  import { useToolcraftCommittedSelector } from "./toolcraft-selectors";
  import { useToolcraftDispatch } from "./use-toolcraft";
@@ -159,7 +159,7 @@ diff -ruN pristine/runtime/react/app-shell/toolbar-panel.tsx current/runtime/rea
            label="Center canvas"
 diff -ruN pristine/runtime/react/app-shell/toolcraft-app.tsx current/runtime/react/app-shell/toolcraft-app.tsx
 --- pristine/runtime/react/app-shell/toolcraft-app.tsx	2026-09-09 01:44:44.256432776 +0000
-+++ current/runtime/react/app-shell/toolcraft-app.tsx	2026-09-09 03:47:27.149788817 +0000
++++ current/runtime/react/app-shell/toolcraft-app.tsx	2026-09-09 04:05:07.610253908 +0000
 @@ -26,7 +26,7 @@
  import { LayersPanel } from "../layers/layers-panel";
  import { useToolcraftModelRenderPreparationStatus } from "../model-rendering/model-render-provider";
@@ -290,7 +290,7 @@ diff -ruN pristine/runtime/react/app-shell/toolcraft-app.tsx current/runtime/rea
  }
 diff -ruN pristine/runtime/react/controls-panel/conditions/control-conditions.ts current/runtime/react/controls-panel/conditions/control-conditions.ts
 --- pristine/runtime/react/controls-panel/conditions/control-conditions.ts	2026-09-09 01:44:44.258995494 +0000
-+++ current/runtime/react/controls-panel/conditions/control-conditions.ts	2026-09-09 03:47:27.150328184 +0000
++++ current/runtime/react/controls-panel/conditions/control-conditions.ts	2026-09-09 04:05:07.610915675 +0000
 @@ -15,6 +15,7 @@
  } from "../../../schema/types";
  import type { ToolcraftState } from "../../../state/types";
@@ -334,7 +334,7 @@ diff -ruN pristine/runtime/react/controls-panel/conditions/control-conditions.ts
  ): string[] {
 diff -ruN pristine/runtime/react/controls-panel/keyframes/controls-panel-keyframes.tsx current/runtime/react/controls-panel/keyframes/controls-panel-keyframes.tsx
 --- pristine/runtime/react/controls-panel/keyframes/controls-panel-keyframes.tsx	2026-09-09 01:44:44.259097585 +0000
-+++ current/runtime/react/controls-panel/keyframes/controls-panel-keyframes.tsx	2026-09-09 03:47:27.150381726 +0000
++++ current/runtime/react/controls-panel/keyframes/controls-panel-keyframes.tsx	2026-09-09 04:05:07.610962303 +0000
 @@ -12,10 +12,7 @@
  
  import { getToolcraftControlKeyframeCapability } from "../../../schema/keyframe-capability";
@@ -414,7 +414,7 @@ diff -ruN pristine/runtime/react/controls-panel/keyframes/controls-panel-keyfram
        valueLabel: formatValueLabel(control, value),
 diff -ruN pristine/runtime/react/controls-panel/layout/controls-panel-control-group.tsx current/runtime/react/controls-panel/layout/controls-panel-control-group.tsx
 --- pristine/runtime/react/controls-panel/layout/controls-panel-control-group.tsx	2026-09-09 01:44:44.259097585 +0000
-+++ current/runtime/react/controls-panel/layout/controls-panel-control-group.tsx	2026-09-09 03:47:27.150495960 +0000
++++ current/runtime/react/controls-panel/layout/controls-panel-control-group.tsx	2026-09-09 04:05:07.611209028 +0000
 @@ -19,7 +19,7 @@
  import type { ToolcraftControlRendererMap } from "../control-renderers";
  import {
@@ -514,7 +514,7 @@ diff -ruN pristine/runtime/react/controls-panel/layout/controls-panel-control-gr
      if (entries.length > 1) {
 diff -ruN pristine/runtime/react/controls-panel/layout/controls-panel-section.tsx current/runtime/react/controls-panel/layout/controls-panel-section.tsx
 --- pristine/runtime/react/controls-panel/layout/controls-panel-section.tsx	2026-09-09 01:44:44.259488088 +0000
-+++ current/runtime/react/controls-panel/layout/controls-panel-section.tsx	2026-09-09 03:47:27.150408610 +0000
++++ current/runtime/react/controls-panel/layout/controls-panel-section.tsx	2026-09-09 04:05:07.611102576 +0000
 @@ -85,7 +85,6 @@
  type SectionKeyframeSelection = {
    group: ToolcraftTimelineKeyframeGroup | undefined;
@@ -611,7 +611,7 @@ diff -ruN pristine/runtime/react/controls-panel/layout/controls-panel-section.ts
        }
 diff -ruN pristine/runtime/react/panel-host/panel-host-config.ts current/runtime/react/panel-host/panel-host-config.ts
 --- pristine/runtime/react/panel-host/panel-host-config.ts	2026-09-09 01:44:44.262150167 +0000
-+++ current/runtime/react/panel-host/panel-host-config.ts	2026-09-09 03:47:27.151305752 +0000
++++ current/runtime/react/panel-host/panel-host-config.ts	2026-09-09 04:05:07.612367025 +0000
 @@ -1,7 +1,8 @@
  import type { ToolcraftPanelType, PanelDragMode, PanelSnapEdge } from "./panel-host-types";
  
@@ -647,7 +647,7 @@ diff -ruN pristine/runtime/react/panel-host/panel-host-config.ts current/runtime
  } satisfies Record<ToolcraftPanelType, PanelTypeConfig>;
 diff -ruN pristine/runtime/react/panel-host/panel-host.tsx current/runtime/react/panel-host/panel-host.tsx
 --- pristine/runtime/react/panel-host/panel-host.tsx	2026-09-09 01:44:44.262356632 +0000
-+++ current/runtime/react/panel-host/panel-host.tsx	2026-09-09 03:47:27.151342768 +0000
++++ current/runtime/react/panel-host/panel-host.tsx	2026-09-09 04:05:07.612415833 +0000
 @@ -15,6 +15,7 @@
    panelDragIgnoredTargetSelector,
    panelDragTransition,
@@ -690,7 +690,7 @@ diff -ruN pristine/runtime/react/panel-host/panel-host.tsx current/runtime/react
      return <>{children}</>;
 diff -ruN pristine/runtime/react/timeline/timeline-easing-editor.tsx current/runtime/react/timeline/timeline-easing-editor.tsx
 --- pristine/runtime/react/timeline/timeline-easing-editor.tsx	2026-09-09 01:44:44.262419116 +0000
-+++ current/runtime/react/timeline/timeline-easing-editor.tsx	2026-09-09 03:47:27.151385910 +0000
++++ current/runtime/react/timeline/timeline-easing-editor.tsx	2026-09-09 04:05:07.612461303 +0000
 @@ -43,6 +43,14 @@
    const animationFrameRef = useRef<number | null>(null);
    const [isCurveAnimating, setIsCurveAnimating] = useState(false);
@@ -735,7 +735,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-easing-editor.tsx current/run
              <line
 diff -ruN pristine/runtime/react/timeline/timeline-easing-icons.tsx current/runtime/react/timeline/timeline-easing-icons.tsx
 --- pristine/runtime/react/timeline/timeline-easing-icons.tsx	2026-09-09 01:44:44.262596218 +0000
-+++ current/runtime/react/timeline/timeline-easing-icons.tsx	2026-09-09 03:47:27.151415758 +0000
++++ current/runtime/react/timeline/timeline-easing-icons.tsx	2026-09-09 04:05:07.612519854 +0000
 @@ -20,7 +20,15 @@
    easing: ToolcraftTimelineKeyframeEasing;
    size?: number;
@@ -805,7 +805,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-easing-icons.tsx current/runt
 +}
 diff -ruN pristine/runtime/react/timeline/timeline-easing-model.ts current/runtime/react/timeline/timeline-easing-model.ts
 --- pristine/runtime/react/timeline/timeline-easing-model.ts	2026-09-09 01:44:44.262627212 +0000
-+++ current/runtime/react/timeline/timeline-easing-model.ts	2026-09-09 03:47:27.151427712 +0000
++++ current/runtime/react/timeline/timeline-easing-model.ts	2026-09-09 04:05:07.612533109 +0000
 @@ -106,9 +106,9 @@
  function cloneToolcraftTimelineKeyframeEasing(
    easing: ToolcraftTimelineKeyframeEasing,
@@ -981,7 +981,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-easing-model.ts current/runti
  }
 diff -ruN pristine/runtime/react/timeline/timeline-easing-popover-content.tsx current/runtime/react/timeline/timeline-easing-popover-content.tsx
 --- pristine/runtime/react/timeline/timeline-easing-popover-content.tsx	2026-09-09 01:44:44.262662798 +0000
-+++ current/runtime/react/timeline/timeline-easing-popover-content.tsx	2026-09-09 03:47:27.151443031 +0000
++++ current/runtime/react/timeline/timeline-easing-popover-content.tsx	2026-09-09 04:05:07.612546206 +0000
 @@ -8,12 +8,18 @@
  import {
    findTimelineEasingPresetName,
@@ -1165,7 +1165,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-easing-popover-content.tsx cu
  }
 diff -ruN pristine/runtime/react/timeline/timeline-easing-popover.tsx current/runtime/react/timeline/timeline-easing-popover.tsx
 --- pristine/runtime/react/timeline/timeline-easing-popover.tsx	2026-09-09 01:44:44.262736729 +0000
-+++ current/runtime/react/timeline/timeline-easing-popover.tsx	2026-09-09 03:47:27.151618521 +0000
++++ current/runtime/react/timeline/timeline-easing-popover.tsx	2026-09-09 04:05:07.612851063 +0000
 @@ -3,7 +3,10 @@
  import * as React from 'react';
  import { Button, Popover, PopoverContent, PopoverTrigger } from '@/toolcraft/ui';
@@ -1311,7 +1311,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-easing-popover.tsx current/ru
      </Popover>
 diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/runtime/react/timeline/timeline-expanded-content.tsx
 --- pristine/runtime/react/timeline/timeline-expanded-content.tsx	2026-09-09 01:44:44.262804561 +0000
-+++ current/runtime/react/timeline/timeline-expanded-content.tsx	2026-09-09 03:47:27.151487500 +0000
++++ current/runtime/react/timeline/timeline-expanded-content.tsx	2026-09-09 04:05:07.612580914 +0000
 @@ -5,6 +5,7 @@
  import { AnimatePresence, motion } from 'motion/react';
  
@@ -1320,7 +1320,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
    ToolcraftTimelineKeyframeEasing,
    ToolcraftTimelineKeyframeGroup,
  } from '../../state/types';
-@@ -13,13 +14,25 @@
+@@ -13,13 +14,26 @@
    roundToolcraftTimelineKeyframeTime,
    toolcraftTimelineScrubStepSeconds,
  } from '../../state/timeline-values';
@@ -1344,11 +1344,15 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
 +} from './timeline-keyframes';
  import { TimelineKeyframeRow } from './timeline-keyframe-row';
 +import { TimelineObjectTrackRow } from './timeline-object-track-row';
++import { TimelineValueGraph } from './timeline-value-graph';
  import {
    getTimelineCalcPositionStyle,
    timelineExpandedTrackEndOffsetPx,
-@@ -39,19 +52,38 @@
+@@ -37,21 +51,42 @@
+ type TimelineExpandedContentProps = {
+   currentTimeSeconds: number;
    durationSeconds: number;
++  isGraphMode: boolean;
    isScrubbing: boolean;
    keyframeGroups: readonly ToolcraftTimelineKeyframeGroup[];
 +  onChangeKeyframeEaseIn: (
@@ -1356,6 +1360,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
 +    controlPoints: ToolcraftTimelineBezierControlPoints | null,
 +  ) => void;
    onChangeKeyframeEasing: (keyframeId: string, easing: ToolcraftTimelineKeyframeEasing) => void;
++  onChangeKeyframeValue: (keyframeId: string, value: number) => void;
    onDeleteControlKeyframes: (controlId: string) => void;
 +  onCopySelectedKeyframes: () => void;
    onDeleteKeyframe: (keyframeId: string) => void;
@@ -1386,7 +1391,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
  };
  
  function cn(...classNames: Array<string | false | null | undefined>): string {
-@@ -62,8 +94,32 @@
+@@ -62,8 +97,32 @@
    return value.toFixed(2);
  }
  
@@ -1421,7 +1426,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
  }
  
  function getTimelineRulerMarkRatios(): number[] {
-@@ -72,9 +128,9 @@
+@@ -72,9 +131,9 @@
  
  function getTimelineTrackPositionStyle(
    currentTimeSeconds: number,
@@ -1433,17 +1438,19 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
  
    return getTimelineCalcPositionStyle(
      ratio,
-@@ -83,33 +139,73 @@
+@@ -83,33 +142,94 @@
  }
  
  export function TimelineExpandedContent({
 +  collapsedObjectIds,
    currentTimeSeconds,
    durationSeconds,
++  isGraphMode,
    isScrubbing,
    keyframeGroups,
 +  onChangeKeyframeEaseIn,
    onChangeKeyframeEasing,
++  onChangeKeyframeValue,
 +  onCopySelectedKeyframes,
    onDeleteControlKeyframes,
    onDeleteKeyframe,
@@ -1484,6 +1491,25 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
 +   * changes while a drag is running.
 +   */
 +  const draggedKeyframeIds = dragPreview?.keyframeIds;
++  /**
++   * The track the graph draws.
++   *
++   * Whichever holds the selected keyframe, so clicking a diamond and switching
++   * to the graph shows the thing that was just being looked at. With nothing
++   * selected it falls back to the first track, which is the only answer that
++   * does not require a choice nobody has made yet.
++   */
++  const graphGroup = React.useMemo(() => {
++    const selected = new Set(selectedKeyframeIds);
++
++    return (
++      keyframeGroups.find((group) =>
++        group.keyframes.some((keyframe) => selected.has(keyframe.id)),
++      ) ??
++      keyframeGroups[0] ??
++      null
++    );
++  }, [keyframeGroups, selectedKeyframeIds]);
 +  const snapTimesSeconds = React.useMemo(
 +    () =>
 +      getToolcraftTimelineSnapTimes({
@@ -1511,7 +1537,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
    };
    const moveSelectedKeyframeByStep = (direction: -1 | 1): void => {
      if (!selectedKeyframe) {
-@@ -136,8 +232,36 @@
+@@ -136,8 +256,36 @@
        return;
      }
  
@@ -1549,7 +1575,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
          return;
        }
  
-@@ -146,9 +270,38 @@
+@@ -146,9 +294,38 @@
        return;
      }
  
@@ -1590,7 +1616,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
        return;
      }
  
-@@ -166,6 +319,38 @@
+@@ -166,6 +343,38 @@
  
      onKeyDown(event);
    };
@@ -1629,7 +1655,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
    const handleExpandedPointerDown = (event: React.PointerEvent<HTMLDivElement>): void => {
      const targetElement = getTimelineEventTargetElement(event.target);
      const clickedKeyframe = targetElement?.closest('[data-slot="timeline-keyframe"]');
-@@ -184,7 +369,23 @@
+@@ -184,7 +393,23 @@
  
    return (
      <div className="flex min-h-0 flex-1 flex-col" data-slot="timeline-expanded">
@@ -1654,7 +1680,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
          <div className="flex min-w-0 items-center px-3 text-[11px] leading-4 text-[color:color-mix(in_oklab,var(--foreground)_75%,transparent)] select-none">
            <span className="min-w-0 truncate opacity-60">Properties</span>
          </div>
-@@ -194,13 +395,13 @@
+@@ -194,13 +419,13 @@
              data-slot="timeline-expanded-ruler-labels"
              style={{ left: timelineRulerLeftInsetPx, right: timelineRulerRightInsetPx }}
            >
@@ -1671,7 +1697,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
                </span>
              ))}
            </div>
-@@ -243,13 +444,18 @@
+@@ -243,13 +468,18 @@
          onPointerDown={handleExpandedPointerDown}
          onPointerMove={onPointerMove}
          onPointerUp={onPointerUp}
@@ -1691,7 +1717,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
            data-slot="timeline-expanded-playhead"
            style={trackPlayheadStyle}
          />
-@@ -267,7 +473,9 @@
+@@ -267,7 +497,9 @@
            className={cn(
              'absolute top-[-1px] z-30 size-[9px] -translate-x-1/2 -translate-y-1/2 cursor-ew-resize rounded-[2px] bg-[color:var(--foreground)] shadow-[0_2px_2px_color-mix(in_oklab,var(--background)_20%,transparent)] transition-transform duration-[120ms] ease-out',
              isScrubbing && 'scale-[1.25] cursor-grabbing',
@@ -1701,14 +1727,20 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
            data-slot="timeline-expanded-playhead-handle"
            style={trackPlayheadStyle}
          />
-@@ -280,22 +488,58 @@
+@@ -280,22 +512,69 @@
          >
            Add your first keyframe from the properties panel.
          </motion.div>
 -        <AnimatePresence initial={false}>
 -          {keyframeGroups.map((group) => (
 -            <TimelineKeyframeRow
--              durationSeconds={durationSeconds}
++        <div
++          className="absolute inset-0 overflow-x-hidden overflow-y-auto"
++          data-slot="timeline-expanded-rows"
++        >
++          {isGraphMode ? (
++            <TimelineValueGraph
+               durationSeconds={durationSeconds}
 -              group={group}
 -              isScrubbing={isScrubbing}
 -              key={group.controlId}
@@ -1718,13 +1750,15 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
 -              onMoveKeyframe={onMoveKeyframe}
 -              onSelectedKeyframeChange={onSelectedKeyframeChange}
 -              selectedKeyframeId={selectedKeyframeId}
--            />
++              group={graphGroup}
++              onChangeKeyframeValue={onChangeKeyframeValue}
++              onSelectKeyframe={onSelectKeyframe}
++              selectedKeyframeIds={selectedKeyframeIds}
++              view={view}
+             />
 -          ))}
 -        </AnimatePresence>
-+        <div
-+          className="absolute inset-0 overflow-x-hidden overflow-y-auto"
-+          data-slot="timeline-expanded-rows"
-+        >
++          ) : (
 +          <AnimatePresence initial={false}>
 +          {objectTracks.flatMap((track) => {
 +            const isTrackExpanded = !collapsedObjectIds.includes(track.objectId);
@@ -1772,13 +1806,14 @@ diff -ruN pristine/runtime/react/timeline/timeline-expanded-content.tsx current/
 +            ];
 +          })}
 +          </AnimatePresence>
++          )}
 +        </div>
        </div>
      </div>
    );
 diff -ruN pristine/runtime/react/timeline/timeline-keyframe-clipboard.ts current/runtime/react/timeline/timeline-keyframe-clipboard.ts
 --- pristine/runtime/react/timeline/timeline-keyframe-clipboard.ts	1970-01-01 00:00:00.000000000 +0000
-+++ current/runtime/react/timeline/timeline-keyframe-clipboard.ts	2026-09-09 03:47:27.151631778 +0000
++++ current/runtime/react/timeline/timeline-keyframe-clipboard.ts	2026-09-09 04:05:07.612864193 +0000
 @@ -0,0 +1,26 @@
 +import type { ToolcraftTimelineClipboardKeyframe } from '../../state/types';
 +
@@ -1808,7 +1843,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-keyframe-clipboard.ts current
 +}
 diff -ruN pristine/runtime/react/timeline/timeline-keyframe-row.tsx current/runtime/react/timeline/timeline-keyframe-row.tsx
 --- pristine/runtime/react/timeline/timeline-keyframe-row.tsx	2026-09-09 01:44:44.262878411 +0000
-+++ current/runtime/react/timeline/timeline-keyframe-row.tsx	2026-09-09 03:47:27.151516889 +0000
++++ current/runtime/react/timeline/timeline-keyframe-row.tsx	2026-09-09 04:05:07.612607026 +0000
 @@ -6,6 +6,7 @@
  import { AnimatePresence, motion } from 'motion/react';
  
@@ -2194,7 +2229,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-keyframe-row.tsx current/runt
              size="icon-sm"
 diff -ruN pristine/runtime/react/timeline/timeline-keyframes.ts current/runtime/react/timeline/timeline-keyframes.ts
 --- pristine/runtime/react/timeline/timeline-keyframes.ts	2026-09-09 01:44:44.262908990 +0000
-+++ current/runtime/react/timeline/timeline-keyframes.ts	2026-09-09 03:47:27.151607219 +0000
++++ current/runtime/react/timeline/timeline-keyframes.ts	2026-09-09 04:05:07.612807614 +0000
 @@ -3,6 +3,31 @@
    ToolcraftTimelineKeyframeGroup,
  } from '../../state/types';
@@ -2229,7 +2264,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-keyframes.ts current/runtime/
    keyframeId: string | null,
 diff -ruN pristine/runtime/react/timeline/timeline-object-track-row.tsx current/runtime/react/timeline/timeline-object-track-row.tsx
 --- pristine/runtime/react/timeline/timeline-object-track-row.tsx	1970-01-01 00:00:00.000000000 +0000
-+++ current/runtime/react/timeline/timeline-object-track-row.tsx	2026-09-09 03:47:27.151535014 +0000
++++ current/runtime/react/timeline/timeline-object-track-row.tsx	2026-09-09 04:05:07.612621611 +0000
 @@ -0,0 +1,149 @@
 +'use client';
 +
@@ -2382,8 +2417,8 @@ diff -ruN pristine/runtime/react/timeline/timeline-object-track-row.tsx current/
 +}
 diff -ruN pristine/runtime/react/timeline/timeline-panel-header.tsx current/runtime/react/timeline/timeline-panel-header.tsx
 --- pristine/runtime/react/timeline/timeline-panel-header.tsx	2026-09-09 01:44:44.262948300 +0000
-+++ current/runtime/react/timeline/timeline-panel-header.tsx	2026-09-09 03:47:27.151548417 +0000
-@@ -3,9 +3,30 @@
++++ current/runtime/react/timeline/timeline-panel-header.tsx	2026-09-09 04:05:07.612645701 +0000
+@@ -3,9 +3,31 @@
  import * as React from 'react';
  import { useEffect, useRef, useState, type CSSProperties } from 'react';
  import { PrimitiveArrowIcon } from '@/toolcraft/ui';
@@ -2400,6 +2435,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel-header.tsx current/runt
 +  Repeat,
 +  Repeat1,
 +  Search,
++  Spline,
 +} from 'lucide-react';
 +
 +import type { ToolcraftTimelineAnimationSchema } from '../../schema/types';
@@ -2417,7 +2453,11 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel-header.tsx current/runt
  import { TimelineIconButton } from './timeline-icon-button';
  
  type TimelinePanelHeaderProps = {
-@@ -16,18 +37,28 @@
+@@ -13,21 +35,33 @@
+   currentTimeSeconds: number;
+   durationSeconds: number;
+   isExpanded: boolean;
++  isGraphMode: boolean;
    isLooping: boolean;
    isPlaying: boolean;
    isScrubbing: boolean;
@@ -2437,6 +2477,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel-header.tsx current/runt
 +  onSetPlaybackRate: (playbackRate: number) => void;
 +  onStepToKeyframe: (direction: -1 | 1) => void;
    onToggleExpanded: () => void;
++  onToggleGraphMode: () => void;
    onToggleLoop: () => void;
    onTogglePlayback: () => void;
 +  onZoomChange: (zoom: number) => void;
@@ -2446,7 +2487,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel-header.tsx current/runt
  };
  
  type TimelinePanelMaskProps = {
-@@ -213,16 +244,90 @@
+@@ -213,16 +247,90 @@
    selection.addRange(range);
  }
  
@@ -2541,7 +2582,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel-header.tsx current/runt
  
    useEffect(() => {
      if (!isEditing) {
-@@ -248,11 +353,11 @@
+@@ -248,11 +356,11 @@
    if (isEditing) {
      return (
        <span
@@ -2556,7 +2597,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel-header.tsx current/runt
          onBlur={commitDraft}
          onFocus={(event) => selectTimelineEditableText(event.currentTarget)}
          onKeyDown={(event) => {
-@@ -277,10 +382,10 @@
+@@ -277,10 +385,10 @@
  
    return (
      <button
@@ -2570,7 +2611,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel-header.tsx current/runt
        onClick={(event) => {
          event.stopPropagation();
          setIsEditing(true);
-@@ -294,13 +399,18 @@
+@@ -294,13 +402,19 @@
  }
  
  export function TimelinePanelHeader({
@@ -2581,6 +2622,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel-header.tsx current/runt
 +  onAddAnimation,
 +  onCurrentTimeCommit,
    isExpanded,
++  isGraphMode,
    isLooping,
    isPlaying,
    isScrubbing,
@@ -2589,13 +2631,14 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel-header.tsx current/runt
    playbackReady,
    onDurationCommit,
    onScrubKeyDown,
-@@ -308,11 +418,15 @@
+@@ -308,11 +422,16 @@
    onScrubPointerDown,
    onScrubPointerMove,
    onScrubPointerUp,
 +  onSetPlaybackRate,
 +  onStepToKeyframe,
    onToggleExpanded,
++  onToggleGraphMode,
    onToggleLoop,
    onTogglePlayback,
 +  onZoomChange,
@@ -2605,7 +2648,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel-header.tsx current/runt
  }: TimelinePanelHeaderProps): React.JSX.Element {
    if (variant === 'compact') {
      return (
-@@ -351,6 +465,19 @@
+@@ -351,6 +470,19 @@
          className="relative z-10 inline-flex shrink-0 items-center gap-1"
          data-slot="timeline-transport-controls"
        >
@@ -2625,7 +2668,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel-header.tsx current/runt
          <TimelineIconButton
            disabled={!playbackReady}
            label={isPlaying ? 'Pause playback' : 'Play playback'}
-@@ -359,28 +486,91 @@
+@@ -359,28 +491,102 @@
            {isPlaying ? <Pause /> : <Play />}
          </TimelineIconButton>
          <TimelineIconButton
@@ -2725,13 +2768,24 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel-header.tsx current/runt
 -      >
 -        {formatTimelineHeaderTimeLabel({ currentTimeSeconds, durationSeconds })}
 -      </span>
++      {isExpanded ? (
++        <span className="relative z-10 flex shrink-0" data-slot="timeline-graph-mode-toggle">
++          <TimelineIconButton
++            label={isGraphMode ? 'Show keyframe rows' : 'Show value graph'}
++            onClick={onToggleGraphMode}
++            tooltipSide="top"
++          >
++            <Spline data-icon={isGraphMode ? 'graph-on' : 'graph-off'} />
++          </TimelineIconButton>
++        </span>
++      ) : null}
 +      {isExpanded ? <TimelineZoomControl onZoomChange={onZoomChange} view={view} /> : null}
        {canExpand ? (
          <span className="relative z-10 flex shrink-0" data-slot="timeline-panel-expand-toggle">
            <TimelineIconButton
 diff -ruN pristine/runtime/react/timeline/timeline-panel-responsive-layout.ts current/runtime/react/timeline/timeline-panel-responsive-layout.ts
 --- pristine/runtime/react/timeline/timeline-panel-responsive-layout.ts	2026-09-09 01:44:44.263059715 +0000
-+++ current/runtime/react/timeline/timeline-panel-responsive-layout.ts	2026-09-09 03:47:27.151578955 +0000
++++ current/runtime/react/timeline/timeline-panel-responsive-layout.ts	2026-09-09 04:05:07.612674627 +0000
 @@ -70,11 +70,17 @@
      }
    }
@@ -2756,7 +2810,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel-responsive-layout.ts cu
    const maxCenterX = rightLimit - halfWidth;
 diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/react/timeline/timeline-panel.tsx
 --- pristine/runtime/react/timeline/timeline-panel.tsx	2026-09-09 01:44:44.263102370 +0000
-+++ current/runtime/react/timeline/timeline-panel.tsx	2026-09-09 03:47:27.151643068 +0000
++++ current/runtime/react/timeline/timeline-panel.tsx	2026-09-09 04:05:07.612875642 +0000
 @@ -4,6 +4,7 @@
  import {
    useCallback,
@@ -2826,7 +2880,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/rea
    const rowAreaHeight =
      rowCount > 0
        ? Math.min(rowCount * timelineKeyframeRowHeightPx, timelineKeyframeListMaxHeightPx)
-@@ -150,14 +168,56 @@
+@@ -150,14 +168,62 @@
      isPlaying,
      keyframeGroups,
      selectedKeyframeId,
@@ -2837,6 +2891,12 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/rea
 +  const [zoom, setZoom] = useState(toolcraftTimelineMinZoom);
 +  const [viewStartSeconds, setViewStartSeconds] = useState(0);
 +  const [collapsedObjectIds, setCollapsedObjectIds] = useState<readonly string[]>([]);
++  /**
++   * Which way the tracks are drawn. Runtime view state, like the expand
++   * toggle beside it: it changes nothing about the animation, so it stays out
++   * of the workspace, out of history and out of an exported file.
++   */
++  const [isGraphMode, setIsGraphMode] = useState(false);
    const displayedIsPlaying = playbackReady && isPlaying;
    const isCompact = variant === 'compact';
    const isExpanded = !isCompact && keyframesEnabled && (expanded || defaultExpandedPending);
@@ -2884,7 +2944,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/rea
    const isExpandCollapseTransition = previousIsExpandedRef.current !== isExpanded;
    const timelinePanelTransition = isExpandCollapseTransition
      ? timelinePanelExpandCollapseTransition
-@@ -220,12 +280,158 @@
+@@ -220,12 +286,158 @@
      },
      [dispatch, store],
    );
@@ -3043,7 +3103,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/rea
    const scrubber = useTimelineScrubber({
      commitCurrentTimeSeconds,
      currentTimeSeconds,
-@@ -233,7 +439,32 @@
+@@ -233,7 +445,32 @@
      durationSeconds,
      setCurrentTimeSeconds,
      setIsPlaying,
@@ -3076,7 +3136,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/rea
    const deleteKeyframe = useCallback(
      (keyframeId: string): void => {
        dispatch({ keyframeId, type: 'timeline.deleteKeyframe' });
-@@ -267,6 +498,8 @@
+@@ -267,6 +504,8 @@
    useTimelineClock({
      durationSeconds,
      getCurrentTimeSeconds,
@@ -3085,7 +3145,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/rea
      isHoverPaused,
      isLooping,
      isPlaying: displayedIsPlaying,
-@@ -296,7 +529,10 @@
+@@ -296,7 +535,10 @@
          return;
        }
  
@@ -3097,7 +3157,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/rea
      };
  
      document.addEventListener('keydown', handleDocumentKeyDown);
-@@ -304,7 +540,7 @@
+@@ -304,7 +546,7 @@
      return () => {
        document.removeEventListener('keydown', handleDocumentKeyDown);
      };
@@ -3106,7 +3166,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/rea
  
    useEffect(() => {
      if (!selectedKeyframeId || typeof document === 'undefined') {
-@@ -333,6 +569,101 @@
+@@ -333,6 +575,101 @@
      };
    }, [selectedKeyframeId]);
  
@@ -3208,7 +3268,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/rea
    const commitDurationValue = (nextValue: string): void => {
      const nextDuration = clampToolcraftTimelineDurationSeconds(Number.parseFloat(nextValue));
  
-@@ -341,28 +672,61 @@
+@@ -341,28 +678,81 @@
    const deleteControlKeyframes = (controlId: string): void => {
      dispatch({ controlId, type: 'timeline.deleteControlKeyframes' });
    };
@@ -3228,6 +3288,26 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/rea
 +      easing: nextEasing,
 +      keyframeId,
 +      type: 'timeline.changeKeyframeEasing',
++    });
++  };
++  /**
++   * Dragging a point in the graph writes the value at that keyframe's own time,
++   * which lands on the keyframe already there rather than adding one beside it.
++   */
++  const changeKeyframeValue = (keyframeId: string, value: number): void => {
++    const keyframe = findTimelineKeyframe(keyframeGroups, keyframeId);
++
++    if (!keyframe) {
++      return;
++    }
++
++    dispatch({
++      controlId: keyframe.controlId,
++      controlLabel: keyframe.controlLabel,
++      timeSeconds: keyframe.timeSeconds,
++      type: 'timeline.upsertControlKeyframe',
++      value,
++      valueLabel: String(Math.round(value * 100) / 100),
 +    });
 +  };
 +  const changeKeyframeEaseIn = (
@@ -3276,7 +3356,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/rea
    const timelinePanelLayoutStyle: CSSProperties = {
      transform: timelinePanelOffsetX !== 0 ? `translateX(${timelinePanelOffsetX}px)` : undefined,
    };
-@@ -383,9 +747,11 @@
+@@ -383,9 +773,11 @@
        )}
        data-expanded-height={isExpanded ? expandedPanelSize.height : undefined}
        data-responsive-width={
@@ -3290,7 +3370,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/rea
        data-hover-paused={isHoverPaused ? 'true' : 'false'}
        data-playback-ready={playbackReady ? 'true' : 'false'}
        data-scrubbing={scrubber.isScrubbing ? 'true' : 'false'}
-@@ -430,49 +796,68 @@
+@@ -430,49 +822,72 @@
            isLooping={isLooping}
            isPlaying={displayedIsPlaying}
            isScrubbing={scrubber.isScrubbing}
@@ -3314,6 +3394,8 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/rea
              setDefaultExpandedPending(false);
              dispatch({ expanded: !isExpanded, type: 'timeline.setExpanded' });
            }}
++          isGraphMode={isGraphMode}
++          onToggleGraphMode={() => setIsGraphMode((current) => !current)}
            onToggleLoop={() => dispatch({ type: 'timeline.toggleLoop' })}
 -          onTogglePlayback={() => {
 -            setIsHoverPaused(false);
@@ -3338,7 +3420,9 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/rea
              isScrubbing={scrubber.isScrubbing}
              keyframeGroups={keyframeGroups}
 +            objectTracks={objectTracks}
++            isGraphMode={isGraphMode}
 +            onChangeKeyframeEaseIn={changeKeyframeEaseIn}
++            onChangeKeyframeValue={changeKeyframeValue}
              onChangeKeyframeEasing={changeKeyframeEasing}
 +            onCopySelectedKeyframes={copySelectedKeyframes}
              onDeleteControlKeyframes={deleteControlKeyframes}
@@ -3371,7 +3455,7 @@ diff -ruN pristine/runtime/react/timeline/timeline-panel.tsx current/runtime/rea
        </PanelSurface>
 diff -ruN pristine/runtime/react/timeline/timeline-playback-hooks.ts current/runtime/react/timeline/timeline-playback-hooks.ts
 --- pristine/runtime/react/timeline/timeline-playback-hooks.ts	2026-09-09 01:44:44.263141104 +0000
-+++ current/runtime/react/timeline/timeline-playback-hooks.ts	2026-09-09 03:47:27.151592158 +0000
++++ current/runtime/react/timeline/timeline-playback-hooks.ts	2026-09-09 04:05:07.612686428 +0000
 @@ -8,13 +8,34 @@
    clampToolcraftTimelineTime,
    toolcraftTimelineScrubStepSeconds,
@@ -3534,9 +3618,306 @@ diff -ruN pristine/runtime/react/timeline/timeline-playback-hooks.ts current/run
      );
    };
    const handleScrubKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
+diff -ruN pristine/runtime/react/timeline/timeline-value-graph.tsx current/runtime/react/timeline/timeline-value-graph.tsx
+--- pristine/runtime/react/timeline/timeline-value-graph.tsx	1970-01-01 00:00:00.000000000 +0000
++++ current/runtime/react/timeline/timeline-value-graph.tsx	2026-09-09 04:05:07.612820543 +0000
+@@ -0,0 +1,293 @@
++'use client';
++
++import * as React from 'react';
++import { useRef, useState } from 'react';
++
++import type { ToolcraftTimelineKeyframeGroup } from '../../state/types';
++import {
++  getToolcraftTimelineValueGraphRange,
++  getToolcraftTimelineValueGraphRatio,
++  getToolcraftTimelineValueGraphValue,
++  isToolcraftTimelineValueGraphable,
++  sampleToolcraftTimelineValueGraph,
++} from '../../state/timeline-value-graph';
++import {
++  getToolcraftTimelineViewRatio,
++  type ToolcraftTimelineViewWindow,
++} from '../../state/timeline-view-window';
++import {
++  timelineTrackEndInsetPx,
++  timelineTrackStartVisualOffsetPx,
++} from './timeline-panel-layout';
++
++/**
++ * The shortest the graph is worth drawing at. It fills whatever the rows area
++ * gives it and only scrolls when that is less than this, because a value curve
++ * squeezed into a keyframe row's thirty-six pixels shows nothing a row does not.
++ */
++export const timelineValueGraphMinHeightPx = 140;
++
++/**
++ * A track drawn as what its value does, rather than as a row of diamonds.
++ *
++ * The diamond row answers "when", and the curve popover answers "what shape is
++ * this one segment". Neither answers the question people actually bring to an
++ * animation that is not working: what is the value doing. A move that
++ * overshoots, a pair of keyframes further apart than they look, a track that
++ * sits flat and then leaps — all of it is invisible on a row of identical
++ * diamonds and obvious here.
++ *
++ * One track at a time, on its own axis. Overlaying every track would need each
++ * one normalised to its own range, and then the height of a point would mean
++ * nothing — which is the one thing this view is for.
++ *
++ * Dragging a point changes its value and not its time. Time already has a good
++ * home on the diamond row, where a drag snaps and can move a whole selection;
++ * doing both here would mean re-minting ids mid-drag (a keyframe's id is its
++ * control and its time) and two history entries for one gesture.
++ */
++export function TimelineValueGraph({
++  durationSeconds,
++  group,
++  onChangeKeyframeValue,
++  onSelectKeyframe,
++  selectedKeyframeIds,
++  view,
++}: {
++  durationSeconds: number;
++  group: ToolcraftTimelineKeyframeGroup | null;
++  onChangeKeyframeValue: (keyframeId: string, value: number) => void;
++  onSelectKeyframe: (keyframeId: string | null, additive: boolean) => void;
++  selectedKeyframeIds: readonly string[];
++  view: ToolcraftTimelineViewWindow;
++}): React.JSX.Element {
++  const frameRef = useRef<HTMLDivElement | null>(null);
++  const dragRef = useRef<{ keyframeId: string; pointerId: number } | null>(null);
++  const [draftValues, setDraftValues] = useState<Record<string, number>>({});
++
++  if (!group) {
++    return (
++      <TimelineValueGraphMessage>
++        Key a control to see its value over time.
++      </TimelineValueGraphMessage>
++    );
++  }
++
++  if (!isToolcraftTimelineValueGraphable(group)) {
++    return (
++      <TimelineValueGraphMessage>
++        {group.label} does not hold a single number, so it has no height to draw.
++      </TimelineValueGraphMessage>
++    );
++  }
++
++  // Drafts are folded in before anything is measured, so the axis grows with a
++  // point dragged past the top rather than letting it disappear off the frame.
++  const draftedGroup: ToolcraftTimelineKeyframeGroup = {
++    ...group,
++    keyframes: group.keyframes.map((keyframe) =>
++      keyframe.id in draftValues ? { ...keyframe, value: draftValues[keyframe.id] } : keyframe,
++    ),
++  };
++  const range = getToolcraftTimelineValueGraphRange(draftedGroup);
++  const points = sampleToolcraftTimelineValueGraph({
++    endSeconds: Math.min(view.startSeconds + view.spanSeconds, durationSeconds),
++    group: draftedGroup,
++    startSeconds: Math.max(0, view.startSeconds),
++  });
++  const toX = (timeSeconds: number): number =>
++    getToolcraftTimelineViewRatio(timeSeconds, view) * 100;
++  const toY = (value: number): number => getToolcraftTimelineValueGraphRatio(value, range) * 100;
++  const path = points
++    .map(
++      (point, index) =>
++        `${index === 0 ? 'M' : 'L'} ${toX(point.timeSeconds).toFixed(3)} ${toY(point.value).toFixed(3)}`,
++    )
++    .join(' ');
++
++  const readValueFromPointer = (clientY: number): number | null => {
++    const frame = frameRef.current;
++
++    if (!frame) {
++      return null;
++    }
++
++    const rect = frame.getBoundingClientRect();
++
++    if (rect.height <= 0) {
++      return null;
++    }
++
++    const ratio = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
++
++    return getToolcraftTimelineValueGraphValue(ratio, range);
++  };
++
++  return (
++    <div
++      className="absolute inset-0 w-full select-none"
++      data-slot="timeline-value-graph"
++      style={{ minHeight: timelineValueGraphMinHeightPx }}
++    >
++      <div className="absolute inset-y-0 left-0 flex w-[164px] flex-col justify-between border-r border-[color:color-mix(in_oklab,var(--border)_6%,transparent)] px-3 py-2 text-[11px] leading-4">
++        <span className="truncate text-[color:var(--foreground)]" title={group.label}>
++          {group.label}
++        </span>
++        <span className="opacity-50 tabular-nums" data-slot="timeline-value-graph-max">
++          {formatGraphValue(range.maxValue)}
++        </span>
++        <span className="opacity-50 tabular-nums" data-slot="timeline-value-graph-min">
++          {formatGraphValue(range.minValue)}
++        </span>
++      </div>
++      <div
++        className="absolute inset-y-0 right-0"
++        ref={frameRef}
++        style={{
++          left: 164 + timelineTrackStartVisualOffsetPx,
++          right: timelineTrackEndInsetPx,
++        }}
++      >
++        <svg
++          className="absolute inset-0 h-full w-full overflow-visible"
++          preserveAspectRatio="none"
++          viewBox="0 0 100 100"
++        >
++          {[0, 50, 100].map((y) => (
++            <line
++              key={y}
++              stroke="color-mix(in oklab, var(--border) 10%, transparent)"
++              strokeWidth={0.3}
++              vectorEffect="non-scaling-stroke"
++              x1={0}
++              x2={100}
++              y1={y}
++              y2={y}
++            />
++          ))}
++          <path
++            d={path}
++            data-slot="timeline-value-graph-curve"
++            fill="none"
++            stroke="var(--link)"
++            strokeWidth={1.5}
++            vectorEffect="non-scaling-stroke"
++          />
++        </svg>
++        {draftedGroup.keyframes.map((keyframe) => {
++          const value = keyframe.value;
++
++          if (typeof value !== 'number' || !Number.isFinite(value)) {
++            return null;
++          }
++
++          const ratio = getToolcraftTimelineViewRatio(keyframe.timeSeconds, view);
++
++          if (ratio < -0.001 || ratio > 1.001) {
++            return null;
++          }
++
++          const isSelected = selectedKeyframeIds.includes(keyframe.id);
++
++          return (
++            <button
++              aria-label={`${group.label} keyframe at ${keyframe.timeSeconds.toFixed(2)}s, value ${formatGraphValue(value)}`}
++              className="absolute z-10 size-3 -translate-x-1/2 -translate-y-1/2 cursor-ns-resize appearance-none rounded-full border-0 bg-transparent p-0 outline-none"
++              data-selected={isSelected ? 'true' : undefined}
++              data-slot="timeline-value-graph-point"
++              key={keyframe.id}
++              onPointerCancel={(event) => {
++                if (dragRef.current?.pointerId !== event.pointerId) return;
++                dragRef.current = null;
++                setDraftValues({});
++              }}
++              onPointerDown={(event) => {
++                event.preventDefault();
++                event.stopPropagation();
++                event.currentTarget.setPointerCapture?.(event.pointerId);
++                dragRef.current = { keyframeId: keyframe.id, pointerId: event.pointerId };
++                onSelectKeyframe(keyframe.id, event.shiftKey);
++              }}
++              onPointerMove={(event) => {
++                const drag = dragRef.current;
++
++                if (!drag || drag.pointerId !== event.pointerId) {
++                  return;
++                }
++
++                const nextValue = readValueFromPointer(event.clientY);
++
++                if (nextValue === null) {
++                  return;
++                }
++
++                event.preventDefault();
++                setDraftValues({ [drag.keyframeId]: nextValue });
++              }}
++              onPointerUp={(event) => {
++                const drag = dragRef.current;
++
++                if (!drag || drag.pointerId !== event.pointerId) {
++                  return;
++                }
++
++                event.preventDefault();
++                event.stopPropagation();
++
++                if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
++                  event.currentTarget.releasePointerCapture(event.pointerId);
++                }
++
++                const committed = draftValues[drag.keyframeId];
++
++                dragRef.current = null;
++                setDraftValues({});
++
++                if (committed !== undefined) {
++                  onChangeKeyframeValue(drag.keyframeId, committed);
++                }
++              }}
++              style={{
++                left: `${ratio * 100}%`,
++                top: `${getToolcraftTimelineValueGraphRatio(value, range) * 100}%`,
++              }}
++              type="button"
++            >
++              <span
++                aria-hidden="true"
++                className={
++                  isSelected
++                    ? 'block size-full rounded-full bg-[color:var(--foreground)]'
++                    : 'block size-full rounded-full bg-[color:var(--link)]'
++                }
++              />
++            </button>
++          );
++        })}
++      </div>
++    </div>
++  );
++}
++
++function TimelineValueGraphMessage({
++  children,
++}: {
++  children: React.ReactNode;
++}): React.JSX.Element {
++  return (
++    <div
++      className="absolute inset-0 flex w-full items-center justify-center px-4 text-[11px] leading-4 opacity-50"
++      data-slot="timeline-value-graph"
++      style={{ minHeight: timelineValueGraphMinHeightPx }}
++    >
++      {children}
++    </div>
++  );
++}
++
++/** Short enough for an axis label, and never scientific notation. */
++function formatGraphValue(value: number): string {
++  const rounded = Math.round(value * 100) / 100;
++
++  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
++}
 diff -ruN pristine/runtime/schema/runtime-section-titles.ts current/runtime/schema/runtime-section-titles.ts
 --- pristine/runtime/schema/runtime-section-titles.ts	2026-09-09 01:44:44.264951235 +0000
-+++ current/runtime/schema/runtime-section-titles.ts	2026-09-09 03:47:27.152125555 +0000
++++ current/runtime/schema/runtime-section-titles.ts	2026-09-09 04:05:07.613505683 +0000
 @@ -1 +1,4 @@
  export const toolcraftRuntimeSetupSectionTitle = "Setup";
 +
@@ -3544,7 +3925,7 @@ diff -ruN pristine/runtime/schema/runtime-section-titles.ts current/runtime/sche
 +export const toolcraftRuntimeSetupSectionId = "runtime.setup";
 diff -ruN pristine/runtime/schema/runtime-setup-section.ts current/runtime/schema/runtime-setup-section.ts
 --- pristine/runtime/schema/runtime-setup-section.ts	2026-09-09 01:44:44.265071644 +0000
-+++ current/runtime/schema/runtime-setup-section.ts	2026-09-09 03:47:27.152148301 +0000
++++ current/runtime/schema/runtime-setup-section.ts	2026-09-09 04:05:07.613527439 +0000
 @@ -4,7 +4,10 @@
  } from "./canvas-aspect-ratio-presets";
  import { normalizeToolcraftAdditionalValueTargets } from "./additional-value-targets";
@@ -3600,7 +3981,7 @@ diff -ruN pristine/runtime/schema/runtime-setup-section.ts current/runtime/schem
        ...backgroundControls.layoutGroups,
 diff -ruN pristine/runtime/schema/schema-resolvers.ts current/runtime/schema/schema-resolvers.ts
 --- pristine/runtime/schema/schema-resolvers.ts	2026-09-09 01:44:44.265158124 +0000
-+++ current/runtime/schema/schema-resolvers.ts	2026-09-09 03:47:27.152193443 +0000
++++ current/runtime/schema/schema-resolvers.ts	2026-09-09 04:05:07.613550634 +0000
 @@ -70,6 +70,11 @@
    }
  
@@ -3615,7 +3996,7 @@ diff -ruN pristine/runtime/schema/schema-resolvers.ts current/runtime/schema/sch
      ),
 diff -ruN pristine/runtime/schema/types.ts current/runtime/schema/types.ts
 --- pristine/runtime/schema/types.ts	2026-09-09 01:44:44.265199913 +0000
-+++ current/runtime/schema/types.ts	2026-09-09 03:47:27.152204861 +0000
++++ current/runtime/schema/types.ts	2026-09-09 04:05:07.613560760 +0000
 @@ -4,6 +4,8 @@
    ToolcraftSectionLayout,
  } from "../contracts/types";
@@ -3675,7 +4056,7 @@ diff -ruN pristine/runtime/schema/types.ts current/runtime/schema/types.ts
    mode: ToolcraftTimelineMode;
 diff -ruN pristine/runtime/state/create-template-state.ts current/runtime/state/create-template-state.ts
 --- pristine/runtime/state/create-template-state.ts	2026-09-09 01:44:44.267549016 +0000
-+++ current/runtime/state/create-template-state.ts	2026-09-09 03:47:27.152976977 +0000
++++ current/runtime/state/create-template-state.ts	2026-09-09 04:05:07.617510773 +0000
 @@ -8,6 +8,7 @@
    ToolcraftTimelineKeyframeGroup,
    ToolcraftTimelineState,
@@ -3740,7 +4121,7 @@ diff -ruN pristine/runtime/state/create-template-state.ts current/runtime/state/
    );
 diff -ruN pristine/runtime/state/keyframe-evaluation.ts current/runtime/state/keyframe-evaluation.ts
 --- pristine/runtime/state/keyframe-evaluation.ts	2026-09-09 01:44:44.267658040 +0000
-+++ current/runtime/state/keyframe-evaluation.ts	2026-09-09 03:47:27.153022582 +0000
++++ current/runtime/state/keyframe-evaluation.ts	2026-09-09 04:05:07.617544221 +0000
 @@ -1,3 +1,4 @@
 +import { applyContinuousEasingToSegment } from "./timeline-continuous-easing";
  import type {
@@ -3833,9 +4214,34 @@ diff -ruN pristine/runtime/state/keyframe-evaluation.ts current/runtime/state/ke
  
      return interpolateToolcraftValue(
        getKeyframeRuntimeValue(fromKeyframe),
+@@ -171,6 +230,24 @@
+   return fallbackValue;
+ }
+ 
++/**
++ * One keyframe group's value at a time, without a whole state to ask through.
++ *
++ * The value graph draws a track by sampling it many times a frame, and it has
++ * to draw what the animation actually does. Reimplementing the curve resolution
++ * against the same keyframes would be a second implementation to keep in step,
++ * and the first time the two drifted the graph would be lying about the very
++ * thing it exists to show. This is the same function the panel, the canvas and
++ * the video export reach through.
++ */
++export function evaluateToolcraftTimelineGroupValue(
++  group: ToolcraftTimelineKeyframeGroup,
++  timeSeconds: number,
++  fallbackValue?: unknown,
++): unknown {
++  return getEvaluatedTimelineGroupValue(group, timeSeconds, fallbackValue);
++}
++
+ export function evaluateToolcraftTimelineValue(
+   state: ToolcraftState,
+   target: string,
 diff -ruN pristine/runtime/state/persistence-reader-timeline.ts current/runtime/state/persistence-reader-timeline.ts
 --- pristine/runtime/state/persistence-reader-timeline.ts	2026-09-09 01:44:44.268680404 +0000
-+++ current/runtime/state/persistence-reader-timeline.ts	2026-09-09 03:47:27.153309280 +0000
++++ current/runtime/state/persistence-reader-timeline.ts	2026-09-09 04:05:07.617913474 +0000
 @@ -1,3 +1,4 @@
 +import { clampToolcraftTimelinePlaybackRate } from "./timeline-values";
  import {
@@ -3905,7 +4311,7 @@ diff -ruN pristine/runtime/state/persistence-reader-timeline.ts current/runtime/
        const group = readKeyframeGroup(item);
 diff -ruN pristine/runtime/state/reducer.ts current/runtime/state/reducer.ts
 --- pristine/runtime/state/reducer.ts	2026-09-09 01:44:44.268891678 +0000
-+++ current/runtime/state/reducer.ts	2026-09-09 03:47:27.153378188 +0000
++++ current/runtime/state/reducer.ts	2026-09-09 04:05:07.617978116 +0000
 @@ -64,14 +64,20 @@
      case "media.transform":
        return reduceToolcraftMediaCommand(state, command);
@@ -3929,7 +4335,7 @@ diff -ruN pristine/runtime/state/reducer.ts current/runtime/state/reducer.ts
      case "timeline.toggleExpanded":
 diff -ruN pristine/runtime/state/timeline-continuous-easing.ts current/runtime/state/timeline-continuous-easing.ts
 --- pristine/runtime/state/timeline-continuous-easing.ts	1970-01-01 00:00:00.000000000 +0000
-+++ current/runtime/state/timeline-continuous-easing.ts	2026-09-09 03:47:27.153400094 +0000
++++ current/runtime/state/timeline-continuous-easing.ts	2026-09-09 04:05:07.617997867 +0000
 @@ -0,0 +1,196 @@
 +import type {
 +  ToolcraftTimelineBezierControlPoints,
@@ -4129,7 +4535,7 @@ diff -ruN pristine/runtime/state/timeline-continuous-easing.ts current/runtime/s
 +}
 diff -ruN pristine/runtime/state/timeline-object-tracks.ts current/runtime/state/timeline-object-tracks.ts
 --- pristine/runtime/state/timeline-object-tracks.ts	1970-01-01 00:00:00.000000000 +0000
-+++ current/runtime/state/timeline-object-tracks.ts	2026-09-09 03:47:27.153423891 +0000
++++ current/runtime/state/timeline-object-tracks.ts	2026-09-09 04:05:07.618045587 +0000
 @@ -0,0 +1,96 @@
 +import type {
 +  ToolcraftTimelineKeyframe,
@@ -4229,7 +4635,7 @@ diff -ruN pristine/runtime/state/timeline-object-tracks.ts current/runtime/state
 +}
 diff -ruN pristine/runtime/state/timeline-reducer.ts current/runtime/state/timeline-reducer.ts
 --- pristine/runtime/state/timeline-reducer.ts	2026-09-09 01:44:44.269061212 +0000
-+++ current/runtime/state/timeline-reducer.ts	2026-09-09 03:47:27.152766500 +0000
++++ current/runtime/state/timeline-reducer.ts	2026-09-09 04:05:07.617214228 +0000
 @@ -3,13 +3,23 @@
    getToolcraftValueControls,
    normalizeToolcraftControlValue,
@@ -4743,7 +5149,7 @@ diff -ruN pristine/runtime/state/timeline-reducer.ts current/runtime/state/timel
  }
 diff -ruN pristine/runtime/state/timeline-selection.ts current/runtime/state/timeline-selection.ts
 --- pristine/runtime/state/timeline-selection.ts	1970-01-01 00:00:00.000000000 +0000
-+++ current/runtime/state/timeline-selection.ts	2026-09-09 03:47:27.153532901 +0000
++++ current/runtime/state/timeline-selection.ts	2026-09-09 04:05:07.618183351 +0000
 @@ -0,0 +1,252 @@
 +import {
 +  clampToolcraftTimelineTime,
@@ -4999,7 +5405,7 @@ diff -ruN pristine/runtime/state/timeline-selection.ts current/runtime/state/tim
 +}
 diff -ruN pristine/runtime/state/timeline-snapping.ts current/runtime/state/timeline-snapping.ts
 --- pristine/runtime/state/timeline-snapping.ts	1970-01-01 00:00:00.000000000 +0000
-+++ current/runtime/state/timeline-snapping.ts	2026-09-09 03:47:27.153555597 +0000
++++ current/runtime/state/timeline-snapping.ts	2026-09-09 04:05:07.618197038 +0000
 @@ -0,0 +1,101 @@
 +import type { ToolcraftTimelineKeyframeGroup } from "./types";
 +import type { ToolcraftTimelineViewWindow } from "./timeline-view-window";
@@ -5102,9 +5508,152 @@ diff -ruN pristine/runtime/state/timeline-snapping.ts current/runtime/state/time
 +
 +  return (view.spanSeconds / trackWidthPx) * toolcraftTimelineSnapDistancePx;
 +}
+diff -ruN pristine/runtime/state/timeline-value-graph.ts current/runtime/state/timeline-value-graph.ts
+--- pristine/runtime/state/timeline-value-graph.ts	1970-01-01 00:00:00.000000000 +0000
++++ current/runtime/state/timeline-value-graph.ts	2026-09-09 04:05:07.617251776 +0000
+@@ -0,0 +1,139 @@
++import { evaluateToolcraftTimelineGroupValue } from "./keyframe-evaluation";
++import type { ToolcraftTimelineKeyframeGroup } from "./types";
++
++/**
++ * A track drawn as what its value actually does over time.
++ *
++ * The curve popover shows one segment, normalized so both ends sit at the
++ * corners — the right picture for choosing a shape, and the wrong one for
++ * seeing an animation. It cannot show that a move overshoots, that two
++ * keyframes are further apart in value than they look on the diamond row, or
++ * that a track sits flat for four seconds and then leaps. This is the other
++ * view: real value up the side, real time across, every keyframe on the track
++ * at once.
++ *
++ * Everything here is sampled through the runtime's own evaluator rather than
++ * re-derived, so the graph and the frame being drawn cannot disagree.
++ */
++
++/** How many points to draw a curve with. Enough that eased motion reads smooth. */
++export const toolcraftTimelineValueGraphSamples = 160;
++
++export type ToolcraftTimelineValueGraphRange = {
++  readonly maxValue: number;
++  readonly minValue: number;
++};
++
++export type ToolcraftTimelineValueGraphPoint = {
++  readonly timeSeconds: number;
++  readonly value: number;
++};
++
++/** Whether a track holds plain numbers, which is what can be drawn against an axis. */
++export function isToolcraftTimelineValueGraphable(
++  group: ToolcraftTimelineKeyframeGroup,
++): boolean {
++  const keyframes = group.keyframes.filter((keyframe) => "value" in keyframe);
++
++  return (
++    keyframes.length > 0 &&
++    keyframes.every(
++      (keyframe) => typeof keyframe.value === "number" && Number.isFinite(keyframe.value),
++    )
++  );
++}
++
++/**
++ * The span of values the axis has to cover.
++ *
++ * Taken from the keyframes rather than from the control's own limits, and
++ * padded. A size slider that can reach 400 per cent but is keyed between 100
++ * and 110 would draw as a flat line against its own range, which hides exactly
++ * the detail somebody opened the graph to see. Padding keeps the extreme
++ * keyframes off the edges so their handles stay grabbable.
++ *
++ * A track whose keyframes all hold one value has no span at all, so it gets an
++ * arbitrary one either side; the line sits in the middle, which is the truth
++ * about it.
++ */
++export function getToolcraftTimelineValueGraphRange(
++  group: ToolcraftTimelineKeyframeGroup,
++): ToolcraftTimelineValueGraphRange {
++  const values = group.keyframes
++    .map((keyframe) => keyframe.value)
++    .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
++
++  if (values.length === 0) {
++    return { maxValue: 1, minValue: 0 };
++  }
++
++  const lowest = Math.min(...values);
++  const highest = Math.max(...values);
++
++  if (lowest === highest) {
++    const padding = Math.max(1, Math.abs(lowest) * 0.1);
++
++    return { maxValue: highest + padding, minValue: lowest - padding };
++  }
++
++  const padding = (highest - lowest) * 0.12;
++
++  return { maxValue: highest + padding, minValue: lowest - padding };
++}
++
++/**
++ * The curve, as evenly spaced samples across a window of time.
++ *
++ * Sampled evenly rather than one point per keyframe because the whole subject
++ * is what happens *between* keyframes: an eased segment drawn as a straight
++ * line between its ends would show none of the easing that this view exists to
++ * make visible.
++ */
++export function sampleToolcraftTimelineValueGraph({
++  endSeconds,
++  group,
++  sampleCount = toolcraftTimelineValueGraphSamples,
++  startSeconds,
++}: {
++  endSeconds: number;
++  group: ToolcraftTimelineKeyframeGroup;
++  sampleCount?: number;
++  startSeconds: number;
++}): readonly ToolcraftTimelineValueGraphPoint[] {
++  const spanSeconds = endSeconds - startSeconds;
++
++  if (!(spanSeconds > 0) || sampleCount < 2) {
++    return [];
++  }
++
++  const points: ToolcraftTimelineValueGraphPoint[] = [];
++
++  for (let index = 0; index < sampleCount; index += 1) {
++    const timeSeconds = startSeconds + (spanSeconds * index) / (sampleCount - 1);
++    const value = evaluateToolcraftTimelineGroupValue(group, timeSeconds);
++
++    if (typeof value === "number" && Number.isFinite(value)) {
++      points.push({ timeSeconds, value });
++    }
++  }
++
++  return points;
++}
++
++/** Where a value sits in the frame, as a ratio with zero at the top. */
++export function getToolcraftTimelineValueGraphRatio(
++  value: number,
++  range: ToolcraftTimelineValueGraphRange,
++): number {
++  const span = range.maxValue - range.minValue;
++
++  return span === 0 ? 0.5 : 1 - (value - range.minValue) / span;
++}
++
++/** The value a point in the frame stands for, which is the ratio read backwards. */
++export function getToolcraftTimelineValueGraphValue(
++  ratio: number,
++  range: ToolcraftTimelineValueGraphRange,
++): number {
++  return range.minValue + (1 - ratio) * (range.maxValue - range.minValue);
++}
 diff -ruN pristine/runtime/state/timeline-values.ts current/runtime/state/timeline-values.ts
 --- pristine/runtime/state/timeline-values.ts	2026-09-09 01:44:44.269094054 +0000
-+++ current/runtime/state/timeline-values.ts	2026-09-09 03:47:27.153445088 +0000
++++ current/runtime/state/timeline-values.ts	2026-09-09 04:05:07.618067397 +0000
 @@ -43,3 +43,23 @@
  ): string {
    return `${controlId}::${formatToolcraftTimelineKeyframeSeconds(timeSeconds)}`;
@@ -5131,7 +5680,7 @@ diff -ruN pristine/runtime/state/timeline-values.ts current/runtime/state/timeli
 +}
 diff -ruN pristine/runtime/state/timeline-view-window.ts current/runtime/state/timeline-view-window.ts
 --- pristine/runtime/state/timeline-view-window.ts	1970-01-01 00:00:00.000000000 +0000
-+++ current/runtime/state/timeline-view-window.ts	2026-09-09 03:47:27.153456130 +0000
++++ current/runtime/state/timeline-view-window.ts	2026-09-09 04:05:07.618104699 +0000
 @@ -0,0 +1,174 @@
 +export const toolcraftTimelineMinZoom = 1;
 +export const toolcraftTimelineMaxZoom = 12;
@@ -5309,7 +5858,7 @@ diff -ruN pristine/runtime/state/timeline-view-window.ts current/runtime/state/t
 +}
 diff -ruN pristine/runtime/state/toolcraft-external-store-history.ts current/runtime/state/toolcraft-external-store-history.ts
 --- pristine/runtime/state/toolcraft-external-store-history.ts	2026-09-09 01:44:44.269166958 +0000
-+++ current/runtime/state/toolcraft-external-store-history.ts	2026-09-09 03:47:27.153484179 +0000
++++ current/runtime/state/toolcraft-external-store-history.ts	2026-09-09 04:05:07.618137201 +0000
 @@ -39,6 +39,10 @@
      previous.isLooping === next.isLooping &&
      previous.isPlaying === next.isPlaying &&
@@ -5323,7 +5872,7 @@ diff -ruN pristine/runtime/state/toolcraft-external-store-history.ts current/run
        next.keyframeGroups,
 diff -ruN pristine/runtime/state/toolcraft-keyframe-equality.ts current/runtime/state/toolcraft-keyframe-equality.ts
 --- pristine/runtime/state/toolcraft-keyframe-equality.ts	2026-09-09 01:44:44.269286477 +0000
-+++ current/runtime/state/toolcraft-keyframe-equality.ts	2026-09-09 03:47:27.153521675 +0000
++++ current/runtime/state/toolcraft-keyframe-equality.ts	2026-09-09 04:05:07.618172731 +0000
 @@ -16,7 +16,7 @@
      return false;
    }
@@ -5335,7 +5884,7 @@ diff -ruN pristine/runtime/state/toolcraft-keyframe-equality.ts current/runtime/
  
 diff -ruN pristine/runtime/state/types.ts current/runtime/state/types.ts
 --- pristine/runtime/state/types.ts	2026-09-09 01:44:44.269324392 +0000
-+++ current/runtime/state/types.ts	2026-09-09 03:47:27.152791440 +0000
++++ current/runtime/state/types.ts	2026-09-09 04:05:07.617266350 +0000
 @@ -124,8 +124,15 @@
    | { type: "timeline.toggleExpanded" }
    | { type: "timeline.togglePlayback" }
@@ -5515,7 +6064,7 @@ diff -ruN pristine/runtime/state/types.ts current/runtime/state/types.ts
  export type ToolcraftPanelId = "controls" | "layers" | "timeline" | "toolbar";
 diff -ruN pristine/ui/components/control-layout/index.tsx current/ui/components/control-layout/index.tsx
 --- pristine/ui/components/control-layout/index.tsx	2026-09-09 01:44:44.272636858 +0000
-+++ current/ui/components/control-layout/index.tsx	2026-09-09 03:47:27.154959134 +0000
++++ current/ui/components/control-layout/index.tsx	2026-09-09 04:05:07.619675138 +0000
 @@ -146,6 +146,25 @@
      event.stopPropagation();
    }
@@ -5553,7 +6102,7 @@ diff -ruN pristine/ui/components/control-layout/index.tsx current/ui/components/
            {action}
 diff -ruN pristine/ui/components/primitives/slider/slider-parts.tsx current/ui/components/primitives/slider/slider-parts.tsx
 --- pristine/ui/components/primitives/slider/slider-parts.tsx	2026-09-09 01:44:44.279901557 +0000
-+++ current/ui/components/primitives/slider/slider-parts.tsx	2026-09-09 03:47:27.158571114 +0000
++++ current/ui/components/primitives/slider/slider-parts.tsx	2026-09-09 04:05:07.623244978 +0000
 @@ -137,14 +137,38 @@
    count,
    disabled = false,

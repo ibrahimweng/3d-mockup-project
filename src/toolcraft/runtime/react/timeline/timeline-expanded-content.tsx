@@ -33,6 +33,7 @@ import {
 } from './timeline-keyframes';
 import { TimelineKeyframeRow } from './timeline-keyframe-row';
 import { TimelineObjectTrackRow } from './timeline-object-track-row';
+import { TimelineValueGraph } from './timeline-value-graph';
 import {
   getTimelineCalcPositionStyle,
   timelineExpandedTrackEndOffsetPx,
@@ -50,6 +51,7 @@ const timelinePlayheadHitAreaWidthPx =
 type TimelineExpandedContentProps = {
   currentTimeSeconds: number;
   durationSeconds: number;
+  isGraphMode: boolean;
   isScrubbing: boolean;
   keyframeGroups: readonly ToolcraftTimelineKeyframeGroup[];
   onChangeKeyframeEaseIn: (
@@ -57,6 +59,7 @@ type TimelineExpandedContentProps = {
     controlPoints: ToolcraftTimelineBezierControlPoints | null,
   ) => void;
   onChangeKeyframeEasing: (keyframeId: string, easing: ToolcraftTimelineKeyframeEasing) => void;
+  onChangeKeyframeValue: (keyframeId: string, value: number) => void;
   onDeleteControlKeyframes: (controlId: string) => void;
   onCopySelectedKeyframes: () => void;
   onDeleteKeyframe: (keyframeId: string) => void;
@@ -142,10 +145,12 @@ export function TimelineExpandedContent({
   collapsedObjectIds,
   currentTimeSeconds,
   durationSeconds,
+  isGraphMode,
   isScrubbing,
   keyframeGroups,
   onChangeKeyframeEaseIn,
   onChangeKeyframeEasing,
+  onChangeKeyframeValue,
   onCopySelectedKeyframes,
   onDeleteControlKeyframes,
   onDeleteKeyframe,
@@ -185,6 +190,25 @@ export function TimelineExpandedContent({
    * changes while a drag is running.
    */
   const draggedKeyframeIds = dragPreview?.keyframeIds;
+  /**
+   * The track the graph draws.
+   *
+   * Whichever holds the selected keyframe, so clicking a diamond and switching
+   * to the graph shows the thing that was just being looked at. With nothing
+   * selected it falls back to the first track, which is the only answer that
+   * does not require a choice nobody has made yet.
+   */
+  const graphGroup = React.useMemo(() => {
+    const selected = new Set(selectedKeyframeIds);
+
+    return (
+      keyframeGroups.find((group) =>
+        group.keyframes.some((keyframe) => selected.has(keyframe.id)),
+      ) ??
+      keyframeGroups[0] ??
+      null
+    );
+  }, [keyframeGroups, selectedKeyframeIds]);
   const snapTimesSeconds = React.useMemo(
     () =>
       getToolcraftTimelineSnapTimes({
@@ -492,6 +516,16 @@ export function TimelineExpandedContent({
           className="absolute inset-0 overflow-x-hidden overflow-y-auto"
           data-slot="timeline-expanded-rows"
         >
+          {isGraphMode ? (
+            <TimelineValueGraph
+              durationSeconds={durationSeconds}
+              group={graphGroup}
+              onChangeKeyframeValue={onChangeKeyframeValue}
+              onSelectKeyframe={onSelectKeyframe}
+              selectedKeyframeIds={selectedKeyframeIds}
+              view={view}
+            />
+          ) : (
           <AnimatePresence initial={false}>
           {objectTracks.flatMap((track) => {
             const isTrackExpanded = !collapsedObjectIds.includes(track.objectId);
@@ -539,6 +573,7 @@ export function TimelineExpandedContent({
             ];
           })}
           </AnimatePresence>
+          )}
         </div>
       </div>
     </div>
