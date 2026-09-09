@@ -10,7 +10,7 @@ than an archaeology exercise.
 
 `diff -ruN` from each file's pristine content — the version whose SHA-256
 matches `src/toolcraft/.toolcraft-manifest.json` — to the version this app
-ships. 59 files, +4613 / -377.
+ships. 59 files, +4639 / -377.
 
 Every pristine version was recovered from this repository's own history by
 searching each file's commits for the blob matching its manifest hash, so the
@@ -117,6 +117,20 @@ a frame past the baseline half of what a baseline frame costs, which leaves
 every thirty-frame export byte-for-byte the export it was. It is general: no
 part of it knows what is being filmed, and a runtime that only ever encoded at
 thirty was the thing being fixed.
+
+The change after that adds no files. `state/timeline-selection.ts` and
+`state/timeline-reducer.ts` were already here, and they carry one correction
+each to the paste path. A copy longer than the loop it is pasted into has no
+start that fits, and the shift that exists to make a copy fit was pulling it
+back to zero and then clamping the overhang onto the last frame — where each
+overhanging keyframe overwrote the one before it, so the end of the copy landed
+on the loop's end and silently replaced whatever was already there. A keyframe
+with nowhere to go is now not placed at all, which leaves the track alone
+instead of rewriting it. Alongside it, a paste that changes nothing no longer
+commits a history entry, which is what the move path already did for a
+zero-distance drag. Both are general: neither knows anything about this product,
+and a runtime whose paste can quietly overwrite the keyframes it was not pointed
+at is the thing being fixed.
 
 ## What this patch does not do
 

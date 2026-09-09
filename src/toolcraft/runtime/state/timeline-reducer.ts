@@ -4,6 +4,7 @@ import {
   normalizeToolcraftControlValue,
 } from "./control-value-normalization";
 import { evaluateToolcraftTimelineValue } from "./keyframe-evaluation";
+import { toolcraftTimelineKeyframeGroupListsEqual } from "./toolcraft-keyframe-equality";
 import {
   clampToolcraftTimelinePlaybackRate,
   clampToolcraftTimelineDurationSeconds,
@@ -783,7 +784,15 @@ export function reduceToolcraftTimelineCommand(
         pastedIds.push(keyframe.id);
       });
 
-      if (pastedIds.length === 0) {
+      // A paste that placed nothing, and a paste that put a copy back exactly
+      // where it came from, are both no edit. Committing either spends an undo
+      // step on nothing, so pressing paste three times leaves three entries to
+      // peel off before reaching the last real change. The move path already
+      // declines a zero-distance drag for the same reason.
+      if (
+        pastedIds.length === 0 ||
+        toolcraftTimelineKeyframeGroupListsEqual(state.timeline.keyframeGroups, keyframeGroups)
+      ) {
         return state;
       }
 
