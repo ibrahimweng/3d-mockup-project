@@ -144,6 +144,12 @@ export function TimelineKeyframeRow({
   const selectedGroupKeyframe = group.keyframes.find(
     (keyframe) => keyframe.id === selectedKeyframeId,
   );
+  // Counted against the loop rather than against the visible window: a
+  // keyframe scrolled out of a zoomed view can be scrolled back to, and one
+  // past the end of the loop cannot be reached at all until the loop grows.
+  const pastTheEnd = group.keyframes.filter(
+    (keyframe) => keyframe.timeSeconds > durationSeconds + 0.0001,
+  ).length;
   const getKeyframeTrackElement = (target: Element): HTMLElement | null =>
     target.closest('[data-slot="timeline-keyframe-track"]');
   /**
@@ -367,6 +373,32 @@ export function TimelineKeyframeRow({
               )}
               style={{ left: timelineTrackStartVisualOffsetPx }}
             />
+            {pastTheEnd > 0 ? (
+              /**
+               * Keyframes that no longer fit the loop, said out loud.
+               *
+               * Shortening the loop does not delete anything — lengthen it and
+               * they are all still there — but nothing was drawn past the end,
+               * so an animation that had stopped closing looked identical to
+               * one that never did. That is worse here than in an editor with
+               * no opinion about looping: every move this app lays down ends on
+               * the frame it began on, and a loop that silently stops doing
+               * that hitches once a cycle with nothing on screen to say why.
+               */
+              <span
+                className="absolute top-1/2 right-0 z-40 -translate-y-1/2 translate-x-1/2 rounded-full bg-[color:var(--foreground)] px-1 text-[9px] leading-4 font-medium text-[color:var(--background)] tabular-nums"
+                data-slot="timeline-keyframes-past-end"
+                title={`${pastTheEnd} ${
+                  pastTheEnd === 1 ? 'keyframe sits' : 'keyframes sit'
+                } past the end of the loop and ${
+                  pastTheEnd === 1 ? 'is' : 'are'
+                } not being played. Lengthen the loop to reach ${
+                  pastTheEnd === 1 ? 'it' : 'them'
+                } again.`}
+              >
+                +{pastTheEnd}
+              </span>
+            ) : null}
             <AnimatePresence initial={false}>
               {group.keyframes.map((keyframe) => {
                 const isSelected = selectedKeyframeIds.includes(keyframe.id);
