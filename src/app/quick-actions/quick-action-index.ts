@@ -4,6 +4,7 @@ import type {
 } from "@/toolcraft/runtime";
 
 import { appSchema } from "../app-schema";
+import { MOTION_PRESET_OPTIONS } from "../motion-presets";
 import { PANEL_TAB_TARGET } from "../panel-tabs";
 import {
   createQuickActionEntry,
@@ -192,6 +193,57 @@ function buildQuickActionControlEntries(
   return entries;
 }
 
+/**
+ * Every move by its own name, so the palette can be asked for one.
+ *
+ * The picker in the panel is where these are chosen and the button beside it is
+ * what applies them, and the generic action builder above already finds that
+ * button. What it cannot do is know that "sway" or "flip" or "hero" are things
+ * this app can do — the button is called "Add to timeline", so searching for
+ * the move by name found nothing.
+ *
+ * Each of these sets the picker and then presses the real button rather than
+ * dispatching its own keyframes. Standing up a second way to apply a preset
+ * would mean two paths to keep in step, and the first time they drifted the
+ * palette would lay down a different animation than the panel does.
+ */
+function buildQuickActionMotionEntries(): readonly QuickActionEntry[] {
+  const panelTarget = { sectionId: "motion", tab: "product" } as const;
+
+  return MOTION_PRESET_OPTIONS.filter((option) => option.value !== "none").map((option) =>
+    createQuickActionEntry({
+      groupLabel: "Motion",
+      id: `motion:${option.value}`,
+      keywords: [
+        option.value,
+        "animate",
+        "animation",
+        "motion",
+        "keyframe",
+        "timeline",
+        "preset",
+        "move",
+      ],
+      kind: "animation",
+      prose:
+        option.value === "hero"
+          ? "The move chosen for this particular product, laid down as keyframes across the loop."
+          : "Lays this move down as keyframes across the loop, around wherever the product is standing.",
+      run: ({ activatePanelAction, dispatch }) => {
+        dispatch({
+          label: "Motion preset",
+          target: "motion.preset",
+          type: "controls.setValue",
+          value: option.value,
+        });
+        activatePanelAction({ ...panelTarget, label: "Add to timeline" });
+      },
+      subtitle: "Motion · lay it down as keyframes",
+      title: `Add ${option.label.toLowerCase()} animation`,
+    }),
+  );
+}
+
 function buildQuickActionAnimationEntries(): readonly QuickActionEntry[] {
   const animations = appSchema.panels.timeline?.animations ?? [];
   return animations.map((animation) =>
@@ -375,6 +427,7 @@ export function buildQuickActionIndex(): readonly QuickActionEntry[] {
     }
   }
   entries.push(...buildQuickActionAnimationEntries());
+  entries.push(...buildQuickActionMotionEntries());
   entries.push(...buildQuickActionAppCommandEntries());
   return entries;
 }

@@ -210,6 +210,52 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
   },
   {
     automated: true,
+    automatedTestName: "every option in the picker builds something",
+    browser: true,
+    browserTestName: "browser: each product is given the move that suits it",
+    componentType: "select",
+    evidence: "product-output",
+    expectedObservable:
+      "Choosing a move and pressing Add to timeline fills the timeline with keyframes on the tracks that move stands for, and the product animates. Hero is a different move for each of the ten products \u2014 a wrap-printed bottle turns the whole way round, an iMac does not turn at all \u2014 and every move loops without a hitch at the seam. The keyframes are ordinary ones: dragging them afterwards works exactly as if they had been placed by hand.",
+    fixture: "each product in turn, with the timeline expanded",
+    id: "motion.preset.choose",
+    kind: "control",
+    optionCoverage: [
+      "none",
+      "hero",
+      "turntable",
+      "float",
+      "sway",
+      "flip",
+      "arc",
+      "breathe",
+      "light-sweep",
+    ],
+    target: "motion.preset",
+    timelineCoverage: "keyframes",
+    userAction:
+      "Pick a product, choose a move under Motion, and press Add to timeline.",
+  },
+  {
+    automated: true,
+    automatedTestName: "applying a preset is one command and one thing to undo",
+    browser: true,
+    browserTestName:
+      "browser: a motion preset lays down keyframes that loop and can then be edited",
+    componentType: "actions",
+    evidence: "product-output",
+    expectedObservable:
+      "The press is what writes the keyframes, so browsing the picker changes nothing. It replaces only the tracks the chosen move uses and leaves every other track alone, so a light sweep added over a turntable keeps the turn. One press of undo puts the timeline back exactly as it was, hand-placed keyframes included. Choosing None and pressing again takes the preset's tracks off.",
+    fixture: "a product with a turntable already keyed by hand",
+    id: "motion.apply.press",
+    kind: "control",
+    target: "motion.apply",
+    timelineCoverage: "keyframes",
+    userAction:
+      "Key something by hand, then apply a preset over it, press undo, and apply None.",
+  },
+  {
+    automated: true,
     automatedTestName: "spin turns the subject without moving the camera",
     browser: true,
     browserTestName:

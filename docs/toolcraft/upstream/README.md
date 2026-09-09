@@ -10,7 +10,7 @@ than an archaeology exercise.
 
 `diff -ruN` from each file's pristine content — the version whose SHA-256
 matches `src/toolcraft/.toolcraft-manifest.json` — to the version this app
-ships. 55 files, +4303 / -366.
+ships. 55 files, +4420 / -364.
 
 Every pristine version was recovered from this repository's own history by
 searching each file's commits for the blob matching its manifest hash, so the
@@ -88,6 +88,19 @@ and the contract lines stating it are amended in the same change rather than
 left contradicting the code. The two command fields are separate and general: a
 keyframe write can now merge into a history group the way a value write always
 could, which is what makes a gesture that keys as it goes one thing to undo.
+
+The newest change adds no files to this list. `state/types.ts`,
+`state/timeline-reducer.ts` and `state/reducer.ts` were already on it, and they
+carry one new command: `timeline.setControlKeyframes`, which replaces whole
+tracks in a single patch. It exists because a preset is one statement about
+what the timeline holds rather than a sequence of edits — built out of a delete
+and a keyframe-per-write, applying one put more than a dozen entries in the
+history for a single press, and merging those is lossy because a delete patch
+also carries the value each cleared control falls back to. It is general: any
+caller that wants to set a track rather than edit one wants this, and the
+runtime's own `panels.timeline.animations` would be simpler expressed through
+it. The same change lets a keyframe be created already carrying its curve,
+which is what a preset needs and what an edit made by hand should not have.
 
 ## What this patch does not do
 

@@ -114,6 +114,11 @@ describe("appSchema", () => {
       // the order the decisions happen in: pick the thing, colour the thing,
       // then print on it.
       "product-parts",
+      // Then how it moves, still on the Product tab, because which move suits a
+      // product is a fact about the product rather than about the camera two
+      // of the moves happen to animate. Its select and its button share one
+      // section: both are grouped-layout, so nothing is split.
+      "motion",
       "artwork",
       // The templates the uploads are drawn against, directly under them: an
       // actions control is grouped-layout where the uploaders are standalone,

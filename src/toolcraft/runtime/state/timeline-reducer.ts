@@ -24,6 +24,7 @@ import type {
   ToolcraftCommand,
   ToolcraftState,
   ToolcraftTimelineKeyframe,
+  ToolcraftTimelineKeyframeEasing,
   ToolcraftTimelineKeyframeGroup,
 } from "./types";
 
@@ -41,6 +42,7 @@ type ToolcraftTimelineCommand = Extract<
       | "timeline.pasteKeyframes"
       | "timeline.selectKeyframe"
       | "timeline.setKeyframeSelection"
+      | "timeline.setControlKeyframes"
       | "timeline.setCurrentTime"
       | "timeline.setDuration"
       | "timeline.setExpanded"
@@ -57,6 +59,7 @@ type ToolcraftTimelineCommand = Extract<
 function createTimelineControlKeyframe({
   controlId,
   controlLabel,
+  easing,
   state,
   timeSeconds,
   value,
@@ -64,6 +67,12 @@ function createTimelineControlKeyframe({
 }: {
   controlId: string;
   controlLabel: string;
+  /**
+   * Set where a keyframe is laid down already knowing its curve, which a
+   * preset does. Left off, the keyframe takes the editor's default, which is
+   * what an edit made by hand should do.
+   */
+  easing?: ToolcraftTimelineKeyframeEasing;
   state: ToolcraftState;
   timeSeconds?: number;
   value: unknown;
@@ -79,6 +88,7 @@ function createTimelineControlKeyframe({
   return {
     controlId,
     controlLabel,
+    ...(easing ? { easing } : {}),
     id: getToolcraftTimelineKeyframeId(controlId, resolvedTimeSeconds),
     timeSeconds: resolvedTimeSeconds,
     value,
@@ -547,6 +557,85 @@ export function reduceToolcraftTimelineCommand(
         // back to the track as it stood before the drag began.
         { group: command.historyGroup, mode: command.history },
       );
+    }
+
+    case "timeline.setControlKeyframes": {
+      const replaced = new Set(command.tracks.map((entry) => entry.controlId));
+      const kept = state.timeline.keyframeGroups.filter(
+        (group) => !replaced.has(group.controlId),
+      );
+      const written = command.tracks.flatMap((entry) => {
+        const keyframes = entry.keyframes
+          .flatMap((keyframe) => {
+            const normalized = normalizeTimelineControlValue(
+              state,
+              entry.controlId,
+              keyframe.value,
+            );
+
+            // A value this control could never hold is dropped rather than
+            // written, so a preset built against a schema that has since
+            // changed lays down the part of itself that still applies instead
+            // of nothing at all.
+            return normalized.accepted
+              ? [
+                  createTimelineControlKeyframe({
+                    controlId: entry.controlId,
+                    controlLabel: entry.controlLabel,
+                    easing: keyframe.easing,
+                    state,
+                    timeSeconds: keyframe.timeSeconds,
+                    value: normalized.value,
+                    valueLabel: keyframe.valueLabel,
+                  }),
+                ]
+              : [];
+          })
+          // Two keyframes rounded onto the same frame are one keyframe, and
+          // the later one wins: an id is a control and a time, so keeping both
+          // would put two points on one frame carrying the same id.
+          .reduce<ToolcraftTimelineKeyframe[]>((all, keyframe) => {
+            const existing = all.findIndex((item) => item.id === keyframe.id);
+
+            if (existing >= 0) {
+              all[existing] = keyframe;
+              return all;
+            }
+
+            return [...all, keyframe];
+          }, [])
+          .sort((first, second) => first.timeSeconds - second.timeSeconds);
+
+        return keyframes.length > 0
+          ? [
+              {
+                controlId: entry.controlId,
+                keyframes,
+                label:
+                  state.timeline.keyframeGroups.find(
+                    (group) => group.controlId === entry.controlId,
+                  )?.label ?? entry.controlLabel,
+              },
+            ]
+          : [];
+      });
+      const keyframeGroups = [...kept, ...written];
+      const timeline = {
+        ...state.timeline,
+        expanded: true,
+        keyframeGroups,
+        ...pruneToolcraftTimelineSelection(state.timeline, keyframeGroups),
+      };
+      // A track asked for and then not written is a track being cleared, and a
+      // cleared control holds the frame the playhead was showing rather than
+      // the raw value nothing has read since it was first keyed.
+      const heldValues = getUnkeyframedControlValuePatch(state, keyframeGroups);
+
+      return commitToolcraftStatePatch(state, {
+        after: { ...heldValues.after, timeline },
+        before: { ...heldValues.before, timeline: state.timeline },
+        label: "Set control keyframes",
+      });
     }
 
     case "timeline.moveKeyframe": {

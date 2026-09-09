@@ -357,6 +357,15 @@ export const appControlSectionInventory: readonly ToolcraftControlSectionInvento
       title: "Artwork",
     },
     {
+      entity: "Motion",
+      entityId: "motion",
+      groupingReason:
+        "Choosing a move and committing it are one decision in two halves, and neither is any use without the other. It sits on the Product tab rather than beside the camera and lights, though two of the moves animate the camera and one animates the key light, because which move suits a thing is a fact about the thing \u2014 the Hero is different for all ten products \u2014 and somebody who has just picked a tote bag is who wants to know what a tote bag should do.",
+      id: "motion",
+      targets: ["motion.preset", "motion.apply"],
+      title: "Motion",
+    },
+    {
       entity: "Templates",
       entityId: "artwork-templates",
       groupingReason:
