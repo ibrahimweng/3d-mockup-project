@@ -152,6 +152,61 @@ test("a shift-click selects a second keyframe and a drag moves both", async ({ p
   ).toBe(before[2].timeSeconds);
 });
 
+test("the keyboard works on a keyframe picked with the mouse", async ({ page }) => {
+  // The way anybody would do it: click the diamond, press the key. Every
+  // timeline shortcut lives on the scrubber strip, which is focusable but was
+  // never focused by the press that selects a keyframe — the press has to
+  // prevent its default for the drag to work, and that is also what stops the
+  // button taking focus. So the whole keyboard toolkit was dead unless you
+  // happened to tab onto a strip nobody knows is focusable.
+  //
+  // Nothing caught it because nothing tested it: the reducer had unit tests and
+  // the browser covered selection through the mouse, so the mechanism was
+  // proven and its reachability never was. This test takes the ordinary route
+  // and focuses nothing by hand.
+  test.setTimeout(420_000);
+  await page.goto("/");
+  await openTimeline(page);
+
+  const spin = await getToolcraftControlFieldByTarget(page, "device.spin");
+  await keySpin(page, spin);
+
+  const before = (await readKeyframes(page)).map((keyframe) => keyframe.timeSeconds);
+  expect(before.length, "three keyframes to work on").toBe(3);
+
+  await clickKeyframe(page, 1);
+  expect(
+    await page.locator('[data-slot="timeline-keyframe"][data-selected="true"]').count(),
+    "clicking a diamond selects it",
+  ).toBe(1);
+
+  // Nudge it later, then back, and the row has to follow both times.
+  await page.keyboard.press("ArrowRight");
+  await page.waitForTimeout(1_200);
+  const nudged = (await readKeyframes(page)).map((keyframe) => keyframe.timeSeconds);
+
+  expect(
+    nudged[1],
+    `A keyframe picked with the mouse must answer the keyboard: ${before} then ${nudged}.`,
+  ).toBeGreaterThan(before[1]!);
+
+  await page.keyboard.press("ArrowLeft");
+  await page.waitForTimeout(1_200);
+  expect((await readKeyframes(page)).map((keyframe) => keyframe.timeSeconds)).toEqual(before);
+
+  // And Delete, which is the most obvious thing anyone would press. No second
+  // click first: the nudges kept the selection, and clicking the one selected
+  // keyframe is how a selection is cleared.
+  await page.keyboard.press("Delete");
+  await page.waitForTimeout(1_200);
+
+  const remaining = (await readKeyframes(page)).map((keyframe) => keyframe.timeSeconds);
+  expect(remaining, "Delete takes the selected keyframe off the row").toEqual([
+    before[0]!,
+    before[2]!,
+  ]);
+});
+
 test("a dragged keyframe lands exactly on the playhead", async ({ page }) => {
   test.setTimeout(420_000);
   await page.goto("/");

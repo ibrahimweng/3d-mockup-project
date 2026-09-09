@@ -388,6 +388,12 @@ export function TimelineExpandedContent({
       return;
     }
 
+    // Same reason as the keyframes: the strip carries the shortcuts and is
+    // `tabIndex={0}`, but the press that reaches it is prevented from doing
+    // the focusing itself, so pressing the timeline never put the keyboard on
+    // it. Scroll is suppressed because the strip can be taller than its own
+    // scroller and focusing it must not jump the rows.
+    stripRef.current?.focus({ preventScroll: true });
     onPointerDown(event);
   };
 
