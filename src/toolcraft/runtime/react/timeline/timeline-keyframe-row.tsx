@@ -183,6 +183,17 @@ export function TimelineKeyframeRow({
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture?.(event.pointerId);
+    // Selecting a keyframe with the mouse has to hand the keyboard somewhere
+    // useful, and the strip is where every timeline shortcut lives. The
+    // `preventDefault` above is what a drag needs and is also what stops this
+    // button taking focus by itself, so focus is moved on purpose: without it
+    // the whole keyboard toolkit — nudge, copy, paste, delete — was dead after
+    // a mouse selection, reachable only by tabbing to a strip nobody knows is
+    // focusable. Pressing a diamond and then Delete is the obvious way to
+    // delete a keyframe, and it did nothing at all.
+    trackElement
+      .closest<HTMLElement>('[data-slot="timeline-expanded-scrubber"]')
+      ?.focus({ preventScroll: true });
 
     const additive = event.shiftKey;
     const keyframeIds = getDragKeyframeIds(keyframe.id, additive);

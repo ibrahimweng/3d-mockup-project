@@ -10,7 +10,7 @@ than an archaeology exercise.
 
 `diff -ruN` from each file's pristine content — the version whose SHA-256
 matches `src/toolcraft/.toolcraft-manifest.json` — to the version this app
-ships. 55 files, +4485 / -365.
+ships. 55 files, +4502 / -365.
 
 Every pristine version was recovered from this repository's own history by
 searching each file's commits for the blob matching its manifest hash, so the
