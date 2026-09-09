@@ -34,7 +34,11 @@ export const MOTION_SECTION = {
       performanceRole: "responsiveness",
       semanticGroup: "choice",
       target: "motion.preset",
-      type: "select",
+      // A type the runtime has no renderer for, which is what routes this to
+      // the product's own. A select would have been rendered by the runtime
+      // and could not show what any of its options do; custom renderers are
+      // keyed by control type, so it also had to be a type nothing else uses.
+      type: "motionPicker",
     },
     apply: {
       actions: [

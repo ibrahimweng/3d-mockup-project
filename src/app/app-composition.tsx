@@ -17,6 +17,7 @@ import { readDeviceDefinition, readDeviceId } from "./product-domain";
 import { rendererPipeline } from "./render/pipeline";
 import { getMockupSceneRect } from "./scene-bounds";
 import { downloadArtworkTemplates } from "./template-download";
+import { MotionPicker } from "./motion-picker";
 import { getMotionPresetCommand } from "./apply-motion-preset";
 import { readMotionPresetId } from "./motion-presets";
 
@@ -34,6 +35,9 @@ export const appComposition: ToolcraftAppComposition = {
       <SponsorBox />
     </>
   ),
+  // Keyed by control type: `motionPicker` is a type the runtime does not
+  // render, so this is the only control it reaches.
+  controlRenderers: { motionPicker: MotionPicker },
   exportRenderer: mockupExportRenderer,
   /**
    * The two actions this product owns that the runtime does not.

@@ -213,10 +213,20 @@ export const outputAcceptance: readonly ToolcraftComponentAcceptance[] = [
     automatedTestName: "every option in the picker builds something",
     browser: true,
     browserTestName: "browser: each product is given the move that suits it",
-    componentType: "select",
+    builtInFitCheck: {
+      capabilities: ["custom-visualization"],
+      checkedBuiltIns: ["select", "segmented", "imagePicker"],
+      closestBuiltIn: "select",
+      productObservable:
+        "Each tile animates the move it names, so a turntable turns the product and leaves the floor while a camera arc turns the floor with it \u2014 the difference between the two \u2014 and Hero shows whichever move this product was given.",
+      whyInsufficient:
+        "A select and a segmented control can only render the option's words, and the words are the problem: Sway and Float both mean \"it moves a bit\", and Hero means nothing at all until you know which product is selected. The only way to find out what an option did was to press the button that lays keyframes over whatever was already there, so curiosity cost somebody their animation. ImagePicker was the closest fit that shows anything and still cannot: its items are static images, and what has to be conveyed is motion \u2014 a still frame of a turntable and a still frame of a float are the same picture.",
+    },
+    componentType: "motionPicker",
+    customControlCoverage: "all-custom-control-behavior",
     evidence: "product-output",
     expectedObservable:
-      "Choosing a move and pressing Add to timeline fills the timeline with keyframes on the tracks that move stands for, and the product animates. Hero is a different move for each of the ten products \u2014 a wrap-printed bottle turns the whole way round, an iMac does not turn at all \u2014 and every move loops without a hitch at the seam. The keyframes are ordinary ones: dragging them afterwards works exactly as if they had been placed by hand.",
+      "The picker draws every move as a small looping animation rather than naming it, so what a move does is visible before it is applied. Choosing one and pressing Add to timeline fills the timeline with keyframes on the tracks that move stands for, and the product animates. Hero is a different move for each of the ten products \u2014 a wrap-printed bottle turns the whole way round, an iMac does not turn at all \u2014 and every move loops without a hitch at the seam. The keyframes are ordinary ones: dragging them afterwards works exactly as if they had been placed by hand.",
     fixture: "each product in turn, with the timeline expanded",
     id: "motion.preset.choose",
     kind: "control",
