@@ -21,11 +21,16 @@ import {
 } from './timeline-panel-layout';
 
 /**
- * The shortest the graph is worth drawing at. It fills whatever the rows area
- * gives it and only scrolls when that is less than this, because a value curve
- * squeezed into a keyframe row's thirty-six pixels shows nothing a row does not.
+ * How tall the panel grows to when the graph is showing.
+ *
+ * The rows area is normally sized by how many tracks are keyed — thirty-six
+ * pixels each — and a graph in the seventy-two pixels two tracks earn is a
+ * curve you have to scroll to see the rest of, which is no better than the
+ * diamonds it replaced. So graph mode asks for its own height instead, and the
+ * panel is sized from this rather than from a row count that means nothing
+ * while it is on.
  */
-export const timelineValueGraphMinHeightPx = 140;
+export const timelineValueGraphHeightPx = 180;
 
 /**
  * A track drawn as what its value does, rather than as a row of diamonds.
@@ -127,7 +132,7 @@ export function TimelineValueGraph({
     <div
       className="absolute inset-0 w-full select-none"
       data-slot="timeline-value-graph"
-      style={{ minHeight: timelineValueGraphMinHeightPx }}
+      style={{ minHeight: timelineValueGraphHeightPx }}
     >
       <div className="absolute inset-y-0 left-0 flex w-[164px] flex-col justify-between border-r border-[color:color-mix(in_oklab,var(--border)_6%,transparent)] px-3 py-2 text-[11px] leading-4">
         <span className="truncate text-[color:var(--foreground)]" title={group.label}>
@@ -278,7 +283,7 @@ function TimelineValueGraphMessage({
     <div
       className="absolute inset-0 flex w-full items-center justify-center px-4 text-[11px] leading-4 opacity-50"
       data-slot="timeline-value-graph"
-      style={{ minHeight: timelineValueGraphMinHeightPx }}
+      style={{ minHeight: timelineValueGraphHeightPx }}
     >
       {children}
     </div>

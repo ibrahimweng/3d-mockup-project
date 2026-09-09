@@ -254,6 +254,25 @@ The quoted evidence must be an exact nontrivial raw substring of `Request` with 
 - Verification: One bare `npm run verify:delivery` will derive and run the protected proof.
 - Risks: The controls sit in Video Export, and in practice that is where they matter, but they are not video-only: the runtime calls the same product hook for an image export, and nothing in what it passes says which is running. So a still exported while something is mid-motion is blurred too. That is arguably right — it is what a camera would do — and it is opt-in, but the description says so rather than leaving it to be discovered. The other cost is time: a blurred frame is drawn eight times, so a clip takes roughly eight times as long to write, which is why the switch is off by default and why frames that do not move are detected and drawn once. The 30 FPS a shutter angle is measured against is named in product code and owned by the runtime; if the runtime's schedule ever changed, `motionBlurFrameSeconds` is the line that would have to change with it.
 
+### Iteration 13 — The value graph gets the height it needs
+
+- Request: "let's test the timeline animation again", after all four changes had landed. A test rather than a new feature, and it found one thing wrong.
+- Task type: Timeline panel layout. A fault in what was shipped one iteration earlier.
+- User-visible result: Switching to the value graph now makes the timeline panel taller instead of squeezing the graph into the height the keyframe rows happened to need. Before this the rows area was seventy-two pixels for a single keyed track, the graph asked for a hundred and forty, and the difference went behind a scrollbar — so about half the curve was off screen and the rest needed scrolling, which is no better than the diamonds it replaced.
+- Source/reference checked: The built product, driven through a whole workflow rather than feature by feature: build an animation, snap a keyframe to the end of the loop, retime a selection, copy and paste it, ease an arrival, look at it as a graph, step about with the keys, check the export controls. Everything else passed. The graph was measured rather than eyeballed once it looked wrong: `timeline-expanded-rows` 72px tall, `scrollHeight` 140, overflowing.
+- Reference inputs: None.
+- Docs/contracts read: `AGENTS.md`, `CLAUDE.md`, `docs/toolcraft/core/layout.md`.
+- Contract rules applied: `timeline-enabled-behavior`. The panel is still the runtime timeline sizing itself; nothing here adds app-level timeline UI.
+- View interaction intent: `orbit`, unchanged.
+- Interaction ownership: Unchanged.
+- Decision: `getTimelinePanelExpandedSize` takes graph mode and sizes the rows area from the graph's own height when it is on. A row count says nothing about how tall a graph needs to be — it draws one track whether ten are keyed or one — so sizing the panel from rows it is not showing was the mistake. The graph's height went from a 140px minimum to a declared 180, which is enough to read a curve without the panel dominating the window.
+- Alternatives rejected: Letting the graph scroll, which is what it did and what made this worth fixing. Also rejected: making the graph fill whatever height it is given without asking for more, which is what the first version did — `absolute inset-0` takes it out of flow, so it contributed no height and the container never grew.
+- State/output mapping: Graph mode was already runtime view state; it now also reaches the panel's own size calculation. Nothing about the animation changes.
+- Performance intent: ordinary-product-work
+- Focused checks: Measured in a real browser before and after: the rows area goes from 72px overflowing a 140px graph to 180px holding a 180px graph with `scrollHeight === clientHeight`. Every gate this repository's CI defines was run whole and passed.
+- Verification: One bare `npm run verify:delivery` will derive and run the protected proof.
+- Risks: The panel is taller in graph mode, which on a short window leaves less canvas. That is the trade the graph is worth and it reverses the moment the toggle goes off. Two readings during this test looked like defects and were not, which is worth recording because the next person to drive this panel will hit the same thing: keyframe diamonds animate out over 140ms, so a track sampled immediately after a drag shows both the old positions and the new — a three-keyframe track reads as five. Sampling until the reading stops changing is the fix, and the browser specs already wait long enough. Separately, dragging a selection onto an unselected keyframe consumes it, which is the documented collision rule and matches After Effects; it is destructive and silent, and one undo puts it back exactly.
+
 ## Decisions
 
 ### Renderer

@@ -40,6 +40,7 @@ import {
   isTimelineInteractiveElement,
 } from './timeline-event-targets';
 import { TimelineExpandedContent } from './timeline-expanded-content';
+import { timelineValueGraphHeightPx } from './timeline-value-graph';
 import { copyToolcraftTimelineSelection } from '../../state/timeline-selection';
 import {
   getToolcraftTimelineClipboard,
@@ -109,12 +110,20 @@ const selectCommittedTimeline = (state: ToolcraftState) => state.timeline;
 const selectCurrentTimeSeconds = (state: ToolcraftState) =>
   state.timeline.currentTimeSeconds;
 
-function getTimelinePanelExpandedSize(rowCount: number): {
+function getTimelinePanelExpandedSize(
+  rowCount: number,
+  isGraphMode: boolean,
+): {
   height: number;
   width: number;
 } {
-  const rowAreaHeight =
-    rowCount > 0
+  // A row count says nothing about how tall the graph needs to be: it draws one
+  // track whether ten are keyed or one, and sizing the panel from the rows it
+  // is not showing left the curve in seventy-two pixels with the rest of it
+  // behind a scrollbar.
+  const rowAreaHeight = isGraphMode
+    ? timelineValueGraphHeightPx
+    : rowCount > 0
       ? Math.min(rowCount * timelineKeyframeRowHeightPx, timelineKeyframeListMaxHeightPx)
       : timelineEmptyStateHeightPx;
 
@@ -210,7 +219,7 @@ export function TimelinePanel({
       total + 1 + (collapsedObjectIds.includes(track.objectId) ? 0 : track.groups.length),
     0,
   );
-  const expandedPanelSize = getTimelinePanelExpandedSize(visibleRowCount);
+  const expandedPanelSize = getTimelinePanelExpandedSize(visibleRowCount, isGraphMode);
   // Only the expanded track can be zoomed; the collapsed header always draws the
   // whole loop, so it asks for a window that covers all of it.
   const view = useMemo(
