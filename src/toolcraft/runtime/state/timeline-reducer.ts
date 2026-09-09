@@ -561,9 +561,6 @@ export function reduceToolcraftTimelineCommand(
 
     case "timeline.setControlKeyframes": {
       const replaced = new Set(command.tracks.map((entry) => entry.controlId));
-      const kept = state.timeline.keyframeGroups.filter(
-        (group) => !replaced.has(group.controlId),
-      );
       const written = command.tracks.flatMap((entry) => {
         const keyframes = entry.keyframes
           .flatMap((keyframe) => {
@@ -619,7 +616,26 @@ export function reduceToolcraftTimelineCommand(
             ]
           : [];
       });
-      const keyframeGroups = [...kept, ...written];
+      // Replaced tracks keep the place they already had, and only genuinely new
+      // ones are appended. Rebuilding the list as "everything else, then what
+      // this command wrote" reordered the panel every time a preset was
+      // applied over another — the rows jumped around under the pointer, which
+      // is exactly what `getToolcraftTimelineObjectTracks` keeps insertion
+      // order to avoid.
+      const writtenById = new Map(written.map((group) => [group.controlId, group]));
+      const keyframeGroups = [
+        ...state.timeline.keyframeGroups.flatMap((group) => {
+          const replacement = writtenById.get(group.controlId);
+
+          if (replacement) {
+            writtenById.delete(group.controlId);
+            return [replacement];
+          }
+
+          return replaced.has(group.controlId) ? [] : [group];
+        }),
+        ...writtenById.values(),
+      ];
       const timeline = {
         ...state.timeline,
         expanded: true,
