@@ -304,6 +304,106 @@ test("browser: turning a track off takes its row away with it", async ({ page })
   expect(visibleSpin, "no ghost diamonds left on screen").toBe(0);
 });
 
+test("browser: the picker shows what each move does before it is applied", async ({ page }) => {
+  // Choosing an animation from a list of names is choosing blind, and the only
+  // way to find out what one did was to press the button that lays keyframes
+  // over whatever was there. Every tile now animates the move it names, driven
+  // by the same definition the timeline gets.
+  await page.setViewportSize({ height: 2000, width: 2600 });
+  await page.goto("/");
+  await page
+    .locator("[data-toolcraft-product-output]")
+    .first()
+    .waitFor({ state: "visible", timeout: 120_000 });
+  await page.waitForTimeout(3_000);
+
+  const tiles = () =>
+    page.evaluate(() =>
+      [...document.querySelectorAll('[data-slot="motion-preset-tile"]')].map((tile) => {
+        let running = 0;
+
+        for (const element of tile.querySelectorAll("*")) {
+          running += (element as Element & { getAnimations?: () => unknown[] })
+            .getAnimations?.()
+            .length ?? 0;
+        }
+
+        return {
+          preset: tile.getAttribute("data-motion-preset"),
+          running,
+          selected: tile.getAttribute("data-selected") === "true",
+        };
+      }),
+    );
+
+  const drawn = await tiles();
+  expect(drawn.length, "a tile for every move the picker offers").toBe(9);
+
+  for (const tile of drawn) {
+    if (tile.preset === "none") {
+      expect(tile.running, "None does not move, which is what None means").toBe(0);
+      continue;
+    }
+
+    expect(tile.running, `${tile.preset} has to actually animate`).toBeGreaterThan(0);
+  }
+
+  // Clicking a tile chooses it and writes nothing to the timeline: the press on
+  // the button is still the only thing that lays keyframes down.
+  await page.locator('[data-motion-preset="sway"]').first().click();
+  await page.waitForTimeout(800);
+
+  expect((await tiles()).filter((tile) => tile.selected).map((tile) => tile.preset)).toEqual([
+    "sway",
+  ]);
+  expect(
+    await timelineRows(page),
+    "browsing the picker must still write nothing",
+  ).toEqual({});
+
+  // Hero is the option whose name says least, so its tile has to say most —
+  // and it says something different for different products.
+  const heroTransforms = () =>
+    page.evaluate(() => {
+      const tile = document.querySelector('[data-motion-preset="hero"]');
+      const seen: string[] = [];
+
+      for (const element of tile?.querySelectorAll("*") ?? []) {
+        for (const animation of (element as Element & { getAnimations?: () => Animation[] })
+          .getAnimations?.() ?? []) {
+          for (const frame of animation.effect?.getKeyframes?.() ?? []) {
+            const transform = (frame as { transform?: string }).transform;
+            if (transform) seen.push(transform);
+          }
+        }
+      }
+
+      return seen;
+    });
+
+  await pickOption(await getToolcraftControlFieldByTarget(page, "device.model"), "Water Bottle");
+  await page.waitForTimeout(7_000);
+  const bottle = await heroTransforms();
+
+  await pickOption(await getToolcraftControlFieldByTarget(page, "device.model"), "iMac");
+  await page.waitForTimeout(7_000);
+  const imac = await heroTransforms();
+
+  // A wrap has no front, so the bottle turns the whole way round. An iMac is
+  // furniture, so the shot comes to it instead.
+  expect(bottle.some((transform) => transform.includes("rotateY(360deg)"))).toBe(true);
+  expect(
+    imac.some((transform) => transform.includes("rotateY(360deg)")),
+    "nobody turns an iMac around to look at its back",
+  ).toBe(false);
+  expect(imac.some((transform) => transform.startsWith("scale("))).toBe(true);
+
+  // And the reason each product was given that move is on screen rather than
+  // buried in the source.
+  const reason = await page.locator('[data-slot="motion-preset-reason"]').first().innerText();
+  expect(reason.length, "Hero explains itself for this product").toBeGreaterThan(60);
+});
+
 test("browser: each product is given the move that suits it", async ({ page }) => {
   // The claim the tuning table makes, and the one that cannot be checked
   // anywhere but here: Hero is a different animation for different products,
