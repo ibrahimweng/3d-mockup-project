@@ -10,7 +10,7 @@ than an archaeology exercise.
 
 `diff -ruN` from each file's pristine content — the version whose SHA-256
 matches `src/toolcraft/.toolcraft-manifest.json` — to the version this app
-ships. 59 files, +4639 / -377.
+ships. 59 files, +4670 / -381.
 
 Every pristine version was recovered from this repository's own history by
 searching each file's commits for the blob matching its manifest hash, so the
@@ -131,6 +131,19 @@ commits a history entry, which is what the move path already did for a
 zero-distance drag. Both are general: neither knows anything about this product,
 and a runtime whose paste can quietly overwrite the keyframes it was not pointed
 at is the thing being fixed.
+
+The newest change adds no files either. `react/timeline/timeline-panel.tsx` and
+`state/timeline-reducer.ts` were already here, and they carry one rule between
+them: a duration that cannot be read is not an edit. The panel handed
+`Number.parseFloat` straight to a clamp whose answer to a `NaN` is the runtime's
+own default of eight seconds, so a duration typed as anything not beginning with
+a digit did not fail — it moved the end of the loop to a length nobody asked
+for, stranding every keyframe past it. The panel now declines an unreadable
+value exactly as its own current-time field a dozen lines above always has, and
+the reducer's fallback is the loop's current length rather than the shortest one
+allowed, so a malformed command leaves the animation alone instead of collapsing
+it to a second. Both are general, and the second is the sort of thing only a
+runtime can fix: no product can stop a command it did not send.
 
 ## What this patch does not do
 

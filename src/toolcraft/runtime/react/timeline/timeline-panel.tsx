@@ -679,10 +679,32 @@ export function TimelinePanel({
       type: 'timeline.setCurrentTime',
     });
   };
+  /**
+   * An edit that cannot be read is not an edit.
+   *
+   * This used to hand `Number.parseFloat` straight to the clamp, which answers
+   * a `NaN` with the runtime's own default of eight seconds. So a duration
+   * typed as anything not starting with a digit did not fail — it set the loop
+   * to eight, a length nobody asked for and not even this app's default of six.
+   * That is worse than an ignored keystroke, because shortening a loop strands
+   * every keyframe past the new end: a twenty-second move typed over became an
+   * eight-second loop with more than half of it no longer playing.
+   *
+   * `commitCurrentTimeValue` above has always done the right thing with the
+   * same problem, and this is the same rule: an unreadable number leaves the
+   * loop as it was.
+   */
   const commitDurationValue = (nextValue: string): void => {
-    const nextDuration = clampToolcraftTimelineDurationSeconds(Number.parseFloat(nextValue));
+    const parsed = Number.parseFloat(nextValue);
 
-    dispatch({ durationSeconds: nextDuration, type: 'timeline.setDuration' });
+    if (!Number.isFinite(parsed)) {
+      return;
+    }
+
+    dispatch({
+      durationSeconds: clampToolcraftTimelineDurationSeconds(parsed),
+      type: 'timeline.setDuration',
+    });
   };
   const deleteControlKeyframes = (controlId: string): void => {
     dispatch({ controlId, type: 'timeline.deleteControlKeyframes' });
