@@ -10,7 +10,7 @@ than an archaeology exercise.
 
 `diff -ruN` from each file's pristine content — the version whose SHA-256
 matches `src/toolcraft/.toolcraft-manifest.json` — to the version this app
-ships. 59 files, +4670 / -381.
+ships. 59 files, +4677 / -378.
 
 Every pristine version was recovered from this repository's own history by
 searching each file's commits for the blob matching its manifest hash, so the
@@ -144,6 +144,17 @@ the reducer's fallback is the loop's current length rather than the shortest one
 allowed, so a malformed command leaves the animation alone instead of collapsing
 it to a second. Both are general, and the second is the sort of thing only a
 runtime can fix: no product can stop a command it did not send.
+
+The change after that touches one file already here,
+`react/timeline/timeline-keyframe-row.tsx`, and only the plain click on a
+keyframe. Clicking the one keyframe that was already selected used to clear the
+selection, which was symmetrical with narrowing a larger one to a single
+keyframe and wrong in use: the curve button exists only while something is
+selected, so going back to a keyframe to try a second easing took the button
+away instead of reopening it, and a third click was needed to undo what the
+second had done. A click now selects, and only Escape clears. Shift-click still
+adds and removes, and clicking one of several still narrows to it. This is a
+behaviour decision rather than a defect, and it was the operator's to make.
 
 ## What this patch does not do
 

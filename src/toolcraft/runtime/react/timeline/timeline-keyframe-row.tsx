@@ -453,17 +453,27 @@ export function TimelineKeyframeRow({
 
                       // Everything here is judged on the selection as it was
                       // before the press, because pressing an unselected
-                      // keyframe already selected it. Clicking the one selected
-                      // keyframe clears it; clicking one of several narrows to
-                      // it, which is how a group is broken up after being
-                      // dragged; clicking an unselected one selects it.
-                      onSelectKeyframe(
+                      // keyframe already selected it. Clicking one of several
+                      // narrows to it, which is how a group is broken up after
+                      // being dragged; clicking an unselected one selects it.
+                      //
+                      // Clicking the one already-selected keyframe used to
+                      // clear it, which was symmetrical with narrowing and
+                      // wrong in use: the easing button lives on the selection,
+                      // so going back to a keyframe to try a different curve
+                      // took the button away instead of reopening it, and the
+                      // third click was needed to get back what the second one
+                      // removed. No editor of this kind deselects on a plain
+                      // click, and Escape already clears the selection without
+                      // asking anybody to click the thing they want.
+                      if (
                         clickIntent.wasSelectedOnPointerDown &&
-                          clickIntent.selectionSizeOnPointerDown === 1
-                          ? null
-                          : keyframe.id,
-                        false,
-                      );
+                        clickIntent.selectionSizeOnPointerDown === 1
+                      ) {
+                        return;
+                      }
+
+                      onSelectKeyframe(keyframe.id, false);
                     }}
                     onPointerCancel={endKeyframeDrag}
                     onPointerDown={(event) => handleKeyframePointerDown(event, keyframe)}
