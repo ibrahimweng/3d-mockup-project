@@ -96,6 +96,29 @@ test("shift-click builds a selection, and clicking again takes one back out", ()
   expect(single.timeline.selectedKeyframeId).toBe(idAt(state, 0));
 });
 
+test("selecting the keyframe that is already selected leaves it selected", () => {
+  // A plain click used to clear the one selected keyframe, on the reasoning
+  // that narrowing a selection of one to itself has nothing to say. It has
+  // something to say in use: the curve button only exists while something is
+  // selected, so going back to a keyframe to try a second easing took the
+  // button away rather than reopening it. The command has always been a plain
+  // set rather than a toggle, and this is the test that it stays one -- the
+  // panel is what changed, and it now relies on this.
+  const state = select(withSpinAt(0, 1, 2), 1);
+
+  expect(state.timeline.selectedKeyframeIds).toEqual([idAt(state, 1)]);
+
+  const again = run(state, { keyframeId: idAt(state, 1), type: "timeline.selectKeyframe" });
+
+  expect(again.timeline.selectedKeyframeIds, "still the one").toEqual([idAt(state, 1)]);
+  expect(again.timeline.selectedKeyframeId, "and still the anchor").toBe(idAt(state, 1));
+
+  // Clearing it is still possible, which is what Escape sends.
+  const cleared = run(again, { keyframeId: null, type: "timeline.selectKeyframe" });
+
+  expect(cleared.timeline.selectedKeyframeIds).toEqual([]);
+});
+
 test("dragging a selection keeps its shape", () => {
   // The whole point of a multi-selection: a move you already timed should be
   // possible to slide later without re-timing it.
